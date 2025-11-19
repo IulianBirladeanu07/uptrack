@@ -1,0 +1,148 @@
+import { StyleSheet } from 'react-native';
+import { normalize } from '../../../../shared/hooks/useResponsive';
+
+const styles = StyleSheet.create({
+    buttonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: normalize(20),
+        width: '100%',
+    },
+    backButton: {
+        backgroundColor: '#444',
+        borderRadius: normalize(8),
+        paddingVertical: normalize(12),
+        paddingHorizontal: normalize(24),
+        alignItems: 'center',
+        flex: 1,
+        marginRight: normalize(10),
+    },
+    nextButton: {
+        backgroundColor: '#FFA726',
+        borderRadius: normalize(8),
+        paddingVertical: normalize(12),
+        paddingHorizontal: normalize(24),
+        alignItems: 'center',
+        flex: 1,
+    },
+    disabledButton: {
+        opacity: 0.5,
+    },
+    buttonText: {
+        fontSize: normalize(16),
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+    },
+    stepContainer: {
+        backgroundColor: 'rgba(30, 41, 59, 0.5)',
+        padding: normalize(20),
+        borderRadius: normalize(15),
+        marginVertical: normalize(15),
+        width: '90%',
+        alignSelf: 'center',
+    },
+    title: {
+        fontSize: normalize(24),
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        marginBottom: normalize(10),
+        textAlign: 'center',
+    },
+    description: {
+        fontSize: normalize(16),
+        color: '#D0D0D0',
+        marginBottom: normalize(20),
+        textAlign: 'center',
+    },
+    progress: {
+        fontSize: normalize(14),
+        fontWeight: '500',
+        color: '#FFA726',
+        marginBottom: normalize(8),
+        textAlign: 'center',
+    },
+    progressBarContainer: {
+        height: normalize(6),
+        backgroundColor: '#333',
+        borderRadius: normalize(50),
+        overflow: 'hidden',
+        marginVertical: normalize(8),
+        width: '85%',
+        alignSelf: 'center',
+    },
+    progressBar: {
+        backgroundColor: '#FFA726',
+        borderRadius: normalize(50),
+        height: '100%',
+    },
+    input: {
+        height: normalize(55),
+        borderColor: '#555',
+        borderWidth: 1,
+        borderRadius: normalize(8),
+        paddingHorizontal: normalize(15),
+        marginBottom: normalize(16),
+        backgroundColor: 'rgba(30, 41, 59, 0.9)',
+        color: '#FFFFFF',
+        fontSize: normalize(18),
+        width: '100%',
+    },
+    pickerWrapper: {
+        height: normalize(55),
+        justifyContent: 'center',
+        backgroundColor: 'rgba(30, 41, 59, 0.9)',
+        borderRadius: normalize(8),
+        paddingHorizontal: normalize(15),
+        marginBottom: normalize(16),
+        borderColor: '#555',
+        borderWidth: 1,
+        width: '100%',
+    },
+    picker: {
+        color: '#FFFFFF',
+        height: normalize(70),
+        width: '100%',
+        fontSize: normalize(16),
+    },
+    errorText: {
+        fontSize: normalize(14),
+        color: '#FF5252',
+        marginTop: normalize(10),
+        textAlign: 'center',
+    },
+    placeholderText: {
+        fontSize: normalize(14),
+        color: '#888',
+        textAlign: 'center',
+        marginVertical: normalize(10),
+    },
+    descriptionContainer: {
+      marginTop: normalize(16),
+      backgroundColor: 'rgba(30, 41, 59, 0.9)',
+      padding: normalize(16),
+      borderRadius: normalize(8),
+    },
+    descriptionCategory: {
+        fontSize: normalize(16),
+        color: 'white',
+        fontWeight: 'bold',
+        marginBottom: normalize(8),
+    },
+    descriptionTitle: {
+      fontSize: normalize(18),
+      fontWeight: 'bold',
+      color: '#FFA726',
+      marginBottom: normalize(8),
+    },
+    descriptionText: {
+      fontSize: normalize(16),
+      color: '#D0D0D0',
+      marginBottom: normalize(8),
+    },
+    descriptionHighlight: {
+      fontWeight: 'bold',
+      color: '#FFFFFF',
+    },
+});
+
+export default styles;

@@ -1,0 +1,176 @@
+import { StyleSheet } from 'react-native';
+import { normalize } from '../../../../shared/hooks/useResponsive';
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0E13',
+    padding: normalize(15),
+  },
+  timestampContainer: {
+    alignItems: 'center',
+    marginBottom: normalize(10),
+  },
+  timestamp: {
+    fontSize: normalize(22),
+    fontWeight: '700',
+    color: '#F9FAFB',
+  },
+  wrapper: {
+    flex: 1,
+    paddingHorizontal: normalize(20),
+    paddingVertical: normalize(10),
+    borderRadius: normalize(18),
+    backgroundColor: '#151B23',
+    marginBottom: normalize(10),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginVertical: normalize(15),
+    backgroundColor: 'rgba(255, 149, 0, 0.08)',
+    paddingVertical: normalize(16),
+    borderRadius: normalize(14),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 149, 0, 0.2)',
+  },
+  summaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: normalize(8),
+  },
+  summaryText: {
+    fontSize: normalize(18),
+    color: '#FF9500',
+    fontWeight: '700',
+  },
+  exercisesSection: {
+    marginBottom: normalize(10),
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: normalize(10),
+    paddingHorizontal: normalize(4),
+  },
+  headerText: {
+    fontSize: normalize(12),
+    fontWeight: '700',
+    color: '#9CA3AF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  exerciseContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: normalize(12),
+    padding: normalize(12),
+    marginBottom: normalize(8),
+    paddingHorizontal: normalize(14),
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  bestSetContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bestSetText: {
+    color: '#9CA3AF',
+    fontSize: normalize(13),
+    fontWeight: '500',
+  },
+  exerciseName: {
+    fontSize: normalize(14),
+    color: '#F9FAFB',
+    fontWeight: '600',
+    width: normalize(150),
+    overflow: 'hidden',
+  },
+  sectionText: {
+    fontSize: normalize(13),
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  notesContainer: {
+    marginTop: normalize(20),
+    padding: normalize(14),
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: normalize(14),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  notesHeader: {
+    fontSize: normalize(14),
+    fontWeight: '700',
+    color: '#F9FAFB',
+    marginBottom: normalize(8),
+  },
+  notesText: {
+    fontSize: normalize(13),
+    color: '#9CA3AF',
+    lineHeight: normalize(20),
+  },
+  completionStatusContainer: {
+    marginTop: normalize(20),
+    padding: normalize(14),
+    backgroundColor: 'rgba(6, 182, 212, 0.08)',
+    borderRadius: normalize(14),
+    borderWidth: 1,
+    borderColor: 'rgba(6, 182, 212, 0.3)',
+  },
+  completionStatusText: {
+    fontSize: normalize(14),
+    fontWeight: '600',
+    color: '#06B6D4',
+  },
+  comparisonContainer: {
+    marginTop: normalize(20),
+    padding: normalize(14),
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: normalize(14),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  comparisonHeader: {
+    fontSize: normalize(14),
+    fontWeight: '700',
+    color: '#F9FAFB',
+    marginBottom: normalize(8),
+  },
+  comparisonText: {
+    fontSize: normalize(13),
+    color: '#9CA3AF',
+    lineHeight: normalize(20),
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: normalize(20),
+    gap: normalize(12),
+  },
+  actionButton: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 149, 0, 0.15)',
+    paddingVertical: normalize(14),
+    borderRadius: normalize(14),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 149, 0, 0.3)',
+  },
+  actionButtonText: {
+    color: '#FF9500',
+    fontSize: normalize(13),
+    fontWeight: '600',
+    marginTop: normalize(6),
+  },
+});
+
+export default styles;
