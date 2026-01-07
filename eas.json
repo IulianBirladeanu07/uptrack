@@ -6,6 +6,9 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "FIREBASE_API_KEY": "${FIREBASE_API_KEY}",
         "FIREBASE_AUTH_DOMAIN": "${FIREBASE_AUTH_DOMAIN}",
@@ -28,6 +31,9 @@
     },
     "preview": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "FIREBASE_API_KEY": "${FIREBASE_API_KEY}",
         "FIREBASE_AUTH_DOMAIN": "${FIREBASE_AUTH_DOMAIN}",
@@ -45,9 +51,6 @@
         "DEFAULT_FOOD_ICON_URI": "${DEFAULT_FOOD_ICON_URI}",
         "GOOGLE_SERVICES_JSON": "${GOOGLE_SERVICES_JSON}",
         "GOOGLE_SERVICE_INFO_PLIST": "${GOOGLE_SERVICE_INFO_PLIST}"
-      },
-      "android": {
-        "buildType": "apk"
       },
       "channel": "preview"
     },

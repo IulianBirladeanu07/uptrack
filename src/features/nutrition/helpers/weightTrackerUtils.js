@@ -74,25 +74,21 @@ export const loadUserWeightData = async (
       const data = userDoc.data();
       const weightIns = data.weightIns || [];
 
-      // Set current weight and input field
       setCurrentWeight(data.currentWeight);
       setWeight(data.currentWeight ? data.currentWeight.toString() : '');
 
-      // Process current week data
       const today = new Date(currentDate);
       const weekStartDate = getWeekStartDate(today).toISOString().split('T')[0];
       const currentWeek = weightIns.find(entry => entry.weekStart === weekStartDate);
       setWeeklyData(currentWeek);
       setWeeklyAverage(currentWeek?.average);
 
-      // Process last week data
       const lastWeekStart = new Date(today);
       lastWeekStart.setDate(lastWeekStart.getDate() - 7);
       const lastWeekStartDate = getWeekStartDate(lastWeekStart).toISOString().split('T')[0];
       const lastWeek = weightIns.find(entry => entry.weekStart === lastWeekStartDate);
       setLastWeekAverage(lastWeek?.average);
 
-      // Calculate trend data (last 7 days)
       const last7Days = [];
       const startDate = new Date(today);
       startDate.setDate(today.getDate() - 6);
@@ -164,9 +160,7 @@ export const fetchWeightInsByDate = async (userId, date) => {
     return {};
   }
 };  
-/**
- * Enhanced save logic that triggers data reload.
- */
+
 export const handleSaveLogic = async (
   userId,
   weightValue,

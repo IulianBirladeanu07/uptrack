@@ -1,8 +1,24 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, Image, Animated } from 'react-native';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
-import { COLORS } from '../CreateWorkoutScreenStyle';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+
+const COLORS = {
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
+};
 
 const ExerciseListItem = ({
   exercise,
@@ -43,7 +59,7 @@ const ExerciseListItem = ({
           <Text style={styles.exerciseMuscleGroup}>{muscleGroup}</Text>
         </View>
         <TouchableOpacity onPress={() => handleDeleteExercise(index)} style={styles.deleteButton}>
-          <MaterialCommunityIcons name="delete-outline" size={normalize(20)} color={COLORS.error} />
+          <MaterialCommunityIcons name="delete-outline" size={normalize(20)} color={COLORS.warning} />
         </TouchableOpacity>
       </View>
 
@@ -52,7 +68,7 @@ const ExerciseListItem = ({
           <TextInput
             style={styles.input}
             placeholder="Sets"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={COLORS.textTertiary}
             keyboardType="numeric"
             value={exercise.numSets ? String(exercise.numSets) : ''}
             onChangeText={(text) => handleSetsChange(text, index)}
@@ -63,7 +79,7 @@ const ExerciseListItem = ({
           <TextInput
             style={styles.input}
             placeholder="Reps"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={COLORS.textTertiary}
             keyboardType="numeric"
             value={exercise.repRange ? String(exercise.repRange) : ''}
             onChangeText={(text) => handleRepsChange(text, index)}
@@ -74,7 +90,7 @@ const ExerciseListItem = ({
           <TextInput
             style={styles.input}
             placeholder="Rest"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={COLORS.textTertiary}
             keyboardType="numeric"
             value={exercise.restBetweenSets ? String(exercise.restBetweenSets) : ''}
             onChangeText={(text) => handleRestBetweenSetsChange(text, index)}
@@ -88,7 +104,7 @@ const ExerciseListItem = ({
           <TextInput
             style={styles.notesInput}
             placeholder="Add notes for this exercise"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={COLORS.textTertiary}
             multiline
             value={exercise.note}
             onChangeText={(text) => handleNoteChange(text, index)}
@@ -112,7 +128,7 @@ const ExerciseListItem = ({
 
 const styles = StyleSheet.create({
   exerciseItem: {
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.surface,
     borderRadius: normalize(16),
     padding: normalize(16),
     marginBottom: normalize(12),
@@ -128,7 +144,7 @@ const styles = StyleSheet.create({
     width: normalize(40),
     height: normalize(40),
     borderRadius: normalize(8),
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.surface,
     padding: normalize(5),
     marginRight: normalize(16),
     justifyContent: 'center',
@@ -146,7 +162,7 @@ const styles = StyleSheet.create({
   },
   exerciseName: {
     fontWeight: '600',
-    color: COLORS.text,
+    color: COLORS.textPrimary,
     fontSize: normalize(16),
     marginBottom: normalize(4),
     numberOfLines: 1,
@@ -160,7 +176,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: normalize(8),
     borderRadius: normalize(8),
-    backgroundColor: 'rgba(252, 165, 165, 0.1)',
+    backgroundColor: 'rgba(255, 159, 10, 0.1)',
   },
   inputRow: {
     flexDirection: 'row',
@@ -174,12 +190,12 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.bg,
     borderRadius: normalize(10),
     paddingHorizontal: normalize(16),
     paddingVertical: normalize(12),
     fontSize: normalize(16),
-    color: COLORS.text,
+    color: COLORS.textPrimary,
     borderWidth: 0.5,
     borderColor: COLORS.border,
     textAlign: 'center',
@@ -187,7 +203,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: normalize(12),
     fontWeight: '500',
-    color: COLORS.textMuted,
+    color: COLORS.textTertiary,
     marginTop: normalize(8),
   },
   noteContainer: {
@@ -196,12 +212,12 @@ const styles = StyleSheet.create({
   },
   notesInput: {
     minHeight: normalize(60),
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.bg,
     borderRadius: normalize(10),
     paddingHorizontal: normalize(16),
     paddingVertical: normalize(12),
     fontSize: normalize(16),
-    color: COLORS.text,
+    color: COLORS.textPrimary,
     borderWidth: 0.5,
     borderColor: COLORS.border,
     textAlignVertical: 'top',
@@ -210,7 +226,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
+    borderTopColor: COLORS.borderLight,
     paddingTop: normalize(16),
     gap: normalize(12),
   },
@@ -220,7 +236,7 @@ const styles = StyleSheet.create({
     paddingVertical: normalize(8),
     paddingHorizontal: normalize(12),
     borderRadius: normalize(8),
-    backgroundColor: COLORS.primaryTransparent,
+    backgroundColor: 'rgba(255, 149, 0, 0.15)',
   },
   noteButton: {
     flexDirection: 'row',
@@ -228,7 +244,7 @@ const styles = StyleSheet.create({
     paddingVertical: normalize(8),
     paddingHorizontal: normalize(12),
     borderRadius: normalize(8),
-    backgroundColor: COLORS.primaryTransparent,
+    backgroundColor: 'rgba(255, 149, 0, 0.15)',
   },
   replaceText: {
     fontSize: normalize(12),

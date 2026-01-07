@@ -1,73 +1,60 @@
-// ExerciseSelectionScreenStyle.js
 import { StyleSheet, Platform } from 'react-native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 
 export const COLORS = {
   background: '#0A0E13',
   cardBackground: '#151B23',
-  cardBackgroundDark: '#151B23',
-  gradientOverlay: 'rgba(255, 133, 53, 0.05)',
   textPrimary: '#FFFFFF',
   textSecondary: '#d1d5db',
-  textInactive: 'rgba(255, 255, 255, 0.4)',
   textMuted: '#9ca3af',
   border: 'rgba(255, 255, 255, 0.1)',
-  borderDivider: 'rgba(255, 255, 255, 0.08)',
-  accentPrimary: '#ff8535',
-  accentSecondary: '#00d4ff',
-  accentPurple: '#a855f7',
+  borderLight: 'rgba(255, 255, 255, 0.08)',
+  primaryOrange: '#FF9500',
+  primaryOrangeFaded: 'rgba(255, 149, 0, 0.15)',
+  primaryOrangeLight: 'rgba(255, 149, 0, 0.08)',
+  primaryOrangeBorder: 'rgba(255, 149, 0, 0.25)',
+  primaryOrangeGradient: 'rgba(255, 149, 0, 0.02)',
   success: '#10b981',
-  warning: '#facc15',
+  successFaded: 'rgba(16, 185, 129, 0.12)',
+  successBorder: 'rgba(16, 185, 129, 0.25)',
   error: '#ef4444',
   shadow: 'rgba(0, 0, 0, 0.3)',
-  mutedOrange: 'rgba(255, 133, 53, 0.8)',
-  mutedBlue: 'rgba(0, 212, 255, 0.7)',
-  accentPrimaryFaded: 'rgba(255, 133, 53, 0.15)',
-  progressBarTrack: 'rgba(255, 255, 255, 0.1)',
-  headerBackground: 'rgba(15, 23, 42, 0.95)',
-  createButtonGlow: 'rgba(255, 133, 53, 0.25)',
-  filterPillGlow: 'rgba(255, 133, 53, 0.15)',
+  shadowDark: 'rgba(0, 0, 0, 0.4)',
   glassEffect: 'rgba(255, 255, 255, 0.05)',
+  glassEffectLight: 'rgba(255, 255, 255, 0.06)',
+  imageBorder: 'rgba(255, 255, 255, 0.08)',
+  imageBackground: 'rgba(30, 41, 59, 0.8)',
+  selectedBackground: '#1a1d21',
+  primaryOrangeBorderStrong: 'rgba(255, 149, 0, 0.4)',
+  primaryOrangeGlow: 'rgba(255, 149, 0, 0.6)',
 };
-
-const BORDER_RADIUS = normalize(16);
-const CONTAINER_PADDING = normalize(18);
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
+
   centerContent: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
-  // Enhanced Header Layout with integrated filter bar
   headerContainer: {
-    backgroundColor: COLORS.headerBackground,
+    backgroundColor: COLORS.cardBackground,
     borderBottomWidth: normalize(1),
     borderBottomColor: COLORS.border,
     paddingTop: normalize(20),
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 12,
-    position: 'relative',
-    overflow: 'hidden',
-    paddingBottom: normalize(16), // Adds space for the filter bar
+    paddingBottom: normalize(16),
   },
 
-  // Gradient overlay for depth
   headerGradientOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 133, 53, 0.02)',
+    backgroundColor: COLORS.primaryOrangeGradient,
     zIndex: 0,
   },
 
@@ -77,11 +64,10 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: normalize(24),
     paddingBottom: normalize(20),
-    paddingHorizontal: CONTAINER_PADDING,
+    paddingHorizontal: normalize(18),
     zIndex: 1,
   },
 
-  // Enhanced back button with focus states
   backButton: {
     width: normalize(44),
     height: normalize(44),
@@ -101,62 +87,10 @@ export const styles = StyleSheet.create({
     zIndex: 1,
   },
 
-  backButtonFocused: {
-    backgroundColor: 'rgba(255, 133, 53, 0.08)',
-    borderColor: 'rgba(255, 133, 53, 0.3)',
-    shadowColor: COLORS.accentPrimary,
-    shadowOpacity: 0.2,
+  spacer: {
+    width: normalize(44),
   },
 
-  // Enhanced create button with glow effect
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: normalize(10),
-    paddingHorizontal: normalize(16),
-    borderRadius: normalize(14),
-    backgroundColor: COLORS.accentPrimary,
-    shadowColor: COLORS.accentPrimary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-    position: 'relative',
-    overflow: 'hidden',
-    zIndex: 1,
-  },
-
-  createButtonFocused: {
-    transform: [{ scale: 0.98 }],
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-  },
-
-  createButtonGlowEffect: {
-    position: 'absolute',
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: normalize(16),
-    backgroundColor: COLORS.accentPrimary,
-    opacity: 0.3,
-    zIndex: -1,
-  },
-
-  createButtonText: {
-    color: COLORS.background,
-    fontSize: normalize(13),
-    fontWeight: '700',
-    marginLeft: normalize(8),
-    letterSpacing: normalize(0.4),
-  },
-
-  createButtonIcon: {
-    color: COLORS.background,
-  },
-
-  // Enhanced header title
   headerTitle: {
     fontSize: normalize(22),
     fontWeight: '800',
@@ -164,13 +98,12 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     flex: 1,
     letterSpacing: normalize(-0.5),
-    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowColor: COLORS.shadowDark,
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
     zIndex: 1,
   },
 
-  // Enhanced search container with dynamic effects
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -179,7 +112,7 @@ export const styles = StyleSheet.create({
     borderWidth: normalize(1),
     borderColor: COLORS.border,
     paddingHorizontal: normalize(18),
-    marginHorizontal: CONTAINER_PADDING,
+    marginHorizontal: normalize(18),
     marginBottom: normalize(12),
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 4 },
@@ -190,19 +123,6 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
     zIndex: 1,
     ...(Platform.OS === 'ios' && { backdropFilter: 'blur(20px)' }),
-  },
-
-  // Animated glow effect for search
-  searchGlowEffect: {
-    position: 'absolute',
-    top: -4,
-    left: -4,
-    right: -4,
-    bottom: -4,
-    borderRadius: normalize(20),
-    backgroundColor: COLORS.accentPrimary,
-    opacity: 0,
-    zIndex: -1,
   },
 
   searchIcon: {
@@ -220,40 +140,19 @@ export const styles = StyleSheet.create({
     letterSpacing: normalize(0.2),
   },
 
-  searchInputFocused: {
-    color: COLORS.textPrimary,
-    fontWeight: '600',
-  },
-
-  // Enhanced clear button
   clearSearchButton: {
     padding: normalize(8),
     borderRadius: normalize(12),
-    backgroundColor: 'rgba(255, 133, 53, 0.08)',
+    backgroundColor: COLORS.primaryOrangeLight,
     borderWidth: normalize(1),
-    borderColor: 'rgba(255, 133, 53, 0.2)',
+    borderColor: COLORS.primaryOrangeBorder,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: normalize(8),
   },
 
-  // Search hint container
-  searchHintContainer: {
-    paddingHorizontal: CONTAINER_PADDING,
-    paddingBottom: normalize(8),
-    alignItems: 'center',
-  },
-
-  searchHintText: {
-    fontSize: normalize(12),
-    color: COLORS.textMuted,
-    fontWeight: '500',
-    fontStyle: 'italic',
-    letterSpacing: normalize(0.3),
-  },
-
   filterContainer: {
-    paddingHorizontal: CONTAINER_PADDING,
+    paddingHorizontal: normalize(18),
     zIndex: 1,
   },
 
@@ -281,9 +180,9 @@ export const styles = StyleSheet.create({
   },
 
   filterPillActive: {
-    backgroundColor: COLORS.accentPrimary,
-    borderColor: 'rgba(255, 133, 53, 0.4)',
-    shadowColor: COLORS.accentPrimary,
+    backgroundColor: COLORS.primaryOrange,
+    borderColor: COLORS.primaryOrangeBorderStrong,
+    shadowColor: COLORS.primaryOrange,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -310,19 +209,21 @@ export const styles = StyleSheet.create({
     right: -2,
     bottom: -2,
     borderRadius: normalize(22),
-    backgroundColor: COLORS.filterPillGlow,
+    backgroundColor: COLORS.primaryOrangeFaded,
     opacity: 0.6,
     zIndex: -1,
   },
 
-  // Updated list container to account for header changes
   listContainer: {
-    paddingHorizontal: CONTAINER_PADDING,
+    paddingHorizontal: normalize(18),
     paddingBottom: normalize(120),
     paddingTop: normalize(16),
   },
 
-  // Removed spacing from section header since pills are in header now
+  listContainerEmpty: {
+    flexGrow: 1,
+  },
+
   sectionHeaderContainer: {
     paddingBottom: normalize(8),
     paddingHorizontal: normalize(4),
@@ -340,50 +241,53 @@ export const styles = StyleSheet.create({
   },
 
   exerciseContainer: {
-    backgroundColor: COLORS.cardBackgroundDark,
-    borderRadius: BORDER_RADIUS,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: normalize(12),
     marginBottom: normalize(10),
     borderWidth: normalize(1),
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderLight,
     overflow: 'hidden',
     position: 'relative',
+    paddingHorizontal: normalize(7),
+    paddingVertical: normalize(7),
   },
+
   exerciseContainerSelected: {
-    borderColor: 'rgba(255, 133, 53, 0.6)',
+    borderColor: COLORS.primaryOrangeGlow,
     borderWidth: normalize(1.5),
-    backgroundColor: 'rgba(22, 25, 28, 1)',
+    backgroundColor: COLORS.selectedBackground,
   },
 
   exerciseContent: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: normalize(20),
-    paddingTop: normalize(12),
-    paddingBottom: normalize(12),
-    paddingRight: normalize(16),
+    paddingHorizontal: normalize(4),
+    paddingVertical: normalize(4),
+    gap: normalize(8),
   },
+
   exerciseLeft: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flex: 1,
-    marginRight: normalize(12),
   },
 
   exerciseImageContainer: {
-    width: normalize(44),
-    height: normalize(44),
-    borderRadius: normalize(12),
+    width: normalize(40),
+    height: normalize(40),
+    borderRadius: normalize(10),
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: normalize(16),
+    marginRight: normalize(8),
     flexShrink: 0,
     borderWidth: normalize(1),
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    borderColor: COLORS.imageBorder,
+    backgroundColor: COLORS.glassEffectLight,
     overflow: 'hidden',
-    padding: normalize(1),
+    padding: normalize(5),
   },
+
   exerciseImage: {
     width: '100%',
     height: '100%',
@@ -392,28 +296,24 @@ export const styles = StyleSheet.create({
 
   exerciseTextContainer: {
     flex: 1,
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
-    minHeight: normalize(44),
+    justifyContent: 'center',
   },
+
   exerciseName: {
-    fontSize: normalize(17),
+    fontSize: normalize(14),
     fontWeight: '600',
     color: COLORS.textPrimary,
-    lineHeight: normalize(22),
-    marginBottom: normalize(6),
+    marginBottom: normalize(2),
   },
+
   exerciseCategory: {
-    fontSize: normalize(12),
+    fontSize: normalize(10),
     color: COLORS.textMuted,
     fontWeight: '500',
     textTransform: 'capitalize',
-    lineHeight: normalize(16),
   },
 
-  // Centering the selection button
   selectionButton: {
-    alignSelf: 'center', // This centers the button vertically
     padding: normalize(8),
     borderRadius: normalize(20),
     alignItems: 'center',
@@ -423,35 +323,47 @@ export const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+
   addExerciseButton: {
-    backgroundColor: COLORS.accentPrimaryFaded,
+    backgroundColor: COLORS.primaryOrangeFaded,
     borderWidth: normalize(1),
-    borderColor: 'rgba(255, 133, 53, 0.25)',
-    shadowColor: COLORS.accentPrimary,
+    borderColor: COLORS.primaryOrangeBorder,
+    shadowColor: COLORS.primaryOrange,
   },
+
   selectedExerciseButton: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: COLORS.successFaded,
     borderWidth: normalize(1),
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderColor: COLORS.successBorder,
     shadowColor: COLORS.success,
   },
 
+  doneButtonContainer: {
+    position: 'absolute',
+    bottom: normalize(80),
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: normalize(20),
+  },
+
   doneButton: {
-    backgroundColor: COLORS.accentPrimary,
+    backgroundColor: COLORS.primaryOrange,
     borderRadius: normalize(16),
     paddingVertical: normalize(16),
     paddingHorizontal: normalize(32),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '90%',
-    shadowColor: COLORS.accentPrimary,
+    width: '100%',
+    shadowColor: COLORS.primaryOrange,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
     borderWidth: normalize(1),
-    borderColor: 'rgba(255, 133, 53, 0.4)',
+    borderColor: COLORS.primaryOrangeBorderStrong,
   },
 
   doneButtonText: {
@@ -466,21 +378,24 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: normalize(30),
-    paddingBottom: normalize(50),
+    paddingVertical: normalize(50),
   },
+
   emptyText: {
     color: COLORS.textSecondary,
     fontSize: normalize(16),
     textAlign: 'center',
     lineHeight: normalize(24),
     fontWeight: '500',
+    marginTop: normalize(16),
   },
+
   clearButton: {
     marginTop: normalize(24),
     paddingVertical: normalize(14),
     paddingHorizontal: normalize(24),
     backgroundColor: COLORS.cardBackground,
-    borderRadius: BORDER_RADIUS,
+    borderRadius: normalize(16),
     borderWidth: normalize(1),
     borderColor: COLORS.border,
     shadowColor: COLORS.shadow,
@@ -489,11 +404,13 @@ export const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+
   clearButtonText: {
     color: COLORS.textPrimary,
     fontSize: normalize(14),
     fontWeight: '600',
   },
+
   loadingText: {
     marginTop: normalize(16),
     color: COLORS.textSecondary,
@@ -501,46 +418,71 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
+
   errorText: {
     color: COLORS.error,
     fontSize: normalize(16),
-    marginBottom: normalize(20),
+    marginVertical: normalize(20),
     textAlign: 'center',
     paddingHorizontal: normalize(20),
     lineHeight: normalize(22),
     fontWeight: '500',
   },
+
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: normalize(16),
-    marginTop: normalize(16),
   },
+
   retryButton: {
-    backgroundColor: COLORS.accentPrimary,
+    backgroundColor: COLORS.primaryOrange,
     paddingVertical: normalize(14),
     paddingHorizontal: normalize(28),
-    borderRadius: BORDER_RADIUS,
+    borderRadius: normalize(16),
     alignItems: 'center',
-    shadowColor: COLORS.accentPrimary,
+    shadowColor: COLORS.primaryOrange,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 4,
   },
+
   retryButtonText: {
     color: COLORS.background,
     fontWeight: '700',
     fontSize: normalize(15),
   },
+
   backButtonError: {
     backgroundColor: COLORS.cardBackground,
     paddingVertical: normalize(14),
     paddingHorizontal: normalize(28),
-    borderRadius: BORDER_RADIUS,
+    borderRadius: normalize(16),
     alignItems: 'center',
     borderWidth: normalize(1),
     borderColor: COLORS.border,
+  },
+
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: normalize(8),
+    paddingHorizontal: normalize(16),
+    borderRadius: normalize(12),
+    backgroundColor: COLORS.primaryOrange,
+    shadowColor: COLORS.primaryOrange,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+
+  createButtonText: {
+    color: COLORS.background,
+    fontSize: normalize(14),
+    fontWeight: '700',
+    marginLeft: normalize(6),
   },
 });
 

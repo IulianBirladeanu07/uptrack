@@ -2,16 +2,33 @@ import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 
+const colors = {
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
+};
+
 const COLORS = {
-  primary: '#ff8535',
-  secondary: '#02111B',
-  background: '#02111B',
-  textSecondary: '#d1d5db',
-  border: 'rgba(255, 255, 255, 0.1)',
-  borderDivider: 'rgba(255, 255, 255, 0.08)',
+  primary: colors.primary,
+  secondary: colors.bg,
+  background: colors.bg,
+  textSecondary: colors.textSecondary,
+  border: colors.border,
+  borderDivider: colors.borderLight,
   disabled: '#52525B',
   shadow: 'rgba(0, 0, 0, 0.3)',
-  dark: '#000000',
+  dark: colors.bg,
 };
 
 export const NavigationButtons = ({ 
@@ -22,14 +39,13 @@ export const NavigationButtons = ({
   handleCreateSplit,
   loading, 
   validateForm,
-  creationType = 'template', // Default to 'template' for backward compatibility
-  isEditing = false // NEW: Add isEditing prop
+  creationType = 'template',
+  isEditing = false
 }) => {
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === 2;
   const isFormValid = validateForm();
 
-  // Determine the appropriate handler and text based on what's available
   const handleFinalAction = () => {
     if (handleCreateSplit) {
       handleCreateSplit();

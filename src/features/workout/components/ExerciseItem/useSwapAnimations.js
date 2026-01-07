@@ -1,12 +1,11 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Vibration, Platform, Animated as RNAnimated, Easing } from 'react-native';
-import Animated, { 
+import { 
   useAnimatedStyle, 
   useSharedValue,
   withSpring,
   withTiming,
   withSequence,
-  runOnJS,
   interpolate,
   Extrapolation,
   useDerivedValue,
@@ -14,14 +13,12 @@ import Animated, {
   cancelAnimation
 } from 'react-native-reanimated';
 
-// Constants for swipe-to-delete
-const DELETE_BUTTON_WIDTH = 65; // Wider for easier targeting
-const SWIPE_THRESHOLD = DELETE_BUTTON_WIDTH * 0.7; // When to snap to delete button
-const SWIPE_CONFIRM_THRESHOLD = DELETE_BUTTON_WIDTH * 1.5; // When to show confirmation UI
-const HAPTIC_THRESHOLDS = [DELETE_BUTTON_WIDTH * 0.5, DELETE_BUTTON_WIDTH * 1.2]; // Haptic feedback points
+const DELETE_BUTTON_WIDTH = 65;
+const SWIPE_THRESHOLD = DELETE_BUTTON_WIDTH * 0.7;
+const SWIPE_CONFIRM_THRESHOLD = DELETE_BUTTON_WIDTH * 1.5;
+const HAPTIC_THRESHOLDS = [DELETE_BUTTON_WIDTH * 0.5, DELETE_BUTTON_WIDTH * 1.2];
 const DELETE_ANIMATION_DURATION = 300;
 
-// Better spring configs for more natural feel
 const SPRING_CONFIG = {
   damping: 15,
   mass: 1,
@@ -29,83 +26,66 @@ const SPRING_CONFIG = {
   overshootClamping: false,
 };
 
-// Animation timing configurations
 const TIMING_CONFIG = {
   duration: 300,
   easing: Easing.bezier(0.25, 0.1, 0.25, 1),
 };
 
-/**
- * Manages swipe animations and gestures for the exercise item
- */
 export const useSwipeAnimations = (onDelete, index, isDeleting, setIsDeleting, setSwipeConfirmActive) => {
-  // Reanimated shared values for swipe animation
   const translateX = useSharedValue(0);
-  const deleteProgress = useSharedValue(0); // Track progress as percentage
+  const deleteProgress = useSharedValue(0);
   const deleteOpacity = useSharedValue(0);
   const scale = useSharedValue(1);
   const rotation = useSharedValue(0);
   const opacity = useSharedValue(1);
   const itemHeight = useSharedValue('auto');
   
-  // For haptic feedback tracking
   const hapticTriggered1 = useSharedValue(false);
   const hapticTriggered2 = useSharedValue(false);
   
-  // Track swipe percentage for UI elements
   const swipePercentage = useDerivedValue(() => {
     return Math.min(100, (-translateX.value / SWIPE_CONFIRM_THRESHOLD) * 100);
   });
   
-  // Reset haptic triggers using shared values directly in the worklet
   const resetHapticTriggers = useCallback(() => {
-    // This function is now called from JS thread only
     hapticTriggered1.value = false;
     hapticTriggered2.value = false;
   }, [hapticTriggered1, hapticTriggered2]);
 
-  // Function to handle vibration - must be wrapped with runOnJS
-  const triggerVibration = useCallback((duration) => {
-    Vibration.vibrate(duration);
-  }, []);
+  useEffect(() => {
+    if (swipePercentage.value >= 75) {
+      setSwipeConfirmActive(true);
+    } else {
+      setSwipeConfirmActive(false);
+    }
+  }, [swipePercentage.value, setSwipeConfirmActive]);
   
-  // Function to update swipe confirm state - must be wrapped with runOnJS
-  const updateSwipeConfirmActive = useCallback((active) => {
-    setSwipeConfirmActive(active);
-  }, [setSwipeConfirmActive]);
-  
-  // React to swipe percentage changes for haptic feedback
   useAnimatedReaction(
     () => swipePercentage.value,
     (currentValue, previousValue) => {
       'worklet';
       if (previousValue === undefined) return;
       
-      // Access and modify shared values in the worklet
       if (currentValue >= 50 && previousValue < 50) {
         if (!hapticTriggered1.value) {
-          hapticTriggered1.value = true; // Set directly in the worklet
-          runOnJS(triggerVibration)(15); // Short vibration
+          hapticTriggered1.value = true;
+          if (Platform.OS === 'ios') {
+            Vibration.vibrate(15);
+          }
         }
       }
       
       if (currentValue >= 85 && previousValue < 85) {
         if (!hapticTriggered2.value) {
-          hapticTriggered2.value = true; // Set directly in the worklet
-          runOnJS(triggerVibration)(25); // Stronger vibration
+          hapticTriggered2.value = true;
+          if (Platform.OS === 'ios') {
+            Vibration.vibrate(25);
+          }
         }
-      }
-      
-      // Toggle confirmation UI
-      if (currentValue >= 75 && previousValue < 75) {
-        runOnJS(updateSwipeConfirmActive)(true);
-      } else if (currentValue < 75 && previousValue >= 75) {
-        runOnJS(updateSwipeConfirmActive)(false);
       }
     }
   );
 
-  // Clean up animations when component unmounts
   useEffect(() => {
     return () => {
       cancelAnimation(translateX);
@@ -119,38 +99,6 @@ export const useSwipeAnimations = (onDelete, index, isDeleting, setIsDeleting, s
     };
   }, [translateX, scale, rotation, opacity, itemHeight, deleteProgress, hapticTriggered1, hapticTriggered2]);
 
-  // Handler for delete with animation sequence
-  const handleDelete = useCallback(() => {
-    if (isDeleting) return;
-    setIsDeleting(true);
-    
-    // Subtle shake animation before delete
-    rotation.value = withSequence(
-      withTiming(-2, { duration: 70 }),
-      withTiming(2, { duration: 70 }),
-      withTiming(0, { duration: 70 })
-    );
-    
-    // Animate scale down and fade out simultaneously
-    scale.value = withTiming(0.9, { duration: DELETE_ANIMATION_DURATION / 2 });
-    opacity.value = withTiming(0, { 
-      duration: DELETE_ANIMATION_DURATION,
-      easing: Easing.out(Easing.quad)
-    });
-    
-    // After fadeout is complete, collapse the height
-    itemHeight.value = withTiming(0, { 
-      duration: DELETE_ANIMATION_DURATION / 2,
-      easing: Easing.out(Easing.cubic)
-    }, () => {
-      runOnJS(finishDelete)();
-    });
-    
-    // Provide deletion haptic feedback (stronger)
-    Vibration.vibrate(40);
-    
-  }, [isDeleting, scale, opacity, itemHeight, rotation, setIsDeleting]);
-
   const finishDelete = useCallback(() => {
     if (onDelete) {
       onDelete(index);
@@ -158,7 +106,6 @@ export const useSwipeAnimations = (onDelete, index, isDeleting, setIsDeleting, s
     setIsDeleting(false);
     setSwipeConfirmActive(false);
     
-    // Reset animation values in case component is reused
     setTimeout(() => {
       translateX.value = 0;
       scale.value = 1;
@@ -178,7 +125,35 @@ export const useSwipeAnimations = (onDelete, index, isDeleting, setIsDeleting, s
     setSwipeConfirmActive
   ]);
 
-  // Animation styles
+  const handleDelete = useCallback(() => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    
+    rotation.value = withSequence(
+      withTiming(-2, { duration: 70 }),
+      withTiming(2, { duration: 70 }),
+      withTiming(0, { duration: 70 })
+    );
+    
+    scale.value = withTiming(0.9, { duration: DELETE_ANIMATION_DURATION / 2 });
+    opacity.value = withTiming(0, { 
+      duration: DELETE_ANIMATION_DURATION,
+      easing: Easing.out(Easing.quad)
+    });
+    
+    itemHeight.value = withTiming(0, { 
+      duration: DELETE_ANIMATION_DURATION / 2,
+      easing: Easing.out(Easing.cubic)
+    }, (finished) => {
+      if (finished) {
+        finishDelete();
+      }
+    });
+    
+    Vibration.vibrate(40);
+    
+  }, [isDeleting, scale, opacity, itemHeight, rotation, setIsDeleting, finishDelete]);
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
@@ -190,7 +165,6 @@ export const useSwipeAnimations = (onDelete, index, isDeleting, setIsDeleting, s
     overflow: 'hidden',
   }));
 
-  // Base delete button style (always visible during swipe)
   const deleteButtonStyle = useAnimatedStyle(() => ({
     position: 'absolute',
     right: 0,
@@ -204,7 +178,6 @@ export const useSwipeAnimations = (onDelete, index, isDeleting, setIsDeleting, s
     ],
   }));
   
-  // Progress indicator for delete confirmation
   const progressStyle = useAnimatedStyle(() => ({
     position: 'absolute',
     left: 0,
@@ -215,7 +188,6 @@ export const useSwipeAnimations = (onDelete, index, isDeleting, setIsDeleting, s
     opacity: swipePercentage.value >= 75 ? 0.8 : 0.5,
   }));
   
-  // Delete confirmation overlay (appears at threshold)
   const confirmDeleteStyle = useAnimatedStyle(() => {
     const isConfirmActive = swipePercentage.value >= 75;
     return {
@@ -249,13 +221,9 @@ export const useSwipeAnimations = (onDelete, index, isDeleting, setIsDeleting, s
   };
 };
 
-/**
- * Handles the detail panel expansion/collapse animations
- */
 export const useDetailAnimations = (initialExpanded) => {
-  // RN Animated refs for detail panel animations
-  const iconAnim = RNAnimated.useRef(new RNAnimated.Value(initialExpanded ? 1.2 : 1)).current;
-  const detailsHeight = RNAnimated.useRef(new RNAnimated.Value(initialExpanded ? 1 : 0)).current;
+  const iconAnim = useRef(new RNAnimated.Value(initialExpanded ? 1.2 : 1)).current;
+  const detailsHeight = useRef(new RNAnimated.Value(initialExpanded ? 1 : 0)).current;
 
   const animateToggle = useCallback((isExpanded) => {
     RNAnimated.timing(iconAnim, {
@@ -272,7 +240,6 @@ export const useDetailAnimations = (initialExpanded) => {
       useNativeDriver: false,
     }).start();
     
-    // Optional subtle haptic feedback when expanding/collapsing
     if (Platform.OS === 'ios') {
       Vibration.vibrate(5);
     }
@@ -299,7 +266,6 @@ export const useDetailAnimations = (initialExpanded) => {
   };
 };
 
-// Export constants for use in the main component
 export {
   DELETE_BUTTON_WIDTH,
   SWIPE_THRESHOLD,

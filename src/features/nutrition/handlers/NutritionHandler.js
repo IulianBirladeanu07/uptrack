@@ -4,7 +4,6 @@ import { db } from '../../auth/services/firebaseConfigService'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../../shared/services/supabaseClient'
 import { Timestamp } from 'firebase/firestore';
-import { logger } from '../../../shared/utils/firebaseLogger';
 
 export const fetchFrequentFoods = async (limitCount = 50) => {
   try {
@@ -15,7 +14,6 @@ export const fetchFrequentFoods = async (limitCount = 50) => {
       throw new Error('User not authenticated.');
     }
 
-    // Check cache
     const cacheKey = `frequentFoods_${user.uid}`;
     const cachedFoods = await handleCache.get(cacheKey);
     if (cachedFoods) {
@@ -40,7 +38,7 @@ export const fetchFrequentFoods = async (limitCount = 50) => {
     querySnapshot.docs.forEach(doc => {
       const data = doc.data();
       const foods = data.foods || [];
-      const mealType = doc.id.split('_')[1]; // Extract mealType from document ID
+      const mealType = doc.id.split('_')[1];
       const firestoreTimestamp = new Timestamp(data.timestamp.seconds, data.timestamp.nanoseconds);
       const mealDate = firestoreTimestamp.toDate().getTime();
 
@@ -70,7 +68,6 @@ export const fetchFrequentFoods = async (limitCount = 50) => {
       })
       .slice(0, limitCount);
 
-    // Cache the results
     await handleCache.set(cacheKey, frequentFoods);
     return frequentFoods;
   } catch (error) {
@@ -85,7 +82,6 @@ const handleCache = {
       const cachedData = await AsyncStorage.getItem(key);
       if (cachedData) {
         const { data, timestamp } = JSON.parse(cachedData);
-        // Cache valid for 5 minutes
         if (Date.now() - timestamp < 5 * 60 * 1000) {
           return data;
         }
@@ -164,15 +160,12 @@ export const fetchNonBarcodedProducts = async (
   searchQuery = null
 ) => {
   try {
-    // If there's a search query, use our enhanced search
     if (searchQuery && searchQuery.trim()) {
       return await performEnhancedSearch(searchQuery.trim(), limitCount);
     }
 
-    // Original logic for non-search queries
     let queryBuilder = supabase.from('non_barcoded_products').select('*');
 
-    // Apply filters
     filters.forEach(([field, operator, value]) => {
       switch (operator) {
         case '==': queryBuilder = queryBuilder.eq(field, value); break;
@@ -187,12 +180,10 @@ export const fetchNonBarcodedProducts = async (
       }
     });
 
-    // Apply ordering
     if (order) {
       queryBuilder = queryBuilder.order(order, { ascending: true });
     }
 
-    // Apply pagination
     if (limitCount) {
       queryBuilder = queryBuilder.limit(limitCount);
     }
@@ -214,38 +205,29 @@ export const fetchNonBarcodedProducts = async (
   }
 };
 
-// Enhanced search implementation
 const performEnhancedSearch = async (searchQuery, limitCount = 50) => {
   try {
-    console.log('Performing enhanced search for:', searchQuery);
     
-    // Strategy 1: Try the similarity function first (best results)
     const { data: similarityResults, error: similarityError } = await supabase
       .rpc('search_products_similarity', {
         search_term: searchQuery,
-        similarity_threshold: 0.1, // Lower threshold for more results
+        similarity_threshold: 0.1,
         limit_count: limitCount
       });
 
     if (!similarityError && similarityResults && similarityResults.length > 0) {
-      console.log(`Found ${similarityResults.length} results using similarity search`);
       return similarityResults;
     }
-
-    // Strategy 2: Fallback to advanced ILIKE search
-    console.log('Falling back to ILIKE search');
     const searchTerms = searchQuery.toLowerCase().split(/\s+/).filter(term => term.length > 0);
     
     let queryBuilder = supabase.from('non_barcoded_products').select('*');
 
     if (searchTerms.length === 1) {
-      // Single term search
       const term = searchTerms[0];
       queryBuilder = queryBuilder.or(
         `product_name_en.ilike.%${term}%,product_name_ro.ilike.%${term}%`
       );
     } else {
-      // Multiple terms search - each term must appear in at least one name
       const conditions = searchTerms.map(term => 
         `product_name_en.ilike.%${term}%,product_name_ro.ilike.%${term}%`
       ).join(',');
@@ -261,24 +243,21 @@ const performEnhancedSearch = async (searchQuery, limitCount = 50) => {
     }
 
     if (ilikeResults && ilikeResults.length > 0) {
-      // Add relevance scoring to ILIKE results
       const scoredResults = ilikeResults.map(product => {
         const score = calculateRelevanceScore(product, searchQuery);
         return {
           ...product,
-          similarity_score: score / 100, // Normalize to 0-1 range
+          similarity_score: score / 100,
           match_type: score > 80 ? 'exact' : score > 60 ? 'prefix' : 'contains'
         };
       });
 
-      // Sort by relevance score
       scoredResults.sort((a, b) => b.similarity_score - a.similarity_score);
       
       console.log(`Found ${scoredResults.length} results using ILIKE search`);
       return scoredResults;
     }
 
-    // Strategy 3: Last resort - very loose search
     console.log('Trying very loose search');
     const { data: looseResults, error: looseError } = await supabase
       .from('non_barcoded_products')
@@ -299,7 +278,6 @@ const performEnhancedSearch = async (searchQuery, limitCount = 50) => {
   }
 };
 
-// Calculate relevance score for search results
 const calculateRelevanceScore = (product, searchQuery) => {
   const normalizedQuery = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const nameEn = (product.product_name_en || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -307,36 +285,29 @@ const calculateRelevanceScore = (product, searchQuery) => {
 
   let maxScore = 0;
   
-  // Check both language versions
   [nameEn, nameRo].forEach(name => {
     if (!name) return;
     
     let score = 0;
     
-    // Exact match
     if (name === normalizedQuery) {
       score = 100;
     }
-    // Starts with query
     else if (name.startsWith(normalizedQuery)) {
       score = 90;
     }
-    // Word starts with query
     else if (name.split(' ').some(word => word.startsWith(normalizedQuery))) {
       score = 80;
     }
-    // Contains query
     else if (name.includes(normalizedQuery)) {
       score = 70;
     }
-    // Contains all query words
     else {
       const queryWords = normalizedQuery.split(/\s+/);
       const containsAll = queryWords.every(word => name.includes(word));
       if (containsAll) {
         score = 60;
       } else {
-        // Partial word matches
         const matchCount = queryWords.filter(word => name.includes(word)).length;
         score = (matchCount / queryWords.length) * 50;
       }
@@ -345,7 +316,6 @@ const calculateRelevanceScore = (product, searchQuery) => {
     maxScore = Math.max(maxScore, score);
   });
 
-  // Bonus for having image
   if (product.image) {
     maxScore += 2;
   }
@@ -374,7 +344,6 @@ export const fetchBarcodedProducts = async (limitCount = null, lastVisibleDoc = 
     return products;
   } catch (error) {
     console.error('Error fetching barcoded products:', error.message);
-    logger.logError('Error fetching barcoded products', error);
     throw error;
   }
 };

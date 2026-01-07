@@ -1,499 +1,439 @@
-import { StyleSheet, Dimensions, Platform } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 
-const { height, width } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
-// --- Unified Theme Colors (matching CreateWorkoutScreenStyle) ---
+const colors = {
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
+};
+
 export const COLORS = {
-  primary: '#ff8535', // Orange primary
-  primaryDark: '#0284C7',
+  primary: colors.primary,
+  primaryDark: colors.primaryDark,
   primaryLight: '#FFBC7D',
-  primaryTransparent: 'rgba(255, 133, 53, 0.15)',
-  secondary: '#02111B', // Dark blue secondary
+  primaryTransparent: 'rgba(255, 149, 0, 0.15)',
+  secondary: colors.bg,
   accent: '#FFFFFF',
-  accent2: '#00d4ff', // Cyan accent
+  accent2: colors.cyan,
   accent2Transparent: 'rgba(0, 212, 255, 0.15)',
   accent2Border: 'rgba(0, 212, 255, 0.5)',
-  accentPurple: '#a855f7', // Purple accent
-  background: '#02111B', // Dark blue background
-  card: 'rgba(30, 41, 59, 0.5)', // Card background
-  cardDark: 'rgba(15, 23, 42, 0.9)', // Dark card
-  cardAlt: 'rgba(15, 23, 42, 0.8)',
-  cardBackground: 'rgba(15, 23, 42, 0.8)',
-  text: '#FFFFFF', // White text primary
-  textPrimary: '#FFFFFF',
-  textSecondary: '#d1d5db', // Light gray text
-  textMuted: '#9ca3af', // Muted text
+  accentPurple: colors.purple,
+  background: colors.bg,
+  card: colors.surface,
+  cardDark: colors.surfaceLight,
+  cardAlt: colors.surfaceLight,
+  cardBackground: colors.surfaceLight,
+  text: colors.textPrimary,
+  textPrimary: colors.textPrimary,
+  textSecondary: colors.textSecondary,
+  textMuted: colors.textTertiary,
   textInactive: 'rgba(255, 255, 255, 0.4)',
-  border: 'rgba(255, 255, 255, 0.1)', // Border
-  borderDivider: 'rgba(255, 255, 255, 0.08)',
+  border: colors.border,
+  borderDivider: colors.borderLight,
   borderVariations: [
-    'rgba(255, 133, 53, 0.2)', // Orange border
-    'rgba(0, 212, 255, 0.2)', // Cyan border
-    'rgba(168, 85, 247, 0.2)', // Purple border
+    'rgba(255, 149, 0, 0.2)',
+    'rgba(0, 212, 255, 0.2)',
+    'rgba(168, 85, 247, 0.2)',
   ],
   divider: 'rgba(255, 255, 255, 0.05)',
-  error: '#FCA5A5',
-  success: '#10b981', // Success green
+  error: '#EF4444',
+  success: colors.success,
   warning: '#FCD34D',
   info: '#67E8F9',
-  disabled: '#52525B',
+  disabled: '#374151',
   white: '#FFFFFF',
-  shadow: 'rgba(0, 0, 0, 0.3)', // Shadow
+  shadow: 'rgba(0, 0, 0, 0.3)',
   progressBarTrack: 'rgba(255, 255, 255, 0.1)',
-  accentPrimaryFaded: 'rgba(255, 133, 53, 0.15)', // Faded orange
-
-  // Aliases for consistency
-  accentPrimary: '#ff8535',
-  accentSecondary: '#00d4ff',
-  surface: 'rgba(15, 23, 42, 0.8)',
-  inputBackground: 'rgba(30, 41, 59, 0.5)',
-  inputBackgroundFocused: 'rgba(30, 41, 59, 0.9)',
-  overlay: 'rgba(2, 17, 27, 0.96)',
-  borderFocused: 'rgba(255, 133, 53, 0.5)',
+  accentPrimaryFaded: 'rgba(255, 149, 0, 0.15)',
+  accentPrimary: colors.primary,
+  accentSecondary: colors.cyan,
+  surface: colors.surfaceLight,
+  inputBackground: colors.surface,
+  inputBackgroundFocused: colors.surfaceLight,
+  overlay: 'rgba(10, 14, 19, 0.95)',
+  borderFocused: colors.primary,
   textTertiary: 'rgba(255, 255, 255, 0.6)',
-
   gradient: {
-    primary: ['#ff8535', '#F17C12'], // Orange gradient
-    button: ['#ff8535', '#FFBC7D'],
+    primary: [colors.primary, '#F17C12'],
+    button: [colors.primary, '#FFBC7D'],
     nav: ['rgba(30, 41, 59, 0.7)', 'rgba(2, 17, 27, 0.8)'],
-    border: ['rgba(255, 133, 53, 0.3)', 'rgba(0, 212, 255, 0.3)'],
+    border: ['rgba(255, 149, 0, 0.3)', 'rgba(0, 212, 255, 0.3)'],
   },
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.bg,
   },
-
   contentContainerWithButton: {
     flex: 1,
   },
-
-  // Header styles matching your main theme
   header: {
     paddingHorizontal: normalize(18),
-    paddingTop: normalize(40),
-    paddingBottom: normalize(16),
-    borderBottomWidth: normalize(1),
+    paddingTop: normalize(12),
+    paddingBottom: normalize(12),
+    backgroundColor: colors.bg,
   },
-
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: normalize(14),
+    marginBottom: normalize(16),
   },
-
   backButton: {
-    padding: normalize(10),
-    borderRadius: normalize(12),
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: normalize(40),
+    height: normalize(40),
+    borderRadius: normalize(20),
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: normalize(1),
+    borderColor: colors.border,
   },
-
   helpButton: {
-    padding: normalize(10),
-    borderRadius: normalize(12),
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: normalize(40),
+    height: normalize(40),
+    borderRadius: normalize(20),
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: normalize(1),
+    borderColor: colors.border,
   },
-
   headerCenter: {
     flex: 1,
     alignItems: 'center',
-    marginHorizontal: normalize(14),
+    marginHorizontal: normalize(12),
   },
-
   headerTitle: {
-    fontSize: normalize(20),
+    fontSize: normalize(18),
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     textAlign: 'center',
-    marginBottom: normalize(4),
   },
-
   headerSubtitle: {
     fontSize: normalize(13),
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     fontWeight: '500',
+    marginTop: normalize(2),
   },
-
   progressSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(12),
+    gap: normalize(10),
+    marginTop: normalize(4),
   },
-
   progressBar: {
     flex: 1,
-    height: normalize(6),
+    height: normalize(4),
     backgroundColor: COLORS.progressBarTrack,
-    borderRadius: normalize(3),
+    borderRadius: normalize(2),
     overflow: 'hidden',
   },
-
   progressFill: {
     height: '100%',
-    borderRadius: normalize(3),
+    borderRadius: normalize(2),
   },
-
   progressText: {
-    fontSize: normalize(12),
+    fontSize: normalize(11),
     fontWeight: '600',
-    minWidth: normalize(80),
+    minWidth: normalize(70),
     textAlign: 'right',
   },
-
-  // Content styles matching your card design
   content: {
     flex: 1,
   },
-
   contentContainer: {
     padding: normalize(18),
-    paddingBottom: normalize(120),
+    paddingBottom: normalize(100),
   },
-
   formCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.surface,
     borderRadius: normalize(18),
     padding: normalize(18),
     borderWidth: normalize(1),
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
-
-  // Field styles matching your input design
   fieldContainer: {
-    marginBottom: normalize(20),
+    marginBottom: normalize(18),
   },
-
   fieldLabel: {
     fontSize: normalize(14),
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: normalize(8),
-    flexDirection: 'row',
-    alignItems: 'center',
   },
-
   textInput: {
-    backgroundColor: COLORS.card,
-    borderRadius: normalize(10),
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: normalize(12),
     paddingHorizontal: normalize(16),
-    paddingVertical: normalize(12),
+    paddingVertical: normalize(14),
     fontSize: normalize(16),
-    color: COLORS.text,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
-    minHeight: normalize(50),
+    color: colors.textPrimary,
+    borderWidth: normalize(1),
+    borderColor: colors.border,
+    minHeight: normalize(52),
   },
-
   textInputFocused: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.inputBackgroundFocused,
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(255, 149, 0, 0.08)',
   },
-
   characterCount: {
     fontSize: normalize(11),
-    color: COLORS.textMuted,
+    color: colors.textTertiary,
     marginTop: normalize(6),
     alignSelf: 'flex-end',
     fontWeight: '500',
   },
-
   fieldError: {
     borderColor: COLORS.error,
-    shadowColor: COLORS.error,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
   },
-
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: normalize(8),
-    gap: normalize(6),
+    marginTop: normalize(6),
+    gap: normalize(4),
   },
-
   errorText: {
     fontSize: normalize(12),
     color: COLORS.error,
     fontWeight: '500',
   },
-
-  // Picker styles matching your button design
   pickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.card,
-    borderRadius: normalize(10),
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: normalize(12),
     paddingHorizontal: normalize(16),
-    paddingVertical: normalize(12),
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
-    minHeight: normalize(50),
+    paddingVertical: normalize(14),
+    borderWidth: normalize(1),
+    borderColor: colors.border,
+    minHeight: normalize(52),
   },
-
   pickerSelected: {
-    borderColor: COLORS.accentPrimary,
-    backgroundColor: COLORS.inputBackgroundFocused,
-    shadowColor: COLORS.accentPrimary,
-
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(255, 149, 0, 0.08)',
   },
-
   pickerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-
   pickerIconContainer: {
-    width: normalize(32),
-    height: normalize(32),
-    borderRadius: normalize(8),
+    width: normalize(36),
+    height: normalize(36),
+    borderRadius: normalize(10),
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: normalize(12),
     borderWidth: normalize(1),
-    borderColor: COLORS.border,
   },
-
   pickerEmoji: {
     fontSize: normalize(16),
   },
-
   pickerText: {
     fontSize: normalize(15),
     fontWeight: '500',
     flex: 1,
   },
-
   pickerTextSelected: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
-
   placeholderText: {
-    color: COLORS.textMuted,
+    color: colors.textTertiary,
   },
-
-  // Modal styles matching your theme
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: COLORS.overlay,
   },
-
   modalContainer: {
     position: 'absolute',
     bottom: 0,
     width: '100%',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: normalize(24),
     borderTopRightRadius: normalize(24),
     paddingHorizontal: normalize(18),
-    paddingTop: normalize(12),
-    paddingBottom: normalize(20),
-    maxHeight: height * 0.8,
+    paddingTop: normalize(8),
+    paddingBottom: normalize(24),
+    maxHeight: height * 0.75,
     borderWidth: normalize(1),
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
-
   modalHandle: {
     width: normalize(40),
     height: normalize(4),
-    backgroundColor: COLORS.textInactive,
+    backgroundColor: colors.border,
     borderRadius: normalize(2),
     alignSelf: 'center',
-    marginBottom: normalize(16),
+    marginBottom: normalize(12),
   },
-
   modalHeader: {
     alignItems: 'center',
-    marginBottom: normalize(16),
+    marginBottom: normalize(12),
+    paddingBottom: normalize(12),
     borderBottomWidth: normalize(1),
-    borderBottomColor: COLORS.borderDivider,
-    paddingBottom: normalize(14),
+    borderBottomColor: colors.border,
   },
-
   modalTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: normalize(8),
   },
-
   modalTitle: {
-    fontSize: normalize(18),
+    fontSize: normalize(17),
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
-
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.inputBackground,
-    borderRadius: normalize(14),
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: normalize(12),
     paddingHorizontal: normalize(14),
-    marginBottom: normalize(16),
+    marginBottom: normalize(12),
     borderWidth: normalize(1),
-    borderColor: COLORS.border,
-    minHeight: normalize(48),
+    borderColor: colors.border,
+    minHeight: normalize(44),
   },
-
   searchInput: {
     flex: 1,
-    paddingVertical: normalize(12),
+    paddingVertical: normalize(10),
     paddingHorizontal: normalize(8),
     fontSize: normalize(15),
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '500',
   },
-
   modalContent: {
     flex: 1,
   },
-
-  // Option items matching your list design
   menuItemWrapper: {
-    marginBottom: normalize(10),
+    marginBottom: normalize(8),
   },
-
   menuOption: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: normalize(14),
-    backgroundColor: COLORS.cardBackground,
-    borderRadius: normalize(14),
-    borderWidth: normalize(1),
-    borderColor: COLORS.borderDivider,
-    minHeight: normalize(70),
-  },
-
-  optionSelected: {
-    backgroundColor: 'rgba(255, 133, 53, 0.12)',
-    borderColor: COLORS.accentPrimary,
-    shadowColor: COLORS.accentPrimary,
-  },
-
-  menuIcon: {
-    width: normalize(40),
-    height: normalize(40),
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: normalize(12),
+    borderWidth: normalize(1),
+    borderColor: colors.border,
+    minHeight: normalize(64),
+  },
+  optionSelected: {
+    backgroundColor: 'rgba(255, 149, 0, 0.12)',
+    borderColor: colors.primary,
+  },
+  menuIcon: {
+    width: normalize(42),
+    height: normalize(42),
+    borderRadius: normalize(10),
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: normalize(14),
+    marginRight: normalize(12),
     borderWidth: normalize(1),
   },
-
   menuText: {
     flex: 1,
     justifyContent: 'center',
   },
-
   menuLabel: {
-    fontSize: normalize(16),
+    fontSize: normalize(15),
     fontWeight: '600',
-    color: COLORS.textPrimary,
-    lineHeight: normalize(22),
+    color: colors.textPrimary,
+    marginBottom: normalize(2),
   },
-
   optionNameSelected: {
-    color: COLORS.accentPrimary,
+    color: colors.primary,
   },
-
   menuSublabel: {
-    fontSize: normalize(13),
-    color: COLORS.textSecondary,
-    marginTop: normalize(2),
-    lineHeight: normalize(18),
+    fontSize: normalize(12),
+    color: colors.textSecondary,
     fontWeight: '500',
   },
-
   checkmarkContainer: {
-    marginLeft: 'auto',
-    paddingLeft: normalize(12),
+    marginLeft: normalize(8),
   },
-
   noResultsContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: normalize(40),
   },
-
   noResultsText: {
-    fontSize: normalize(17),
+    fontSize: normalize(16),
     fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginTop: normalize(16),
+    color: colors.textSecondary,
+    marginTop: normalize(12),
     textAlign: 'center',
   },
-
   noResultsSubtext: {
     fontSize: normalize(13),
-    color: COLORS.textMuted,
-    marginTop: normalize(6),
+    color: colors.textTertiary,
+    marginTop: normalize(4),
     textAlign: 'center',
     fontWeight: '500',
   },
-
-  // Summary card matching your progress design
   summaryCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: normalize(16),
-    padding: normalize(18),
-    marginTop: normalize(16),
+    backgroundColor: 'rgba(50, 215, 75, 0.1)',
+    borderRadius: normalize(14),
+    padding: normalize(16),
+    marginTop: normalize(12),
     borderWidth: normalize(1),
-    borderColor: COLORS.success,
+    borderColor: colors.success,
   },
-
   summaryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: normalize(8),
-    marginBottom: normalize(12),
+    marginBottom: normalize(10),
   },
-
   summaryTitle: {
-    fontSize: normalize(17),
+    fontSize: normalize(16),
     fontWeight: '700',
-    color: COLORS.success,
+    color: colors.success,
   },
-
   summaryContent: {
-    paddingLeft: normalize(28),
+    gap: normalize(6),
   },
-
   summaryText: {
     fontSize: normalize(14),
-    color: COLORS.textPrimary,
-    marginBottom: normalize(6),
-    lineHeight: normalize(20),
+    color: colors.textPrimary,
     fontWeight: '500',
   },
-
   summaryLabel: {
-    fontWeight: '700',
-    color: COLORS.textSecondary,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
-
-  // Submit button matching your start button design
   submitSectionFixed: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.bg,
     paddingHorizontal: normalize(18),
-    paddingTop: normalize(14),
+    paddingTop: normalize(12),
     paddingBottom: normalize(18),
     borderTopWidth: normalize(1),
-    borderTopColor: COLORS.borderDivider,
-    zIndex: 15,
+    borderTopColor: colors.border,
   },
-
   submitButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: normalize(14),
     paddingVertical: normalize(16),
     flexDirection: 'row',
@@ -502,23 +442,18 @@ const styles = StyleSheet.create({
     gap: normalize(8),
     minHeight: normalize(54),
   },
-
   submitButtonDisabled: {
     backgroundColor: COLORS.disabled,
-    shadowColor: 'transparent',
-    elevation: 0,
+    opacity: 0.6,
   },
-
   submitButtonLoading: {
-    backgroundColor: COLORS.accentSecondary,
-    shadowColor: COLORS.accentSecondary,
+    backgroundColor: colors.primary,
+    opacity: 0.8,
   },
-
   submitButtonText: {
     fontSize: normalize(16),
     fontWeight: '700',
-    color: COLORS.background,
-    letterSpacing: normalize(0.5),
+    color: colors.bg,
   },
 });
 

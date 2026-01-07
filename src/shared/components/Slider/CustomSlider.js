@@ -12,11 +12,27 @@ import Animated, {
   useAnimatedProps,
   runOnJS,
 } from 'react-native-reanimated';
-import { COLORS } from '../../../features/workout/screens/CreateWorkoutScreen/CreateWorkoutScreenStyle';
 import { normalize } from '../../hooks/useResponsive';
 
-const HANDLE_SIZE = normalize(20);
-const TRACK_HEIGHT = normalize(8);
+const colors = {
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
+};
+
+const HANDLE_SIZE = normalize(24);
+const TRACK_HEIGHT = normalize(6);
 
 Animated.addWhitelistedNativeProps({ text: true });
 
@@ -28,9 +44,9 @@ const Slider = ({
   step = 1,
   value,
   onSlidingComplete,
-  minimumTrackTintColor = COLORS.primary,
-  maximumTrackTintColor = COLORS.divider,
-  thumbTintColor = '#286b8fff',
+  minimumTrackTintColor = colors.primary,
+  maximumTrackTintColor = colors.borderLight,
+  thumbTintColor = colors.primary,
   style,
 }) => {
   const offset = useSharedValue(0);
@@ -42,7 +58,6 @@ const Slider = ({
     setContainerWidth(width);
   };
 
-  // Adjust effective width to account for handle size
   const effectiveWidth = containerWidth - HANDLE_SIZE;
 
   const mapOffsetToValue = (offsetVal) => {
@@ -67,7 +82,7 @@ const Slider = ({
   }, [value, effectiveWidth]);
 
   const pan = Gesture.Pan()
-    .minDistance(2)
+    .minDistance(0)
     .onChange((event) => {
       offset.value = Math.max(
         0,
@@ -83,12 +98,25 @@ const Slider = ({
       }
     });
 
+  const tap = Gesture.Tap()
+    .onStart((event) => {
+      const tapX = event.x - HANDLE_SIZE / 2;
+      offset.value = Math.max(0, Math.min(tapX, effectiveWidth));
+      displayValue.value = mapOffsetToValue(offset.value);
+      const finalValue = mapOffsetToValue(offset.value);
+      if (onSlidingComplete) {
+        runOnJS(onSlidingComplete)(finalValue);
+      }
+    });
+
+  const composed = Gesture.Race(tap, pan);
+
   const sliderStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: offset.value }],
   }));
 
   const trackStyle = useAnimatedStyle(() => ({
-    width: offset.value + HANDLE_SIZE, // Track extends to handle's right edge
+    width: offset.value + HANDLE_SIZE,
     backgroundColor: minimumTrackTintColor,
   }));
 
@@ -99,17 +127,13 @@ const Slider = ({
 
   return (
     <GestureHandlerRootView style={[styles.container, style]} onLayout={handleLayout}>
-      <View style={[styles.sliderTrackWrapper, { width: containerWidth }]}>
-        <View
-          style={[styles.sliderTrack, { backgroundColor: maximumTrackTintColor }]}
-        >
-          <Animated.View style={[styles.minimumTrack, trackStyle]} />
-          <GestureDetector 
-            gesture={pan}
-            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-            >
+      <GestureDetector gesture={composed}>
+        <View style={[styles.sliderTrackWrapper, { width: containerWidth }]}>
+          <View
+            style={[styles.sliderTrack, { backgroundColor: maximumTrackTintColor }]}
+          >
+            <Animated.View style={[styles.minimumTrack, trackStyle]} />
             <Animated.View style={[styles.sliderHandleContainer, sliderStyle]}>
-              {/* Background layer to mask minimumTrack */}
               <View
                 style={[
                   styles.sliderHandleBackground,
@@ -120,16 +144,16 @@ const Slider = ({
                 style={[styles.sliderHandle, { backgroundColor: thumbTintColor }]}
               />
             </Animated.View>
-          </GestureDetector>
+          </View>
+          <View style={styles.durationBadge}>
+            <AnimatedTextInput
+              animatedProps={animatedProps}
+              style={[styles.durationText, { color: colors.primary }]}
+              editable={false}
+            />
+          </View>
         </View>
-        <View style={styles.durationBadge}>
-          <AnimatedTextInput
-            animatedProps={animatedProps}
-            style={[styles.durationText, { color: COLORS.primary }]}
-            editable={false}
-          />
-        </View>
-      </View>
+      </GestureDetector>
 
       <View style={[styles.durationIndicators, { width: containerWidth }]}>
         <Animated.Text style={styles.durationIndicator}>
@@ -149,27 +173,26 @@ const Slider = ({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    gap: normalize(8),
     width: '100%',
-    marginTop: normalize(4)
   },
   sliderTrackWrapper: {
     width: '100%',
-    height: TRACK_HEIGHT,
+    height: normalize(40),
     position: 'relative',
     justifyContent: 'center',
   },
   sliderTrack: {
     width: '100%',
     height: TRACK_HEIGHT,
-    borderRadius: normalize(4),
+    borderRadius: normalize(3),
     position: 'absolute',
-    top: 0,
+    top: '50%',
+    marginTop: -(TRACK_HEIGHT / 2),
     left: 0,
   },
   minimumTrack: {
     height: TRACK_HEIGHT,
-    borderRadius: normalize(4),
+    borderRadius: normalize(3),
     position: 'absolute',
     top: 0,
     left: 0,
@@ -179,13 +202,14 @@ const styles = StyleSheet.create({
     width: HANDLE_SIZE,
     height: HANDLE_SIZE,
     position: 'absolute',
-    top: -(HANDLE_SIZE - TRACK_HEIGHT) / 2,
+    top: '50%',
+    marginTop: -(HANDLE_SIZE / 2),
     zIndex: 2,
   },
   sliderHandleBackground: {
     width: HANDLE_SIZE,
     height: TRACK_HEIGHT,
-    borderRadius: normalize(4),
+    borderRadius: normalize(3),
     position: 'absolute',
     top: (HANDLE_SIZE - TRACK_HEIGHT) / 2,
     left: 0,
@@ -199,16 +223,20 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     zIndex: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   durationBadge: {
     position: 'absolute',
-    top: normalize(-38),
+    bottom: normalize(30),
     right: 0,
     alignSelf: 'center',
-    backgroundColor: 'rgba(255, 159, 67, 0.15)',
-    paddingHorizontal: normalize(8),
-    paddingVertical: normalize(4),
-    borderRadius: normalize(8),
+    // paddingHorizontal: normalize(8),
+    // paddingVertical: normalize(0),
+    // borderRadius: normalize(8),
   },
   durationText: {
     fontSize: normalize(14),
@@ -223,7 +251,7 @@ const styles = StyleSheet.create({
   },
   durationIndicator: {
     fontSize: normalize(12),
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 });

@@ -1,16 +1,12 @@
-// (NOBRIDGE) WARN  Non-serializable values were found in the navigation state. Check:
-// AuthenticatedScreens > CreateExercise > params.onExerciseCreated (Function)
-// This can break usage such as persisting and restoring state. This might happen if you passed non-serializable values such as function, class instances etc. in params. If you need to use components with callbacks in your options, you can use 'navigation.setOptions' instead. See https://reactnavigation.org/docs/troubleshooting#i-get-the-warning-non-serializable-values-were-found-in-the-navigation-state for more details. [Component Stack]
-
 import { useState, useEffect, useCallback, memo, useMemo, useRef } from 'react';
 import { View, Text, Image, FlatList, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Animated, Easing, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { fetchExercises, prefetchExercises } from '../../handlers/WorkoutHandler';
+import { fetchExercises, prefetchExercises, clearExercisesCache } from '../../handlers/WorkoutHandler';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import { styles, COLORS } from './ExerciseSelectionScreenStyle.js';
 
-// Custom hook for debounced search with immediate UI feedback
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
   const [isDebouncing, setIsDebouncing] = useState(false);
@@ -31,7 +27,6 @@ const useDebounce = (value, delay) => {
   return [debouncedValue, isDebouncing];
 };
 
-// Custom hook for optimized exercise data processing with caching
 const useExerciseData = (allGroupedExercises) => {
   return useMemo(() => {
     const exerciseMap = new Map();
@@ -51,12 +46,12 @@ const useExerciseData = (allGroupedExercises) => {
       counts[group.muscleGroup] = exerciseCount;
       counts.total += exerciseCount;
 
-      group.exercises.forEach((exercise) => {
+      group.exercises.forEach((exercise, index) => {
         if (!exercise?.name) return;
         const enrichedExercise = {
           ...exercise,
           muscleGroup: group.muscleGroup,
-          id: `${group.muscleGroup}-${exercise.name}`,
+          id: `${group.muscleGroup}-${exercise.name}-${index}`,
         };
         exerciseMap.set(exercise.name, enrichedExercise);
         flatExercises.push(enrichedExercise);
@@ -72,7 +67,6 @@ const useExerciseData = (allGroupedExercises) => {
   }, [allGroupedExercises]);
 };
 
-// Optimized Exercise Item Component
 const ExerciseItem = memo(({ exercise, isSelected, onToggle }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [imageError, setImageError] = useState(false);
@@ -148,7 +142,7 @@ const ExerciseItem = memo(({ exercise, isSelected, onToggle }) => {
             <Ionicons
               name={isSelected ? 'checkmark' : 'add'}
               size={normalize(18)}
-              color={isSelected ? COLORS.success : COLORS.accentPrimary}
+              color={isSelected ? COLORS.success : COLORS.primaryOrange}
             />
           </View>
         </View>
@@ -157,11 +151,10 @@ const ExerciseItem = memo(({ exercise, isSelected, onToggle }) => {
   );
 }, (prev, next) => {
   return prev.isSelected === next.isSelected &&
-            prev.exercise.name === next.exercise.name &&
-            prev.exercise.id === next.exercise.id;
+         prev.exercise.name === next.exercise.name &&
+         prev.exercise.id === next.exercise.id;
 });
 
-// Enhanced FilterBar Component
 const FilterBar = memo(({ activeFilter, onFilterChange, muscleGroups, counts }) => {
   const scrollRef = useRef(null);
   const filters = useMemo(() => ['All', ...muscleGroups], [muscleGroups]);
@@ -175,7 +168,7 @@ const FilterBar = memo(({ activeFilter, onFilterChange, muscleGroups, counts }) 
   const scrollToActiveFilter = useCallback(() => {
     const activeIndex = filters.indexOf(activeFilter);
     if (activeIndex >= 0 && scrollRef.current) {
-      const pillWidth = normalize(90); // Approximate width of each pill
+      const pillWidth = normalize(90);
       const scrollX = pillWidth * Math.max(0, activeIndex - 1);
 
       scrollRef.current.scrollTo({
@@ -183,7 +176,6 @@ const FilterBar = memo(({ activeFilter, onFilterChange, muscleGroups, counts }) 
         animated: true,
       });
 
-      // Ensure last pill is fully visible
       if (activeIndex === filters.length - 1) {
         scrollRef.current.scrollToEnd({ animated: true });
       }
@@ -217,12 +209,11 @@ const FilterBar = memo(({ activeFilter, onFilterChange, muscleGroups, counts }) 
         contentContainerStyle={styles.filtersRow}
         keyboardShouldPersistTaps="handled"
         decelerationRate="fast"
-        removeClippedSubviews={Platform.OS === 'android'}
-        snapToAlignment="start" // Ensure snapping aligns to the start of pills
-        snapToInterval={normalize(90)} // Approximate pill width for snapping
+        snapToAlignment="start"
+        snapToInterval={normalize(90)}
         scrollEventThrottle={16}
       >
-        {filters.map((filter, index) => {
+        {filters.map((filter) => {
           const isActive = activeFilter === filter;
           const animValue = animationValues[filter] || new Animated.Value(0);
 
@@ -267,7 +258,7 @@ const FilterBar = memo(({ activeFilter, onFilterChange, muscleGroups, counts }) 
     </View>
   );
 });
-// Enhanced Search Header Component
+
 const SearchHeader = memo(({ searchTerm, onSearchChange, onBack, onCreateExercise, activeFilter, onFilterChange, muscleGroups, counts }) => {
   const createButtonScale = useRef(new Animated.Value(1)).current;
 
@@ -311,11 +302,10 @@ const SearchHeader = memo(({ searchTerm, onSearchChange, onBack, onCreateExercis
             accessibilityLabel="Create new exercise"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <View style={styles.createButtonGlowEffect} />
             <Ionicons
               name="add"
               size={normalize(18)}
-              style={styles.createButtonIcon}
+              color={COLORS.background}
             />
             <Text style={styles.createButtonText}>Create</Text>
           </TouchableOpacity>
@@ -360,7 +350,6 @@ const SearchHeader = memo(({ searchTerm, onSearchChange, onBack, onCreateExercis
   );
 });
 
-// Optimized Section Header Component
 const SectionHeader = memo(({ title }) => (
   <View style={styles.sectionHeaderContainer}>
     <Text style={styles.sectionHeaderText}>
@@ -369,7 +358,6 @@ const SectionHeader = memo(({ title }) => (
   </View>
 ));
 
-// Main Component
 const ExerciseSelectionScreen = ({ route }) => {
   const navigation = useNavigation();
 
@@ -384,9 +372,6 @@ const ExerciseSelectionScreen = ({ route }) => {
   const { exerciseMap, muscleGroups, counts, flatExercises } = useExerciseData(allGroupedExercises);
   const doneButtonAnim = useRef(new Animated.Value(0)).current;
 
-  // State to hold the function for adding a new exercise
-  const [newExerciseCallback, setNewExerciseCallback] = useState(null);
-
   const loadExercises = useCallback(async (isRetry = false) => {
     if (!isRetry && allGroupedExercises.length > 0) return;
 
@@ -394,7 +379,7 @@ const ExerciseSelectionScreen = ({ route }) => {
     setError(null);
 
     try {
-      const data = await fetchExercises(isRetry);
+      const data = await fetchExercises(true);
       setAllGroupedExercises(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message || 'Failed to load exercises');
@@ -404,20 +389,16 @@ const ExerciseSelectionScreen = ({ route }) => {
   }, [allGroupedExercises.length]);
 
   useEffect(() => {
+     clearExercisesCache(true); // Clear images too
+ fetchExercises(true); // Force refresh
     prefetchExercises().catch(() => {});
     loadExercises();
   }, [loadExercises]);
 
-  // Use useFocusEffect to run the callback when this screen is focused again
   useFocusEffect(
     useCallback(() => {
-      // If a callback was set and exists, run it
-      if (newExerciseCallback) {
-        newExerciseCallback();
-        // Clear the callback to prevent it from running again
-        setNewExerciseCallback(null);
-      }
-    }, [newExerciseCallback])
+      loadExercises();
+    }, [loadExercises])
   );
 
   const filteredAndGroupedExercises = useMemo(() => {
@@ -459,9 +440,19 @@ const ExerciseSelectionScreen = ({ route }) => {
 
   const flatListData = useMemo(() => {
     const result = [];
-    filteredAndGroupedExercises.forEach(section => {
-      result.push({ type: 'header', title: section.title, id: `header-${section.title}` });
-      section.data.forEach(item => result.push({ type: 'item', ...item }));
+    filteredAndGroupedExercises.forEach((section, sectionIndex) => {
+      result.push({ 
+        type: 'header', 
+        title: section.title, 
+        id: `header-${section.title}-${sectionIndex}` 
+      });
+      section.data.forEach((item, itemIndex) => 
+        result.push({ 
+          type: 'item', 
+          ...item, 
+          listId: `${item.id}-${sectionIndex}-${itemIndex}` 
+        })
+      );
     });
     return result;
   }, [filteredAndGroupedExercises]);
@@ -505,7 +496,6 @@ const ExerciseSelectionScreen = ({ route }) => {
       selectedExercises: selectedData,
       replaceIndex,
     });
-    console.log('Navigating to:', previousScreen, 'with selected exercises:', selectedData);
   }, [selectedExercises, exerciseMap, route, navigation]);
 
   const handleGoBack = useCallback(() => {
@@ -513,86 +503,69 @@ const ExerciseSelectionScreen = ({ route }) => {
   }, [navigation]);
 
   const handleCreateExercise = useCallback(() => {
-    navigation.navigate('CreateExercise', {
-      // You can't pass functions in params, so you can just set up the screen to navigate back.
-      // The logic to add the exercise will now be handled by a callback that is run
-      // when the screen is focused again via useFocusEffect.
-    });
-    
-    // Set the function to be called when the next screen is focused.
-    // This function will receive the new exercise from the CreateExercise screen.
-    const onExerciseCreatedCallback = (newExercise) => {
-      setAllGroupedExercises(prev => {
-        const updated = [...prev];
-        const groupIndex = updated.findIndex(g => g.muscleGroup === newExercise.muscleGroup);
-
-        if (groupIndex >= 0) {
-          updated[groupIndex] = {
-            ...updated[groupIndex],
-            exercises: [...updated[groupIndex].exercises, newExercise]
-          };
-        } else {
-          updated.push({
-            muscleGroup: newExercise.muscleGroup,
-            exercises: [newExercise]
-          });
-        }
-        return updated;
-      });
-      setSelectedExercises(prev => new Set([...prev, newExercise.name]));
-    };
-    
-    // Pass the function to the next screen by setting a property on the navigation object
-    // or by using a context/global state manager if needed.
-    // For this case, we'll assume the CreateExercise screen will return a new exercise
-    // in its navigation params on a successful "go back" action.
-    navigation.setOptions({
-      onExerciseCreated: onExerciseCreatedCallback,
-    });
-    
-  }, [navigation, setAllGroupedExercises, setSelectedExercises]);
-
-
-  const renderItem = useCallback(({ item }) => (
-    <ExerciseItem
-      exercise={item}
-      isSelected={selectedExercises.has(item.name)}
-      onToggle={handleToggleExercise}
-    />
-  ), [selectedExercises, handleToggleExercise]);
+    navigation.navigate('CreateExercise', {});
+  }, [navigation]);
 
   const renderFlatListItem = useCallback(({ item }) => {
     if (item.type === 'header') {
       return <SectionHeader title={item.title} />;
     }
-    return renderItem({ item });
-  }, [renderItem]);
+    return (
+      <ExerciseItem
+        exercise={item}
+        isSelected={selectedExercises.has(item.name)}
+        onToggle={handleToggleExercise}
+      />
+    );
+  }, [selectedExercises, handleToggleExercise]);
 
-  const flatListKeyExtractor = useCallback((item) => item.id, []);
+  const flatListKeyExtractor = useCallback((item) => item.listId || item.id, []);
 
-  const getItemLayout = useCallback((data, index) => ({
-    length: normalize(76),
-    offset: normalize(76) * index,
-    index,
-  }), []);
+  const renderListEmptyComponent = useCallback(() => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="barbell-outline" size={60} color={COLORS.textMuted} />
+      <Text style={styles.emptyText}>
+        {debouncedSearchTerm || activeFilter !== 'All'
+          ? 'No exercises match your search criteria.'
+          : 'No exercises available.'}
+      </Text>
+      {(debouncedSearchTerm || activeFilter !== 'All') && (
+        <TouchableOpacity
+          style={styles.clearButton}
+          onPress={() => {
+            setSearchTerm('');
+            setActiveFilter('All');
+          }}
+        >
+          <Text style={styles.clearButtonText}>Clear Filters</Text>
+        </TouchableOpacity>
+      )}
+      <TouchableOpacity
+        style={[styles.clearButton, { marginTop: normalize(12) }]}
+        onPress={handleCreateExercise}
+      >
+        <Text style={styles.clearButtonText}>Create New Exercise</Text>
+      </TouchableOpacity>
+    </View>
+  ), [debouncedSearchTerm, activeFilter, handleCreateExercise]);
 
   if (loading && !filteredAndGroupedExercises.length) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color={COLORS.accentPrimary} />
+      <SafeAreaView style={[styles.container, styles.centerContent]} edges={['bottom']}>
+        <ActivityIndicator size="large" color={COLORS.primaryOrange} />
         <Text style={styles.loadingText}>Loading exercises...</Text>
         {isSearching && (
           <Text style={[styles.loadingText, { fontSize: normalize(12), marginTop: normalize(8) }]}>
             Searching...
           </Text>
         )}
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (error && !filteredAndGroupedExercises.length) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
+      <SafeAreaView style={[styles.container, styles.centerContent]} edges={['bottom']}>
         <Ionicons name="cloud-offline-outline" size={60} color={COLORS.error} />
         <Text style={styles.errorText}>{error}</Text>
         <View style={styles.buttonRow}>
@@ -603,12 +576,12 @@ const ExerciseSelectionScreen = ({ route }) => {
             <Text style={styles.retryButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <SearchHeader
         searchTerm={searchTerm}
         onSearchChange={handleSearchChange}
@@ -626,65 +599,37 @@ const ExerciseSelectionScreen = ({ route }) => {
         keyExtractor={flatListKeyExtractor}
         contentContainerStyle={[
           styles.listContainer,
-          !flatListData.length && { flex: 1 },
+          !flatListData.length && styles.listContainerEmpty,
         ]}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="barbell-outline" size={60} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>
-              {debouncedSearchTerm || activeFilter !== 'All'
-                ? 'No exercises match your search criteria.'
-                : 'No exercises available.'}
-            </Text>
-            {(debouncedSearchTerm || activeFilter !== 'All') && (
-              <TouchableOpacity
-                style={styles.clearButton}
-                onPress={() => {
-                  setSearchTerm('');
-                  setActiveFilter('All');
-                }}
-              >
-                <Text style={styles.clearButtonText}>Clear Filters</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={[styles.clearButton, { marginTop: normalize(12) }]}
-              onPress={handleCreateExercise}
-            >
-              <Text style={styles.clearButtonText}>Create New Exercise</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        ListEmptyComponent={renderListEmptyComponent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        initialNumToRender={15}
-        maxToRenderPerBatch={20}
-        windowSize={10}
+        initialNumToRender={20}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        windowSize={21}
         removeClippedSubviews={Platform.OS === 'android'}
-        getItemLayout={getItemLayout}
-        disableIntervalMomentum={true}
-        scrollEventThrottle={16}
+        getItemLayout={(data, index) => ({
+          length: normalize(70),
+          offset: normalize(70) * index,
+          index,
+        })}
       />
 
       <Animated.View
-        style={{
-          opacity: doneButtonAnim,
-          transform: [{
-            translateY: doneButtonAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [100, 0],
-            }),
-          }],
-          position: 'absolute',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '100%',
-          paddingHorizontal: normalize(10),
-          // top: normalize(20),
-          bottom: normalize(20),
-          // left: '5%',
-          // right: '5%',
-        }}
+        style={[
+          styles.doneButtonContainer,
+          {
+            opacity: doneButtonAnim,
+            transform: [{
+              translateY: doneButtonAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [100, 0],
+              }),
+            }],
+          }
+        ]}
+        pointerEvents={selectedExercises.size === 0 ? 'none' : 'auto'}
       >
         <TouchableOpacity
           onPress={handleConfirmSelection}
@@ -698,7 +643,7 @@ const ExerciseSelectionScreen = ({ route }) => {
           </Text>
         </TouchableOpacity>
       </Animated.View>
-    </View>
+    </SafeAreaView>
   );
 };
 

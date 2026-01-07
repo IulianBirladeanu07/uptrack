@@ -6,17 +6,11 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
-  Dimensions,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
-
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 import styles, { COLORS } from './ViewSplitScreenStyle';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const ViewSplitScreen = ({ route, navigation }) => {
   const { splitData } = route.params || {};
@@ -26,13 +20,12 @@ const ViewSplitScreen = ({ route, navigation }) => {
   const [selectedDay, setSelectedDay] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-  const [selectedTimeframe, setSelectedTimeframe] = useState('4weeks'); // 4weeks, 12weeks, all
+  const [selectedTimeframe, setSelectedTimeframe] = useState('4weeks');
 
-  // Mock training history data - in real app, this would come from your database
   const mockTrainingHistory = {
     totalWeeksUsed: 12,
     totalWorkoutsCompleted: 34,
-    totalTimeSpent: 2890, // minutes
+    totalTimeSpent: 2890,
     currentStreak: 5,
     longestStreak: 9,
     weeklyCompletion: [
@@ -166,7 +159,6 @@ const ViewSplitScreen = ({ route, navigation }) => {
     return selectedDay ? split?.schedule?.[selectedDay] : null;
   }, [selectedDay, split]);
 
-  // Calculate performance metrics
   const performanceMetrics = useMemo(() => {
     const history = mockTrainingHistory;
     const totalPlannedWorkouts = history.weeklyCompletion.reduce((sum, week) => sum + week.planned, 0);
@@ -174,7 +166,6 @@ const ViewSplitScreen = ({ route, navigation }) => {
     const totalHours = Math.round(history.totalTimeSpent / 60);
     const avgWorkoutDuration = Math.round(history.totalTimeSpent / history.totalWorkoutsCompleted);
     
-    // Strength progress calculation
     const strengthGains = Object.entries(history.strengthProgress).map(([exercise, progress]) => {
       const firstEntry = progress[0];
       const lastEntry = progress[progress.length - 1];
@@ -236,14 +227,11 @@ const ViewSplitScreen = ({ route, navigation }) => {
 
   if (!split) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
-        <Text style={{ color: COLORS.textPrimary, fontSize: normalize(16), textAlign: 'center' }}>
-          Split data is missing.
-        </Text>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={{ color: COLORS.accentPrimary, marginTop: 10, fontSize: normalize(14), fontWeight: '600' }}>
-            Go Back
-          </Text>
+      <View style={styles.emptyContainer}>
+        <Ionicons name="calendar-outline" size={normalize(64)} color={COLORS.textMuted} style={styles.emptyIcon} />
+        <Text style={styles.emptyTitle}>Split data is missing</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.startButton}>
+          <Text style={styles.startButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -252,12 +240,6 @@ const ViewSplitScreen = ({ route, navigation }) => {
   const renderHeaderAndActions = () => (
     <View style={styles.header}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-      <LinearGradient
-        colors={['rgba(255, 133, 53, 0.1)', 'rgba(0, 212, 255, 0.05)', 'transparent']}
-        start={[0, 0]}
-        end={[1, 1]}
-        style={styles.headerGradient}
-      />
       <View style={styles.headerContent}>
         <View style={styles.headerTop}>
           <TouchableOpacity
@@ -285,7 +267,7 @@ const ViewSplitScreen = ({ route, navigation }) => {
         </View>
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <View style={styles.statIcon}><Ionicons name="checkmark-circle" size={normalize(16)} color={COLORS.success} /></View>
+            <View style={styles.statIcon}><Ionicons name="checkmark-circle" size={normalize(16)} color={COLORS.primary} /></View>
             <Text style={styles.statValue}>{mockTrainingHistory.totalWorkoutsCompleted}</Text>
             <Text style={styles.statLabel}>Completed</Text>
           </View>
@@ -328,7 +310,6 @@ const ViewSplitScreen = ({ route, navigation }) => {
 
   const renderOverviewContent = () => (
     <>
-      {/* Performance Summary Card */}
       <View style={styles.overviewCard}>
         <Text style={styles.overviewTitle}>Training Performance</Text>
         
@@ -359,7 +340,7 @@ const ViewSplitScreen = ({ route, navigation }) => {
         <View style={styles.completionChart}>
           <Text style={styles.chartTitle}>Weekly Completion (Last 12 Weeks)</Text>
           <View style={styles.chartBars}>
-            {mockTrainingHistory.weeklyCompletion.slice(-8).map((week, index) => (
+            {mockTrainingHistory.weeklyCompletion.slice(-8).map((week) => (
               <View key={week.week} style={styles.barContainer}>
                 <View style={styles.barBackground}>
                   <View 
@@ -367,8 +348,7 @@ const ViewSplitScreen = ({ route, navigation }) => {
                       styles.barFill, 
                       { 
                         height: `${week.completionRate}%`,
-                        backgroundColor: week.completionRate >= 75 ? COLORS.success : 
-                                       week.completionRate >= 50 ? COLORS.warning : COLORS.error
+                        backgroundColor: COLORS.primary
                       }
                     ]} 
                   />
@@ -380,14 +360,13 @@ const ViewSplitScreen = ({ route, navigation }) => {
         </View>
       </View>
 
-      {/* Recent Activity */}
       <View style={styles.overviewCard}>
         <Text style={styles.overviewTitle}>Recent Activity</Text>
         {mockTrainingHistory.recentWorkouts.slice(0, 5).map((workout, index) => (
           <View key={index} style={styles.activityItem}>
             <View style={[
               styles.activityIcon, 
-              { backgroundColor: workout.completed ? COLORS.success : COLORS.error }
+              { backgroundColor: workout.completed ? COLORS.primary : COLORS.error }
             ]}>
               <Ionicons 
                 name={workout.completed ? "checkmark" : "close"} 
@@ -424,7 +403,6 @@ const ViewSplitScreen = ({ route, navigation }) => {
 
   const renderProgressContent = () => (
     <>
-      {/* Time Period Selector */}
       <View style={styles.timeSelector}>
         {[
           { id: '4weeks', label: '4 Weeks' },
@@ -443,7 +421,6 @@ const ViewSplitScreen = ({ route, navigation }) => {
         ))}
       </View>
 
-      {/* Strength Progress */}
       <View style={styles.overviewCard}>
         <Text style={styles.overviewTitle}>Strength Progress</Text>
         {performanceMetrics.strengthGains.map((item, index) => (
@@ -452,7 +429,7 @@ const ViewSplitScreen = ({ route, navigation }) => {
               <Text style={styles.strengthExercise}>{item.exercise}</Text>
               <Text style={[
                 styles.strengthGain,
-                { color: item.gain > 0 ? COLORS.success : COLORS.error }
+                { color: COLORS.primary }
               ]}>
                 +{item.gain}%
               </Text>
@@ -471,7 +448,6 @@ const ViewSplitScreen = ({ route, navigation }) => {
         ))}
       </View>
 
-      {/* Muscle Group Progress */}
       <View style={styles.overviewCard}>
         <Text style={styles.overviewTitle}>Muscle Group Development</Text>
         {Object.entries(mockTrainingHistory.muscleGroupProgress).map(([muscle, progress]) => (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 import { COLORS } from '../CreateSplitScreenStyles'
@@ -21,7 +21,7 @@ const BasicInfoStep = ({ splitData, handleChange }) => {
               <Ionicons
                 name={icon}
                 size={normalize(20)}
-                color={isSelected ? '#000000' : COLORS.textMuted}
+                color={isSelected ? COLORS.bg : COLORS.textMuted}
               />
             </View>
             <View style={styles.splitTypeTextContainer}>
@@ -34,7 +34,7 @@ const BasicInfoStep = ({ splitData, handleChange }) => {
             </View>
             <View style={[styles.splitTypeCheck, isSelected && styles.splitTypeCheckSelected]}>
               {isSelected && (
-                <Ionicons name="checkmark" size={normalize(14)} color="#000000" />
+                <Ionicons name="checkmark" size={normalize(14)} color={COLORS.bg} />
               )}
             </View>
           </View>
@@ -45,54 +45,60 @@ const BasicInfoStep = ({ splitData, handleChange }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.contentContainer}>
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderLeft}>
-              <View style={styles.orangeIconContainer}>
-                <Feather name="edit" size={normalize(20)} color="#212121" />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.contentContainer}>
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderLeft}>
+                <View style={styles.orangeIconContainer}>
+                  <Feather name="edit" size={normalize(20)} color={COLORS.bg} />
+                </View>
+                <Text style={styles.sectionHeaderTitle}>Split Details</Text>
               </View>
-              <Text style={styles.sectionHeaderTitle}>Split Details</Text>
             </View>
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Split Name</Text>
-            <TextInput
-              style={[styles.input, styles.workoutNameInput]}
-              placeholder="Enter split name"
-              placeholderTextColor={COLORS.textMuted}
-              value={splitData.name}
-              onChangeText={(text) => handleChange('name', text)}
-              returnKeyType="next"
-              maxLength={30}
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.notesInput]}
-              placeholder="Describe your workout goals and focus areas..."
-              placeholderTextColor={COLORS.textMuted}
-              value={splitData.description}
-              onChangeText={(text) => handleChange('description', text.length <= 200 ? text : splitData.description)}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-            <View style={styles.noteHelperContainer}>
-              <Text style={styles.noteHelper}>Be specific about your goals</Text>
-              <Text style={styles.charCount}>{splitData.description.length} / 200</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Split Name</Text>
+              <TextInput
+                style={[styles.input, styles.workoutNameInput]}
+                placeholder="Enter split name"
+                placeholderTextColor={COLORS.textMuted}
+                value={splitData.name}
+                onChangeText={(text) => handleChange('name', text)}
+                returnKeyType="next"
+                maxLength={30}
+              />
             </View>
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Split Type</Text>
-            <View style={styles.splitTypeContainer}>
-              {renderSplitTypeOption('weekly', 'calendar-outline', 'Weekly Schedule', 'Assign workouts to specific days of the week')}
-              {renderSplitTypeOption('rotation', 'refresh-outline', 'Flexible Cycle', 'Create a repeating workout pattern with rest days')}
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Description</Text>
+              <TextInput
+                style={[styles.input, styles.notesInput]}
+                placeholder="Describe your workout goals and focus areas..."
+                placeholderTextColor={COLORS.textMuted}
+                value={splitData.description}
+                onChangeText={(text) => handleChange('description', text.length <= 200 ? text : splitData.description)}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                maxLength={200}
+              />
+              <View style={styles.noteHelperContainer}>
+                <Text style={styles.noteHelper}>Be specific about your goals</Text>
+                <Text style={styles.charCount}>{splitData.description.length} / 200</Text>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Split Type</Text>
+              <View style={styles.splitTypeContainer}>
+                {renderSplitTypeOption('weekly', 'calendar-outline', 'Weekly Schedule', 'Assign workouts to specific days of the week')}
+                {renderSplitTypeOption('rotation', 'refresh-outline', 'Flexible Cycle', 'Create a repeating workout pattern with rest days')}
+              </View>
             </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 };

@@ -1,23 +1,39 @@
 import { StyleSheet } from 'react-native';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 
-// Define COLORS directly in this stylesheet for self-containment
+const colors = {
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
+};
+
 const COLORS = {
-  background: '#02111B',
-  cardBackground: 'rgba(30, 41, 59, 0.5)',
-  cardBackgroundDark: 'rgba(15, 23, 42, 0.8)',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#d1d5db',
+  background: colors.bg,
+  cardBackground: colors.surface,
+  cardBackgroundDark: colors.surfaceLight,
+  textPrimary: colors.textPrimary,
+  textSecondary: colors.textSecondary,
   textInactive: 'rgba(255, 255, 255, 0.4)',
-  textMuted: '#9ca3af',
-  border: 'rgba(255, 255, 255, 0.1)',
-  borderDivider: 'rgba(255, 255, 255, 0.08)',
-  accentPrimary: '#ff8535',
-  accentSecondary: '#00d4ff',
-  accentPurple: '#a855f7',
-  success: '#10b981',
+  textMuted: colors.textTertiary,
+  border: colors.border,
+  borderDivider: colors.borderLight,
+  accentPrimary: colors.primary,
+  accentSecondary: colors.cyan,
+  accentPurple: colors.purple,
+  success: colors.success,
   shadow: 'rgba(0, 0, 0, 0.3)',
-  accentPrimaryFaded: 'rgba(255, 133, 53, 0.15)',
+  accentPrimaryFaded: 'rgba(255, 149, 0, 0.15)',
   mutedGray: 'rgba(107, 114, 128, 0.3)',
 };
 
@@ -322,7 +338,7 @@ export default StyleSheet.create({
     color: COLORS.textMuted,
     fontWeight: '500',
     flex: 1,
-    textAlign: 'right', // Align to the right
+    textAlign: 'right',
   },
   workoutsList: {
     paddingHorizontal: normalize(20),

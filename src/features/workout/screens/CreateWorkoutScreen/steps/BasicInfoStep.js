@@ -1,38 +1,37 @@
 import { useCallback, memo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Slider from '../../../../../shared/components/Slider/CustomSlider';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
-import { StyleSheet } from 'react-native';
 
-const COLORS = {
-  primary: '#ff8535',
-  primaryDark: '#0284C7',
-  secondary: '#02111B',
-  background: '#02111B',
-  cardDark: 'rgba(15, 23, 42, 0.8)',
-  card: 'rgba(30, 41, 59, 0.4)',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#d1d5db',
-  textMuted: '#9ca3af',
-  border: 'rgba(255, 255, 255, 0.1)',
-  borderDivider: 'rgba(255, 255, 255, 0.08)',
-  divider: 'rgba(255, 255, 255, 0.05)',
-  accentPrimaryFaded: 'rgba(255, 133, 53, 0.15)',
+const colors = {
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
 };
 
 const DAYS_OF_WEEK = [
-  { id: 'monday', label: 'Mon', fullName: 'Monday' },
-  { id: 'tuesday', label: 'Tue', fullName: 'Tuesday' },
-  { id: 'wednesday', label: 'Wed', fullName: 'Wednesday' },
-  { id: 'thursday', label: 'Thu', fullName: 'Thursday' },
-  { id: 'friday', label: 'Fri', fullName: 'Friday' },
-  { id: 'saturday', label: 'Sat', fullName: 'Saturday' },
-  { id: 'sunday', label: 'Sun', fullName: 'Sunday' },
+  { id: 'monday', label: 'M', fullName: 'Monday' },
+  { id: 'tuesday', label: 'T', fullName: 'Tuesday' },
+  { id: 'wednesday', label: 'W', fullName: 'Wednesday' },
+  { id: 'thursday', label: 'T', fullName: 'Thursday' },
+  { id: 'friday', label: 'F', fullName: 'Friday' },
+  { id: 'saturday', label: 'S', fullName: 'Saturday' },
+  { id: 'sunday', label: 'S', fullName: 'Sunday' },
 ];
 
-export const BasicInfoStep = memo(
-  ({ templateName, setTemplateName, note, setNote, duration, setDuration, preferredDays = [], setPreferredDays }) => {
+export const BasicInfoStep = ({ templateName, setTemplateName, note, setNote, duration, setDuration, preferredDays = [], setPreferredDays }) => {
     const handleSlidingComplete = useCallback(
       (value) => {
         setDuration(value);
@@ -65,7 +64,7 @@ export const BasicInfoStep = memo(
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionHeaderLeft}>
                   <View style={styles.orangeIconContainer}>
-                    <Feather name="edit" size={normalize(20)} color="#212121" />
+                    <Feather name="edit" size={normalize(20)} color={colors.bg} />
                   </View>
                   <Text style={styles.sectionHeaderTitle}>Workout Details</Text>
                 </View>
@@ -76,7 +75,7 @@ export const BasicInfoStep = memo(
                 <TextInput
                   style={[styles.input, styles.workoutNameInput]}
                   placeholder="Enter workout name"
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor={colors.textTertiary}
                   value={templateName}
                   onChangeText={setTemplateName}
                   returnKeyType="next"
@@ -89,12 +88,13 @@ export const BasicInfoStep = memo(
                 <TextInput
                   style={[styles.input, styles.notesInput]}
                   placeholder="Describe your workout goals and focus areas..."
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor={colors.textTertiary}
                   value={note}
                   onChangeText={setNote}
                   multiline={true}
                   numberOfLines={4}
                   textAlignVertical="top"
+                  maxLength={200}
                 />
                 <View style={styles.noteHelperContainer}>
                   <Text style={styles.noteHelper}>Be specific about your goals</Text>
@@ -131,27 +131,19 @@ export const BasicInfoStep = memo(
                     </TouchableOpacity>
                   ))}
                 </View>
-                <Text style={styles.dayHelper}>
-                  {preferredDays.length === 0 
-                    ? 'Select your preferred workout days (optional)'
-                    : `Selected: ${preferredDays.map(id => 
-                        DAYS_OF_WEEK.find(day => day.id === id)?.fullName
-                      ).join(', ')}`
-                  }
-                </Text>
               </View>
 
               <View style={styles.inputGroup}>
-                 <Text style={styles.inputLabel}>Estimated Duration</Text>
+                 <Text style={styles.durationLabel}>Estimated Duration</Text>
                 <Slider
                   minimumValue={0}
                   maximumValue={150}
                   step={1}
                   value={duration}
                   onSlidingComplete={handleSlidingComplete}
-                  minimumTrackTintColor={COLORS.primaryDark}
-                  maximumTrackTintColor={COLORS.divider}
-                  thumbTintColor={COLORS.primaryDark}
+                  minimumTrackTintColor={colors.primary}
+                  maximumTrackTintColor={colors.borderLight}
+                  thumbTintColor={colors.primary}
                 />
               </View>
             </View>
@@ -159,40 +151,29 @@ export const BasicInfoStep = memo(
         </ScrollView>
       </View>
     );
-  },
-  (prevProps, nextProps) => {
-    return (
-      prevProps.templateName === nextProps.templateName &&
-      prevProps.note === nextProps.note &&
-      prevProps.workoutType === nextProps.workoutType &&
-      prevProps.duration === nextProps.duration &&
-      JSON.stringify(prevProps.preferredDays) === JSON.stringify(nextProps.preferredDays)
-    );
-  }
-);
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.bg,
   },
   contentContainer: {
     flex: 1,
-    // padding: normalize(10),
   },
   sectionCard: {
-    backgroundColor: COLORS.cardDark,
-    borderRadius: normalize(12),
-    padding: normalize(16),
-    marginVertical: normalize(12),
+    backgroundColor: colors.surface,
+    borderRadius: normalize(18),
+    padding: normalize(18),
+    marginTop: normalize(20),
     borderWidth: normalize(1),
-    borderColor: COLORS.borderDivider,
+    borderColor: colors.border,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: normalize(16),
+    marginBottom: normalize(24),
   },
   sectionHeaderLeft: {
     flexDirection: 'row',
@@ -202,111 +183,109 @@ const styles = StyleSheet.create({
     width: normalize(40),
     height: normalize(40),
     borderRadius: normalize(8),
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: normalize(12),
   },
   sectionHeaderTitle: {
-    fontSize: normalize(18),
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    letterSpacing: 0.3,
+    fontSize: normalize(17),
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   inputGroup: {
-    marginBottom: normalize(18),
+    marginBottom: normalize(20),
   },
   inputLabel: {
-    fontSize: normalize(14),
+    fontSize: normalize(15),
     fontWeight: '500',
-    color: COLORS.textSecondary,
-    marginBottom: normalize(12),
+    color: colors.textSecondary,
+    marginBottom: normalize(10),
+  },
+  durationLabel: {
+    fontSize: normalize(15),
+    fontWeight: '500',
+    color: colors.textSecondary,
+    marginBottom: normalize(5)
   },
   input: {
-    backgroundColor: COLORS.card,
-    borderRadius: normalize(10),
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: normalize(12),
     paddingHorizontal: normalize(16),
-    paddingVertical: normalize(12),
+    paddingVertical: normalize(14),
     fontSize: normalize(16),
-    color: COLORS.textPrimary,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
+    color: colors.textPrimary,
+    borderWidth: normalize(1),
+    borderColor: colors.border,
   },
   workoutNameInput: {
-    height: normalize(50),
+    height: normalize(52),
   },
   notesInput: {
     minHeight: normalize(120),
-    paddingVertical: normalize(12),
+    paddingTop: normalize(14),
     textAlignVertical: 'top',
   },
   noteHelperContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: normalize(4),
-    marginBottom: normalize(2),
+    marginTop: normalize(8),
   },
   noteHelper: {
     fontSize: normalize(12),
-    color: COLORS.textMuted,
+    color: colors.textTertiary,
   },
   charCount: {
     fontSize: normalize(12),
-    color: COLORS.textMuted,
-    textAlign: 'right',
-    marginTop: normalize(4),
+    color: colors.textTertiary,
   },
   labelWithAction: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: normalize(8),
+    marginBottom: normalize(5),
   },
   clearButton: {
     paddingHorizontal: normalize(8),
-    paddingVertical: normalize(2),
+    paddingVertical: normalize(4),
   },
   clearButtonText: {
     fontSize: normalize(12),
-    color: COLORS.primary,
-    fontWeight: '500',
+    color: colors.primary,
+    fontWeight: '600',
   },
   daysContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: normalize(8),
-    marginBottom: normalize(8),
+    justifyContent: 'space-between',
   },
   dayButton: {
-    paddingHorizontal: normalize(12),
-    paddingVertical: normalize(8),
-    borderRadius: normalize(20),
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.card,
-    minWidth: normalize(44),
+    width: normalize(38),
+    height: normalize(38),
+    borderRadius: normalize(19),
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: normalize(1),
+    borderColor: colors.border,
   },
   dayButtonSelected: {
-    backgroundColor: COLORS.accentPrimaryFaded,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   dayButtonText: {
-    fontSize: normalize(12),
-    fontWeight: '500',
-    color: COLORS.textMuted,
+    fontSize: normalize(14),
+    fontWeight: '600',
+    color: colors.textTertiary,
   },
   dayButtonTextSelected: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
+    color: colors.bg,
+    fontWeight: '700',
   },
   dayHelper: {
-    fontSize: normalize(11),
-    color: COLORS.textMuted,
-    fontStyle: 'italic',
-    lineHeight: normalize(16),
+    fontSize: normalize(12),
+    color: colors.textSecondary,
+    lineHeight: normalize(18),
   },
 });
 

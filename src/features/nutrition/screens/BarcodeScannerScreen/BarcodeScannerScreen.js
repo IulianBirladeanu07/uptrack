@@ -104,7 +104,6 @@ const BarcodeScannerScreen = ({ navigation }) => {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      // When returning to this screen, resume scanning
       resumeScanning();
     });
 

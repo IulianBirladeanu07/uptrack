@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { View, Text, Dimensions, TouchableOpacity, Animated, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
@@ -18,7 +18,7 @@ const colors = {
   border: '#2A3A4A',
 };
 
-export const WeightChart = ({ data }) => {
+const WeightChart = ({ data }) => {
   if (!data || data.length === 0) return null;
 
   const [chartPeriod, setChartPeriod] = useState('7');
@@ -338,3 +338,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
 });
+
+export default WeightChart;

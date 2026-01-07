@@ -1,9 +1,7 @@
 import Constants from 'expo-constants';
-import { logger } from '../../../shared/utils/firebaseLogger';
 
 const { defaultFoodIconUri } = Constants.expoConfig?.extra || {};
 
-logger.info('defaultFoodIconUri: ', defaultFoodIconUri)
 export const formatFoodDataForSubmission = (foodData) => {
     const safeParseFloat = (value) => {
         if (value === undefined || value === null || value === '') return 0;

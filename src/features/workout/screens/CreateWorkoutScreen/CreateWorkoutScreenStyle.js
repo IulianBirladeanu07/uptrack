@@ -2,56 +2,26 @@ import { StyleSheet } from 'react-native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 
 export const COLORS = {
-  primary: '#ff8535', // Orange primary from your theme
-  primaryDark: '#0284C7',
-  primaryLight: '#FFBC7D',
-  primaryTransparent: 'rgba(255, 133, 53, 0.15)', // Orange with transparency
-  secondary: '#02111B', // Dark blue secondary
-  accent: '#FFFFFF',
-  accent2: '#00d4ff', // Cyan accent from your theme
-  accent2Transparent: 'rgba(0, 212, 255, 0.15)',
-  accent2Border: 'rgba(0, 212, 255, 0.5)',
-  accentPurple: '#a855f7', // Purple accent from your theme
-  background: '#02111B', // Dark blue background
-  card: 'rgba(30, 41, 59, 0.4)', // Card background from your theme
-  cardDark: 'rgba(15, 23, 42, 0.8)', // Dark card from your theme
-  cardAlt: 'rgba(15, 23, 42, 0.8)',
-  cardBackground: 'rgba(15, 23, 42, 0.8)',
-  text: '#FFFFFF', // White text primary
-  textPrimary: '#FFFFFF',
-  textSecondary: '#d1d5db', // Light gray text
-  textMuted: '#9ca3af', // Muted text
-  textInactive: 'rgba(255, 255, 255, 0.4)',
-  border: 'rgba(255, 255, 255, 0.1)', // Border from your theme
-  borderDivider: 'rgba(255, 255, 255, 0.08)',
-  borderVariations: [
-    'rgba(255, 133, 53, 0.2)', // Orange border
-    'rgba(0, 212, 255, 0.2)', // Cyan border
-    'rgba(168, 85, 247, 0.2)', // Purple border
-  ],
-  divider: 'rgba(255, 255, 255, 0.05)',
-  error: '#FCA5A5',
-  success: '#10b981', // Success green from your theme
-  warning: '#FCD34D',
-  info: '#67E8F9',
-  disabled: '#52525B',
-  white: '#FFFFFF',
-  shadow: 'rgba(0, 0, 0, 0.3)', // Shadow from your theme
-  progressBarTrack: 'rgba(255, 255, 255, 0.1)',
-  accentPrimaryFaded: 'rgba(255, 133, 53, 0.15)', // Faded orange from your theme
-  gradient: {
-    primary: ['#ff8535', '#F17C12'], // Orange gradient
-    button: ['#ff8535', '#FFBC7D'],
-    nav: ['rgba(30, 41, 59, 0.7)', 'rgba(2, 17, 27, 0.8)'],
-    border: ['rgba(255, 133, 53, 0.3)', 'rgba(0, 212, 255, 0.3)'],
-  },
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
 };
 
 const styles = StyleSheet.create({
-  // Main screen structure
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.bg,
   },
   safeArea: {
     flex: 1,
@@ -60,17 +30,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Header styles
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: normalize(16),
-    paddingTop: normalize(50),
-    paddingBottom: normalize(20),
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.bg,
     borderBottomWidth: normalize(1),
-    borderBottomColor: COLORS.borderDivider,
+    borderBottomColor: COLORS.borderLight,
   },
   headerTitle: {
     fontSize: normalize(20),
@@ -83,13 +49,12 @@ const styles = StyleSheet.create({
   backButton: {
     padding: normalize(8),
     borderRadius: normalize(10),
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.border,
   },
   placeholder: {
     width: normalize(32),
   },
 
-  // Notification/Alert styles
   notificationContainer: {
     position: 'absolute',
     bottom: normalize(100),
@@ -101,7 +66,7 @@ const styles = StyleSheet.create({
     borderRadius: normalize(12),
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.cardDark,
+    backgroundColor: COLORS.surfaceLight,
   },
   notificationInner: {
     flex: 1,
@@ -127,7 +92,7 @@ const styles = StyleSheet.create({
   notificationActionText: {
     fontSize: normalize(12),
     fontWeight: '600',
-    color: COLORS.secondary,
+    color: COLORS.bg,
     textTransform: 'uppercase',
   },
   alertContainer: {
@@ -138,8 +103,9 @@ const styles = StyleSheet.create({
     maxWidth: normalize(400),
     borderRadius: normalize(12),
     borderWidth: 1,
+    borderColor: COLORS.border,
     padding: normalize(16),
-    backgroundColor: COLORS.cardDark,
+    backgroundColor: COLORS.surfaceLight,
   },
   alertContent: {
     flexDirection: 'row',
@@ -163,11 +129,10 @@ const styles = StyleSheet.create({
   alertActionText: {
     fontSize: normalize(13),
     fontWeight: '700',
-    color: COLORS.secondary,
+    color: COLORS.bg,
     textTransform: 'uppercase',
   },
 
-  // Modal styles
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -176,7 +141,7 @@ const styles = StyleSheet.create({
     padding: normalize(20),
   },
   modalContent: {
-    backgroundColor: COLORS.cardDark,
+    backgroundColor: COLORS.surfaceLight,
     borderRadius: normalize(12),
     padding: normalize(20),
     width: '100%',
@@ -190,7 +155,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   modalInput: {
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.surface,
     borderRadius: normalize(8),
     padding: normalize(10),
     fontSize: normalize(15),
@@ -208,7 +173,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: normalize(8),
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.surface,
   },
   primaryButton: {
     backgroundColor: COLORS.primary,
@@ -219,24 +184,22 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   primaryButtonText: {
-    color: COLORS.secondary,
+    color: COLORS.bg,
     fontWeight: '600',
   },
   disabledButton: {
-    backgroundColor: COLORS.disabled,
+    backgroundColor: COLORS.textTertiary,
     opacity: 0.5,
   },
   disabledButtonText: {
-    color: COLORS.textMuted,
+    color: COLORS.textSecondary,
   },
 
-  // Content container for steps
   contentContainer: {
     flex: 1,
     padding: normalize(12),
   },
 
-  // Loading and empty states
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

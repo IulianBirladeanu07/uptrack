@@ -26,30 +26,26 @@ const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit,
   const hasMoreThanThreeDays = Object.values(schedule).filter(day => day?.exercises?.length > 0).length > 3;
 
   return (
-    <View style={[styles.workoutCard, isActive && { borderColor: COLORS.accentPrimary, borderWidth: normalize(2) }]}>
-      <View style={styles.workoutHeader}>
-        <View style={styles.workoutHeaderLeft}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.workoutTitle}>{split.name || split.templateName || 'Workout Split'}</Text>
-            {isActive && (
-              <View style={[styles.categoryTagContainer, { marginLeft: normalize(8), backgroundColor: COLORS.accentPrimary }]}>
-                <Text style={[styles.categoryTag, { color: COLORS.secondary }]}>ACTIVE</Text>
-              </View>
-            )}
+    <View style={[styles.workoutCard, isActive && styles.activeCard]}>
+      {isActive && (
+        <View style={styles.activeBadgeCorner}>
+          <Text style={styles.activeBadgeText}>ACTIVE</Text>
+        </View>
+      )}
+      <View style={styles.workoutCardHeader}>
+        <Text style={styles.workoutTitleLarge}>{split.name || split.templateName || 'Workout Split'}</Text>
+        <View style={styles.workoutMetrics}>
+          <View style={styles.metricItem}>
+            <Ionicons name="calendar-outline" size={normalize(16)} color={COLORS.textSecondary} />
+            <Text style={styles.metricText}>{activeDays} days</Text>
           </View>
-          <View style={styles.workoutMeta}>
-            <View style={styles.metaItem}>
-              <Ionicons name="calendar-outline" size={normalize(14)} color={COLORS.textSecondary} />
-              <Text style={styles.metaItemText}>{activeDays} days</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Ionicons name="barbell-outline" size={normalize(14)} color={COLORS.textSecondary} />
-              <Text style={styles.metaItemText}>{totalExercises} exercises</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Ionicons name="time-outline" size={normalize(14)} color={COLORS.textSecondary} />
-              <Text style={styles.metaItemText}>{durationWeeks} weeks</Text>
-            </View>
+          <View style={styles.metricItem}>
+            <Ionicons name="fitness" size={normalize(16)} color={COLORS.textSecondary} />
+            <Text style={styles.metricText}>{totalExercises} exercises</Text>
+          </View>
+          <View style={styles.metricItem}>
+            <Ionicons name="time-outline" size={normalize(16)} color={COLORS.textSecondary} />
+            <Text style={styles.metricText}>{durationWeeks} weeks</Text>
           </View>
         </View>
       </View>
@@ -67,7 +63,7 @@ const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit,
                   <MaterialCommunityIcons
                     name="calendar-check"
                     size={normalize(20)}
-                    color={COLORS.accentSecondary}
+                    color={COLORS.cyan}
                   />
                 </View>
                 <View style={styles.exerciseDetails}>
@@ -79,9 +75,9 @@ const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit,
                       {workout?.templateName || workout?.name || 'Training Session'}
                     </Text>
                   </View>
-                  <View style={{ alignItems: 'flex-end' }}>
+                  <View style={styles.exerciseMeta}>
                     <Text style={styles.setReps}>{exerciseCount} exercises</Text>
-                    <Text style={[styles.exerciseMuscleGroup, { fontSize: normalize(11) }]}>{duration} min</Text>
+                    <Text style={styles.exerciseMetaSmall}>{workout.duration}m</Text>
                   </View>
                 </View>
               </View>
@@ -91,7 +87,7 @@ const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit,
           {hasMoreThanThreeDays && (
             <TouchableOpacity style={styles.showMore} onPress={() => onToggleExpanded(splitId)}>
               <Text style={styles.showMoreText}>
-                {isExpanded ? 'Show less days ↑' : `Show ${activeDays - 3} more days ↓`}
+                {isExpanded ? 'Show less ↑' : `+${activeDays - 3} more ↓`}
               </Text>
             </TouchableOpacity>
           )}
@@ -100,22 +96,20 @@ const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit,
 
       <View style={styles.workoutActions}>
         <TouchableOpacity style={styles.editButton} onPress={() => onEdit(split)}>
-          <Ionicons name="create-outline" size={normalize(18)} color={COLORS.textSecondary} />
-          <Text style={styles.editButtonText}>Edit</Text>
+          <Ionicons name="create-outline" size={normalize(16)} color={COLORS.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.editButton} onPress={() => onViewSchedule(split)}>
-          <Ionicons name="calendar-outline" size={normalize(18)} color={COLORS.textSecondary} />
-          <Text style={styles.editButtonText}>View</Text>
+          <Ionicons name="calendar-outline" size={normalize(16)} color={COLORS.textSecondary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.startButton, { flex: 1.5 }]} onPress={() => onActivate(split)}>
+        <TouchableOpacity style={styles.startButton} onPress={() => onActivate(split)}>
           <Ionicons
             name={isActive ? 'checkmark-circle' : 'play'}
-            size={normalize(20)}
-            color={COLORS.secondary}
+            size={normalize(18)}
+            color={COLORS.bg}
           />
-          <Text style={styles.startButtonText}>{isActive ? 'Active Split' : 'Set Active'}</Text>
+          <Text style={styles.startButtonText}>{isActive ? 'Active' : 'Activate'}</Text>
         </TouchableOpacity>
       </View>
     </View>

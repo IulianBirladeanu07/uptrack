@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -68,7 +68,6 @@ const ChangePasswordScreen = ({ navigation }) => {
         <TouchableOpacity 
           style={styles.backButton} 
           onPress={() => {
-            logger.logUserAction('navigate_back_from_change_password');
             navigation.goBack();
           }}
         >

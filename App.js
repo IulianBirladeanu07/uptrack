@@ -70,7 +70,7 @@ const AuthenticatedScreens = React.memo(() => (
 
 const MainApp = () => {
   const { authenticated, loading, profileSetupComplete } = useContext(AuthContext);
- 
+  
   const routes = useMemo(() => {
     if (loading) {
       return (

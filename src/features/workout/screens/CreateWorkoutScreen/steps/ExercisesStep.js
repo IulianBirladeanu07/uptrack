@@ -5,14 +5,20 @@ import ExerciseItem from '../../../components/ExerciseItem/ExerciseItem';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 
 const COLORS = {
-  primary: '#ff8535',
-  secondary: '#02111B',
-  background: '#02111B',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#d1d5db',
-  borderDivider: 'rgba(255, 255, 255, 0.08)',
-  shadow: 'rgba(0, 0, 0, 0.3)',
-  accentPrimaryFaded: 'rgba(255, 133, 53, 0.15)',
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
 };
 
 export const ExercisesStep = ({ 
@@ -76,7 +82,7 @@ export const ExercisesStep = ({
           onPress={handleAddExercise}
           activeOpacity={0.7}
         >
-          <Feather name="plus" size={18} color={'#000'} />
+          <Feather name="plus" size={18} color={COLORS.bg} />
           <Text style={styles.addExerciseButtonText}>ADD EXERCISE</Text>
         </TouchableOpacity>
       </View>
@@ -102,7 +108,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   exerciseCount: {
-    backgroundColor: COLORS.accentPrimaryFaded,
+    backgroundColor: 'rgba(255, 149, 0, 0.15)',
     paddingVertical: normalize(4),
     paddingHorizontal: normalize(10),
     borderRadius: normalize(10),
@@ -114,7 +120,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.borderDivider,
+    backgroundColor: COLORS.borderLight,
   },
   exercisesList: {
     // No specific styles needed - container for ExerciseItem components
@@ -141,7 +147,7 @@ const styles = StyleSheet.create({
     paddingVertical: normalize(15),
     marginTop: normalize(20),
     marginHorizontal: normalize(6),
-    shadowColor: COLORS.shadow,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
@@ -150,7 +156,7 @@ const styles = StyleSheet.create({
   addExerciseButtonText: {
     fontSize: normalize(16),
     fontWeight: '600',
-    color: COLORS.secondary,
+    color: COLORS.bg,
     marginLeft: normalize(8),
   },
 });

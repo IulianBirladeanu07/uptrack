@@ -1,15 +1,12 @@
-import { useState, useEffect, useContext, useMemo } from 'react';
+import { useContext, useMemo } from 'react';
 import { AuthContext } from '../../auth/context/AuthContext';
 
 const useDailyNutrition = (breakfastFoods, lunchFoods, dinnerFoods, snacksFoods, selectedDate, mealCacheRef) => {
   const { userData } = useContext(AuthContext);
   
-  // Constants for learning mode
   const REQUIRED_LEARNING_DAYS = 7;
 
-  // Check if user has targets set (not in learning mode)
-  const hasTargets = !!(userData?.targetCalories && userData?.maintenanceCalories);
-  
+  const hasTargets = !!(userData?.targetCalories && userData?.maintenanceCalories);  
   const userMacros = useMemo(() => hasTargets
     ? {
         targetCalories: userData.targetCalories,
@@ -26,7 +23,6 @@ const useDailyNutrition = (breakfastFoods, lunchFoods, dinnerFoods, snacksFoods,
         maintenanceCalories: 0,
       }, [hasTargets, userData]);
 
-  // Calculate current day's nutrition (memoized for performance)
   const dailyNutrition = useMemo(() => {
     const allFoods = [...breakfastFoods, ...lunchFoods, ...dinnerFoods, ...(snacksFoods || [])];
     return allFoods.reduce((totals, food) => ({
@@ -37,7 +33,6 @@ const useDailyNutrition = (breakfastFoods, lunchFoods, dinnerFoods, snacksFoods,
     }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
   }, [breakfastFoods, lunchFoods, dinnerFoods, snacksFoods]);
 
-  // Calculate learning progress using cached meal data
   const learningData = useMemo(() => {
     if (hasTargets) {
       return {
@@ -55,14 +50,12 @@ const useDailyNutrition = (breakfastFoods, lunchFoods, dinnerFoods, snacksFoods,
       };
     }
 
-    // Use cached meal data instead of making new API calls
     const endDate = new Date(selectedDate);
     const startDate = new Date(endDate);
     startDate.setDate(endDate.getDate() - REQUIRED_LEARNING_DAYS + 1);
 
     const weekData = mealCacheRef.current.getDateRange(startDate, endDate);
     
-    // Count days with logged meals
     const daysWithMeals = weekData.filter(({ meals }) => {
       const totalFoods = Object.values(meals || {})
         .flat()
@@ -70,7 +63,6 @@ const useDailyNutrition = (breakfastFoods, lunchFoods, dinnerFoods, snacksFoods,
       return totalFoods > 0;
     }).length;
 
-    // Calculate average calories for days with data
     const daysWithCalories = weekData
       .map(({ meals }) => {
         const dailyCalories = Object.values(meals || {})

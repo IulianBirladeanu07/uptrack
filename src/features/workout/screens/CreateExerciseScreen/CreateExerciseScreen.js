@@ -23,7 +23,6 @@ import { createCustomExercise } from '../../handlers/WorkoutHandler';
 
 const { height } = Dimensions.get('window');
 
-// --- Updated EXERCISE_DATA with meaningful icons ---
 const EXERCISE_DATA = {
   muscleGroups: [
     { name: 'Back', icon: 'barbell-outline', desc: 'Lats, rhomboids, traps', color: '#3B82F6' },
@@ -32,7 +31,7 @@ const EXERCISE_DATA = {
     { name: 'Chest', icon: 'albums-outline', desc: 'Pectorals, deltoids', color: '#EF4444' },
     { name: 'Core', icon: 'scan-outline', desc: 'Abs, obliques, transverse', color: '#10B981' },
     { name: 'Glutes', icon: 'fitness-outline', desc: 'Gluteus maximus, medius', color: '#F97316' },
-    { name: 'Hamstrings', icon: 'footsteps-outline', desc: 'Bicep femoris group', color: '#84CC16' },
+    { name: 'Hamstring', icon: 'footsteps-outline', desc: 'Bicep femoris group', color: '#84CC16' },
     { name: 'Legs', icon: 'walk-outline', desc: 'Full leg workout', color: '#06B6D4' },
     { name: 'Quads', icon: 'footsteps-outline', desc: 'Rectus femoris, vastus', color: '#8B5CF6' },
     { name: 'Shoulders', icon: 'aperture-outline', desc: 'Deltoids, rotator cuff', color: '#F59E0B' },

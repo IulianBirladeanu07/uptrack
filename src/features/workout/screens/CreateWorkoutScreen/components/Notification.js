@@ -3,7 +3,37 @@ import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 
-import { COLORS } from '../CreateWorkoutScreenStyle';
+const colors = {
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
+};
+
+const COLORS = {
+  primary: colors.primary,
+  secondary: colors.bg,
+  card: colors.surface,
+  text: colors.textPrimary,
+  textMuted: colors.textTertiary,
+  error: '#FCA5A5',
+  success: colors.success,
+  borderVariations: [
+    'rgba(255, 149, 0, 0.2)',
+    'rgba(0, 212, 255, 0.2)',
+    'rgba(168, 85, 247, 0.2)',
+  ],
+};
 
 const Notification = ({ message, isError, action, visible, onDismiss }) => {
   const translateY = useRef(new Animated.Value(100)).current;
@@ -47,7 +77,7 @@ const Notification = ({ message, isError, action, visible, onDismiss }) => {
   }, [visible, onDismiss, translateY, opacity]);
 
   const handleActionPress = useCallback(() => {
-    if (action && action.onPress) {
+    if (action?.onPress) {
       action.onPress();
     }
     onDismiss();

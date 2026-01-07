@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { View, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BasicInfoStep from './steps/BasicInfoStep';
 import ScheduleStep from './steps/ScheduleStep';
 import ReviewStep from './steps/ReviewStep';
@@ -14,12 +15,10 @@ import styles, { COLORS } from './CreateSplitScreenStyles';
 import { SPLIT_STEPS } from '../../utils/createWorkoutUtils';
 
 const CreateSplitScreen = ({ navigation, route }) => {
-  // Check if we're in edit mode
+  const insets = useSafeAreaInsets();
   const split = route?.params?.split;
   const isEditing = !!split;
 
-  console.log(isEditing ? "Editing split:" : "Creating new split:", split);
-  
   const [currentStep, setCurrentStep] = useState(0);
   const [splitData, setSplitData] = useState(
     isEditing 
@@ -76,13 +75,11 @@ const CreateSplitScreen = ({ navigation, route }) => {
     loadWorkouts();
   }, []);
 
-  // Handle split type changes and clean up schedule
   useEffect(() => {
     if (splitData.type === 'weekly') {
       if (!isEditing || (isEditing && split.type !== 'weekly')) {
         setSelectedDay('monday');
       }
-      // Clean up rotation schedule keys when switching to weekly
       setSplitData(prev => {
         const cleanedSchedule = {};
         Object.keys(prev.schedule).forEach(key => {
@@ -96,7 +93,6 @@ const CreateSplitScreen = ({ navigation, route }) => {
         };
       });
     } else if (splitData.type === 'rotation') {
-      // Clean up weekly schedule when switching to rotation
       setSplitData(prev => {
         const cleanedSchedule = {};
         Object.keys(prev.schedule).forEach(key => {
@@ -112,9 +108,7 @@ const CreateSplitScreen = ({ navigation, route }) => {
       
       if (!isEditing || (isEditing && split.type !== 'rotation')) {
         setSelectedDay(1);
-        // Initialize rotation schedule if empty and not editing
         if (Object.keys(splitData.schedule).length === 0) {
-          console.log('Initializing rotation schedule with 5 days');
           for (let i = 1; i <= 5; i++) {
             setSplitData(prev => ({
               ...prev,
@@ -135,7 +129,6 @@ const CreateSplitScreen = ({ navigation, route }) => {
       Alert.alert('Error', 'Invalid day selected for assignment.');
       return;
     }
-    console.log('Assigning workout:', workout?.templateName, 'to day:', dayId);
     setSplitData(prev => ({
       ...prev,
       schedule: {
@@ -154,7 +147,6 @@ const CreateSplitScreen = ({ navigation, route }) => {
   }, [splitData.type]);
 
   const handleRemoveFromDay = useCallback((dayId) => {
-    console.log('Removing workout from day:', dayId);
     setSplitData(prev => {
       const newSchedule = { ...prev.schedule };
       delete newSchedule[dayId];
@@ -170,7 +162,6 @@ const CreateSplitScreen = ({ navigation, route }) => {
       console.error('Invalid dayNumber:', dayNumber);
       return;
     }
-    console.log('Adding rotation day:', dayNumber);
     setSplitData(prev => ({
       ...prev,
       schedule: {
@@ -185,7 +176,7 @@ const CreateSplitScreen = ({ navigation, route }) => {
       console.error('Invalid dayNumber:', dayNumber);
       return;
     }
-    console.log('Removing rotation day:', dayNumber);
+
     setSplitData(prev => {
       const newSchedule = { ...prev.schedule };
       delete newSchedule[dayNumber];
@@ -217,21 +208,15 @@ const handleSaveSplit = useCallback(async () => {
   
   setLoading(true);
   try {
-    console.log(isEditing ? 'Updating split with data:' : 'Creating split with data:', splitData);
     
     let splitId;
     if (isEditing) {
-      // Update existing split
       await updateSplitInFirestore(splitData.id, splitData);
       splitId = splitData.id;
     } else {
-      // Create new split
       splitId = await addSplitToFirestore(splitData);
     }
-    
-    console.log(`Split ${isEditing ? 'updated' : 'created'} successfully with ID:`, splitId);
-    
-    // Show success message with different navigation based on edit vs create
+      
     Alert.alert(
       'Success', 
       `Split ${isEditing ? 'updated' : 'created'} successfully!`,
@@ -240,10 +225,8 @@ const handleSaveSplit = useCallback(async () => {
           text: 'OK',
           onPress: () => {
             if (isEditing) {
-              // When editing, go back to previous screen (likely the library)
               navigation.goBack();
             } else {
-              // When creating new, navigate to library with refresh
               navigation.navigate('WorkoutLibrary', { 
                 refresh: true,
                 newSplitId: splitId 
@@ -286,7 +269,7 @@ const handleSaveSplit = useCallback(async () => {
   }, [currentStep, navigation]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom, paddingTop: insets.top }]}>
       <Header 
         title={isEditing ? `Edit ${split?.name || 'Split'}` : STEPS[currentStep]?.title || 'Create Workout Split'} 
         handleBackPress={goToPreviousStep} 
@@ -332,7 +315,7 @@ const handleSaveSplit = useCallback(async () => {
         creationType="split"
         isEditing={isEditing}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

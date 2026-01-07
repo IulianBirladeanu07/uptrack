@@ -2,11 +2,28 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 
+const colors = {
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
+};
+
 const COLORS = {
-  secondary: '#02111B',
-  textPrimary: '#FFFFFF',
-  text: '#FFFFFF',
-  borderDivider: 'rgba(255, 255, 255, 0.08)',
+  secondary: colors.bg,
+  textPrimary: colors.textPrimary,
+  text: colors.textPrimary,
+  borderDivider: colors.borderLight,
 };
 
 export const Header = ({ title, handleBackPress }) => {

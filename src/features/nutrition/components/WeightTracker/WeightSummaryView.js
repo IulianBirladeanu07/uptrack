@@ -1,9 +1,8 @@
 import { useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Animated, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { normalize } from '../../../../shared/hooks/useResponsive';
-import { StyleSheet } from 'react-native';
-import { WeightChart } from './WeightChart';
+import WeightChart from './WeightChart';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const colors = {
@@ -11,8 +10,6 @@ const colors = {
   primaryDark: '#E68600',
   success: '#32D74B',
   danger: '#FF453A',
-  blue: '#3B82F6',
-  purple: '#9333EA',
   bg: '#0A0E13',
   surface: '#151B23',
   surfaceLight: '#1F2937',
@@ -23,7 +20,7 @@ const colors = {
   border: 'rgba(255, 255, 255, 0.08)',
 };
 
-export const SummaryView = ({
+const WeightSummaryView = ({
   currentWeight,
   weeklyData,
   weeklyAverage,
@@ -175,18 +172,15 @@ export const SummaryView = ({
                   <View key={index} style={styles.weekItem}>
                     <View style={[
                       styles.weekCircle,
+                      hasData && !isToday && styles.weekCircleActive,
                       isToday && styles.weekCircleToday,
-                      hasData && styles.weekCircleActive,
                     ]}>
-                      {hasData && (
-                        <MaterialCommunityIcons
-                          name="check"
-                          size={normalize(10)}
-                          color={isToday ? colors.white : colors.success}
-                        />
-                      )}
+                      <Text style={[
+                        styles.weekDay,
+                        isToday && styles.weekDayToday,
+                        !hasData && !isToday && styles.weekDayInactive
+                      ]}>{day}</Text>
                     </View>
-                    <Text style={[styles.weekDay, isToday && styles.weekDayToday]}>{day}</Text>
                   </View>
                 );
               })}
@@ -247,6 +241,7 @@ const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
     backgroundColor: colors.bg,
+    paddingTop: normalize(15),
   },
   scrollView: {
     flex: 1,
@@ -257,7 +252,6 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: normalize(60),
   },
-
   floatingHeader: {
     position: 'absolute',
     top: 0,
@@ -271,7 +265,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   headerSubtitle: {
-    fontSize: normalize(10),
+    fontSize: normalize(14),
     color: colors.textTertiary,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -300,10 +294,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
   },
-
   heroContainer: {
     paddingHorizontal: normalize(16),
-    // paddingVertical: normalize(25)
     paddingTop: normalize(25),
     paddingBottom: normalize(16),
   },
@@ -369,7 +361,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textSecondary,
   },
-
   progressContainer: {
     marginBottom: normalize(20),
   },
@@ -400,7 +391,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '700',
   },
-
   heroStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -428,7 +418,6 @@ const styles = StyleSheet.create({
     height: normalize(28),
     backgroundColor: colors.border,
   },
-
   section: {
     paddingHorizontal: normalize(16),
     marginBottom: normalize(12),
@@ -449,7 +438,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.primary,
   },
-
   weekGrid: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -461,43 +449,41 @@ const styles = StyleSheet.create({
   },
   weekItem: {
     alignItems: 'center',
-    gap: normalize(6),
   },
   weekCircle: {
-    width: normalize(32),
-    height: normalize(32),
-    borderRadius: normalize(16),
-    backgroundColor: colors.surfaceLight,
+    width: normalize(38),
+    height: normalize(38),
+    borderRadius: normalize(19),
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: colors.border,
   },
   weekCircleToday: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   weekCircleActive: {
-    backgroundColor: 'rgba(50, 215, 75, 0.15)',
-    borderColor: 'rgba(50, 215, 75, 0.3)',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   weekDay: {
-    fontSize: normalize(9),
+    fontSize: normalize(14),
     fontWeight: '600',
     color: colors.textTertiary,
   },
   weekDayToday: {
-    color: colors.primary,
+    color: colors.bg,
     fontWeight: '700',
   },
-
+  weekDayInactive: {
+    color: colors.textTertiary,
+  },
   avgBadge: {
-    // backgroundColor: colors.surface,
     paddingHorizontal: normalize(10),
     paddingVertical: normalize(6),
     borderRadius: normalize(10),
-    // borderWidth: 1,
-    // borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     gap: normalize(4),
@@ -512,7 +498,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '600',
   },
-
   emptyState: {
     backgroundColor: colors.surface,
     borderRadius: normalize(16),
@@ -541,7 +526,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '500',
   },
-
   fabContainer: {
     position: 'absolute',
     bottom: 0,
@@ -571,3 +555,5 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 });
+
+export default WeightSummaryView;

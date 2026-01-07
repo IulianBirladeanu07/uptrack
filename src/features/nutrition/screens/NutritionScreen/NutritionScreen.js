@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -21,64 +21,49 @@ const useWeightData = (userId, selectedDate) => {
     weeklyTrend: null,
     weighInCount: 0,
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const loadedDatesRef = React.useRef(new Set());
-  const previousDataRef = React.useRef(null);
-
+  
+  const isFetchingRef = useRef(false);
+  const loadedDatesRef = useRef(new Set());
   const dateString = selectedDate.toISOString().split('T')[0];
-  const loadWeightData = useCallback(async () => {
-    if (!userId || isLoading) return;
+
+  const loadWeightData = useCallback(async (forceRefresh = false) => {
+    if (!userId || isFetchingRef.current) return;
     
     const cacheKey = `${userId}-${dateString}`;
-    if (loadedDatesRef.current.has(cacheKey)) {
-      return;
-    }
+    if (!forceRefresh && loadedDatesRef.current.has(cacheKey)) return;
     
-    setIsLoading(true);
+    isFetchingRef.current = true;
     try {
       const data = await WeightService.getWeightDisplayData(userId, selectedDate);
       loadedDatesRef.current.add(cacheKey);
       
-      if (previousDataRef.current &&
-          previousDataRef.current.currentWeight === data.currentWeight &&
-          previousDataRef.current.weeklyAverage === data.weeklyAverage &&
-          previousDataRef.current.weeklyTrend === data.weeklyTrend &&
-          previousDataRef.current.weighInCount === data.weighInCount) {
-        return;
-      }
-      
-      previousDataRef.current = data;
-      setWeightData(data);
+      setWeightData(prev => {
+        const isIdentical = 
+          prev.currentWeight === data.currentWeight &&
+          prev.weeklyAverage === data.weeklyAverage &&
+          prev.weighInCount === data.weighInCount &&
+          prev.weeklyTrend === data.weeklyTrend;
+        
+        return isIdentical ? prev : data;
+      });
     } catch (error) {
-      console.error('Error loading weight data:', error);
+      console.error(error);
     } finally {
-      setIsLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [userId, dateString, isLoading]);
+  }, [userId, dateString, selectedDate]);
 
-  const handleWeightSave = useCallback(async (weight, weeklyAverage, weeklyTrend) => {
-    try {
-      const cacheKey = `${userId}-${dateString}`;
-      loadedDatesRef.current.delete(cacheKey);
-      
-      const newData = {
-        ...weightData,
-        currentWeight: weight,
-        weeklyAverage: weeklyAverage,
-        weeklyTrend: weeklyTrend,
-        weighInCount: weightData.weighInCount + (weightData.currentWeight ? 0 : 1),
-      };
-      
-      previousDataRef.current = newData;
-      setWeightData(newData);
-      await loadWeightData();
-    } catch (error) {
-      console.error('Error handling weight save:', error);
-      Alert.alert('Error', 'Failed to save weight data. Please try again.');
+  const refreshWeightData = useCallback(() => {
+    loadWeightData(true);
+  }, [loadWeightData]);
+
+  useEffect(() => {
+    if (userId) {
+      loadWeightData();
     }
-  }, [loadWeightData, userId, dateString, weightData]);
+  }, [userId, dateString]);
 
-  return { weightData, loadWeightData, handleWeightSave };
+  return { weightData, refreshWeightData };
 };
 
 const NutritionScreen = () => {
@@ -106,26 +91,23 @@ const NutritionScreen = () => {
   const [selectedMeal, setSelectedMeal] = useState('breakfast');
   const [userId, setUserId] = useState(null);
 
-  // ADD THIS LINE - Call the useWeightData hook
-  const { weightData, loadWeightData, handleWeightSave } = useWeightData(userId, selectedDate);
-
+  const { weightData, refreshWeightData } = useWeightData(userId, selectedDate);
   const learningCompletion = useLearningCompletion(learningData, hasTargets);
 
   useEffect(() => {
     const auth = getAuth();
     const user = auth.currentUser;
-    if (user) {
-      setUserId(user.uid);
-    }
+    if (user) setUserId(user.uid);
   }, []);
 
-  const dateString = useMemo(() => selectedDate.toISOString().split('T')[0], [selectedDate]);
-  
   useEffect(() => {
-    if (userId) {
-      loadWeightData();
-    }
-  }, [userId, dateString, loadWeightData]);
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (userId) {
+        refreshWeightData();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, userId, refreshWeightData]);
 
   useEffect(() => {
     if (route.params?.refresh) {
@@ -156,39 +138,30 @@ const NutritionScreen = () => {
 
   const handleSwipeableOpen = useCallback(async (item) => {
     const { mealType, id } = item;
-    
     try {
       await handleDeleteMeal(mealType, id);
-      
       const mealUpdaters = {
-        breakfast: () => updateFoods('breakfast', breakfastFoods.filter(food => food.id !== id)),
-        lunch: () => updateFoods('lunch', lunchFoods.filter(food => food.id !== id)),
-        dinner: () => updateFoods('dinner', dinnerFoods.filter(food => food.id !== id)),
-        snacks: () => updateFoods('snacks', snacksFoods.filter(food => food.id !== id)),
+        breakfast: () => updateFoods('breakfast', breakfastFoods.filter(f => f.id !== id)),
+        lunch: () => updateFoods('lunch', lunchFoods.filter(f => f.id !== id)),
+        dinner: () => updateFoods('dinner', dinnerFoods.filter(f => f.id !== id)),
+        snacks: () => updateFoods('snacks', snacksFoods.filter(f => f.id !== id)),
       };
-      
-      const updater = mealUpdaters[mealType];
-      if (updater) {
-        updater();
-      }
+      if (mealUpdaters[mealType]) mealUpdaters[mealType]();
     } catch (error) {
-      console.error('Failed to handle swipeable open:', error);
-      Alert.alert('Error', 'Failed to delete meal. Please try again.');
+      Alert.alert('Error', 'Failed to delete meal.');
     }
   }, [breakfastFoods, lunchFoods, dinnerFoods, snacksFoods, handleDeleteMeal, updateFoods]);
 
   const handleWeightPress = useCallback(() => {
     navigation.navigate('WeightTracker', {
-      onWeightSave: handleWeightSave,
       currentWeight: weightData.currentWeight,
       weeklyAverage: weightData.weeklyAverage,
       weeklyTrend: weightData.weeklyTrend,
-      selectedDate: selectedDate,
+      selectedDateString: selectedDate.toISOString(),
       weighInCount: weightData.weighInCount,
       lastWeekAverage: weightData.lastWeekAverage,
-      date: selectedDate,
     });
-  }, [navigation, handleWeightSave, weightData, selectedDate]);
+  }, [navigation, weightData, selectedDate]);
 
   const handleAddFood = useCallback(() => {
     navigation.navigate('FoodSelection', { 
@@ -198,41 +171,36 @@ const NutritionScreen = () => {
     });
   }, [navigation, selectedMeal, selectedDate, remainingCalories]);
 
-  const handleProfilePress = useCallback(() => {
-    navigation.navigate('Profile');
-  }, [navigation]);
-
-  const handleSettingsPress = useCallback(() => {
-    navigation.navigate('Settings');
-  }, [navigation]);
-
   const combinedFoods = useMemo(() => {
-    const mealFoods = {
-      breakfast: breakfastFoods,
-      lunch: lunchFoods,
-      dinner: dinnerFoods,
-      snacks: snacksFoods,
-    };
+    const mealFoods = { breakfast: breakfastFoods, lunch: lunchFoods, dinner: dinnerFoods, snacks: snacksFoods };
     return mealFoods[selectedMeal] || [];
   }, [selectedMeal, breakfastFoods, lunchFoods, dinnerFoods, snacksFoods]);
 
   const totalCaloriesText = useMemo(() => {
-    const roundedCalories = Math.round(dailyNutrition.calories || 0);
-    return `Total: ${roundedCalories} Calories`;
+    return `Total: ${Math.round(dailyNutrition.calories || 0)} Calories`;
   }, [dailyNutrition.calories]);
+
+  const statsComponent = useMemo(() => (
+    <NutritionStats
+      weightData={weightData}
+      onWeightPress={handleWeightPress}
+      dailyNutrition={dailyNutrition}
+      userMacros={userMacros}
+      hasTargets={hasTargets}
+      learningData={learningData}
+    />
+  ), [weightData.currentWeight, weightData.weeklyAverage, weightData.weighInCount, weightData.weeklyTrend, handleWeightPress, dailyNutrition, userMacros, hasTargets, learningData]);
 
   if (contextLoading && !initialLoadComplete) {
     return (
       <ApplicationCustomScreen
         headerLeft={<Ionicons name="person-circle-outline" size={28} color="#fdf5ec" />}
         headerRight={<Ionicons name="settings-outline" size={28} color="#fdf5ec" />}
-        onProfilePress={handleProfilePress}
-        onSettingsPress={handleSettingsPress}
+        onProfilePress={() => navigation.navigate('Profile')}
+        onSettingsPress={() => navigation.navigate('Settings')}
       >
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <Text style={{ color: '#fdf5ec', fontSize: 18, marginBottom: 20 }}>
-            Loading your nutrition data...
-          </Text>
+          <Text style={{ color: '#fdf5ec', fontSize: 18 }}>Loading...</Text>
         </View>
       </ApplicationCustomScreen>
     );
@@ -242,8 +210,8 @@ const NutritionScreen = () => {
     <ApplicationCustomScreen
       headerLeft={<Ionicons name="person-circle-outline" size={28} color="#fdf5ec" />}
       headerRight={<Ionicons name="settings-outline" size={28} color="#fdf5ec" />}
-      onProfilePress={handleProfilePress}
-      onSettingsPress={handleSettingsPress}
+      onProfilePress={() => navigation.navigate('Profile')}
+      onSettingsPress={() => navigation.navigate('Settings')}
     >
       <View style={styles.container}>
         <View style={styles.contentContainer}>
@@ -252,14 +220,7 @@ const NutritionScreen = () => {
             onDateChange={handleDateChange}
           />
 
-          <NutritionStats
-            weightData={weightData}
-            onWeightPress={handleWeightPress}
-            dailyNutrition={dailyNutrition}
-            userMacros={userMacros}
-            hasTargets={hasTargets}
-            learningData={learningData}
-          />
+          {statsComponent}
 
           <MealContainer
             foods={combinedFoods}
@@ -280,24 +241,10 @@ const NutritionScreen = () => {
           />
 
           <View style={styles.footer}>
-            <TouchableOpacity 
-              style={styles.addButton} 
-              onPress={handleAddFood}
-              accessibilityRole="button"
-              accessibilityLabel="Add food"
-              accessibilityHint="Add food to the selected meal"
-              testID="add-food-button"
-            >
+            <TouchableOpacity style={styles.addButton} onPress={handleAddFood}>
               <Text style={styles.addButtonText}>Add Food</Text>
             </TouchableOpacity>
-
-            <Text 
-              style={styles.totalCaloriesText}
-              accessibilityLabel={totalCaloriesText}
-              testID="total-calories"
-            >
-              {totalCaloriesText}
-            </Text>
+            <Text style={styles.totalCaloriesText}>{totalCaloriesText}</Text>
           </View>
         </View>
       </View>

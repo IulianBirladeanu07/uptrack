@@ -99,7 +99,7 @@ export const createExerciseFromSelection = (selectedExercises) => {
   return null;
 };
 
-export const createTemplateData = (templateName, exercises, note, duration) => ({
+export const createTemplateData = (templateName, exercises, note, duration, preferredDays) => ({
   templateName: templateName.trim(),
   exercises: exercises.map(ex => ({
     exerciseName: ex.name || ex.exerciseName || '',
@@ -114,5 +114,6 @@ export const createTemplateData = (templateName, exercises, note, duration) => (
   exerciseCount: exercises.length,
   duration: duration || 0,
   note: note.trim(),
+  preferredDays: preferredDays || [],
   createdAt: new Date()
 });

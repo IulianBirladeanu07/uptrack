@@ -3,7 +3,6 @@ import { Coffee, Utensils, Moon, Cookie } from 'lucide-react-native';
 import FoodItem from './FoodItem';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 
-// Updated color palette matching weight tracker
 const colors = {
   bg: '#0A0E13',
   surface: '#151B23',

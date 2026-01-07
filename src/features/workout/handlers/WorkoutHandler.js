@@ -27,7 +27,6 @@ export const sendWorkoutDataToFirestore = async (
   elapsedTime,
 ) => {
   try {
-    // Check for empty or invalid weight/reps inputs
     const hasEmptyOrInvalidInputs = exerciseData.some(exercise =>
       exercise.sets.some(set => {
         const weightIsValid = set.weight !== undefined && set.weight !== null && 
@@ -105,7 +104,6 @@ async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMe
 
     await setDoc(workoutDocRef, workoutDataToSend);
     
-    // Use navigate instead of replace to maintain proper navigation stack
     navigation.navigate('WorkoutDetails', { 
       duration: formatTime(elapsedTime), 
       notes: inputText, 
@@ -144,7 +142,6 @@ export const handleAddExercises = (navigation) => {
   navigation.navigate('ExerciseSelection', { previousScreen: 'StartWorkout' });
 };
 
-// FIXED: Pure function that returns updated state
 export const handleValidation = (exerciseIndex, setIndex, exerciseData) => {
   const updatedData = [...exerciseData];
   const currentSet = updatedData[exerciseIndex].sets[setIndex];
@@ -163,26 +160,22 @@ export const handleAddSet = (exerciseIndex, exerciseData, setExerciseData) => {
   setExerciseData(updatedData);
 };
 
-// FIXED: Pure function that returns updated state
 export const handleWeightChange = (text, exerciseIndex, setIndex, exerciseData) => {
   if (text === '' || /^\d*\.?\d*$/.test(text)) {
     const updatedData = [...exerciseData];
     updatedData[exerciseIndex].sets[setIndex].weight = text;
     return updatedData;
   } else {
-    // Return original data if validation fails
     return exerciseData;
   }
 };
 
-// FIXED: Pure function that returns updated state
 export const handleRepsChange = (text, exerciseIndex, setIndex, exerciseData) => {
   if (text === '' || /^\d+$/.test(text)) {
     const updatedData = [...exerciseData];
     updatedData[exerciseIndex].sets[setIndex].reps = text;
     return updatedData;
   } else {
-    // Return original data if validation fails
     return exerciseData;
   }
 };
@@ -325,6 +318,7 @@ export const fetchTemplatesFromFirestore = async () => {
     }
 
     const templates = querySnapshot.docs.map(doc => ({
+      id: doc.id,
       data: doc.data()
     }));
 
@@ -336,27 +330,19 @@ export const fetchTemplatesFromFirestore = async () => {
   }
 };
 
-export const deleteTemplateFromFirestore = async (templateName) => {
+export const deleteTemplateFromFirestore = async (templateId) => {
   try {
+    if (!templateId) throw new Error('No template ID provided');
+    
     const auth = getAuth();
     const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
+    if (!user) throw new Error('User not authenticated.');
 
     const db = getFirestore();
-    const formattedTemplateName = `${templateName}_${user.uid}`;
-
-    const templatesRef = collection(db, 'workoutTemplates');
-    const querySnapshot = await getDocs(templatesRef);
-    const templateToDelete = querySnapshot.docs.find(doc => doc.id === formattedTemplateName);
-
-    if (templateToDelete) {
-      await deleteDoc(templateToDelete.ref);
-      console.log('Template deleted:', formattedTemplateName);
-    } else {
-      console.error('Template not found:', formattedTemplateName);
-    }
+    const templateRef = doc(db, 'workoutTemplates', templateId);
+    
+    await deleteDoc(templateRef);
+    return true;
   } catch (error) {
     console.error('Error deleting template from Firestore:', error.message);
     throw error;
@@ -374,13 +360,13 @@ export const sendMeasurementsToFirestore = async (measurements) => {
     const db = getFirestore();
     const uid = user.uid;
     const timestamp = new Date();
-    const formattedTimestamp = `${timestamp.getFullYear()}_${timestamp.getMonth() + 1}_${timestamp.getDate()}_${timestamp.getHours()}_${timestamp.getMinutes()}_${uid}`;
+    const formattedTimestamp = `${timestamp.getFullYear()}_
+                                ${timestamp.getMonth() + 1}_
+                                ${timestamp.getDate()}_
+                                ${timestamp.getHours()}_
+                                ${timestamp.getMinutes()}_${uid}`;
 
-    const measurementsDataToSend = {
-      ...measurements,
-      uid,
-      timestamp,
-    };
+    const measurementsDataToSend = {...measurements, uid, timestamp};
 
     const userMeasurementsRef = collection(db, 'measurements');
     const measurementDocRef = doc(userMeasurementsRef, formattedTimestamp);
@@ -393,12 +379,10 @@ export const sendMeasurementsToFirestore = async (measurements) => {
   }
 };
 
-// OPTIMIZED CACHING SYSTEM
 const CACHE_KEY = 'exercises_cache_v2';
-const CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours
+const CACHE_DURATION = 12 * 60 * 60 * 1000;
 const IMAGE_CACHE_KEY = 'exercise_images_cache';
 
-// Enhanced memory cache
 let memoryCache = {
   data: null,
   timestamp: 0,
@@ -406,39 +390,30 @@ let memoryCache = {
   loadPromise: null
 };
 
-// Image prefetch tracking (React Native compatible)
 const imagePrefetchStatus = new Map();
 
-/**
- * Enhanced fetchExercises with improved caching and performance
- */
 export const fetchExercises = async (forceRefresh = false) => {
   try {
-    // Immediate auth check
     const auth = getAuth();
     const user = auth.currentUser;
     if (!user) {
       throw new Error('User not authenticated.');
     }
 
-    // Return cached data immediately if valid and not forcing refresh
     if (
       !forceRefresh &&
       memoryCache.data &&
       memoryCache.data.length > 0 &&
       (Date.now() - memoryCache.timestamp < CACHE_DURATION)
     ) {
-      // Start background image prefetch
       setTimeout(() => prefetchExerciseImages(memoryCache.data), 0);
       return memoryCache.data;
     }
 
-    // If already loading, return the existing promise
     if (memoryCache.isLoading && memoryCache.loadPromise && !forceRefresh) {
       return await memoryCache.loadPromise;
     }
 
-    // Check AsyncStorage cache if not forcing refresh
     if (!forceRefresh) {
       try {
         const cachedData = await AsyncStorage.getItem(CACHE_KEY);
@@ -453,7 +428,6 @@ export const fetchExercises = async (forceRefresh = false) => {
             memoryCache.data = data;
             memoryCache.timestamp = timestamp;
             
-            // Start background image prefetch
             setTimeout(() => prefetchExerciseImages(data), 0);
             return data;
           }
@@ -463,7 +437,6 @@ export const fetchExercises = async (forceRefresh = false) => {
       }
     }
 
-    // Create loading promise
     memoryCache.isLoading = true;
     memoryCache.loadPromise = fetchExercisesFromFirestore();
 
@@ -475,7 +448,6 @@ export const fetchExercises = async (forceRefresh = false) => {
         memoryCache.data = exercisesArray;
         memoryCache.timestamp = timestamp;
 
-        // Save to AsyncStorage with error handling
         try {
           await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
             data: exercisesArray,
@@ -486,7 +458,6 @@ export const fetchExercises = async (forceRefresh = false) => {
           console.warn('Failed to save cache to storage:', storageError);
         }
 
-        // Start background image prefetch
         setTimeout(() => prefetchExerciseImages(exercisesArray), 0);
 
         return exercisesArray;
@@ -507,9 +478,6 @@ export const fetchExercises = async (forceRefresh = false) => {
   }
 };
 
-/**
- * Optimized Firestore fetch with better error handling
- */
 const fetchExercisesFromFirestore = async () => {
   const db = getFirestore();
   const exercisesCollectionRef = collection(db, 'exercises');
@@ -524,7 +492,6 @@ const fetchExercisesFromFirestore = async () => {
         const exercises = doc.data().exercises || [];
 
         if (exercises.length > 0) {
-          // Pre-sort and filter exercises
           const validExercises = exercises
             .filter(exercise => exercise && exercise.name)
             .sort((a, b) => a.name.localeCompare(b.name))
@@ -547,7 +514,6 @@ const fetchExercisesFromFirestore = async () => {
       });
     }
 
-    // Sort muscle groups
     exercisesArray.sort((a, b) => a.muscleGroup.localeCompare(b.muscleGroup));
     return exercisesArray;
 
@@ -557,9 +523,6 @@ const fetchExercisesFromFirestore = async () => {
   }
 };
 
-/**
- * React Native compatible image prefetching
- */
 const prefetchExerciseImages = async (exercisesArray) => {
   if (!exercisesArray || !Array.isArray(exercisesArray)) return;
 
@@ -577,12 +540,10 @@ const prefetchExerciseImages = async (exercisesArray) => {
     }
   });
 
-  // Prefetch images in batches using React Native's Image.prefetch
-  const batchSize = 3; // Smaller batches for mobile
+  const batchSize = 3;
   for (let i = 0; i < imageUrls.length; i += batchSize) {
     const batch = imageUrls.slice(i, i + batchSize);
     
-    // Process batch with delay
     setTimeout(() => {
       batch.forEach(async (url) => {
         try {
@@ -594,13 +555,10 @@ const prefetchExerciseImages = async (exercisesArray) => {
           console.warn('Failed to prefetch image:', url);
         }
       });
-    }, i * 100); // Reduced delay for faster prefetch
+    }, i * 100);
   }
 };
 
-/**
- * Enhanced cache clearing
- */
 export const clearExercisesCache = async (clearImages = false) => {
   memoryCache.data = null;
   memoryCache.timestamp = 0;
@@ -619,22 +577,16 @@ export const clearExercisesCache = async (clearImages = false) => {
   }
 };
 
-/**
- * Optimized prefetch function
- */
 export const prefetchExercises = async (priority = 'low') => {
   try {
-    // Don't prefetch if we already have fresh data
     if (memoryCache.data && 
         (Date.now() - memoryCache.timestamp < CACHE_DURATION)) {
       return memoryCache.data;
     }
 
     if (priority === 'high') {
-      // Immediate prefetch
       return await fetchExercises(false);
     } else {
-      // Background prefetch
       const delay = priority === 'medium' ? 500 : 2000;
       setTimeout(async () => {
         try {
@@ -649,9 +601,6 @@ export const prefetchExercises = async (priority = 'low') => {
   }
 };
 
-/**
- * Get cache status for debugging
- */
 export const getCacheStatus = () => {
   return {
     hasMemoryCache: !!memoryCache.data,
@@ -673,15 +622,12 @@ export const createCustomExercise = async (exerciseData) => {
     const db = getFirestore();
     const { muscleGroup, name, category, equipment, imageURL, difficulty } = exerciseData;
 
-    // Validate required fields
     if (!muscleGroup || !name) {
       throw new Error('Muscle group and exercise name are required.');
     }
 
-    // Reference to the muscle group document
     const muscleGroupDocRef = doc(db, 'exercises', muscleGroup);
 
-    // Get current exercises for this muscle group
     const muscleGroupQuery = query(
       collection(db, 'exercises'), 
       where('__name__', '==', muscleGroup)
@@ -693,7 +639,6 @@ export const createCustomExercise = async (exerciseData) => {
       currentExercises = muscleGroupSnapshot.docs[0].data().exercises || [];
     }
 
-    // Check for duplicate exercise names
     const exerciseExists = currentExercises.some(exercise => 
       exercise.name.toLowerCase() === name.toLowerCase()
     );
@@ -702,7 +647,6 @@ export const createCustomExercise = async (exerciseData) => {
       throw new Error('An exercise with this name already exists in this muscle group.');
     }
 
-    // Create new exercise object
     const newExercise = {
       name: name.trim(),
       muscleGroup,
@@ -715,16 +659,12 @@ export const createCustomExercise = async (exerciseData) => {
       isCustom: true
     };
 
-    // Add new exercise to the array
     const updatedExercises = [...currentExercises, newExercise].sort((a, b) => a.name.localeCompare(b.name));
 
-    // Update the document
     await setDoc(muscleGroupDocRef, { exercises: updatedExercises });
 
-    // Clear cache to force refresh
     await clearExercisesCache();
 
-    console.log('Custom exercise created:', newExercise);
     return { success: true, exercise: newExercise };
 
   } catch (error) {
@@ -759,6 +699,40 @@ export const fetchLastMeasurements = async () => {
   }
 };
 
+export const updateTemplateInFirestore = async (templateId, templateData) => {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    if (!templateId) {
+      throw new Error('Template ID is required for update');
+    }
+
+    const db = getFirestore();
+    const templateRef = doc(db, 'workoutTemplates', templateId);
+    
+    const updateData = {
+      templateName: templateData.templateName,
+      exercises: templateData.exercises,
+      note: templateData.note || '',
+      duration: templateData.duration || 60,
+      preferredDays: templateData.preferredDays || [],
+      workoutType: templateData.workoutType || 'Strength',
+      updatedAt: serverTimestamp(),
+    };
+
+    await updateDoc(templateRef, updateData);
+    return templateId;
+  } catch (error) {
+    console.error('Error updating template:', error);
+    throw error;
+  }
+};
+
 export const updateSplitInFirestore = async (splitId, splitData) => {
   try {
     const auth = getAuth();
@@ -768,22 +742,27 @@ export const updateSplitInFirestore = async (splitId, splitData) => {
       throw new Error('User not authenticated');
     }
 
+    if (!splitId) {
+      throw new Error('Split ID is required for update');
+    }
+
+    const db = getFirestore();
     const splitRef = doc(db, 'workoutSplits', splitId);
     
     const updateData = {
-      ...splitData,
+      name: splitData.name,
+      description: splitData.description || '',
+      type: splitData.type,
+      schedule: splitData.schedule,
+      durationWeeks: splitData.durationWeeks || 8,
       updatedAt: serverTimestamp(),
-      updatedBy: user.uid,
     };
 
     await updateDoc(splitRef, updateData);
-    
-    console.log('Split updated successfully:', splitId);
-    return { success: true, id: splitId };
-    
+    return splitId;
   } catch (error) {
     console.error('Error updating split:', error);
-    throw new Error(`Failed to update split: ${error.message}`);
+    throw error;
   }
 };
 
@@ -812,7 +791,6 @@ export const fetchSplitsFromFirestore = async () => {
       data: doc.data()
     }));
 
-    console.log('splits: ', splits)
     return splits;
   } catch (error) {
     console.error('Error fetching user splits from Firestore:', error.message);
@@ -833,7 +811,6 @@ export const addSplitToFirestore = async (splitData) => {
     const timestamp = new Date();
     const formattedTimestamp = `${timestamp.getFullYear()}_${timestamp.getMonth() + 1}_${timestamp.getDate()}_${timestamp.getHours()}_${timestamp.getMinutes()}_${uid}`;
 
-    // Ensure all days have valid templateId properties
     const sanitizedSchedule = {};
     Object.keys(splitData.schedule || {}).forEach(day => {
       const dayData = splitData.schedule[day];
@@ -856,7 +833,6 @@ export const addSplitToFirestore = async (splitData) => {
     const splitDocRef = doc(splitsCollectionRef, formattedTimestamp);
 
     await setDoc(splitDocRef, splitDataToSave);
-    console.log('Split created with ID:', formattedTimestamp);
     return formattedTimestamp;
   } catch (error) {
     console.error('Error saving split to Firestore:', error.message);
@@ -931,7 +907,6 @@ export const updateSplitProgress = async (splitId, currentWeek) => {
       lastUpdated: serverTimestamp()
     });
     
-    console.log(`Updated progress for split ${splitId} to week ${currentWeek}`);
     return true;
   } catch (error) {
     console.error('Error updating split progress:', error.message);

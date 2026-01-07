@@ -3,7 +3,7 @@ export default {
     name: "uptrack",
     slug: "uptrack",
     platforms: ["ios", "android"],
-    version: "2.0.0",
+    version: "2.0.1",
     orientation: "portrait",
     icon: "./assets/uptrack-icon.png",
     userInterfaceStyle: "light",
@@ -43,13 +43,14 @@ export default {
     ios: {
       supportsTablet: true,
       infoPlist: {
+        CFBundleDisplayName: "UpTrack",
         NSCameraUsageDescription: "This app uses the camera to scan barcodes.",
         NSMicrophoneUsageDescription: "This app requires microphone access.",
         NSLocationWhenInUseUsageDescription: "This app uses your location to provide location-based features.",
         NSHealthUpdateUsageDescription: "This app reads your health data to track activity and steps.",
         NSHealthShareUsageDescription: "This app requires access to your health data to display your activity progress.",
       },
-      bundleIdentifier: "com.iulianbirladeanu.activerecovery",
+      bundleIdentifier: "com.iulianbirladeanu.uptrack",
       googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST,
     },
     android: {
@@ -58,17 +59,17 @@ export default {
         foregroundImage: "./assets/uptrack-icon.png",
         backgroundColor: "#ffffff",
       },
-      package: "com.iulianbirladeanu.activerecovery",
+      package: "com.iulianbirladeanu.uptrack",
       versionCode: 2,
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
     },
     web: {
       favicon: "./assets/uptrack-icon.png",
     },
-    scheme: "com.iulianbirladeanu.activerecovery",
+    scheme: "com.iulianbirladeanu.uptrack",
     extra: {
       eas: {
-        projectId: "10e8fbd0-5cc8-488e-8605-6a4e8d5817b0",
+        "projectId": "2512a7a0-ae42-4736-9b5a-03ce8ad42d13",
       },
       googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID,
       googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID,
@@ -84,7 +85,7 @@ export default {
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
       defaultFoodIconUri: process.env.DEFAULT_FOOD_ICON_URI,
-      googleRedirectUri: "com.iulianbirladeanu.activerecovery://auth",
+      googleRedirectUri: "com.iulianbirladeanu.uptrack://auth",
       expo: {
         doctor: {
           reactNativeDirectoryCheck: {
@@ -99,10 +100,10 @@ export default {
       policy: "appVersion",
     },
     cli: {
-      appVersionSource: "2.0",
+      appVersionSource: "remote",
     },
     updates: {
-      url: "https://u.expo.dev/10e8fbd0-5cc8-488e-8605-6a4e8d5817b0",
+      url: "https://u.expo.dev/2512a7a0-ae42-4736-9b5a-03ce8ad42d13",
     },
     newArchEnabled: true,
   },

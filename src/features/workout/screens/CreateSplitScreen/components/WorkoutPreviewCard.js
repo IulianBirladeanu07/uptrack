@@ -4,7 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 import styles from './WorkoutPreviewCardStyles';
 import { workoutColors, daysOfWeek } from '../constants/CreateSplitScreenConstants';
-import { COLORS } from '../CreateSplitScreenStyles';
+
+const colors = {
+  bg: '#0A0E13',
+  primary: '#FF9500',
+  textPrimary: '#F9FAFB',
+  textTertiary: '#6B7280',
+};
 
 const WorkoutPreviewCard = React.memo(({
   workout,
@@ -26,7 +32,7 @@ const WorkoutPreviewCard = React.memo(({
   const getWorkoutVisualization = useCallback((wk) => {
     const isRest = wk.templateName?.toLowerCase() === 'rest';
     if (isRest) {
-      return workoutColors.find(c => c.category === 'rest') || { bg: COLORS.restTag, text: COLORS.textPrimary, icon: 'bed' };
+      return workoutColors.find(c => c.category === 'rest') || { bg: 'rgba(107, 114, 128, 0.2)', text: colors.textPrimary, icon: 'bed' };
     }
     const workoutName = (wk.templateName || '').toLowerCase();
     const muscleGroups = (wk.exercises || []).map(ex => (ex.muscleGroup || '').toLowerCase()).join(' ');
@@ -43,7 +49,7 @@ const WorkoutPreviewCard = React.memo(({
     if (workoutName.includes('functional') || muscleGroups.includes('functional')) {
       return workoutColors.find(c => c.category === 'functional') || { bg: '#8B5CF6', text: '#FFFFFF', icon: 'walk' };
     }
-    return workoutColors[colorIndex % workoutColors.length] || { bg: COLORS.accentPrimary, text: COLORS.textPrimary, icon: 'barbell' };
+    return workoutColors[colorIndex % workoutColors.length] || { bg: colors.primary, text: colors.textPrimary, icon: 'barbell' };
   }, [colorIndex]);
 
   const workoutVisualization = useMemo(() => getWorkoutVisualization(workout), [getWorkoutVisualization, workout]);
@@ -214,12 +220,12 @@ const WorkoutPreviewCard = React.memo(({
                 {!isRestDay ? (
                   <>
                     <View style={styles.metaItem}>
-                      <Ionicons name="time-outline" size={normalize(12)} color={COLORS.textMuted} />
+                      <Ionicons name="time-outline" size={normalize(12)} color={colors.textTertiary} />
                       <Text style={styles.metaText}>{estimatedDuration}m</Text>
                     </View>
                     <View style={styles.metaDivider} />
                     <View style={styles.metaItem}>
-                      <Ionicons name="fitness-outline" size={normalize(12)} color={COLORS.textMuted} />
+                      <Ionicons name="fitness-outline" size={normalize(12)} color={colors.textTertiary} />
                       <Text style={styles.metaText}>{workout.exercises?.length || 0} exercises</Text>
                     </View>
                     {totalSets > 0 && (
@@ -233,8 +239,8 @@ const WorkoutPreviewCard = React.memo(({
                   </>
                 ) : (
                   <View style={styles.restMeta}>
-                    <Ionicons name="moon-outline" size={normalize(12)} color={COLORS.textPrimary} />
-                    <Text style={[styles.metaText, { color: COLORS.textPrimary }]}>Rest day</Text>
+                    <Ionicons name="moon-outline" size={normalize(12)} color={colors.textPrimary} />
+                    <Text style={[styles.metaText, { color: colors.textPrimary }]}>Rest day</Text>
                   </View>
                 )}
               </View>
@@ -253,7 +259,7 @@ const WorkoutPreviewCard = React.memo(({
                   <Ionicons
                     name="add"
                     size={normalize(20)}
-                    color={COLORS.accentPrimary}
+                    color={colors.primary}
                   />
                 </TouchableOpacity>
               </Animated.View>
@@ -269,7 +275,7 @@ const WorkoutPreviewCard = React.memo(({
                   <Ionicons
                     name="checkmark"
                     size={normalize(18)}
-                    color={COLORS.background}
+                    color="#10b981"
                   />
                 </TouchableOpacity>
               </Animated.View>
@@ -317,7 +323,7 @@ const WorkoutPreviewCard = React.memo(({
                 <Ionicons
                   name={showAllExercises ? "chevron-up" : "chevron-down"}
                   size={normalize(12)}
-                  color={COLORS.accentPrimary}
+                  color={colors.primary}
                 />
               </TouchableOpacity>
             )}
@@ -327,7 +333,5 @@ const WorkoutPreviewCard = React.memo(({
     </Animated.View>
   );
 });
-
-WorkoutPreviewCard.displayName = 'WorkoutPreviewCard';
 
 export default WorkoutPreviewCard;

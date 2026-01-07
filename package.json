@@ -89,6 +89,7 @@
     "react-native-view-shot": "~4.0.3",
     "react-native-web": "^0.21.0",
     "react-native-worklets": "0.5.1",
+    "react-native-worklets-core": "^1.6.2",
     "stopword": "^3.1.4",
     "stopwords": "^0.0.9",
     "ulid": "^2.3.0",

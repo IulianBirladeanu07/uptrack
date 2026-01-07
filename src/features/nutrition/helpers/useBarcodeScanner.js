@@ -1,9 +1,7 @@
-// hooks/useBarcodeScanner.js
 import { useState, useRef } from 'react';
 import { Vibration, Alert } from 'react-native';
 import { Animated } from 'react-native';
 import { transformBarcodeDBToFoodDetail } from '../utils/customFoodDataUtils';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDate) => {
   const [scannedProducts, setScannedProducts] = useState([]);
@@ -47,21 +45,18 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
         const transformedProduct = transformBarcodeDBToFoodDetail(product);
         setCurrentProduct(transformedProduct);
         
-        // In batch mode, add to scanned products
         if (batchMode) {
           addProductToBatch(transformedProduct);
           Vibration.vibrate([0, 50, 50, 50]);
-          // Resume scanning in batch mode
           setTimeout(() => {
             setIsScanning(true);
-          }, 500); // Small delay to show the success animation
+          }, 500);
         } else {
-          // In normal mode, navigate to food detail
           navigation.navigate('FoodDetail', { 
             food: transformedProduct, 
             meal, 
             selectedDate,
-            returnToBarcodeScanner: true // Flag to indicate to return to scanner
+            returnToBarcodeScanner: true
           });
         }
 
@@ -83,10 +78,8 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
 
   const addProductToBatch = (product) => {
     setScannedProducts(prev => {
-      // Check if product is already in the batch
       const exists = prev.some(p => p.barcode_id === product.barcode_id);
       if (exists) {
-        // Show notification that product is already scanned
         Alert.alert(
           'Product Already Scanned',
           `"${product.name}" is already in your batch.`,
@@ -95,7 +88,7 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
         );
         return prev;
       }
-      return [...prev, product]; // Add to batch
+      return [...prev, product];
     });
   };
 
@@ -131,24 +124,6 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
     ]).start();
   };
 
-  const updateScannedProducts = (product) => {
-    // This function updates the scan history (different from batch)
-    const updateHistory = async (prev) => {
-      const exists = prev.some(p => p.barcode_id === product.barcode_id);
-      const newHistory = exists ? prev : [product, ...prev].slice(0, 50);
-
-      try {
-        await AsyncStorage.setItem('scan_history', JSON.stringify(newHistory));
-      } catch (err) {
-        console.error('Failed to save history', err);
-      }
-      
-      return newHistory;
-    };
-
-    setScannedProducts(prev => updateHistory(prev));
-  };
-
   const handleProductNotFound = (barcode) => {
     Alert.alert(
       'Product Not Found',
@@ -157,7 +132,6 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
         {
           text: 'Create Custom Food',
           onPress: () => {
-            // If in batch mode and there are products, ask if user wants to complete batch first
             if (batchMode && scannedProducts.length > 0) {
               Alert.alert(
                 'Exit Batch Mode?',
@@ -183,7 +157,6 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
                 ]
               );
             } else {
-              // If not in batch mode or no products scanned yet, just navigate
               if (batchMode) setBatchMode(false);
               navigation.navigate('CustomFood', {
                 barcode,
@@ -214,7 +187,6 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
   const resumeScanning = () => {
     setCurrentProduct(null);
     setIsScanning(true);
-    // Don't reset batch mode when resuming scanning
   };
 
   const toggleBatchMode = () => {
@@ -228,7 +200,6 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
 
   const handleBatchScanComplete = () => {
     if (scannedProducts.length > 0) {
-      // Stop scanning when batch is complete
       setIsScanning(false);
       
       navigation.navigate('BatchScanResults', { 
@@ -237,12 +208,9 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
         selectedDate
       });
       
-      // Reset batch mode after navigation
       setBatchMode(false);
-      // Clear scanned products after navigation
       setScannedProducts([]);
     } else {
-      // If no products scanned, just toggle batch mode off
       Alert.alert(
         'No Products Scanned', 
         'Please scan at least one product before completing batch mode.'
@@ -251,7 +219,6 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
     }
   };
 
-  // Add a function to remove an item from the batch
   const removeFromBatch = (productId) => {
     setScannedProducts(prev => prev.filter(product => product.id !== productId));
   };

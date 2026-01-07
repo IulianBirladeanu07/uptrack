@@ -24,31 +24,37 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   contentWrapper: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: normalize(12),
-    paddingTop: normalize(8),
+    paddingTop: normalize(25),
   },
-
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: normalize(16),
-    paddingTop: normalize(8),
-  },
-  headerContent: {
+  loadingContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  greetingText: {
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: normalize(20),
+  },
+  emptyIcon: {
+    marginBottom: normalize(16),
+  },
+  emptyTitle: {
     fontSize: normalize(22),
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: normalize(4),
+    marginBottom: normalize(8),
+    textAlign: 'center',
   },
-  headerSubtext: {
+  emptySubtitle: {
     fontSize: normalize(14),
     color: colors.textSecondary,
-    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: normalize(24),
+    lineHeight: normalize(20),
   },
 
   headerStatsRow: {
@@ -85,14 +91,8 @@ const styles = StyleSheet.create({
     borderRadius: normalize(18),
     marginBottom: normalize(20),
     padding: normalize(18),
-    position: 'relative',
-    overflow: 'hidden',
     borderWidth: normalize(1),
     borderColor: colors.border,
-  },
-  workoutCardContent: {
-    flex: 1,
-    zIndex: 1,
   },
   workoutCardHeader: {
     flexDirection: 'row',
@@ -104,29 +104,30 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: normalize(14),
   },
-  planIndicator: {
+  workoutTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: normalize(8),
-  },
-  planDot: {
-    width: normalize(8),
-    height: normalize(8),
-    borderRadius: normalize(4),
-    backgroundColor: colors.primary,
-    marginRight: normalize(6),
-  },
-  planText: {
-    fontSize: normalize(12),
-    color: colors.primary,
-    fontWeight: '600',
+    gap: normalize(8),
+    marginBottom: normalize(12),
   },
   workoutCardTitle: {
     fontSize: normalize(20),
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: normalize(12),
     lineHeight: normalize(24),
+  },
+  dayBadge: {
+    backgroundColor: 'rgba(0, 212, 255, 0.15)',
+    paddingHorizontal: normalize(8),
+    paddingVertical: normalize(4),
+    borderRadius: normalize(6),
+    borderWidth: normalize(1),
+    borderColor: 'rgba(0, 212, 255, 0.3)',
+  },
+  dayBadgeText: {
+    fontSize: normalize(11),
+    fontWeight: '700',
+    color: colors.cyan,
   },
   workoutMetrics: {
     flexDirection: 'row',
@@ -207,6 +208,44 @@ const styles = StyleSheet.create({
     marginRight: normalize(8),
   },
 
+  restDayCard: {
+    backgroundColor: colors.surface,
+    borderRadius: normalize(18),
+    marginBottom: normalize(20),
+    padding: normalize(18),
+    borderWidth: normalize(1),
+    borderColor: colors.border,
+  },
+  restDayContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  restDayIconContainer: {
+    width: normalize(56),
+    height: normalize(56),
+    borderRadius: normalize(28),
+    backgroundColor: 'rgba(6, 182, 212, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: normalize(14),
+    borderWidth: normalize(1.5),
+    borderColor: 'rgba(6, 182, 212, 0.3)',
+  },
+  restDayText: {
+    flex: 1,
+  },
+  restDayTitle: {
+    fontSize: normalize(20),
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: normalize(4),
+  },
+  restDaySubtitle: {
+    fontSize: normalize(13),
+    color: colors.textSecondary,
+    lineHeight: normalize(18),
+  },
+
   progressCard: {
     backgroundColor: colors.surface,
     borderRadius: normalize(18),
@@ -263,153 +302,87 @@ const styles = StyleSheet.create({
   mergedCard: {
     backgroundColor: colors.surface,
     borderRadius: normalize(18),
-    padding: normalize(12),
+    padding: normalize(18),
     marginBottom: normalize(20),
     borderWidth: normalize(1),
     borderColor: colors.border,
   },
-  sectionDivider: {
-    height: normalize(1),
-    backgroundColor: colors.borderLight,
-    marginVertical: normalize(8),
-  },
   sectionHeader: {
+    marginBottom: normalize(14),
+  },
+  upcomingGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: normalize(8),
+    flexWrap: 'wrap',
+    gap: normalize(10),
   },
-  viewAllButton: {
-    paddingHorizontal: normalize(12),
-    paddingVertical: normalize(6),
-    backgroundColor: 'rgba(0, 212, 255, 0.15)',
-    borderRadius: normalize(8),
-    borderWidth: normalize(1),
-    borderColor: 'rgba(0, 212, 255, 0.3)',
+  upcomingGridItemRest: {
+    backgroundColor: 'rgba(6, 182, 212, 0.08)',
+    borderColor: 'rgba(6, 182, 212, 0.25)',
   },
-  viewAllText: {
+  upcomingGridDay: {
     fontSize: normalize(12),
-    color: colors.cyan,
-    fontWeight: '600',
-  },
-  upcomingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: normalize(10),
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: normalize(12),
-    marginBottom: normalize(10),
-    paddingHorizontal: normalize(14),
-    borderWidth: normalize(1),
-    borderColor: colors.borderLight,
-  },
-  upcomingDayContainer: {
-    backgroundColor: 'rgba(255, 149, 0, 0.15)',
-    borderRadius: normalize(12),
-    width: normalize(42),
-    height: normalize(42),
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: normalize(14),
-    borderWidth: normalize(1),
-    borderColor: 'rgba(255, 149, 0, 0.3)',
-  },
-  upcomingDay: {
-    fontSize: normalize(15),
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: normalize(0.5),
+  },upcomingGridItem: {
+  flex: 1,
+  minWidth: '48%',
+  maxWidth: '48%',
+  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  borderRadius: normalize(14),
+  padding: normalize(14),
+  borderWidth: normalize(1),
+  borderColor: colors.border,
+  minHeight: normalize(85),  // Reduced from 95
+},
+
+upcomingGridHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: normalize(8),  // Reduced from 10
+},
+
+upcomingGridName: {
+  fontSize: normalize(15),
+  fontWeight: '700',
+  color: colors.textPrimary,
+  marginBottom: normalize(4),  // Reduced from 5
+  lineHeight: normalize(19),
+},
+  upcomingGridNameRest: {
+    color: colors.cyan,
   },
-  upcomingDetails: {
-    flex: 1,
-    marginRight: normalize(12),
-  },
-  upcomingName: {
-    fontSize: normalize(15),
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: normalize(3),
-  },
-  upcomingInfo: {
+  upcomingGridInfo: {
     fontSize: normalize(12),
     color: colors.textSecondary,
     fontWeight: '500',
-  },
-  upcomingPlayButton: {
-    backgroundColor: 'rgba(0, 212, 255, 0.15)',
-    borderRadius: normalize(12),
-    width: normalize(32),
-    height: normalize(32),
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: normalize(1),
-    borderColor: 'rgba(0, 212, 255, 0.3)',
-  },
-  quickActionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: normalize(10),
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: normalize(12),
-    paddingHorizontal: normalize(14),
-    borderWidth: normalize(1),
-    borderColor: colors.borderLight,
-  },
-  quickActionIcon: {
-    width: normalize(42),
-    height: normalize(42),
-    backgroundColor: 'rgba(147, 51, 234, 0.15)',
-    borderRadius: normalize(12),
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: normalize(14),
-    borderWidth: normalize(1),
-    borderColor: 'rgba(147, 51, 234, 0.3)',
-  },
-  quickActionDetails: {
-    flex: 1,
-  },
-  quickActionTitle: {
-    fontSize: normalize(15),
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: normalize(3),
-  },
-  quickActionSubtitle: {
-    fontSize: normalize(12),
-    color: colors.textSecondary,
-    fontWeight: '500',
+    lineHeight: normalize(16),
   },
 
   quickActionsContainer: {
     flexDirection: 'row',
-    gap: normalize(12),
+    gap: normalize(8),
     marginBottom: normalize(20),
   },
-  quickActionCard: {
+  quickActionButton: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: normalize(14),
-    padding: normalize(16),
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: normalize(12),
+    paddingVertical: normalize(14),
+    paddingHorizontal: normalize(10),
+    gap: normalize(8),
     borderWidth: normalize(1),
     borderColor: colors.border,
-    minHeight: normalize(90),
   },
-  quickActionIconContainer: {
-    width: normalize(40),
-    height: normalize(40),
-    borderRadius: normalize(20),
-    backgroundColor: 'rgba(255, 149, 0, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: normalize(8),
-  },
-  quickActionText: {
-    fontSize: normalize(13),
+  quickActionButtonText: {
+    fontSize: normalize(14),
     fontWeight: '600',
     color: colors.textPrimary,
-    textAlign: 'center',
   },
 
   modalOverlay: {
@@ -453,18 +426,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: normalize(18),
     paddingVertical: normalize(14),
   },
-  modalSection: {
-    marginBottom: normalize(18),
-  },
-  modalSectionTitle: {
-    fontSize: normalize(16),
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: normalize(12),
-  },
   modalExerciseItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     paddingVertical: normalize(12),
@@ -474,10 +437,28 @@ const styles = StyleSheet.create({
     borderWidth: normalize(1),
     borderColor: colors.border,
   },
+  modalExerciseNumber: {
+    width: normalize(28),
+    height: normalize(28),
+    borderRadius: normalize(14),
+    backgroundColor: 'rgba(255, 149, 0, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: normalize(12),
+  },
+  modalExerciseNumberText: {
+    fontSize: normalize(13),
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  modalExerciseContent: {
+    flex: 1,
+  },
   modalExerciseText: {
     fontSize: normalize(14),
     fontWeight: '600',
     color: colors.textPrimary,
+    marginBottom: normalize(3),
   },
   modalExerciseReps: {
     fontSize: normalize(12),
@@ -499,9 +480,6 @@ const styles = StyleSheet.create({
     fontSize: normalize(15),
     fontWeight: '700',
     letterSpacing: normalize(0.5),
-  },
-  bottomPadding: {
-    height: normalize(20),
   },
 });
 

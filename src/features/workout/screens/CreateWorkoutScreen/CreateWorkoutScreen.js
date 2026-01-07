@@ -6,11 +6,10 @@ import {
   KeyboardAvoidingView,
   BackHandler,
   Alert,
-  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import styles from './CreateWorkoutScreenStyle';
-import { normalize } from '../../../../shared/hooks/useResponsive';
 import BasicInfoStep from './steps/BasicInfoStep';
 import ExercisesStep from './steps/ExercisesStep';
 import ReviewStep from './steps/ReviewStep';
@@ -27,15 +26,18 @@ import {
   createTemplateData, 
   TEMPLATE_STEPS
 } from '../../utils/createWorkoutUtils';
-import { addTemplateToFirestore } from '../../handlers/WorkoutHandler';
+import { addTemplateToFirestore, updateTemplateInFirestore } from '../../handlers/WorkoutHandler';
 
 const CreateWorkout = ({ navigation, route }) => {
-  const [templateName, setTemplateName] = useState('');
-  const [exercises, setExercises] = useState([]);
-  const [note, setNote] = useState('');
-  const [duration, setDuration] = useState(60);
-  const [workoutType, setWorkoutType] = useState('Strength');
-  const [preferredDays, setPreferredDays] = useState([]);
+  const existingTemplate = route?.params?.template;
+  const isEditing = route?.params?.isEditing || false;
+
+  const [templateName, setTemplateName] = useState(existingTemplate?.templateName || '');
+  const [exercises, setExercises] = useState(existingTemplate?.exercises || []);
+  const [note, setNote] = useState(existingTemplate?.note || '');
+  const [duration, setDuration] = useState(existingTemplate?.duration || 60);
+  const [workoutType, setWorkoutType] = useState(existingTemplate?.workoutType || 'Strength');
+  const [preferredDays, setPreferredDays] = useState(existingTemplate?.preferredDays || []);
   const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -54,8 +56,22 @@ const CreateWorkout = ({ navigation, route }) => {
     visible: false,
   });
 
+    console.log('=== CreateWorkout Debug ===');
+  console.log('isEditing:', isEditing);
+  console.log('existingTemplate:', existingTemplate);
+  console.log('preferredDays from template:', existingTemplate?.preferredDays);
+  console.log('========================');
+
+
   const fabAnim = useRef(new Animated.Value(1)).current;
   const scrollViewRef = useRef(null);
+
+  useEffect(() => {
+    if (existingTemplate?.exercises) {
+      const anims = existingTemplate.exercises.map(() => new Animated.Value(1));
+      setExerciseFadeAnims(anims);
+    }
+  }, []);
 
   const showNotification = useCallback((message, isError = false, action = null) => {
     setNotification({ message, isError, action, visible: true });
@@ -81,10 +97,7 @@ const CreateWorkout = ({ navigation, route }) => {
 
   const memoizedSetTemplateName = useCallback((value) => setTemplateName(value), []);
   const memoizedSetNote = useCallback((value) => setNote(value), []);
-  const memoizedSetDuration = useCallback((value) => {
-    console.log('Parent setDuration called:', value);
-    setDuration(value);
-  }, []);
+  const memoizedSetDuration = useCallback((value) => setDuration(value), []);
   const memoizedSetWorkoutType = useCallback((value) => setWorkoutType(value), []);
   const memoizedSetPreferredDays = useCallback((value) => setPreferredDays(value), []);
 
@@ -110,28 +123,22 @@ const CreateWorkout = ({ navigation, route }) => {
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
-    const keyboardDidShowListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => {
-        setKeyboardVisible(true);
-        Animated.timing(fabAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
-      }
-    );
-    const keyboardDidHideListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        setKeyboardVisible(false);
-        Animated.timing(fabAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
-      }
-    );
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+      Animated.timing(fabAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+      Animated.timing(fabAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
 
     return () => {
       backHandler.remove();
@@ -141,10 +148,7 @@ const CreateWorkout = ({ navigation, route }) => {
   }, [handleBackPress, fabAnim]);
 
   const safelyRunAnimation = (animValue, toValue, duration = 300) => {
-    if (!animValue) {
-      console.warn('Attempted to animate undefined value');
-      return;
-    }
+    if (!animValue) return;
     try {
       return Animated.timing(animValue, {
         toValue,
@@ -158,10 +162,7 @@ const CreateWorkout = ({ navigation, route }) => {
 
   const undoDeleteExercise = useCallback(() => {
     setUndoState((currentUndoState) => {
-      if (!currentUndoState.isActive || currentUndoState.type !== 'delete') {
-        console.warn('No active delete operation to undo');
-        return currentUndoState;
-      }
+      if (!currentUndoState.isActive || currentUndoState.type !== 'delete') return currentUndoState;
       const { exercise, index, animation } = currentUndoState;
       if (exercise && index !== null) {
         const newAnim = new Animated.Value(0);
@@ -192,10 +193,7 @@ const CreateWorkout = ({ navigation, route }) => {
 
   const undoReplaceExercise = useCallback(() => {
     setUndoState((currentUndoState) => {
-      if (!currentUndoState.isActive || currentUndoState.type !== 'replace') {
-        console.warn('No active replace operation to undo');
-        return currentUndoState;
-      }
+      if (!currentUndoState.isActive || currentUndoState.type !== 'replace') return currentUndoState;
       const { exercise, index, animation } = currentUndoState;
       if (exercise && index !== null) {
         const newAnim = new Animated.Value(0);
@@ -239,10 +237,7 @@ const CreateWorkout = ({ navigation, route }) => {
   }, [navigation]);
 
   const addExerciseWithAnimation = useCallback((exercise) => {
-    if (!exercise) {
-      console.error('Attempted to add undefined exercise');
-      return;
-    }
+    if (!exercise) return;
     const isDuplicate = exercises.some(
       (existingExercise) =>
         (existingExercise.exerciseName || existingExercise.name) ===
@@ -292,7 +287,7 @@ const CreateWorkout = ({ navigation, route }) => {
           const newAnim = new Animated.Value(0);
           setExercises((prev) => {
             const newExercises = [...prev];
-            newExercises[replaceIndex] = { ...exerciseToReplace, restBetweenSets: prev[replaceIndex]?.restBetweenSets || '' };
+            newExercises[replaceIndex] = { ...exerciseToReplace, restTime: prev[replaceIndex]?.restTime || 180 };
             return newExercises;
           });
           setExerciseFadeAnims((prev) => {
@@ -321,7 +316,7 @@ const CreateWorkout = ({ navigation, route }) => {
               typeof exercise === 'object' &&
               (exercise.exerciseName || exercise.name)
             ) {
-              addExerciseWithAnimation({ ...exercise, restBetweenSets: '' });
+              addExerciseWithAnimation({ ...exercise, restTime: 180 });
             }
           });
         } else if (
@@ -329,7 +324,7 @@ const CreateWorkout = ({ navigation, route }) => {
           typeof newExercises === 'object' &&
           (newExercises.exerciseName || newExercises.name)
         ) {
-          addExerciseWithAnimation({ ...newExercises, restBetweenSets: '' });
+          addExerciseWithAnimation({ ...newExercises, restTime: 180 });
         }
       }
     }
@@ -367,19 +362,16 @@ const CreateWorkout = ({ navigation, route }) => {
     });
   }, []);
 
-  const handleRestBetweenSetsChange = useCallback((value, index) => {
+  const handleRestTimeChange = useCallback((value, index) => {
     setExercises((prev) => {
       const newExercises = [...prev];
-      newExercises[index] = { ...newExercises[index], restBetweenSets: value };
+      newExercises[index] = { ...newExercises[index], restTime: value };
       return newExercises;
     });
   }, []);
 
   const handleDeleteExercise = useCallback((index) => {
-    if (index < 0 || index >= exercises.length) {
-      console.error('Invalid index for deletion:', index);
-      return;
-    }
+    if (index < 0 || index >= exercises.length) return;
     const exerciseToDelete = exercises[index];
     const animToDelete = exerciseFadeAnims[index];
     const exerciseName = exerciseToDelete?.exerciseName || exerciseToDelete?.name || 'Exercise';
@@ -440,16 +432,23 @@ const CreateWorkout = ({ navigation, route }) => {
     try {
       setLoading(true);
       const templateData = createTemplateData(templateName, exercises, note, duration, preferredDays);
-      await addTemplateToFirestore(templateData, templateName);
-      showNotification('Workout template created successfully!');
+      
+      if (isEditing && existingTemplate?.id) {
+        await updateTemplateInFirestore(existingTemplate.id, templateData);
+        showNotification('Workout template updated successfully!');
+      } else {
+        await addTemplateToFirestore(templateData, templateName);
+        showNotification('Workout template created successfully!');
+      }
+      
       navigation.navigate('WorkoutLibrary');
     } catch (error) {
-      console.error('Error creating template:', error);
-      showNotification('Failed to create workout template. Please try again.', true);
+      console.error('Error saving template:', error);
+      showNotification(`Failed to ${isEditing ? 'update' : 'create'} workout template. Please try again.`, true);
     } finally {
       setLoading(false);
     }
-  }, [templateName, exercises, note, duration, preferredDays, navigation, showNotification]);
+  }, [templateName, exercises, note, duration, preferredDays, navigation, showNotification, isEditing, existingTemplate]);
 
   const validateCurrentForm = useCallback(() => {
     return validateForm(templateName, exercises);
@@ -476,11 +475,11 @@ const CreateWorkout = ({ navigation, route }) => {
         return (
           <ExercisesStep
             exercises={exercises}
-            exerciseFadeAnims={exerciseFadeAnims}
+            exerciseFadeAnims={exerciseFadeAnims || []}
             handleAddExercise={handleAddExercise}
             handleSetsChange={handleSetsChange}
             handleRepsChange={handleRepsChange}
-            handleRestBetweenSetsChange={handleRestBetweenSetsChange}
+            handleRestBetweenSetsChange={handleRestTimeChange}
             handleDeleteExercise={handleDeleteExercise}
             handleNoteChange={handleNoteChange}
             handleReplaceExercise={handleReplaceExercise}
@@ -488,7 +487,6 @@ const CreateWorkout = ({ navigation, route }) => {
           />
         );
       case 2:
-        console.log('Rendering ReviewStep with duration:', duration);
         return (
           <ReviewStep
             templateName={templateName}
@@ -505,36 +503,36 @@ const CreateWorkout = ({ navigation, route }) => {
   };
 
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoidView}
-        keyboardVerticalOffset={normalize(Platform.OS === 'ios' ? 0 : 5)}
-      >
-        <Header
-          title="Create Workout Template"
-          handleBackPress={handleBackPress}
-        />
-        <ProgressSteps currentStep={currentStep} steps={TEMPLATE_STEPS} />
-        <View style={styles.contentContainer}>
-          {renderCurrentStep()}
-        </View>
-        <NavigationButtons
-          currentStep={currentStep}
-          goToPreviousStep={goToPreviousStep}
-          goToNextStep={goToNextStep}
-          handleCreateTemplate={handleCreateTemplate}
-          loading={loading}
-          validateForm={validateCurrentForm}
-        />
-        <Notification
-          message={notification.message}
-          isError={notification.isError}
-          action={notification.action}
-          visible={notification.visible}
-          onDismiss={dismissNotification}
-        />
-      </KeyboardAvoidingView>
-    </GestureHandlerRootView>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      <GestureHandlerRootView style={styles.container}>
+        <KeyboardAvoidingView style={styles.keyboardAvoidView} behavior="padding">
+          <Header
+            title={isEditing ? 'Edit Workout Template' : 'Create Workout Template'}
+            handleBackPress={handleBackPress}
+          />
+          <ProgressSteps currentStep={currentStep} steps={TEMPLATE_STEPS} />
+          <View style={styles.contentContainer}>
+            {renderCurrentStep()}
+          </View>
+          <NavigationButtons
+            currentStep={currentStep}
+            goToPreviousStep={goToPreviousStep}
+            goToNextStep={goToNextStep}
+            handleCreateTemplate={handleCreateTemplate}
+            loading={loading}
+            validateForm={validateCurrentForm}
+            isEditing={isEditing}
+          />
+          <Notification
+            message={notification.message}
+            isError={notification.isError}
+            action={notification.action}
+            visible={notification.visible}
+            onDismiss={dismissNotification}
+          />
+        </KeyboardAvoidingView>
+      </GestureHandlerRootView>
+    </SafeAreaView>
   );
 };
 

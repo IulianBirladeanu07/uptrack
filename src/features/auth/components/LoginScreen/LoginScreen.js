@@ -28,9 +28,12 @@ const LoginScreen = () => {
   const { setAuthenticated, setProfileSetupComplete } = useContext(AuthContext);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: firebaseAuthService.getGoogleClientId(),
-    redirectUri: firebaseAuthService.getRedirectUri(),
+    androidClientId: firebaseAuthService.getGoogleClientId(),
   });
+
+  console.log("Google Client ID: ", firebaseAuthService.getGoogleClientId());
+  console.log("Request: ", request);
+  console.log("Response: ", response);
 
   useEffect(() => {
     if (response?.type === 'success') {
@@ -79,15 +82,12 @@ const LoginScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Logo Section */}
       <View style={styles.logoContainer}>
         <Text style={styles.logoText}>UPTRACK</Text>
       </View>
 
-      {/* Login Title */}
       <Text style={styles.title}>Login</Text>
 
-      {/* Email Input */}
       <View style={styles.inputContainer}>
         <MaterialIcons name="email" size={24} color="gray" style={styles.inputIcon} />
         <TextInput
@@ -100,7 +100,6 @@ const LoginScreen = () => {
         />
       </View>
 
-      {/* Password Input */}
       <View style={styles.inputContainer}>
         <MaterialIcons name="lock" size={24} color="gray" style={styles.inputIcon} />
         <TextInput
@@ -115,12 +114,10 @@ const LoginScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Login Button */}
       <TouchableOpacity style={styles.button} onPress={handleSignIn} disabled={loading}>
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
       </TouchableOpacity>
 
-      {/* Google Sign-In Button */}
       <TouchableOpacity
         style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
         onPress={() => promptAsync()}
@@ -136,7 +133,6 @@ const LoginScreen = () => {
         )}
       </TouchableOpacity>
 
-      {/* Navigation Links */}
       <TouchableOpacity onPress={() => handleForgotPassword()}>
         <Text style={styles.linkText}>Forgot Password?</Text>
       </TouchableOpacity>

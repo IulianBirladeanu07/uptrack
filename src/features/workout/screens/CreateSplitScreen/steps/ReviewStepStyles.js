@@ -3,32 +3,49 @@ import { normalize } from '../../../../../shared/hooks/useResponsive';
 
 const { width: screenWidth } = Dimensions.get('window');
 
+const colors = {
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
+};
+
 export const COLORS = {
-  background: '#02111B',
-  cardBackground: 'rgba(30, 41, 59, 0.5)',
-  cardBackgroundDark: 'rgba(15, 23, 42, 0.8)',
-  gradientOverlay: 'rgba(255, 133, 53, 0.05)',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#d1d5db',
+  background: colors.bg,
+  cardBackground: colors.surface,
+  cardBackgroundDark: colors.surfaceLight,
+  gradientOverlay: 'rgba(255, 149, 0, 0.05)',
+  textPrimary: colors.textPrimary,
+  textSecondary: colors.textSecondary,
   textInactive: 'rgba(255, 255, 255, 0.4)',
-  textMuted: '#9ca3af',
-  border: 'rgba(255, 255, 255, 0.1)',
-  borderDivider: 'rgba(255, 255, 255, 0.08)',
-  accentPrimary: '#ff8535',
-  accentSecondary: '#00d4ff',
-  accentPurple: '#a855f7',
-  success: '#10b981',
-  warning: '#facc15',
+  textMuted: colors.textTertiary,
+  border: colors.border,
+  borderDivider: colors.borderLight,
+  accentPrimary: colors.primary,
+  accentSecondary: colors.cyan,
+  accentPurple: colors.purple,
+  success: colors.success,
+  warning: colors.warning,
   error: '#ef4444',
   shadow: 'rgba(0, 0, 0, 0.3)',
-  mutedOrange: 'rgba(255, 133, 53, 0.8)',
+  mutedOrange: 'rgba(255, 149, 0, 0.8)',
   mutedBlue: 'rgba(0, 212, 255, 0.7)',
   mutedPurple: 'rgba(168, 85, 247, 0.8)',
   mutedGreen: 'rgba(16, 185, 129, 0.8)',
   mutedYellow: 'rgba(245, 158, 11, 0.8)',
   mutedRed: 'rgba(239, 68, 68, 0.8)',
   mutedGray: 'rgba(107, 114, 128, 0.3)',
-  workoutCardBg: 'rgba(255, 133, 53, 0.15)',
+  workoutCardBg: 'rgba(255, 149, 0, 0.15)',
   restCardBg: 'rgba(0, 212, 255, 0.1)',
   pieChart1: '#F28C82',
   pieChart2: '#81D4FA',
@@ -40,7 +57,7 @@ export const COLORS = {
   pieChart8: '#BCAAA4',
   pieChart9: '#FFE082',
   pieChart10: '#C5E1A5',
-  accentPrimaryFaded: 'rgba(255, 133, 53, 0.15)',
+  accentPrimaryFaded: 'rgba(255, 149, 0, 0.15)',
 };
 
 const styles = StyleSheet.create({
@@ -55,7 +72,6 @@ const styles = StyleSheet.create({
     gap: normalize(16),
   },
 
-  // --- Header Card ---
   headerCard: {
     backgroundColor: COLORS.cardBackgroundDark,
     borderRadius: normalize(24),
@@ -137,7 +153,6 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
 
-  // --- Tab Navigation ---
   tabNavigation: {
     flexDirection: 'row',
     backgroundColor: COLORS.cardBackground,
@@ -161,7 +176,7 @@ const styles = StyleSheet.create({
   tabActive: {
     backgroundColor: COLORS.accentPrimaryFaded,
     borderWidth: 1,
-    borderColor: 'rgba(255, 133, 53, 0.3)',
+    borderColor: 'rgba(255, 149, 0, 0.3)',
   },
   tabText: {
     fontSize: normalize(13),
@@ -173,7 +188,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // --- Content Cards ---
   tabContent: {
     flex: 1,
     gap: normalize(20),
@@ -358,7 +372,6 @@ const styles = StyleSheet.create({
     marginRight: normalize(5),
   },
 
-  // --- Schedule Tab Styles (Updated) ---
   scheduleCard: {
     backgroundColor: COLORS.cardBackgroundDark,
     borderRadius: normalize(24),
@@ -406,12 +419,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     backgroundColor: COLORS.cardBackground,
   },
-  // The active pill now uses accentPrimary for both its background and border
   dayPillActive: {
     backgroundColor: COLORS.accentPrimaryFaded,
     borderColor: COLORS.accentPrimary,
   },
-  // The rest day pill uses a muted gray color
   restDayPill: {
     backgroundColor: COLORS.mutedGray,
     borderColor: COLORS.textMuted,
@@ -421,11 +432,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.textInactive,
   },
-  // The active text now uses accentPrimary to match the pill
   dayPillTextActive: {
     color: COLORS.accentPrimary,
   },
-  // The rest day text is now bright white for better contrast
   dayPillTextRest: {
     color: COLORS.textPrimary,
   },

@@ -4,13 +4,30 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 
+const colors = {
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
+};
+
 const COLORS = {
-  primary: '#ff8535',
-  cardDark: 'rgba(15, 23, 42, 0.8)',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#d1d5db',
-  textMuted: '#9ca3af',
-  border: 'rgba(255, 255, 255, 0.1)',
+  primary: colors.primary,
+  cardDark: colors.surfaceLight,
+  textPrimary: colors.textPrimary,
+  textSecondary: colors.textSecondary,
+  textMuted: colors.textTertiary,
+  border: colors.border,
   progressBarTrack: 'rgba(255, 255, 255, 0.1)',
 };
 
@@ -42,9 +59,7 @@ const ProgressStepItem = memo(({ step, index, currentStep, totalSteps }) => {
         isLast && styles.lastStep,
       ]}
     >
-      {/* Wrapper for Indicator */}
       <View style={styles.indicatorWrapper}>
-        {/* Main Step Indicator */}
         <Animated.View
           style={[
             styles.stepIndicator,
@@ -56,12 +71,11 @@ const ProgressStepItem = memo(({ step, index, currentStep, totalSteps }) => {
           <Ionicons
             name={isCompleted ? 'checkmark' : step.icon}
             size={normalize(18)}
-            color={isCompleted || isActive ? '#FFFFFF' : COLORS.textSecondary}
+            color={isCompleted || isActive ? colors.textPrimary : COLORS.textSecondary}
           />
         </Animated.View>
       </View>
 
-      {/* Step Label */}
       <Text
         style={[
           styles.stepLabel,
@@ -72,7 +86,6 @@ const ProgressStepItem = memo(({ step, index, currentStep, totalSteps }) => {
         {step.title}
       </Text>
 
-      {/* Active Step Underline */}
       {isActive && (
         <View
           style={{
@@ -92,7 +105,7 @@ const ProgressStepItem = memo(({ step, index, currentStep, totalSteps }) => {
 export const ProgressSteps = ({ currentStep, steps }) => {
   const totalSteps = steps.length;
   const targetProgressWidth = currentStep === 0 
-    ? 15 // Start with 15% progress before first step
+    ? 15
     : (currentStep / (totalSteps - 1)) * 100;
 
   const progressWidth = useSharedValue(targetProgressWidth);

@@ -1,7 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 
-// Updated color palette matching weight tracker
 const colors = {
   bg: '#0A0E13',
   surface: '#151B23',

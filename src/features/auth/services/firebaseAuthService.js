@@ -2,9 +2,7 @@ import { signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, Googl
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../auth/services/firebaseConfigService'
 import Constants from 'expo-constants';
-import { makeRedirectUri } from 'expo-auth-session';
 
-// Handle Firebase errors
 const handleFirebaseError = (error) => {
   switch (error.code) {
     case 'auth/wrong-password':
@@ -51,17 +49,14 @@ const signInWithGoogle = async (googleResponse, setAuthenticated, setProfileSetu
 
     const userDocRef = doc(db, 'users', uid);
 
-    // Check if the user document exists
     const userDoc = await getDoc(userDocRef);
     if (userDoc.exists()) {
-      // Update user document with new Google data if necessary
       await updateDoc(userDocRef, {
         displayName: displayName || userDoc.data().displayName,
         photoURL: photoURL || userDoc.data().photoURL,
         lastLogin: serverTimestamp(),
       });
     } else {
-      // Create a new user document in Firestore
       await setDoc(userDocRef, {
         email,
         displayName,
@@ -90,26 +85,16 @@ const sendPasswordResetEmail = async (email) => {
 };
 
 const getGoogleClientId = () => {
-  return Constants.executionEnvironment === 'expo'
-    ? Constants.expoConfig.extra.googleWebClientId
-    : Constants.expoConfig.extra.googleAndroidClientId;
+  return Constants.expoConfig.extra.googleAndroidClientId;
 };
 
 export const getCurrentUser = () => {
   const user = auth.currentUser;
 
   if (!user) {
-    // In a real app, you might handle this by navigating to a login screen.
     throw new Error('User not authenticated.');
   }
   return user;
-};
-
-const getRedirectUri = () => {
-  return makeRedirectUri({
-    scheme: "com.iulianbirladeanu.activerecovery",
-    useProxy: Constants.executionEnvironment === 'expo',
-  });
 };
 
 export default {
@@ -117,5 +102,5 @@ export default {
   signInWithGoogle,
   sendPasswordResetEmail,
   getGoogleClientId,
-  getRedirectUri,
+  getCurrentUser,
 };

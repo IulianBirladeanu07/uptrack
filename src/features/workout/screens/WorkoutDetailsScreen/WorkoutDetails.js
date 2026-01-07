@@ -204,7 +204,7 @@ const WorkoutDetails = ({ route, navigation }) => {
 
   const handlePhotoOptions = () => {
     Alert.alert(
-      selfieUri ? '📸 Photo Options' : '📸 Add Photo',
+      selfie ? 'Photo Options' : 'Add Photo',
       'Create your shareable workout card',
       [
         { text: 'Take Selfie', onPress: takeSelfie },

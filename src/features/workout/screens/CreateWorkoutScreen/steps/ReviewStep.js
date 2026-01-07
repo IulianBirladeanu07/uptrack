@@ -1,21 +1,38 @@
 import { useState, memo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet } from 'react-native';
-import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 
 const COLORS = {
-  primary: '#ff8535',
-  secondary: '#02111B',
-  cardDark: 'rgba(15, 23, 42, 0.8)',
-  card: 'rgba(30, 41, 59, 0.4)',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#d1d5db',
-  textMuted: '#9ca3af',
-  border: 'rgba(255, 255, 255, 0.1)',
-  borderDivider: 'rgba(255, 255, 255, 0.08)',
-  success: '#10b981',
-  info: '#67E8F9',
-  accent2: '#00d4ff',
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: 'rgba(255, 255, 255, 0.05)',
+  surfaceAlpha: 'rgba(31, 41, 55, 0.5)',
+  primary: '#FF9500',
+  primaryDark: '#E68600',
+  primaryAlpha: 'rgba(255, 149, 0, 0.3)',
+  success: '#32D74B',
+  warning: '#FF9F0A',
+  error: '#FF4444',
+  purple: '#9333EA',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  textMuted: '#4B5563',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
+  overlayDark: 'rgba(0, 0, 0, 0.8)',
+  transparent: 'transparent',
+};
+
+const formatRestTime = (seconds) => {
+  if (!seconds) return '3m';
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (remainingSeconds === 0) return `${minutes}m`;
+  return `${minutes}m ${remainingSeconds}s`;
 };
 
 const ReviewStep = memo(
@@ -38,452 +55,421 @@ const ReviewStep = memo(
             exercises.map((ex) => ex?.muscleGroup || 'Unknown').filter((mg) => mg !== 'Unknown')
           ),
         ]
-      : [templateName];
+      : [];
 
-    // State for toggling notes visibility per exercise
-    const [expandedNotes, setExpandedNotes] = useState({});
+    const [expandedExercise, setExpandedExercise] = useState(null);
 
-    // Toggle notes visibility for a specific exercise
-    const toggleNotes = (index) => {
-      setExpandedNotes((prev) => ({
-        ...prev,
-        [index]: !prev[index],
-      }));
+    const toggleExercise = (index) => {
+      setExpandedExercise(expandedExercise === index ? null : index);
     };
 
     return (
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: normalize(100), paddingHorizontal: normalize(16) }}
+        contentContainerStyle={styles.container}
       >
-        {/* Workout Overview Card */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderLeft}>
-              <View style={styles.orangeIconContainer}>
-                <Feather name="info" size={normalize(20)} color="#212121" />
-              </View>
-              <Text style={styles.sectionHeaderTitle}>Workout Overview</Text>
+        <View style={styles.headerSection}>
+          <View style={styles.headerRow}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="checkmark-circle" size={normalize(24)} color={COLORS.primary} />
             </View>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => setCurrentStep(0)}
-              activeOpacity={0.7}
-              accessible
-              accessibilityLabel="Edit workout details"
-              accessibilityHint="Navigates to edit workout details"
-            >
-              <MaterialIcons name="edit" size={normalize(16)} color={COLORS.primary} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <Feather name="activity" size={normalize(16)} color={COLORS.primary} />
-              </View>
-              <Text style={styles.statLabel}>Exercises</Text>
-              <Text style={styles.statValue}>{exercises.length}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <Feather name="clock" size={normalize(16)} color={COLORS.info} />
-              </View>
-              <Text style={styles.statLabel}>Duration</Text>
-              <Text style={styles.statValue}>{duration} min</Text>
-            </View>
-            <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <Feather name="target" size={normalize(16)} color={COLORS.success} />
-              </View>
-              <Text style={styles.statLabel}>Total Sets</Text>
-              <Text style={styles.statValue}>{totalSets}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <MaterialIcons name="timer" size={normalize(16)} color={COLORS.accent2} />
-              </View>
-              <Text style={styles.statLabel}>Avg Rest</Text>
-              <Text style={styles.statValue}>{avgRestTime}s</Text>
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>{templateName}</Text>
+              <Text style={styles.headerSubtitle}>Review your workout</Text>
             </View>
           </View>
-          <View style={styles.detailsRow}>
-            <View style={styles.detailItem}>
-              <Text style={styles.statLabel}>Muscle Groups</Text>
-              <Text style={[styles.detailValue, { color: COLORS.success }]}>
-                {muscleGroups.slice(0, 3).join(', ')}
-                {muscleGroups.length > 3 ? '...' : ''}
-              </Text>
-            </View>
-          </View>
-          {note && (
-            <View style={[styles.descriptionBox, { backgroundColor: COLORS.card }]}>
-              <Text style={styles.statLabel}>Description</Text>
-              <Text style={styles.descriptionText}>{note}</Text>
-            </View>
-          )}
         </View>
 
-        {/* Divider Between Sections */}
-        <View style={styles.divider} />
-
-        {/* Exercise Breakdown Card */}
-        <View style={styles.workoutCard}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderLeft}>
-              <View style={styles.orangeIconContainer}>
-                <Feather name="list" size={normalize(20)} color="#212121" />
-              </View>
-              <Text style={styles.sectionHeaderTitle}>Exercise Breakdown</Text>
+        <View style={styles.statsCard}>
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Ionicons name="fitness" size={normalize(18)} color={COLORS.primary} />
+              <Text style={styles.statValue}>{exercises.length}</Text>
+              <Text style={styles.statLabel}>Exercises</Text>
             </View>
+            <View style={styles.statBox}>
+              <Ionicons name="repeat" size={normalize(18)} color={COLORS.cyan} />
+              <Text style={styles.statValue}>{totalSets}</Text>
+              <Text style={styles.statLabel}>Total Sets</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Ionicons name="time" size={normalize(18)} color={COLORS.success} />
+              <Text style={styles.statValue}>{duration}m</Text>
+              <Text style={styles.statLabel}>Duration</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Ionicons name="timer" size={normalize(18)} color={COLORS.purple} />
+              <Text style={styles.statValue}>{formatRestTime(avgRestTime)}</Text>
+              <Text style={styles.statLabel}>Avg Rest</Text>
+            </View>
+          </View>
+        </View>
+
+        {muscleGroups.length > 0 && (
+          <View style={styles.muscleGroupsCard}>
+            <Text style={styles.muscleGroupsLabel}>TARGET MUSCLES</Text>
+            <View style={styles.muscleGroupsList}>
+              {muscleGroups.map((muscle, idx) => (
+                <View key={idx} style={styles.muscleChip}>
+                  <Text style={styles.muscleChipText}>{muscle}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {note && (
+          <View style={styles.noteCard}>
+            <Text style={styles.noteLabel}>WORKOUT NOTE</Text>
+            <Text style={styles.noteText}>{note}</Text>
+          </View>
+        )}
+
+        <View style={styles.exercisesSection}>
+          <View style={styles.exercisesHeader}>
+            <Text style={styles.exercisesTitle}>Exercise List</Text>
             <TouchableOpacity
               style={styles.editButton}
               onPress={() => setCurrentStep(1)}
               activeOpacity={0.7}
-              accessible
-              accessibilityLabel="Edit exercises"
-              accessibilityHint="Navigates to edit exercises"
             >
-              <MaterialIcons name="edit" size={normalize(16)} color={COLORS.primary} />
+              <Ionicons name="create-outline" size={normalize(16)} color={COLORS.primary} />
+              <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.exerciseList}>
-            {exercises.length === 0 ? (
-              <View style={styles.emptyExerciseContainer}>
-                <Feather name="clipboard" size={normalize(36)} color={COLORS.textSecondary} />
-                <Text style={styles.emptyExerciseText}>
-                  No exercises added yet. Edit to build your workout!
-                </Text>
-              </View>
-            ) : (
-              exercises.map((exercise, index) => {
+          {exercises.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="barbell-outline" size={normalize(48)} color={COLORS.textMuted} />
+              <Text style={styles.emptyText}>No exercises added yet</Text>
+            </View>
+          ) : (
+            <View style={styles.exercisesList}>
+              {exercises.map((exercise, index) => {
                 const exerciseName = exercise?.name || exercise?.exerciseName || 'Unnamed Exercise';
                 const muscleGroup = exercise?.muscleGroup || 'N/A';
                 const imageSource = exercise?.imageURL || exercise?.image
                   ? { uri: exercise.imageURL || exercise.image }
                   : null;
-                const isLastItem = index === exercises.length - 1;
-                const isNotesExpanded = expandedNotes[index];
+                const isExpanded = expandedExercise === index;
+                const hasNote = exercise?.note || exercise?.notes;
 
                 return (
-                  <View key={`exercise-review-${index}`} style={[styles.exerciseItem, isLastItem && styles.exerciseItemLast]}>
-                    <View style={styles.exerciseImageContainer}>
-                      {imageSource ? (
-                        <Image
-                          source={imageSource}
-                          style={styles.exerciseImage}
-                          resizeMode="contain"
-                          onError={(error) => console.log('Failed to load image:', imageSource.uri, error)}
-                          accessibilityLabel={`Image of ${exerciseName}`}
-                          accessibilityHint="Visual representation of the exercise"
-                        />
-                      ) : (
+                  <TouchableOpacity
+                    key={`exercise-${index}`}
+                    style={styles.exerciseCard}
+                    onPress={() => hasNote && toggleExercise(index)}
+                    activeOpacity={hasNote ? 0.7 : 1}
+                  >
+                    <View style={styles.exerciseRow}>
+                      <View style={styles.exerciseImageContainer}>
+                        {imageSource ? (
+                          <Image
+                            source={imageSource}
+                            style={styles.exerciseImage}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <Ionicons
+                            name="barbell"
+                            size={normalize(20)}
+                            color={COLORS.textMuted}
+                          />
+                        )}
+                      </View>
+                      
+                      <View style={styles.exerciseInfo}>
+                        <Text style={styles.exerciseName} numberOfLines={1}>
+                          {exerciseName}
+                        </Text>
+                        <View style={styles.exerciseMeta}>
+                          <Text style={styles.exerciseMetaText}>{muscleGroup}</Text>
+                          {exercise?.numSets && exercise?.repRange && (
+                            <>
+                              <View style={styles.metaSeparator} />
+                              <Text style={styles.exerciseMetaText}>
+                                {exercise.numSets} × {exercise.repRange}
+                              </Text>
+                            </>
+                          )}
+                          {exercise?.restTime && (
+                            <>
+                              <View style={styles.metaSeparator} />
+                              <Text style={styles.exerciseMetaText}>
+                                {formatRestTime(exercise.restTime)} rest
+                              </Text>
+                            </>
+                          )}
+                        </View>
+                      </View>
+
+                      {hasNote && (
                         <Ionicons
-                          name="barbell"
-                          size={normalize(24)}
+                          name={isExpanded ? "chevron-up" : "chevron-down"}
+                          size={normalize(16)}
                           color={COLORS.textSecondary}
                         />
                       )}
                     </View>
-                    <View style={styles.exerciseDetails}>
-                      <View style={styles.exerciseInfoContainer}>
-                        <Text
-                          style={styles.exerciseName}
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                        >
-                          {exerciseName}
+
+                    {isExpanded && hasNote && (
+                      <View style={styles.exerciseNoteContainer}>
+                        <Text style={styles.exerciseNoteLabel}>NOTE</Text>
+                        <Text style={styles.exerciseNoteText}>
+                          {exercise.note || exercise.notes}
                         </Text>
-                        <Text style={styles.exerciseMuscleGroup}>{muscleGroup}</Text>
-                        {exercise?.notes && isNotesExpanded && (
-                          <Text style={styles.exerciseReviewExtraValue}>
-                            {exercise.notes}
-                          </Text>
-                        )}
                       </View>
-                      <View style={styles.setRepsContainer}>
-                        <Text style={styles.setReps}>
-                          {exercise?.numSets && exercise?.repRange
-                            ? `${exercise.numSets} x ${exercise.repRange}`
-                            : 'Not specified'}
-                        </Text>
-                        {exercise?.notes && (
-                          <TouchableOpacity
-                            style={styles.showMore}
-                            onPress={() => toggleNotes(index)}
-                            accessibilityLabel={isNotesExpanded ? 'Hide notes' : 'Show notes'}
-                            accessibilityHint={isNotesExpanded ? 'Hides exercise notes' : 'Shows notes for this exercise'}
-                          >
-                            <Text style={styles.showMoreText}>
-                              {isNotesExpanded ? 'Hide notes ↑' : 'Show notes ↓'}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </View>
-                  </View>
+                    )}
+                  </TouchableOpacity>
                 );
-              })
-            )}
-          </View>
-        </View>
-
-        {/* Divider Between Sections */}
-        <View style={styles.divider} />
-
-        {/* Workout Summary Card */}
-        <View style={[styles.sectionCard]}>
-          <View style={[styles.summaryContent]}>
-            <View>
-              <Text style={styles.summaryTitle}>Estimated Completion Time</Text>
-              <Text style={styles.summarySubtitle}>
-                Based on user input and {avgRestTime}s average rest between sets
-              </Text>
+              })}
             </View>
-            <View style={styles.summaryValueContainer}>
-              <Text style={[styles.summaryValue, { color: COLORS.primary, fontSize: normalize(20) }]}>
-                {duration}
-              </Text>
-              <Text style={styles.summaryUnit}>minutes</Text>
-            </View>
-          </View>
+          )}
         </View>
       </ScrollView>
-    );
-  },
-  (prevProps, nextProps) => {
-    return (
-      prevProps.templateName === nextProps.templateName &&
-      prevProps.exercises === nextProps.exercises &&
-      prevProps.note === nextProps.note &&
-      prevProps.duration === nextProps.duration
     );
   }
 );
 
 const styles = StyleSheet.create({
-  sectionCard: {
-    backgroundColor: COLORS.cardDark,
+  container: {
+    paddingHorizontal: normalize(12),
+    paddingBottom: normalize(100),
+  },
+  headerSection: {
+    marginTop: normalize(8),
+    marginBottom: normalize(20),
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconContainer: {
+    width: normalize(48),
+    height: normalize(48),
     borderRadius: normalize(12),
-    padding: normalize(16),
-    marginVertical: normalize(12),
-    borderWidth: normalize(1),
-    borderColor: COLORS.borderDivider,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: normalize(16),
-  },
-  sectionHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  orangeIconContainer: {
-    width: normalize(40),
-    height: normalize(40),
-    borderRadius: normalize(8),
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.surfaceLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: normalize(12),
   },
-  sectionHeaderTitle: {
-    fontSize: normalize(18),
-    fontWeight: '600',
+  headerText: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: normalize(20),
+    fontWeight: '700',
     color: COLORS.textPrimary,
-    letterSpacing: 0.3,
+    marginBottom: normalize(2),
   },
-  editButton: {
-    padding: normalize(8),
-    borderRadius: normalize(8),
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: normalize(16),
-  },
-  statItem: {
-    width: '48%',
-    backgroundColor: COLORS.card,
-    borderRadius: normalize(10),
-    padding: normalize(12),
-    marginBottom: normalize(10),
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  statIconContainer: {
-    marginBottom: normalize(8),
-  },
-  statLabel: {
-    fontSize: normalize(11),
+  headerSubtitle: {
+    fontSize: normalize(13),
+    color: COLORS.textSecondary,
     fontWeight: '500',
-    color: COLORS.textMuted,
-    textTransform: 'uppercase',
-    marginBottom: normalize(4),
+  },
+  statsCard: {
+    backgroundColor: COLORS.surfaceAlpha,
+    borderRadius: normalize(12),
+    padding: normalize(16),
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: normalize(12),
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statBox: {
+    alignItems: 'center',
+    flex: 1,
   },
   statValue: {
+    fontSize: normalize(18),
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginTop: normalize(8),
+    marginBottom: normalize(2),
+  },
+  statLabel: {
+    fontSize: normalize(10),
+    fontWeight: '600',
+    color: COLORS.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  muscleGroupsCard: {
+    backgroundColor: COLORS.surfaceAlpha,
+    borderRadius: normalize(12),
+    padding: normalize(16),
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: normalize(12),
+  },
+  muscleGroupsLabel: {
+    fontSize: normalize(10),
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginBottom: normalize(10),
+  },
+  muscleGroupsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: normalize(8),
+  },
+  muscleChip: {
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: normalize(20),
+    paddingVertical: normalize(6),
+    paddingHorizontal: normalize(12),
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  muscleChipText: {
+    fontSize: normalize(12),
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  noteCard: {
+    backgroundColor: COLORS.surfaceAlpha,
+    borderRadius: normalize(12),
+    padding: normalize(16),
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: normalize(12),
+  },
+  noteLabel: {
+    fontSize: normalize(10),
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginBottom: normalize(8),
+  },
+  noteText: {
+    fontSize: normalize(14),
+    color: COLORS.textPrimary,
+    lineHeight: normalize(20),
+  },
+  exercisesSection: {
+    marginTop: normalize(8),
+  },
+  exercisesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: normalize(12),
+  },
+  exercisesTitle: {
     fontSize: normalize(16),
     fontWeight: '700',
     color: COLORS.textPrimary,
   },
-  detailsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: normalize(16),
-    gap: normalize(12),
-  },
-  detailItem: {
-    minWidth: normalize(100),
-  },
-  detailValue: {
-    fontSize: normalize(14),
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-  },
-  descriptionBox: {
-    borderRadius: normalize(8),
-    padding: normalize(12),
-    backgroundColor: COLORS.card,
-  },
-  descriptionText: {
-    fontSize: normalize(14),
-    color: COLORS.textSecondary,
-    lineHeight: normalize(20),
-  },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.borderDivider,
-  },
-  workoutCard: {
-    backgroundColor: COLORS.cardDark,
-    borderRadius: normalize(12),
-    marginVertical: normalize(12),
-    padding: normalize(16),
-    borderWidth: normalize(1),
-    borderColor: COLORS.borderDivider,
-  },
-  exerciseList: {
-    paddingHorizontal: normalize(12),
-    paddingBottom: normalize(8),
-  },
-  exerciseItem: {
+  editButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: normalize(12),
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderDivider,
+    gap: normalize(6),
+    backgroundColor: COLORS.surfaceLight,
+    paddingVertical: normalize(6),
+    paddingHorizontal: normalize(12),
+    borderRadius: normalize(8),
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  exerciseItemLast: {
-    borderBottomWidth: 0,
+  editButtonText: {
+    fontSize: normalize(13),
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: normalize(60),
+    backgroundColor: COLORS.surfaceAlpha,
+    borderRadius: normalize(12),
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  emptyText: {
+    fontSize: normalize(14),
+    color: COLORS.textSecondary,
+    marginTop: normalize(12),
+  },
+  exercisesList: {
+    gap: normalize(10),
+  },
+  exerciseCard: {
+    backgroundColor: COLORS.surfaceAlpha,
+    borderRadius: normalize(12),
+    padding: normalize(14),
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  exerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   exerciseImageContainer: {
     width: normalize(40),
     height: normalize(40),
     borderRadius: normalize(8),
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginRight: normalize(16),
+    backgroundColor: COLORS.surfaceLight,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: normalize(12),
+    padding: normalize(4),
   },
   exerciseImage: {
     width: '100%',
     height: '100%',
-    borderRadius: normalize(4),
+    borderRadius: normalize(8),
   },
-  exerciseDetails: {
+  exerciseInfo: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  exerciseInfoContainer: {
-    flex: 1,
-    marginRight: normalize(12),
   },
   exerciseName: {
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    fontSize: normalize(15),
-    marginBottom: normalize(4),
-    numberOfLines: 1,
-    ellipsizeMode: 'tail',
-  },
-  exerciseMuscleGroup: {
-    fontSize: normalize(13),
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  exerciseReviewExtraValue: {
-    fontSize: normalize(13),
-    fontWeight: '500',
-    color: COLORS.textSecondary,
-    marginTop: normalize(4),
-  },
-  setRepsContainer: {
-    alignSelf: 'flex-start',
-  },
-  setReps: {
-    fontWeight: '500',
-    color: COLORS.primary,
     fontSize: normalize(14),
-  },
-  showMore: {
-    paddingVertical: normalize(12),
-    alignItems: 'center',
-    marginTop: normalize(8),
-  },
-  showMoreText: {
-    fontSize: normalize(12),
-    color: COLORS.accent2,
-    fontWeight: 'bold',
-  },
-  emptyExerciseContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: normalize(60),
-  },
-  emptyExerciseText: {
-    fontSize: normalize(14),
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: normalize(12),
-    lineHeight: normalize(20),
-    maxWidth: '80%',
-  },
-  summaryContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  summaryTitle: {
-    fontSize: normalize(14),
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  summarySubtitle: {
-    fontSize: normalize(11),
-    color: COLORS.textSecondary,
-    marginTop: normalize(4),
-  },
-  summaryValueContainer: {
-    alignItems: 'flex-end',
-  },
-  summaryValue: {
-    fontSize: normalize(20),
     fontWeight: '700',
-    color: COLORS.primary,
+    color: COLORS.textPrimary,
+    marginBottom: normalize(4),
   },
-  summaryUnit: {
-    fontSize: normalize(11),
+  exerciseMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  exerciseMetaText: {
+    fontSize: normalize(12),
+    fontWeight: '600',
+    color: COLORS.textTertiary,
+  },
+  metaSeparator: {
+    width: normalize(4),
+    height: normalize(4),
+    borderRadius: normalize(2),
+    backgroundColor: COLORS.textTertiary,
+    marginHorizontal: normalize(6),
+  },
+  exerciseNoteContainer: {
+    marginTop: normalize(12),
+    paddingTop: normalize(12),
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
+  exerciseNoteLabel: {
+    fontSize: normalize(10),
+    fontWeight: '600',
     color: COLORS.textSecondary,
-  }
-}
-);
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginBottom: normalize(6),
+  },
+  exerciseNoteText: {
+    fontSize: normalize(13),
+    color: COLORS.textPrimary,
+    lineHeight: normalize(18),
+  },
+});
 
 export default ReviewStep;
