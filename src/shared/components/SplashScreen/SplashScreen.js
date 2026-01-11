@@ -1,11 +1,9 @@
-import React from 'react';
-import { View, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 
 const SplashScreen = () => {
   return (
     <View style={styles.container}>
-      {/* <Image source={require('../../assets/avocado.png')} style={styles.logo} /> */}
-      <ActivityIndicator size="large" color="#00bfff" />
+      <ActivityIndicator size="large" color="#FF9500" />
     </View>
   );
 };
@@ -16,11 +14,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#0A0E13',
-  },
-  logo: {
-    width: 200,
-    height: 200,
-    marginBottom: 20,
   },
 });
 

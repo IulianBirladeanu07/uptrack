@@ -30,14 +30,14 @@ const styles = StyleSheet.create({
     fontSize: normalize(32),
     fontWeight: '900',
     color: colors.textPrimary,
-    marginBottom: normalize(20),
+    marginBottom: normalize(10),
     letterSpacing: -0.5,
   },
   workoutCard: {
     backgroundColor: colors.surface,
     borderRadius: normalize(16),
     padding: normalize(16),
-    marginBottom: normalize(12),
+    marginBottom: normalize(20),
     borderWidth: normalize(1),
     borderColor: colors.border,
   },
@@ -212,6 +212,23 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: normalize(20),
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  monthDivider: {
+    fontSize: normalize(13),
+    fontWeight: '700',
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: normalize(12),
+    marginLeft: normalize(4),
+  },
+  workoutCardDisabled: {
+    opacity: 0.5,
   },
 });
 

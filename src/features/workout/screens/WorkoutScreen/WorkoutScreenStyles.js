@@ -492,7 +492,17 @@ modalStatsRow: {
     alignItems: 'center',
     marginRight: normalize(12),
   },
-  modalExerciseSets: {
+  startButtonDisabled: {
+    backgroundColor: '#4a4d55',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  modalStartButtonDisabled: {
+    backgroundColor: '#4a4d55',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+modalExerciseSets: {
     fontSize: normalize(12),
     fontWeight: '700',
     color: colors.primary,

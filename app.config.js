@@ -3,7 +3,7 @@ export default {
     name: "uptrack",
     slug: "uptrack",
     platforms: ["ios", "android"],
-    version: "2.0.1",
+    version: "2.0.3",
     orientation: "portrait",
     icon: "./assets/uptrack-icon.png",
     userInterfaceStyle: "light",

@@ -69,7 +69,7 @@ const HeaderSection = React.memo(({ stats }) => (
     </View>
 ));
 
-const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExercises, isRestDay }) => {
+const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExercises, isRestDay, hasActiveWorkout }) => {
     const visibleExercises = allExercises.slice(0, 3);
     const hasMoreExercises = allExercises.length > 3;
 
@@ -124,9 +124,16 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
                 )}
             </View>
             <View style={styles.startButtonContainer}>
-                <TouchableOpacity style={styles.startButton} onPress={onStart} activeOpacity={0.8}>
+                <TouchableOpacity 
+                    style={[styles.startButton, hasActiveWorkout && styles.startButtonDisabled]} 
+                    onPress={onStart} 
+                    activeOpacity={0.8}
+                    disabled={hasActiveWorkout}
+                >
                     <Ionicons name="play" size={normalize(14)} style={styles.playIcon} />
-                    <Text style={styles.startButtonText}>START</Text>
+                    <Text style={styles.startButtonText}>
+                        {hasActiveWorkout ? 'WORKOUT IN PROGRESS' : 'START'}
+                    </Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -275,33 +282,10 @@ const WorkoutScreen = () => {
 
     useFocusEffect(useCallback(() => { loadActiveSplit(); }, [loadActiveSplit]));
 
-    const handleStartWorkout = useCallback(() => {
-        if (primaryWorkout.workout && !primaryWorkout.isRestDay) {
-            console.log('Starting with exercises:', primaryWorkout.workout.exercises);
-            navigation.navigate('StartWorkout', {
-                selectedWorkout: {
-                    note: '',
-                    templateName: primaryWorkout.workout.name,
-                    exercises: primaryWorkout.workout.exercises
-                }
-            });
-        } else {
-            console.log('Starting a new workout without a predefined template');
-            navigation.navigate('StartWorkout');
-        }
-    }, [navigation, primaryWorkout]);
-
-    const handleResumeWorkout = useCallback(() => { navigation.navigate('StartWorkout'); }, [navigation]);
-    const handlePreviewWorkout = useCallback((workout) => { setPreviewWorkout(workout); setIsModalVisible(true); }, []);
-    const handleCloseModal = useCallback(() => { setIsModalVisible(false); setPreviewWorkout(null); }, []);
-    const handleTemplatesPress = useCallback(() => { navigation.navigate('WorkoutLibrary', { initialSegment: 'Templates' }); }, [navigation]);
-    const handleHistoryPress = useCallback(() => { navigation.navigate('WorkoutHistory'); }, [navigation]);
-    const handleSplitsPress = useCallback(() => { navigation.navigate('WorkoutLibrary', { initialSegment: 'Splits' }); }, [navigation]);
-
     const isRestDay = useMemo(() => !todayWorkout || !todayWorkout.exercises || todayWorkout.exercises.length === 0, [todayWorkout]);
 
     const primaryWorkout = useMemo(() => {
-        if (!isRestDay) return { workout: todayWorkout, isRestDay: false };
+        if (!isRestDay && todayWorkout) return { workout: todayWorkout, isRestDay: false };
         if (upcomingWorkouts.length > 0 && !upcomingWorkouts[0].isRest) {
             return { 
                 workout: {
@@ -315,10 +299,39 @@ const WorkoutScreen = () => {
         return { workout: null, isRestDay: true };
     }, [isRestDay, todayWorkout, upcomingWorkouts]);
 
-    const remainingUpcoming = useMemo(() => isRestDay && upcomingWorkouts.length > 0 && !upcomingWorkouts[0].isRest ? upcomingWorkouts.slice(1, 3) : upcomingWorkouts.slice(0, 2), [isRestDay, upcomingWorkouts]);
-    const allExercises = useMemo(() => !primaryWorkout.workout || !primaryWorkout.workout.exercises ? [] : primaryWorkout.workout.exercises.map(e => e.exerciseName), [primaryWorkout]);
+    const handleStartWorkout = useCallback(() => {
+        if (primaryWorkout && primaryWorkout.workout && primaryWorkout.workout.exercises && primaryWorkout.workout.exercises.length > 0 && !primaryWorkout.isRestDay) {
+            navigation.navigate('StartWorkout', {
+                selectedWorkout: {
+                    note: '',
+                    templateName: primaryWorkout.workout.name,
+                    exercises: primaryWorkout.workout.exercises
+                }
+            });
+        } else {
+            navigation.navigate('StartWorkout');
+        }
+    }, [navigation, primaryWorkout]);
 
-    if (loading) return <ApplicationCustomScreen><View style={styles.loadingContainer}><ActivityIndicator size="large" color="#FF9500" /></View></ApplicationCustomScreen>;
+    const handleResumeWorkout = useCallback(() => { navigation.navigate('StartWorkout'); }, [navigation]);
+    const handlePreviewWorkout = useCallback((workout) => { setPreviewWorkout(workout); setIsModalVisible(true); }, []);
+    const handleCloseModal = useCallback(() => { setIsModalVisible(false); setPreviewWorkout(null); }, []);
+    const handleTemplatesPress = useCallback(() => { navigation.navigate('WorkoutLibrary', { initialSegment: 'Templates' }); }, [navigation]);
+    const handleHistoryPress = useCallback(() => { navigation.navigate('WorkoutHistory'); }, [navigation]);
+    const handleSplitsPress = useCallback(() => { navigation.navigate('WorkoutLibrary', { initialSegment: 'Splits' }); }, [navigation]);
+
+    const remainingUpcoming = useMemo(() => isRestDay && upcomingWorkouts.length > 0 && !upcomingWorkouts[0].isRest ? upcomingWorkouts.slice(1, 3) : upcomingWorkouts.slice(0, 2), [isRestDay, upcomingWorkouts]);
+    const allExercises = useMemo(() => !primaryWorkout || !primaryWorkout.workout || !primaryWorkout.workout.exercises ? [] : primaryWorkout.workout.exercises.map(e => e.exerciseName), [primaryWorkout]);
+
+    if (loading || !primaryWorkout) {
+        return (
+            <ApplicationCustomScreen>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#FF9500" />
+                </View>
+            </ApplicationCustomScreen>
+        );
+    }
 
     return (
         <ApplicationCustomScreen>
@@ -349,6 +362,7 @@ const WorkoutScreen = () => {
                     onStart={handleStartWorkout}
                     allExercises={allExercises}
                     isRestDay={primaryWorkout.isRestDay}
+                    hasActiveWorkout={!!activeWorkout}
                 />
 
                 <WeeklyProgressSection completedDays={userStats.streak % 7} totalDays={7} />
@@ -427,8 +441,12 @@ const WorkoutScreen = () => {
                         </ScrollView>
                         
                         <TouchableOpacity 
-                            style={styles.modalStartButton} 
+                            style={[
+                                styles.modalStartButton,
+                                activeWorkout && styles.modalStartButtonDisabled
+                            ]} 
                             onPress={() => { 
+                                if (activeWorkout) return;
                                 setIsModalVisible(false); 
                                 navigation.navigate('StartWorkout', {
                                     selectedWorkout: {
@@ -438,10 +456,13 @@ const WorkoutScreen = () => {
                                     }
                                 });
                             }}
+                            disabled={!!activeWorkout}
                         >
                             <Ionicons name="play" size={normalize(14)} color="#0A0E13" style={{ marginRight: normalize(6) }} />
-                            <Text style={styles.modalStartButtonText}>Start Workout</Text>
-                        </TouchableOpacity>
+                            <Text style={styles.modalStartButtonText}>
+                                {activeWorkout ? 'Workout in Progress' : 'Start Workout'}
+                            </Text>
+                        </TouchableOpacity>                    
                     </View>
                 </Pressable>
             </Modal>

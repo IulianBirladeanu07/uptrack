@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   },
 
   finishTextDisabled: {
-    color: COLORS.textMuted,
+    color: COLORS.bg,
     opacity: 0.7,
   },
 
