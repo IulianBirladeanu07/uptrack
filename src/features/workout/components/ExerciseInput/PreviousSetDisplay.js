@@ -1,5 +1,4 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from './ExerciseInputStyles';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 

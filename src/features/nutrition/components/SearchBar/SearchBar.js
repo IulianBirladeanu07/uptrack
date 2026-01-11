@@ -1,17 +1,22 @@
-import React, { useState, useCallback, memo, useRef, useEffect } from 'react';
-import { 
-  View, 
-  TextInput, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Keyboard, 
-  ScrollView, 
-  Text
-} from 'react-native';
+import { useState, useCallback, memo, useRef, useEffect } from 'react';
+import { View, TextInput, StyleSheet, TouchableOpacity, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
+
+const colors = {
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1F2937',
+  primary: '#FF9500',
+  cyan: '#00d4ff',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
+};
 
 const ICON_SIZE = 18;
 const MAX_RECENT_SEARCHES = 5;
@@ -32,12 +37,10 @@ const SearchBar = memo(({
   const [recentSearches, setRecentSearches] = useState([]);
   const [showRecentSearches, setShowRecentSearches] = useState(false);
 
-  // Load recent searches on mount
   useEffect(() => {
     loadRecentSearches();
   }, []);
 
-  // Show/hide recent searches based on search state and query
   useEffect(() => {
     if (isSearching && (!searchQuery || searchQuery.trim() === '')) {
       setShowRecentSearches(true);
@@ -46,7 +49,6 @@ const SearchBar = memo(({
     }
   }, [isSearching, searchQuery]);
 
-  // Save recent searches to AsyncStorage
   const saveRecentSearches = async (searches) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(searches));
@@ -55,7 +57,6 @@ const SearchBar = memo(({
     }
   };
 
-  // Load recent searches from AsyncStorage
   const loadRecentSearches = async () => {
     try {
       const saved = await AsyncStorage.getItem(STORAGE_KEY);
@@ -64,7 +65,6 @@ const SearchBar = memo(({
         setRecentSearches(parsed);
         console.log('Loaded recent searches:', parsed);
       } else {
-        // For testing - add some sample recent searches
         const testSearches = ['chicken breast', 'banana', 'oats'];
         setRecentSearches(testSearches);
         saveRecentSearches(testSearches);
@@ -75,19 +75,15 @@ const SearchBar = memo(({
     }
   };
 
-  // Handle input focus
   const handleFocus = useCallback(() => {
     console.log('SearchBar - handleFocus called');
-    // Call parent onFocus to enter search mode
     if (onFocus) {
       onFocus();
     }
   }, [onFocus]);
 
-  // Auto-focus when entering search mode
   useEffect(() => {
     if (isSearching && inputRef.current) {
-      // Small delay to ensure the component is ready
       const focusTimeout = setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
@@ -100,8 +96,6 @@ const SearchBar = memo(({
 
   const handleBlur = useCallback(() => {
     console.log('SearchBar - handleBlur called');
-    // Don't automatically exit search mode on blur
-    // Let the parent component handle this
   }, []);
 
   const addToRecentSearches = useCallback((text) => {
@@ -117,16 +111,13 @@ const SearchBar = memo(({
     });
   }, []);
 
-  // Handle text input changes
   const handleChangeText = useCallback((text) => {
     console.log('SearchBar - handleChangeText:', text);
     
-    // Update query via parent
     if (setSearchQuery) {
       setSearchQuery(text || '');
     }
     
-    // Trigger search via parent
     if (handleSearch) {
       handleSearch(text || '');
     }
@@ -139,42 +130,33 @@ const SearchBar = memo(({
     }
   }, [searchQuery, addToRecentSearches]);
 
-  // Clear search but stay in search mode
   const handleClearPress = useCallback(() => {
     console.log('SearchBar - handleClearPress called');
     
-    // Clear the search query
     if (setSearchQuery) {
       setSearchQuery('');
     }
     
-    // Clear search results
     if (handleSearch) {
       handleSearch('');
     }
     
-    // Keep focus on input
     if (inputRef.current) {
       inputRef.current.focus();
     }
     
-    // Show recent searches again
     setShowRecentSearches(true);
   }, [setSearchQuery, handleSearch]);
 
-  // Exit search mode completely
   const handleBackPress = useCallback(() => {
     console.log('SearchBar - handleBackPress called');
     
-    // Blur the input
     if (inputRef.current) {
       inputRef.current.blur();
     }
     
-    // Dismiss keyboard
     Keyboard.dismiss();
     
-    // Call parent onClear to exit search mode
     if (onClear) {
       onClear();
     }
@@ -188,20 +170,16 @@ const SearchBar = memo(({
   const handleRecentSearchPress = useCallback((searchTerm) => {
     console.log('Recent search pressed:', searchTerm);
     
-    // Update search query
     if (setSearchQuery) {
       setSearchQuery(searchTerm);
     }
     
-    // Trigger search
     if (handleSearch) {
       handleSearch(searchTerm);
     }
     
-    // Add to recent searches (move to top of list)
     addToRecentSearches(searchTerm);
     
-    // Hide recent searches since we now have search results
     setShowRecentSearches(false);
   }, [setSearchQuery, handleSearch, addToRecentSearches]);
 
@@ -210,7 +188,6 @@ const SearchBar = memo(({
     saveRecentSearches([]);
   }, []);
 
-  // Show recent searches when in search mode with empty query
   const shouldShowRecentSearches = showRecentSearches && 
                                    recentSearches.length > 0 && 
                                    isSearching;
@@ -221,7 +198,6 @@ const SearchBar = memo(({
         styles.searchBar,
         isSearching && styles.searchBarFocused
       ]}>
-        {/* Clickable overlay for the entire search bar when not searching */}
         {!isSearching && (
           <TouchableOpacity
             style={styles.searchBarOverlay}
@@ -238,7 +214,7 @@ const SearchBar = memo(({
           <MaterialCommunityIcons 
             name="magnify" 
             size={ICON_SIZE} 
-            color="#8e95a3"
+            color={colors.textSecondary}
           />
         </View>
         
@@ -246,13 +222,13 @@ const SearchBar = memo(({
           ref={inputRef}
           style={styles.input}
           placeholder="Search foods"
-          placeholderTextColor="#8e95a3"
+          placeholderTextColor={colors.textSecondary}
           value={searchQuery}
           onChangeText={handleChangeText}
           onFocus={handleFocus}
           onBlur={handleBlur}
           onSubmitEditing={handleSubmitEditing}
-          selectionColor="#FF7B00"
+          selectionColor={colors.primary}
           returnKeyType="search"
           blurOnSubmit={false}
           autoFocus={false}
@@ -260,11 +236,10 @@ const SearchBar = memo(({
           clearButtonMode="never"
           autoCorrect={false}
           autoCapitalize="none"
-          editable={isSearching} // Only editable when in search mode
+          editable={isSearching}
         />
 
         <View style={styles.actionsContainer}>
-          {/* Back button - only show when searching */}
           {isSearching && (
             <TouchableOpacity
               style={styles.backButton}
@@ -274,7 +249,7 @@ const SearchBar = memo(({
               <MaterialCommunityIcons 
                 name="arrow-left" 
                 size={ICON_SIZE} 
-                color="#8e95a3"
+                color={colors.textSecondary}
               />
             </TouchableOpacity>
           )}
@@ -286,11 +261,10 @@ const SearchBar = memo(({
             <MaterialCommunityIcons 
               name="barcode-scan" 
               size={ICON_SIZE} 
-              color="#8e95a3"
+              color={colors.textSecondary}
             />
           </TouchableOpacity>
           
-          {/* Clear button - only show when there's text */}
           {(searchQuery?.length > 0) && (
             <TouchableOpacity
               style={styles.clearButton}
@@ -300,7 +274,7 @@ const SearchBar = memo(({
               <MaterialCommunityIcons 
                 name="close-circle" 
                 size={ICON_SIZE} 
-                color="#8e95a3"
+                color={colors.textSecondary}
               />
             </TouchableOpacity>
           )}
@@ -317,11 +291,11 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     height: normalize(55),
-    backgroundColor: '#151B23',
+    backgroundColor: colors.surface,
     borderRadius: normalize(16),
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: colors.border,
     position: 'relative',
   },
   searchBarOverlay: {
@@ -333,8 +307,8 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   searchBarFocused: {
-    borderColor: '#FF7B00',
-    shadowColor: '#FF7B00',
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -351,7 +325,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: '100%',
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: normalize(16),
     fontWeight: '400',
     lineHeight: normalize(20),
@@ -386,12 +360,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   recentSearchesDropdown: {
-    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+    backgroundColor: colors.surfaceLight,
     borderRadius: normalize(12),
     padding: normalize(12),
     marginTop: normalize(8),
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: colors.border,
   },
   recentSearchesHeader: {
     flexDirection: 'row',
@@ -402,11 +376,11 @@ const styles = StyleSheet.create({
   recentSearchesTitle: {
     fontSize: normalize(14),
     fontWeight: '600',
-    color: '#8e95a3',
+    color: colors.textSecondary,
   },
   clearAllText: {
     fontSize: normalize(12),
-    color: '#FF7B00',
+    color: colors.primary,
     fontWeight: '500',
   },
   recentSearchesList: {
@@ -423,11 +397,11 @@ const styles = StyleSheet.create({
     borderRadius: normalize(20),
     marginRight: normalize(8),
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: colors.borderLight,
   },
   recentSearchText: {
     fontSize: normalize(14),
-    color: '#ffffff',
+    color: colors.textPrimary,
     fontWeight: '500',
     maxWidth: normalize(100),
   },

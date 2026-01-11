@@ -1,101 +1,31 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo, useContext, useImperativeHandle, forwardRef } from 'react';
-import { View, Text, TouchableOpacity, FlatList, AppState, BackHandler, Alert, Animated } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback, useMemo, useContext } from 'react';
+import { View, Text, TouchableOpacity, FlatList, BackHandler, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from '@react-navigation/native';
 import AnimatedMessage from '../../../../shared/components/AnimatedMessage/AnimatedMessage';
 import ExerciseInput from '../../components/ExerciseInput/ExerciseInput';
 import { sendWorkoutDataToFirestore, getSetsFromLastWorkout } from '../../handlers/WorkoutHandler';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { workoutService } from '../../services/WorkoutService';
+import { workoutNotifications } from '../../services/WorkoutNotificationService';
+import { workoutTimer, useWorkoutTimer } from '../../services/WorkoutTimerService';
 import styles from './StartWorkoutStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import CustomNumericKeyboard from '../../components/CustomNumericKeyboard/CustomNumericKeyboard';
 
-const TimerComponent = forwardRef(({ timerRingRotation }, ref) => {
-    const [elapsedTime, setElapsedTime] = useState(0);
-    const startTime = useRef(Date.now());
-    const timerInterval = useRef(null);
-
-    const formatTime = useCallback(timeInSeconds => {
-        const minutes = Math.floor(timeInSeconds / 60);
-        const seconds = timeInSeconds % 60;
-        return `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
-    }, []);
-
-    useImperativeHandle(ref, () => ({
-        getTotalTime: () => {
-            const now = Date.now();
-            const elapsed = Math.floor((now - startTime.current) / 1000);
-            return elapsed;
-        },
-        stopTimer: () => {
-            if (timerInterval.current) {
-                clearInterval(timerInterval.current);
-                timerInterval.current = null;
-            }
-        },
-        resetTimer: () => {
-            startTime.current = Date.now();
-            setElapsedTime(0);
-        },
-    }));
-
-    useEffect(() => {
-        startTime.current = Date.now();
-        setElapsedTime(0);
-        
-        const updateTime = () => {
-            const now = Date.now();
-            const elapsed = Math.floor((now - startTime.current) / 1000);
-            setElapsedTime(elapsed);
-        };
-
-        const subscription = AppState.addEventListener('change', nextAppState => {
-            if (nextAppState === 'background' || nextAppState === 'inactive') {
-                if (timerInterval.current) {
-                    clearInterval(timerInterval.current);
-                    timerInterval.current = null;
-                }
-            } else if (nextAppState === 'active') {
-                updateTime();
-                timerInterval.current = setInterval(updateTime, 1000);
-            }
-        });
-
-        timerInterval.current = setInterval(updateTime, 1000);
-        updateTime();
-
-        return () => {
-            if (timerInterval.current) {
-                clearInterval(timerInterval.current);
-                timerInterval.current = null;
-            }
-            subscription.remove();
-        };
-    }, []);
-
+const TimerComponent = () => {
+    const { formattedTime } = useWorkoutTimer();
+    
     return (
         <View style={styles.timerContainer}>
-            <Animated.View
-                style={[
-                    styles.timerProgress,
-                    {
-                        transform: [{
-                            rotate: timerRingRotation.interpolate({
-                                inputRange: [0, 1],
-                                outputRange: ['0deg', '360deg'],
-                            }),
-                        }],
-                    },
-                ]}
-            />
             <View style={styles.timerInner}>
-                <Text style={styles.timerText}>{formatTime(elapsedTime)}</Text>
+                <Text style={styles.timerText}>{formattedTime}</Text>
             </View>
         </View>
     );
-});
+};
 
 const StartWorkout = ({ route, navigation }) => {
     const [selectedExercise, setSelectedExercise] = useState(null);
@@ -106,52 +36,37 @@ const StartWorkout = ({ route, navigation }) => {
     const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
     const [focusedInputData, setFocusedInputData] = useState(null);
     const [isCommandCenterVisible, setIsCommandCenterVisible] = useState(false);
-    
-    const timerRef = useRef(null);
+    const [isInitializing, setIsInitializing] = useState(true);
+
     const flatListRef = useRef(null);
     const { refreshAllData } = useContext(WorkoutContext);
     const insets = useSafeAreaInsets();
     const isFinishingWorkout = useRef(false);
     const isInitialized = useRef(false);
-    
-    const timerRingRotation = useRef(new Animated.Value(0)).current;
-    const addButtonScale = useRef(new Animated.Value(1)).current;
-    
-    const timerAnimationRef = useRef(null);
-    const buttonAnimationRef = useRef(null);
+    const backPressCount = useRef(0);
+    const backPressTimer = useRef(null);
 
-    const startTimerAnimation = useCallback(() => {
-        if (timerAnimationRef.current) timerAnimationRef.current.stop();
-        timerAnimationRef.current = Animated.loop(
-            Animated.timing(timerRingRotation, { toValue: 1, duration: 3000, useNativeDriver: true })
-        );
-        timerAnimationRef.current.start();
-    }, [timerRingRotation]);
+    const { formattedTime } = useWorkoutTimer();
 
-    const startAddButtonAnimation = useCallback(() => {
-        if (buttonAnimationRef.current) buttonAnimationRef.current.stop();
-        buttonAnimationRef.current = Animated.loop(
-            Animated.sequence([
-                Animated.timing(addButtonScale, { toValue: 1.03, duration: 1000, useNativeDriver: true }),
-                Animated.timing(addButtonScale, { toValue: 1, duration: 1000, useNativeDriver: true }),
-            ])
+    const updateNotification = useCallback(() => {
+        if (exerciseData.length === 0) return;
+        
+        const current = exerciseData[0];
+        const completedSets = current.sets.filter(s => s.isValidated).length;
+        const currentSetNumber = completedSets + 1;
+        const totalSets = current.sets.length;
+        
+        workoutNotifications.update(
+            current.exerciseName,
+            currentSetNumber,
+            totalSets,
+            formattedTime
         );
-        buttonAnimationRef.current.start();
-    }, [addButtonScale]);
+    }, [exerciseData, formattedTime]);
 
     useEffect(() => {
-        if (isKeyboardVisible) {
-            if (timerAnimationRef.current) timerAnimationRef.current.stop();
-            if (buttonAnimationRef.current) buttonAnimationRef.current.stop();
-            setIsCommandCenterVisible(false);
-        } else {
-            startTimerAnimation();
-            startAddButtonAnimation();
-            if (exerciseData.length > 0) {
-                setIsCommandCenterVisible(true);
-            }
-        }
-    }, [isKeyboardVisible, exerciseData.length, startTimerAnimation, startAddButtonAnimation]);
+        updateNotification();
+    }, [updateNotification]);
 
     const openAnimatedMessage = useCallback(
         message => {
@@ -162,9 +77,18 @@ const StartWorkout = ({ route, navigation }) => {
     );
 
     const handleKeyboardChange = useCallback((isVisible, inputData) => {
+        console.log('Keyboard change:', { isVisible, inputData });
         if (isVisible && inputData) {
             setFocusedInputData(inputData);
             setIsKeyboardVisible(true);
+            
+            setTimeout(() => {
+                flatListRef.current?.scrollToIndex({
+                    index: inputData.exerciseIndex,
+                    animated: true,
+                    viewPosition: 0.2,
+                });
+            }, 100);
         } else {
             setFocusedInputData(null);
             setIsKeyboardVisible(false);
@@ -214,15 +138,9 @@ const StartWorkout = ({ route, navigation }) => {
 
     const addNewExercisesFromRoute = useCallback(
         (exercises) => {
-            if (!exercises || !Array.isArray(exercises)) {
-                console.log('No exercises to add');
-                return;
-            }
-            
-            console.log('Adding exercises from route:', exercises);
+            if (!exercises || !Array.isArray(exercises)) return;
             
             const currentData = workoutService.getExerciseData();
-            console.log('Current exercise data:', currentData);
             
             const newExercises = exercises
                 .filter(ex => ex && ex.name && !currentData.some(existing => existing.exerciseName === ex.name))
@@ -234,14 +152,9 @@ const StartWorkout = ({ route, navigation }) => {
                     repRange: ex.repRange || '',
                 }));
 
-            console.log('New exercises to add:', newExercises);
-
             if (newExercises.length > 0) {
                 workoutService.addExercises(newExercises);
-                console.log('Exercises added to workoutService');
-                
                 const updatedData = workoutService.getExerciseData();
-                console.log('Updated data after adding:', updatedData);
                 setExerciseData(updatedData);
                 
                 if (!selectedExercise) {
@@ -249,7 +162,7 @@ const StartWorkout = ({ route, navigation }) => {
                 }
 
                 setTimeout(() => {
-                    exercises.forEach(async (exercise, index) => {
+                    exercises.forEach(async (exercise) => {
                         try {
                             const lastSets = await getSetsFromLastWorkout(exercise.name);
                             if (lastSets && lastSets.length > 0) {
@@ -257,7 +170,7 @@ const StartWorkout = ({ route, navigation }) => {
                                 const exerciseToUpdate = currentExercises.find(ex => ex.exerciseName === exercise.name);
                                 if (exerciseToUpdate) {
                                     exerciseToUpdate.lastWorkoutSets = lastSets;
-                                    workoutService.notifySubscribers?.();
+                                    workoutService.notifyListeners?.();
                                 }
                             }
                         } catch (error) {
@@ -265,81 +178,98 @@ const StartWorkout = ({ route, navigation }) => {
                         }
                     });
                 }, 100);
-            } else {
-                console.log('No new exercises to add (might be duplicates)');
             }
         },
         [selectedExercise]
     );
 
-    const handleSelectedWorkout = useCallback(
-        async ({ note, exercises }) => {
-            if (!exercises || !Array.isArray(exercises)) return;
-            
-            setInputText(note || '');
-            
-            const exercisesWithSets = exercises
-                .filter(ex => ex && ex.exerciseName)
-                .map((ex) => {
-                    const numSets = parseInt(ex.numSets) || 1;
-                    const repRangeMatch = ex.repRange ? ex.repRange.match(/(\d+)-(\d+)/) : null;
-                    let defaultReps;
-                    if (repRangeMatch) {
-                        const minReps = parseInt(repRangeMatch[1]);
-                        const maxReps = parseInt(repRangeMatch[2]);
-                        defaultReps = Array.from({length: numSets}, (_, i) => i === 0 ? maxReps.toString() : minReps.toString());
-                    } else {
-                        defaultReps = Array(numSets).fill('');
-                    }
-                    const sets = Array.from({length: numSets}, (_, i) => ({
-                        weight: '',
-                        reps: defaultReps[i] || '',
-                        isValidated: false,
-                        repsModified: false
-                    }));
+const handleSelectedWorkout = useCallback(
+    async ({ note, exercises }) => {
+        if (!exercises || !Array.isArray(exercises)) return;
+        
+        setInputText(note || '');
+        workoutService.setWorkoutNote(note || '');
+        
+        const exercisesWithSets = exercises
+            .filter(ex => ex && ex.exerciseName)
+            .map((ex) => {
+                if (ex.sets && ex.sets.length > 0 && ex.sets[0].weight !== undefined) {
                     return {
                         ...ex,
-                        lastWorkoutSets: [],
-                        sets,
+                        lastWorkoutSets: ex.lastWorkoutSets || [],
+                        sets: ex.sets.map(set => ({
+                            weight: set.weight || '',
+                            reps: set.reps || '',
+                            isValidated: false,
+                            repsModified: false
+                        })),
                         repRange: ex.repRange || '',
                     };
-                });
+                }
+                
+                const numSets = parseInt(ex.numSets) || 1;
+                const repRangeMatch = ex.repRange ? ex.repRange.match(/(\d+)-(\d+)/) : null;
+                let defaultReps;
+                if (repRangeMatch) {
+                    const minReps = parseInt(repRangeMatch[1]);
+                    const maxReps = parseInt(repRangeMatch[2]);
+                    defaultReps = Array.from({length: numSets}, (_, i) => i === 0 ? maxReps.toString() : minReps.toString());
+                } else {
+                    defaultReps = Array(numSets).fill('');
+                }
+                const sets = Array.from({length: numSets}, (_, i) => ({
+                    weight: '',
+                    reps: defaultReps[i] || '',
+                    isValidated: false,
+                    repsModified: false
+                }));
+                return {
+                    ...ex,
+                    lastWorkoutSets: ex.lastWorkoutSets || [],
+                    sets,
+                    repRange: ex.repRange || '',
+                };
+            });
 
-            workoutService.resetAndLoad(exercisesWithSets);
-            setSelectedExercise(exercisesWithSets[0]?.exerciseName || null);
-            setIsValidationPressed(false);
+        const loadedData = workoutService.resetAndLoad(exercisesWithSets);
+        setExerciseData(loadedData);
+        workoutTimer.start();
+        setSelectedExercise(exercisesWithSets[0]?.exerciseName || null);
+        setIsValidationPressed(false);
 
-            setTimeout(async () => {
-                try {
-                    const setsPromises = exercises.map(ex => 
+        setTimeout(async () => {
+            try {
+                const exercisesNeedingLastWorkout = exercises.filter(ex => 
+                    !ex.lastWorkoutSets || ex.lastWorkoutSets.length === 0
+                );
+                
+                if (exercisesNeedingLastWorkout.length > 0) {
+                    const setsPromises = exercisesNeedingLastWorkout.map(ex => 
                         ex?.exerciseName ? getSetsFromLastWorkout(ex.exerciseName) : Promise.resolve([])
                     );
                     const lastWorkoutSetsResults = await Promise.all(setsPromises);
                     
                     const currentExercises = workoutService.getExerciseData();
-                    exercisesWithSets.forEach((ex, index) => {
+                    exercisesNeedingLastWorkout.forEach((ex, index) => {
                         const exerciseToUpdate = currentExercises.find(curr => curr.exerciseName === ex.exerciseName);
                         if (exerciseToUpdate && lastWorkoutSetsResults[index] && lastWorkoutSetsResults[index].length > 0) {
                             exerciseToUpdate.lastWorkoutSets = lastWorkoutSetsResults[index];
                         }
                     });
                     
-                    workoutService.notifySubscribers?.();
-                } catch (error) {
-                    console.error('Error fetching last workout sets:', error.message);
+                    workoutService.notifyListeners?.();
                 }
-            }, 100);
-        },
-        []
-    );
-
+            } catch (error) {
+                console.error('Error fetching last workout sets:', error.message);
+            }
+        }, 100);
+    },
+    []
+);
     useEffect(() => {
-        console.log('StartWorkout mounted, initializing...');
-        
         const hasTemplate = route.params?.selectedWorkout;
         
         const unsubscribe = workoutService.subscribe((newData) => {
-            console.log('WorkoutService data updated:', newData);
             if (!isFinishingWorkout.current) {
                 setExerciseData(newData);
                 const allValidated = workoutService.areAllSetsValidated();
@@ -347,37 +277,46 @@ const StartWorkout = ({ route, navigation }) => {
             }
         });
 
-        if (hasTemplate) {
-            if (timerRef.current?.resetTimer) {
-                timerRef.current.resetTimer();
+        const initWorkout = async () => {
+            if (hasTemplate) {
+                workoutTimer.start();
+                await handleSelectedWorkout(route.params.selectedWorkout);
+                refreshAllData();
+            } else {
+                const restored = await workoutService.restoreWorkout();
+                if (restored) {
+                    workoutTimer.restore(restored.startTime);
+                    setExerciseData(workoutService.getExerciseData());
+                    setInputText(workoutService.getWorkoutNote());
+                    refreshAllData();
+                } else {
+                    workoutTimer.start();
+                    workoutService.startWorkout();
+                    const initialData = workoutService.getExerciseData();
+                    setExerciseData(initialData);
+                    refreshAllData();
+                }
             }
-            handleSelectedWorkout(route.params.selectedWorkout);
-        } else {
-            workoutService.reset();
-            const initialData = workoutService.getExerciseData();
-            setExerciseData(initialData);
-        }
-
+            
+            await workoutNotifications.init();
+            setIsInitializing(false);
+        };
+        initWorkout();
         isInitialized.current = true;
 
         return () => {
-            console.log('Cleaning up subscription');
             unsubscribe();
         };
-    }, []);
+    }, [handleSelectedWorkout]);
 
     useFocusEffect(
         useCallback(() => {
-            console.log('Screen focused, checking for new exercises');
-            
             if (isInitialized.current && route.params?.selectedExercises) {
-                console.log('Found selectedExercises in params:', route.params.selectedExercises);
                 addNewExercisesFromRoute(route.params.selectedExercises);
                 navigation.setParams({ selectedExercises: undefined });
             }
 
             if (isInitialized.current && route.params?.selectedExercise) {
-                console.log('Found selectedExercise in params:', route.params.selectedExercise);
                 setSelectedExercise(route.params.selectedExercise);
                 navigation.setParams({ selectedExercise: undefined });
             }
@@ -391,79 +330,88 @@ const StartWorkout = ({ route, navigation }) => {
         ]);
     }, []);
 
-    const confirmExit = useCallback(() => {
-        timerRef.current?.stopTimer();
-        workoutService.reset();
-        navigation.goBack();
-    }, [navigation]);
+    const confirmExit = useCallback(async () => {
+        workoutTimer.stop();
+        await workoutService.clearWorkout();
+        await workoutNotifications.clear();
+        refreshAllData();
+        navigation.navigate('Workout');
+    }, [navigation, refreshAllData]);
 
     const handleFinishWorkout = useCallback(async () => {
-        if (exerciseData.length === 0) {
-            openAnimatedMessage('Add exercises to finish workout');
-            return;
-        }
+    if (exerciseData.length === 0) {
+        openAnimatedMessage('Add exercises to finish workout');
+        return;
+    }
+    
+    try {
+        isFinishingWorkout.current = true;
         
-        try {
-            isFinishingWorkout.current = true;
-            
-            const totalTime = timerRef.current && typeof timerRef.current.getTotalTime === 'function' 
-                ? timerRef.current.getTotalTime() 
-                : 0;
-            timerRef.current?.stopTimer();
-            
-            const allValidated = workoutService.areAllSetsValidated();
-            const workoutData = [...exerciseData];
-            const workoutNote = inputText;
-            
-            await sendWorkoutDataToFirestore(
-                workoutData,
-                workoutNote,
-                allValidated,
-                navigation,
-                openAnimatedMessage,
-                (time) => {
-                    const minutes = Math.floor(time / 60);
-                    const seconds = time % 60;
-                    return `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
-                },
-                totalTime
-            );
-            
-            workoutService.reset();
-            refreshAllData();
-            isFinishingWorkout.current = false;
-        } catch (error) {
-            console.error('Error finishing workout:', error.message);
-            Alert.alert('Error', 'An error occurred while finishing the workout.', [{ text: "OK" }]);
-            isFinishingWorkout.current = false;
-        }
-    }, [exerciseData, inputText, navigation, openAnimatedMessage, refreshAllData]);
+        const totalTime = workoutTimer.getElapsed();
+        const allValidated = workoutService.areAllSetsValidated();
+        const workoutData = [...exerciseData];
+        const workoutNote = inputText;
+        const templateName = route.params?.selectedWorkout?.templateName || '';
+        
+        await sendWorkoutDataToFirestore(
+        workoutData,
+        workoutNote,
+        allValidated,
+        navigation,
+        openAnimatedMessage,
+        () => workoutTimer.getFormattedTime(),
+        totalTime,
+        templateName
+        );
+        
+        workoutTimer.stop();
+        await workoutService.clearWorkout();
+        await workoutNotifications.clear();
+        refreshAllData();
+        isFinishingWorkout.current = false;
+    } catch (error) {
+        console.error('Error finishing workout:', error.message);
+        Alert.alert('Error', 'An error occurred while finishing the workout.', [{ text: "OK" }]);
+        isFinishingWorkout.current = false;
+    }
+    }, [exerciseData, inputText, navigation, openAnimatedMessage, refreshAllData, route.params]);
 
-    const handleAddExercisePress = useCallback(() => {
+    const handleAddExercisePress = useCallback(async () => {
         if (!navigation) {
             Alert.alert('Error', 'Navigation is not available.', [{ text: 'OK' }]);
             return;
         }
+        
+        workoutService.startWorkout();
+        await workoutService.persistWorkout();
         navigation.navigate('ExerciseSelection', { previousScreen: 'StartWorkout' });
     }, [navigation]);
 
     const handleScroll = useCallback((event) => {
+        if (isKeyboardVisible) {
+            setIsCommandCenterVisible(false);
+            return;
+        }
+        
         const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-        const isAtBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - normalize(100); 
-        setIsCommandCenterVisible(Boolean(isAtBottom && !isKeyboardVisible && exerciseData.length > 0));
+        const canScroll = contentSize.height > layoutMeasurement.height;
+        
+        if (!canScroll) {
+            setIsCommandCenterVisible(exerciseData.length > 0);
+            return;
+        }
+        
+        const paddingToBottom = normalize(50);
+        const isAtBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - paddingToBottom;
+        setIsCommandCenterVisible(isAtBottom && exerciseData.length > 0);
     }, [exerciseData.length, isKeyboardVisible]);
 
     const renderEmptyState = useMemo(() => (
         <View style={styles.emptyStateContainer}>
             <View style={styles.emptyStateContent}>
-                <Animated.View
-                    style={[
-                        styles.emptyStateIconContainer,
-                        { transform: [{ scale: addButtonScale }] },
-                    ]}
-                >
+                <View style={styles.emptyStateIconContainer}>
                     <Ionicons name="fitness-outline" size={normalize(60)} color={styles.emptyStateIconContainer.borderColor} />
-                </Animated.View>
+                </View>
                 <Text style={styles.emptyStateTitle}>Ready to Start?</Text>
                 <Text style={styles.emptyStateSubtitle}>
                     Add your first exercise to begin your workout session
@@ -484,7 +432,7 @@ const StartWorkout = ({ route, navigation }) => {
                 </Text>
             </View>
         </View>
-    ), [addButtonScale, handleAddExercisePress]);
+    ), [handleAddExercisePress]);
 
     const renderItem = useCallback(
         ({ item: exercise, index: exerciseIndex }) => {
@@ -505,24 +453,49 @@ const StartWorkout = ({ route, navigation }) => {
 
     useEffect(() => {
         const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
-        startTimerAnimation();
-        startAddButtonAnimation();
-
         return () => {
             backHandler.remove();
-            if (timerAnimationRef.current) timerAnimationRef.current.stop();
-            if (buttonAnimationRef.current) buttonAnimationRef.current.stop();
-            timerRef.current?.stopTimer();
         };
-    }, [startTimerAnimation, startAddButtonAnimation]);
+    }, []);
+
+    useEffect(() => {
+        if (isKeyboardVisible) {
+            setIsCommandCenterVisible(false);
+        } else if (exerciseData.length > 0) {
+            setTimeout(() => setIsCommandCenterVisible(true), 100);
+        }
+    }, [isKeyboardVisible, exerciseData.length]);
 
     const handleBackPress = useCallback(() => {
-        Alert.alert("Hold on!", "Are you sure you want to go back?", [
-            { text: "Cancel", style: "cancel" },
-            { text: "YES", onPress: () => navigation.goBack() },
-        ]);
+        if (isKeyboardVisible) {
+            setIsKeyboardVisible(false);
+            setFocusedInputData(null);
+            return true;
+        }
+        
+        backPressCount.current += 1;
+        
+        if (backPressCount.current === 1) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            openAnimatedMessage('Press back again to minimize workout');
+            
+            backPressTimer.current = setTimeout(() => {
+                backPressCount.current = 0;
+            }, 2000);
+            
+            return true;
+        }
+        
+        if (backPressCount.current === 2) {
+            clearTimeout(backPressTimer.current);
+            backPressCount.current = 0;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            navigation.goBack();
+            return true;
+        }
+        
         return true;
-    }, [navigation]);
+    }, [navigation, openAnimatedMessage, isKeyboardVisible]);
 
     const filteredExerciseData = useMemo(() => 
         exerciseData.filter(ex => ex && ex.exerciseName && Array.isArray(ex.sets)),
@@ -534,13 +507,30 @@ const StartWorkout = ({ route, navigation }) => {
         setFocusedInputData(null);
     }, []);
 
+    useEffect(() => {
+        const syncInputText = () => {
+            workoutService.setWorkoutNote(inputText);
+        };
+        
+        const timeoutId = setTimeout(syncInputText, 500);
+        return () => clearTimeout(timeoutId);
+    }, [inputText]);
+
+    if (isInitializing) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#FF9500" />
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
             <View style={[styles.headerContainer, { paddingTop: insets.top + normalize(20) }]}>
                 <TouchableOpacity style={styles.headerButton} onPress={handleExit} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
                     <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
-                <TimerComponent ref={timerRef} timerRingRotation={timerRingRotation} />
+                <TimerComponent />
                 <TouchableOpacity
                     style={[styles.headerButton, styles.finishButton]}
                     onPress={handleFinishWorkout}

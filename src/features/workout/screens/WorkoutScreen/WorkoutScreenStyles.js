@@ -315,9 +315,26 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: normalize(10),
   },
+  upcomingGridItem: {
+    flex: 1,
+    minWidth: '48%',
+    maxWidth: '48%',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: normalize(14),
+    padding: normalize(14),
+    borderWidth: normalize(1),
+    borderColor: colors.border,
+    minHeight: normalize(85),
+  },
   upcomingGridItemRest: {
     backgroundColor: 'rgba(6, 182, 212, 0.08)',
     borderColor: 'rgba(6, 182, 212, 0.25)',
+  },
+  upcomingGridHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: normalize(8),
   },
   upcomingGridDay: {
     fontSize: normalize(12),
@@ -325,32 +342,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: normalize(0.5),
-  },upcomingGridItem: {
-  flex: 1,
-  minWidth: '48%',
-  maxWidth: '48%',
-  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  borderRadius: normalize(14),
-  padding: normalize(14),
-  borderWidth: normalize(1),
-  borderColor: colors.border,
-  minHeight: normalize(85),  // Reduced from 95
-},
-
-upcomingGridHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: normalize(8),  // Reduced from 10
-},
-
-upcomingGridName: {
-  fontSize: normalize(15),
-  fontWeight: '700',
-  color: colors.textPrimary,
-  marginBottom: normalize(4),  // Reduced from 5
-  lineHeight: normalize(19),
-},
+  },
+  upcomingGridName: {
+    fontSize: normalize(15),
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: normalize(4),
+    lineHeight: normalize(19),
+  },
   upcomingGridNameRest: {
     color: colors.cyan,
   },
@@ -426,44 +425,94 @@ upcomingGridName: {
     paddingHorizontal: normalize(18),
     paddingVertical: normalize(14),
   },
-  modalExerciseItem: {
+  modalStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    paddingVertical: normalize(16),
+    marginBottom: normalize(14),
+    backgroundColor: 'rgba(255, 149, 0, 0.08)',
+    borderRadius: normalize(12),
+    borderWidth: normalize(1),
+    borderColor: 'rgba(255, 149, 0, 0.2)',
+  },
+  modalStatItem: {
+    alignItems: 'center',
+  },
+modalStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    paddingVertical: normalize(12),
+    marginBottom: normalize(12),
+    borderBottomWidth: normalize(1),
+    borderBottomColor: colors.borderLight,
+},
+  modalStatItem: {
+      alignItems: 'center',
+  },
+  modalStatValue: {
+      fontSize: normalize(18),
+      fontWeight: '800',
+      color: colors.primary,
+  },
+  modalStatLabel: {
+      fontSize: normalize(8),
+      fontWeight: '700',
+      color: colors.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      marginTop: normalize(2),
+  },
+  modalStatDivider: {
+    width: 1,
+    height: normalize(25),
+    backgroundColor: colors.border,
+  },
+  modalExercisesList: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: normalize(12),
+    paddingVertical: normalize(6),
+    borderWidth: normalize(1),
+    borderColor: colors.borderLight,
+  },
+  modalExerciseRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: normalize(10),
+    paddingHorizontal: normalize(14),
+  },
+  modalExerciseRowLast: {
+    borderBottomWidth: 0,
+  },
+  modalExerciseLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingVertical: normalize(12),
-    paddingHorizontal: normalize(14),
-    borderRadius: normalize(12),
-    marginBottom: normalize(8),
-    borderWidth: normalize(1),
-    borderColor: colors.border,
-  },
-  modalExerciseNumber: {
-    width: normalize(28),
-    height: normalize(28),
-    borderRadius: normalize(14),
-    backgroundColor: 'rgba(255, 149, 0, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginRight: normalize(12),
   },
-  modalExerciseNumberText: {
-    fontSize: normalize(13),
+  modalExerciseSets: {
+    fontSize: normalize(12),
     fontWeight: '700',
     color: colors.primary,
+    marginRight: normalize(8),
   },
-  modalExerciseContent: {
+  modalExerciseName: {
     flex: 1,
-  },
-  modalExerciseText: {
-    fontSize: normalize(14),
+    fontSize: normalize(13),
     fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: normalize(3),
+    letterSpacing: 0.2,
   },
-  modalExerciseReps: {
+  modalBestSetContainer: {
+    alignItems: 'flex-end',
+  },
+  modalBestSetValue: {
     fontSize: normalize(12),
+    fontWeight: '600',
     color: colors.textSecondary,
-    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   modalStartButton: {
     backgroundColor: colors.primary,
@@ -480,6 +529,48 @@ upcomingGridName: {
     fontSize: normalize(15),
     fontWeight: '700',
     letterSpacing: normalize(0.5),
+  },
+  compactBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1a1d24',
+    paddingVertical: normalize(10),
+    paddingHorizontal: normalize(14),
+    borderRadius: normalize(12),
+    marginBottom: normalize(12),
+    borderWidth: 1,
+    borderColor: '#FF9500',
+  },
+  bannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: normalize(8),
+  },
+  pulseDot: {
+    width: normalize(8),
+    height: normalize(8),
+    borderRadius: normalize(4),
+    backgroundColor: '#FF9500',
+  },
+  bannerText: {
+    color: '#fff',
+    fontSize: normalize(13),
+    fontWeight: '600',
+  },
+  bannerExercises: {
+    color: '#999',
+    fontSize: normalize(11),
+  },
+  bannerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: normalize(8),
+  },
+  compactTimerText: {
+    color: '#FF9500',
+    fontSize: normalize(13),
+    fontWeight: '600',
   },
 });
 

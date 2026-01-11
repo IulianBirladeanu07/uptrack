@@ -17,6 +17,52 @@ import { db } from '../../auth/services/firebaseConfigService'
 import { Alert, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName) {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('User not authenticated.');
+    }
+
+    const uid = user.uid;
+    const timestamp = new Date();
+    const formattedTimestamp = `${timestamp.getFullYear()}_${(timestamp.getMonth() + 1)}_${timestamp.getDate()}_${timestamp.getHours()}_${timestamp.getMinutes()}_${uid}`;
+    
+    const workoutDataToSend = {
+      uid,
+      timestamp: serverTimestamp(),
+      note: inputText,
+      workoutName: templateName || '',
+      duration: formatTime(elapsedTime),
+      totalPRs: exerciseData.reduce((sum, ex) => sum + ex.sets.filter(s => s.isPR).length, 0),
+      exercises: exerciseData.map(exercise => ({
+        ...exercise,
+        sets: exercise.sets.map(set => ({
+          weight: parseFloat(set.weight || 0),
+          reps: parseInt(set.reps || 0, 10),
+          isValidated: set.isValidated,
+          isPR: set.isPR || false,
+          estimated1RM: set.reps > 0 ? calculate1RM(parseFloat(set.weight), parseInt(set.reps, 10)).toFixed(2) : 'N/A',
+        }))
+      })),
+    };
+
+    const workoutDocRef = doc(collection(db, 'workoutHistory'), formattedTimestamp);
+    await setDoc(workoutDocRef, workoutDataToSend);
+    
+    navigation.navigate('WorkoutDetails', { 
+      duration: formatTime(elapsedTime), 
+      notes: inputText, 
+      exercises: exerciseData,
+      timestamp: timestamp.toDateString() + " " + timestamp.toLocaleTimeString(),
+    });
+  } catch (error) {
+    console.error('Error finishing workout:', error.message);
+    openAnimatedMessage(`Error: ${error.message}`);
+  }
+}
+
 export const sendWorkoutDataToFirestore = async (
   exerciseData,
   inputText,
@@ -25,6 +71,7 @@ export const sendWorkoutDataToFirestore = async (
   openAnimatedMessage,
   formatTime,
   elapsedTime,
+  templateName = ''
 ) => {
   try {
     const hasEmptyOrInvalidInputs = exerciseData.some(exercise =>
@@ -59,62 +106,18 @@ export const sendWorkoutDataToFirestore = async (
           { text: "Cancel", style: "cancel" },
           { 
             text: "Proceed", 
-            onPress: async () => await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime) 
+            onPress: async () => await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName) 
           }
         ]
       );
     } else {
-      await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime);
+      await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName);
     }
   } catch (error) {
     console.error('Error adding workout data:', error.message);
     openAnimatedMessage(`Error: ${error.message}`);
   }
 };
-
-async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime) {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-
-    const uid = user.uid;
-    const timestamp = new Date();
-    const formattedTimestamp = `${timestamp.getFullYear()}_${(timestamp.getMonth() + 1)}_${timestamp.getDate()}_${timestamp.getHours()}_${timestamp.getMinutes()}_${uid}`;
-    
-    const workoutDataToSend = {
-      uid,
-      timestamp: serverTimestamp(),
-      note: inputText,
-      duration: formatTime(elapsedTime),
-      exercises: exerciseData.map(exercise => ({
-        ...exercise,
-        sets: exercise.sets.map(set => ({
-          weight: parseFloat(set.weight || 0),
-          reps: parseInt(set.reps || 0, 10),
-          isValidated: set.isValidated,
-          estimated1RM: set.reps > 0 ? calculate1RM(parseFloat(set.weight), parseInt(set.reps, 10)).toFixed(2) : 'N/A',
-        }))
-      })),
-    };
-
-    const workoutDocRef = doc(collection(db, 'workoutHistory'), formattedTimestamp);
-
-    await setDoc(workoutDocRef, workoutDataToSend);
-    
-    navigation.navigate('WorkoutDetails', { 
-      duration: formatTime(elapsedTime), 
-      notes: inputText, 
-      exercises: exerciseData,
-      timestamp: timestamp.toDateString() + " " + timestamp.toLocaleTimeString(),
-    });
-  } catch (error) {
-    console.error('Error finishing workout:', error.message);
-    openAnimatedMessage(`Error: ${error.message}`);
-  }
-}
 
 export const calculate1RM = (weight, reps) => {
   return weight / (1.0278 - 0.0278 * reps);

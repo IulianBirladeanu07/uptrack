@@ -3,6 +3,7 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getDocs, collection, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
 import { countWorkoutsThisWeek, getLastWorkout, fetchTemplatesFromFirestore } from '../handlers/WorkoutHandler';
+import { workoutService } from '../services/WorkoutService';
 
 export const WorkoutContext = createContext();
 
@@ -11,6 +12,7 @@ export const WorkoutProvider = ({ children }) => {
     const [lastWorkout, setLastWorkout] = useState(null);
     const [workoutHistory, setWorkoutHistory] = useState([]);
     const [templates, setTemplates] = useState([]);
+    const [activeWorkout, setActiveWorkout] = useState(null);
     const [userSettings, setUserSettingsState] = useState({
         targetCalories: 2000,
         targetProtein: 150,
@@ -25,6 +27,11 @@ export const WorkoutProvider = ({ children }) => {
         }));
     };
 
+    const checkActiveWorkout = useCallback(async () => {
+        const workout = await workoutService.restoreWorkout();
+        setActiveWorkout(workout);
+    }, []);
+
     const fetchData = useCallback(async () => {
         try {
             const auth = getAuth();
@@ -34,11 +41,9 @@ export const WorkoutProvider = ({ children }) => {
                 const lastWorkoutData = await getLastWorkout();
                 setWorkoutsThisWeek(workoutCount);
                 setLastWorkout(lastWorkoutData);
-                console.log('Data refreshed.');
             } else {
                 setWorkoutsThisWeek(0);
                 setLastWorkout(null);
-                console.log('User not logged in');
             }
         } catch (error) {
             console.error('Error refreshing data:', error.message);
@@ -73,22 +78,25 @@ export const WorkoutProvider = ({ children }) => {
                 fetchData();
                 fetchWorkoutHistory();
                 fetchTemplates();
+                checkActiveWorkout();
             } else {
                 setWorkoutsThisWeek(0);
                 setLastWorkout(null);
                 setWorkoutHistory([]);
                 setTemplates([]);
+                setActiveWorkout(null);
             }
         });
 
         return () => unsubscribe();
-    }, [fetchData, fetchWorkoutHistory, fetchTemplates]);
+    }, [fetchData, fetchWorkoutHistory, fetchTemplates, checkActiveWorkout]);
 
     const refreshAllData = useCallback(() => {
         fetchData();
         fetchWorkoutHistory();
         fetchTemplates();
-    }, [fetchData, fetchWorkoutHistory, fetchTemplates]);
+        checkActiveWorkout();
+    }, [fetchData, fetchWorkoutHistory, fetchTemplates, checkActiveWorkout]);
 
     return (
         <WorkoutContext.Provider
@@ -97,6 +105,7 @@ export const WorkoutProvider = ({ children }) => {
                 lastWorkout,
                 workoutHistory,
                 templates,
+                activeWorkout,
                 refreshAllData,
                 userSettings,
                 setUserSettings,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
@@ -83,13 +83,14 @@ const NutritionScreen = () => {
     dailyNutrition,
     userMacros,
     initialLoadComplete,
-    loading: contextLoading,
     hasTargets,
     learningData,
   } = useFoodContext();
 
   const [selectedMeal, setSelectedMeal] = useState('breakfast');
   const [userId, setUserId] = useState(null);
+  const [isReady, setIsReady] = useState(false);
+  const [weightLoaded, setWeightLoaded] = useState(false);
 
   const { weightData, refreshWeightData } = useWeightData(userId, selectedDate);
   const learningCompletion = useLearningCompletion(learningData, hasTargets);
@@ -99,6 +100,18 @@ const NutritionScreen = () => {
     const user = auth.currentUser;
     if (user) setUserId(user.uid);
   }, []);
+
+  useEffect(() => {
+    if (initialLoadComplete && userId) {
+      setIsReady(true);
+    }
+  }, [initialLoadComplete, userId]);
+
+  useEffect(() => {
+    if (weightData.currentWeight !== null || weightData.weeklyAverage !== null) {
+      setWeightLoaded(true);
+    }
+  }, [weightData]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -191,7 +204,7 @@ const NutritionScreen = () => {
     />
   ), [weightData.currentWeight, weightData.weeklyAverage, weightData.weighInCount, weightData.weeklyTrend, handleWeightPress, dailyNutrition, userMacros, hasTargets, learningData]);
 
-  if (contextLoading && !initialLoadComplete) {
+  if (!isReady || !weightLoaded) {
     return (
       <ApplicationCustomScreen
         headerLeft={<Ionicons name="person-circle-outline" size={28} color="#fdf5ec" />}
@@ -200,12 +213,11 @@ const NutritionScreen = () => {
         onSettingsPress={() => navigation.navigate('Settings')}
       >
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <Text style={{ color: '#fdf5ec', fontSize: 18 }}>Loading...</Text>
+          <ActivityIndicator size="large" color="#FF9500" />
         </View>
       </ApplicationCustomScreen>
     );
   }
-
   return (
     <ApplicationCustomScreen
       headerLeft={<Ionicons name="person-circle-outline" size={28} color="#fdf5ec" />}

@@ -159,6 +159,7 @@ const ExerciseInput = ({
       exercise={exercise}
       onKeyboardChange={onKeyboardChange}
       focusedInputData={focusedInputData}
+      openAnimatedMessage={openAnimatedMessage}
     />
   )), [
     currentSets,

@@ -1,48 +1,46 @@
-import { useContext, useState } from 'react';
+import { useContext } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { findBestSet } from '../../handlers/WorkoutHandler';
 import styles from './WorkoutHistoryStyles';
 
 const WorkoutHistoryScreen = ({ navigation }) => {
   const { workoutHistory } = useContext(WorkoutContext);
-  const [expandedCards, setExpandedCards] = useState({});
 
-  const toggleExpand = (index) => {
-    setExpandedCards(prev => ({
-      ...prev,
-      [index]: !prev[index]
-    }));
-  };
+const formatDate = (timestamp) => {
+  if (!timestamp || !timestamp.seconds) {
+    return 'RECENT';
+  }
+  
+  const date = new Date(timestamp.seconds * 1000);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  if (date.toDateString() === today.toDateString()) {
+    return 'TODAY';
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return 'YESTERDAY';
+  }
+  
+  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  return `${months[date.getMonth()]} ${date.getDate()}`;
+};
 
-  const formatDate = (timestamp) => {
-    const date = new Date(timestamp.seconds * 1000);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
+  const getWorkoutLabel = (timestamp, templateName) => {
+    if (templateName && templateName !== 'Workout') {
+      return templateName;
     }
     
-    return new Intl.DateTimeFormat('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    }).format(date);
-  };
-
-  const formatTime = (timestamp) => {
     const date = new Date(timestamp.seconds * 1000);
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    }).format(date);
+    const hour = date.getHours();
+    
+    if (hour >= 5 && hour < 12) return 'Morning Workout';
+    if (hour >= 12 && hour < 17) return 'Afternoon Workout';
+    if (hour >= 17 && hour < 21) return 'Evening Workout';
+    return 'Night Workout';
   };
 
   const getDurationInMinutes = (duration) => {
@@ -53,6 +51,33 @@ const WorkoutHistoryScreen = ({ navigation }) => {
 
   const calculateTotalSets = (exercises) => {
     return exercises.reduce((total, exercise) => total + exercise.sets.length, 0);
+  };
+
+  const handleStartWorkout = (workout) => {
+    const exercisesForWorkout = workout.exercises.map(exercise => ({
+      exerciseName: exercise.exerciseName,
+      imageURL: exercise.imageURL || '',
+      muscleGroup: exercise.muscleGroup || '',
+      category: exercise.category || '',
+      numSets: exercise.numSets || exercise.sets.length.toString(),
+      repRange: exercise.repRange || '',
+      note: exercise.note || '',
+      restBetweenSets: exercise.restBetweenSets || '',
+      lastWorkoutSets: exercise.lastWorkoutSets || [],
+      sets: exercise.sets.map(set => ({
+        weight: String(set.weight || ''),
+        reps: String(set.reps || ''),
+        isValidated: false,
+        repsModified: false
+      })),
+    }));
+
+    navigation.navigate('StartWorkout', {
+      selectedWorkout: {
+        note: workout.note || '',
+        exercises: exercisesForWorkout
+      }
+    });
   };
 
   return (
@@ -66,97 +91,79 @@ const WorkoutHistoryScreen = ({ navigation }) => {
         
         {workoutHistory && workoutHistory.length > 0 ? (
           workoutHistory.map((item, index) => {
-            const isExpanded = expandedCards[index];
             const exercises = item.exercises || [];
-            const displayExercises = isExpanded ? exercises : exercises.slice(0, 5);
-            const hasMore = exercises.length > 5;
             const totalSets = calculateTotalSets(exercises);
             const durationMinutes = getDurationInMinutes(item.duration);
-            const workoutTitle = item.workoutName || 'Workout';
+            const workoutTitle = getWorkoutLabel(item.timestamp, item.workoutName);
 
             return (
-              <View key={index} style={styles.workoutCard}>
+              <TouchableOpacity 
+                key={index} 
+                style={styles.workoutCard}
+                onPress={() => handleStartWorkout(item)}
+                activeOpacity={0.7}
+              >
                 <View style={styles.cardHeader}>
-                  <View style={styles.headerLeft}>
-                    <Text style={styles.workoutTitle}>{workoutTitle}</Text>
-                    <View style={styles.statsRow}>
-                      <View style={styles.statItem}>
-                        <MaterialCommunityIcons name="clock-outline" size={14} color="#FF9500" />
-                        <Text style={styles.statText}>{durationMinutes} min</Text>
-                      </View>
-                      <View style={styles.statItem}>
-                        <MaterialCommunityIcons name="dumbbell" size={14} color="#FF9500" />
-                        <Text style={styles.statText}>{exercises.length} exercises</Text>
-                      </View>
-                      <View style={styles.statItem}>
-                        <MaterialCommunityIcons name="counter" size={14} color="#FF9500" />
-                        <Text style={styles.statText}>{totalSets} sets</Text>
-                      </View>
-                    </View>
-                  </View>
+                  <Text style={styles.workoutTitle}>{workoutTitle}</Text>
                   <View style={styles.headerRight}>
-                    <Text style={styles.dateText}>
-                      {formatDate(item.timestamp)}
-                    </Text>
-                    <Text style={styles.timeText}>
-                      {formatTime(item.timestamp)}
-                    </Text>
+                    <View style={styles.dateBadge}>
+                      <Text style={styles.dateText}>{formatDate(item.timestamp)}</Text>
+                    </View>
                     {item.totalPRs > 0 && (
                       <View style={styles.prBadge}>
-                        <MaterialCommunityIcons name="trophy-variant" size={14} color="#FF9500" />
+                        <Ionicons name="trophy" size={10} color="#FFD700" />
                         <Text style={styles.prText}>{item.totalPRs}</Text>
                       </View>
                     )}
                   </View>
                 </View>
 
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{durationMinutes}m</Text>
+                    <Text style={styles.statLabel}>Time</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{totalSets}</Text>
+                    <Text style={styles.statLabel}>Sets</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{exercises.length}</Text>
+                    <Text style={styles.statLabel}>Exercises</Text>
+                  </View>
+                </View>
+
                 <View style={styles.exercisesList}>
-                  {displayExercises.map((exercise, exIndex) => {
+                  {exercises.map((exercise, exIndex) => {
                     const bestSet = findBestSet(exercise.sets);
-                    const isLast = exIndex === displayExercises.length - 1 && !hasMore;
+                    const hasPR = exercise.sets.some(s => s.isPR);
+                    const isLast = exIndex === exercises.length - 1;
                     return (
                       <View key={exIndex} style={[styles.exerciseRow, isLast && styles.exerciseRowLast]}>
                         <View style={styles.exerciseLeft}>
+                          <Text style={styles.exerciseSets}>{exercise.sets.length}x</Text>
                           <Text style={styles.exerciseName} numberOfLines={1}>
                             {exercise.exerciseName}
                           </Text>
-                          <Text style={styles.exerciseSets}>
-                            {exercise.sets.length} sets
-                          </Text>
                         </View>
-                        <View style={styles.bestSetBadge}>
-                          <Text style={styles.bestSetText}>
+                        <View style={styles.bestSetContainer}>
+                          <Text style={[styles.bestSetValue, hasPR && styles.bestSetValuePR]}>
                             {bestSet.weight && bestSet.reps ? `${bestSet.weight}kg × ${bestSet.reps}` : '-'}
                           </Text>
                         </View>
                       </View>
                     );
                   })}
-                  
-                  {hasMore && (
-                    <TouchableOpacity 
-                      style={styles.showMoreButton}
-                      onPress={() => toggleExpand(index)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.showMoreText}>
-                        {isExpanded ? 'Show less' : `+${exercises.length - 5} more`}
-                      </Text>
-                      <MaterialCommunityIcons 
-                        name={isExpanded ? "chevron-up" : "chevron-down"} 
-                        size={18} 
-                        color="#06B6D4" 
-                      />
-                    </TouchableOpacity>
-                  )}
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })
         ) : (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <MaterialCommunityIcons name="history" size={56} color="#6B7280" />
+              <Ionicons name="time-outline" size={56} color="#6B7280" />
             </View>
             <Text style={styles.emptyTitle}>No workout history yet</Text>
             <Text style={styles.emptySubtitle}>

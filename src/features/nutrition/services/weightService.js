@@ -1,14 +1,6 @@
-// helpers/weightService.js
-
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../auth/services/firebaseConfigService';
-
-/**
- * Weight Service - Handles all weight-related operations
- * Efficiently stores weekly weight data and calculates averages and trends
- */
 
 export class WeightService {
   static getDayKey(date) {
@@ -34,13 +26,11 @@ export class WeightService {
 
   static async getUserWeightData(userId) {
     try {
-      // Try cache first
       const cacheKey = `user_${userId}`;
       const cachedData = await AsyncStorage.getItem(cacheKey);
       
       if (cachedData) {
         const parsed = JSON.parse(cachedData);
-        // Check if cache is recent (within 5 minutes)
         const cacheTime = new Date(parsed.lastWeightUpdate || 0);
         const now = new Date();
         if (now - cacheTime < 5 * 60 * 1000) {
@@ -48,13 +38,11 @@ export class WeightService {
         }
       }
 
-      // Fetch from Firestore
       const userDocRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userDocRef);
       
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        // Update cache
         await AsyncStorage.setItem(cacheKey, JSON.stringify(userData));
         return userData;
       }
@@ -71,16 +59,13 @@ export class WeightService {
       const weekStartDate = this.getWeekStartDate(date).toISOString().split('T')[0];
       const dayKey = this.getDayKey(date);
 
-      // Get current user data
       const userData = await this.getUserWeightData(userId);
       const weightIns = Array.isArray(userData?.weightIns) ? userData.weightIns : [];
 
-      // Find or create current week entry
       let currentWeekIndex = weightIns.findIndex(entry => entry.weekStart === weekStartDate);
       let updatedWeightIns = [...weightIns];
 
       if (currentWeekIndex >= 0) {
-        // Update existing week
         updatedWeightIns[currentWeekIndex] = {
           ...updatedWeightIns[currentWeekIndex],
           days: { 
@@ -90,7 +75,6 @@ export class WeightService {
           lastUpdated: new Date().toISOString(),
         };
       } else {
-        // Create new week entry
         updatedWeightIns.push({
           weekStart: weekStartDate,
           days: { [dayKey]: weight },
@@ -100,15 +84,12 @@ export class WeightService {
         currentWeekIndex = updatedWeightIns.length - 1;
       }
 
-      // Calculate current week average
       const currentWeekEntry = updatedWeightIns[currentWeekIndex];
       const currentWeekAverage = this.calculateWeeklyAverage(currentWeekEntry.days);
       currentWeekEntry.average = currentWeekAverage;
 
-      // Sort by week start date to maintain chronological order
       updatedWeightIns.sort((a, b) => new Date(a.weekStart) - new Date(b.weekStart));
 
-      // Calculate trend vs last week
       let weeklyTrend = null;
       let lastWeekAverage = null;
       
@@ -123,7 +104,6 @@ export class WeightService {
         }
       }
 
-      // Update Firestore
       const userDocRef = doc(db, 'users', userId);
       const updateData = {
         currentWeight: weight,
@@ -134,7 +114,6 @@ export class WeightService {
 
       await setDoc(userDocRef, updateData, { merge: true });
 
-      // Update cache
       const cacheData = {
         ...userData,
         ...updateData,
@@ -255,9 +234,6 @@ export class WeightService {
     }
   }
 
-  /**
-   * Get weight data for nutrition screen display
-   */
   static async getWeightDisplayData(userId, selectedDate) {
     try {
       const [currentWeekData, trendData, userData] = await Promise.all([
@@ -287,10 +263,6 @@ export class WeightService {
     }
   }
 
-  /**
-   * Auto-adjust user's calorie and macro targets based on weight progress
-   * This should be called periodically (e.g., weekly) to fine-tune the plan
-   */
   static async adjustUserTargetsBasedOnProgress(userId) {
     try {
       const userData = await this.getUserWeightData(userId);
@@ -299,18 +271,16 @@ export class WeightService {
       const { weightChangePlan } = userData;
       const recentWeeks = userData.weightIns
         .sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart))
-        .slice(0, 4) // Last 4 weeks
-        .filter(week => week.average); // Only weeks with averages
+        .slice(0, 4)
+        .filter(week => week.average);
 
-      if (recentWeeks.length < 2) return null; // Need at least 2 weeks of data
+      if (recentWeeks.length < 2) return null;
 
-      // Calculate actual progress rate
       const firstWeek = recentWeeks[recentWeeks.length - 1];
       const lastWeek = recentWeeks[0];
       const weeksDiff = recentWeeks.length - 1;
       const actualWeeklyRate = (lastWeek.average - firstWeek.average) / weeksDiff;
 
-      // Compare with target rate
       const targetWeeklyRate = weightChangePlan.ratePerWeek || 0;
       const progressRatio = Math.abs(actualWeeklyRate) / Math.abs(targetWeeklyRate);
 
@@ -318,32 +288,20 @@ export class WeightService {
 
       if (weightChangePlan.type === 'weight_loss') {
         if (progressRatio < 0.8) {
-          // Too slow, increase deficit
           calorieAdjustment = -100;
         } else if (progressRatio > 1.2) {
-          // Too fast, decrease deficit
           calorieAdjustment = 100;
         }
       } else if (weightChangePlan.type === 'muscle_gain') {
         if (progressRatio < 0.8) {
-          // Too slow, increase surplus
           calorieAdjustment = 100;
         } else if (progressRatio > 1.2) {
-          // Too fast, decrease surplus
           calorieAdjustment = -50;
         }
       }
 
       if (calorieAdjustment !== 0) {
         const newGoalCalories = weightChangePlan.goalCalories + calorieAdjustment;
-        
-        // Recalculate macros with new calories
-        // const { calculateMacros } = require('./nutritionCalculations'); // Assuming this exists
-        // const newMacros = calculateMacros(
-        //   weightChangePlan.type,
-        //   newGoalCalories,
-        //   userData.currentWeight
-        // );
 
         const updatedPlan = {
           ...weightChangePlan,
@@ -353,13 +311,11 @@ export class WeightService {
           adjustmentReason: `Progress rate: ${actualWeeklyRate.toFixed(2)}kg/week vs target ${targetWeeklyRate.toFixed(2)}kg/week`,
         };
 
-        // Update Firestore
         const userDocRef = doc(db, 'users', userId);
         await setDoc(userDocRef, {
           weightChangePlan: updatedPlan,
         }, { merge: true });
 
-        // Update cache
         const cacheData = { ...userData, weightChangePlan: updatedPlan };
         await AsyncStorage.setItem(`user_${userId}`, JSON.stringify(cacheData));
 

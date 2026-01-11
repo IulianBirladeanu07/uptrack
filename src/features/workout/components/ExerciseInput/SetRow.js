@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useCallback, memo } from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { workoutService } from '../../services/WorkoutService';
 import PreviousSetDisplay from './PreviousSetDisplay';
 import { COLORS } from './ExerciseInputStyles';
@@ -46,6 +46,7 @@ const SetRow = ({
     fadeAnim = [],
     exercise,
     onKeyboardChange,
+    openAnimatedMessage,
     focusedInputData,
 }) => {
     const animRefs = useRef({
@@ -61,27 +62,28 @@ const SetRow = ({
     const isWeightFocused = isThisRowFocused && focusedInputData?.type === 'weight';
     const isRepsFocused = isThisRowFocused && focusedInputData?.type === 'reps';
 
-    const gestureEvent = useMemo(() => Animated.event(
-        [{ nativeEvent: { translationX: animRefs.swipe } }],
-        { useNativeDriver: true }
-    ), [animRefs.swipe]);
-
-    const handleGestureStateChange = useCallback((event) => {
-        const { state, translationX } = event.nativeEvent;
-        if (state === State.END) {
-            if (translationX < -80) {
-                workoutService.deleteSet(exerciseIndex, setIndex);
-                animRefs.swipe.setValue(0);
-            } else if (Math.abs(translationX) > 10) {
-                Animated.spring(animRefs.swipe, {
-                    toValue: 0,
-                    useNativeDriver: true,
-                    tension: 60,
-                    friction: 10
-                }).start();
-            }
-        }
-    }, [setIndex, exerciseIndex, animRefs.swipe]);
+    const panGesture = useMemo(() => 
+        Gesture.Pan()
+            .activeOffsetX([-10, 10])
+            .failOffsetY([-10, 10])
+            .onChange((e) => {
+                animRefs.swipe.setValue(e.translationX);
+            })
+            .onEnd((e) => {
+                if (e.translationX < -80) {
+                    workoutService.deleteSet(exerciseIndex, setIndex);
+                    animRefs.swipe.setValue(0);
+                } else if (Math.abs(e.translationX) > 10) {
+                    Animated.spring(animRefs.swipe, {
+                        toValue: 0,
+                        useNativeDriver: true,
+                        tension: 60,
+                        friction: 10
+                    }).start();
+                }
+            }),
+        [exerciseIndex, setIndex, animRefs.swipe]
+    );
 
     const animatedStyles = useMemo(() => ({
         row: {
@@ -110,13 +112,24 @@ const SetRow = ({
         }
     }), [animRefs.swipe]);
 
-    const handleValidationPress = useCallback(() => {
-        try {
-            workoutService.toggleValidation(exerciseIndex, setIndex);
-        } catch (error) {
-            console.error('Error in validation:', error);
+const handleValidationPress = useCallback(() => {
+    try {
+        const currentSet = setData;
+        const reps = String(currentSet.reps || '').trim();
+        const weight = String(currentSet.weight || '').trim();
+        
+        if (!currentSet.isValidated && (!reps || !weight)) {
+            if (openAnimatedMessage) {
+                openAnimatedMessage('Enter weight and reps first');
+            }
+            return;
         }
-    }, [exerciseIndex, setIndex]);
+        
+        workoutService.toggleValidation(exerciseIndex, setIndex);
+    } catch (error) {
+        console.error('Error in validation:', error);
+    }
+}, [exerciseIndex, setIndex, setData, openAnimatedMessage]);
 
     const handleValidationPressIn = useCallback(() => {
         Animated.spring(animRefs.press, {
@@ -141,7 +154,7 @@ const SetRow = ({
         if (now - lastPressTime.current < 200) return;
         lastPressTime.current = now;
         
-        if (onKeyboardChange) {
+        if (onKeyboardChange && typeof onKeyboardChange === 'function') {
             onKeyboardChange(true, { type: inputType, index: setIndex, exerciseIndex });
         }
     }, [setIndex, exerciseIndex, onKeyboardChange]);
@@ -165,90 +178,83 @@ const SetRow = ({
             <Animated.View style={animatedStyles.deleteButton}>
                 <Text style={stylesLocal.deleteButtonText}>Delete</Text>
             </Animated.View>
-            <PanGestureHandler
-                onGestureEvent={gestureEvent}
-                onHandlerStateChange={handleGestureStateChange}
-                activeOffsetX={[-10, 10]}
-                failOffsetY={[-10, 10]}
-            >
-                <View>
-                    <Animated.View 
-                        style={[
-                            animatedStyles.row, 
-                            { opacity: fadeAnim?.[setIndex] ?? 1 }
-                        ]}
-                    >
-                        <View style={[
-                            stylesLocal.dataRow, 
-                            setData.isValidated && stylesLocal.completedRow,
-                        ]}>
-                            <View style={stylesLocal.setColumn}>
-                                <Text style={[
-                                    stylesLocal.setNumberText,
-                                    setData.isValidated && stylesLocal.setNumberTextCompleted
-                                ]}>
-                                    {String(setIndex + 1)}
-                                </Text>
-                            </View>
-
-                            <View style={stylesLocal.prevColumn}>
-                                <PreviousSetDisplay
-                                    previousSetData={previousSetData}
-                                    onPress={handlePreviousSetPress}
-                                    setIndex={setIndex}
-                                    isCompleted={setData.isValidated}
-                                />
-                            </View>
-                            
-                            <View style={stylesLocal.inputWrapper}>
-                                <NumericInput 
-                                    type="weight"
-                                    value={setData.weight}
-                                    placeholder="kg"
-                                    isFocused={isWeightFocused}
-                                    isValidated={setData.isValidated}
-                                    onPress={() => handleInputPress('weight')}
-                                    style={inputStyles}
-                                    textStyle={inputTextStyles}
-                                />
-                            </View>
-                            
-                            <View style={stylesLocal.inputWrapper}>
-                                <NumericInput 
-                                    type="reps"
-                                    value={setData.reps}
-                                    placeholder="reps"
-                                    isFocused={isRepsFocused}
-                                    isValidated={setData.isValidated}
-                                    onPress={() => handleInputPress('reps')}
-                                    style={inputStyles}
-                                    textStyle={inputTextStyles}
-                                />
-                            </View>
-                            
-                            <View style={stylesLocal.statusColumn}>
-                                <Animated.View style={{ transform: [{ scale: animRefs.press }] }}>
-                                    <TouchableOpacity
-                                        style={[
-                                            stylesLocal.quantumCheck,
-                                            setData.isValidated && stylesLocal.quantumCheckCompleted
-                                        ]}
-                                        onPress={handleValidationPress}
-                                        onPressIn={handleValidationPressIn}
-                                        onPressOut={handleValidationPressOut}
-                                        activeOpacity={0.7}
-                                        hitSlop={{ top: 25, bottom: 25, left: 25, right: 25 }}
-                                    >
-                                        {setData.isValidated && (
-                                            <Text style={stylesLocal.quantumCheckText}>✓</Text>
-                                        )}
-                                    </TouchableOpacity>
-                                </Animated.View>
-                            </View>
+            <GestureDetector gesture={panGesture}>
+                <Animated.View 
+                    style={[
+                        animatedStyles.row, 
+                        { opacity: fadeAnim?.[setIndex] ?? 1 }
+                    ]}
+                >
+                    <View style={[
+                        stylesLocal.dataRow, 
+                        setData.isValidated && stylesLocal.completedRow,
+                    ]}>
+                        <View style={stylesLocal.setColumn}>
+                            <Text style={[
+                                stylesLocal.setNumberText,
+                                setData.isValidated && stylesLocal.setNumberTextCompleted
+                            ]}>
+                                {String(setIndex + 1)}
+                            </Text>
                         </View>
-                    </Animated.View>
-                </View>
-            </PanGestureHandler>
+
+                        <View style={stylesLocal.prevColumn}>
+                            <PreviousSetDisplay
+                                previousSetData={previousSetData}
+                                onPress={handlePreviousSetPress}
+                                setIndex={setIndex}
+                                isCompleted={setData.isValidated}
+                            />
+                        </View>
+                        
+                        <View style={stylesLocal.inputWrapper}>
+                            <NumericInput 
+                                type="weight"
+                                value={setData.weight}
+                                placeholder="kg"
+                                isFocused={isWeightFocused}
+                                isValidated={setData.isValidated}
+                                onPress={() => handleInputPress('weight')}
+                                style={inputStyles}
+                                textStyle={inputTextStyles}
+                            />
+                        </View>
+                        
+                        <View style={stylesLocal.inputWrapper}>
+                            <NumericInput 
+                                type="reps"
+                                value={setData.reps}
+                                placeholder="reps"
+                                isFocused={isRepsFocused}
+                                isValidated={setData.isValidated}
+                                onPress={() => handleInputPress('reps')}
+                                style={inputStyles}
+                                textStyle={inputTextStyles}
+                            />
+                        </View>
+                        
+                        <View style={stylesLocal.statusColumn}>
+                            <Animated.View style={{ transform: [{ scale: animRefs.press }] }}>
+                                <TouchableOpacity
+                                    style={[
+                                        stylesLocal.quantumCheck,
+                                        setData.isValidated && stylesLocal.quantumCheckCompleted
+                                    ]}
+                                    onPress={handleValidationPress}
+                                    onPressIn={handleValidationPressIn}
+                                    onPressOut={handleValidationPressOut}
+                                    activeOpacity={0.7}
+                                    hitSlop={{ top: 25, bottom: 25, left: 25, right: 25 }}
+                                >
+                                    {setData.isValidated && (
+                                        <Text style={stylesLocal.quantumCheckText}>✓</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </Animated.View>
+                        </View>
+                    </View>
+                </Animated.View>
+            </GestureDetector>
         </View>
     );
 };
@@ -281,13 +287,13 @@ const stylesLocal = StyleSheet.create({
     },
     setNumberText: {
         textAlign: 'center', 
-        color: COLORS.textPrimary,
+        color: '#d1d5db',
         fontSize: normalize(15),
         fontWeight: '600',
         letterSpacing: 0.2,
     },
     setNumberTextCompleted: {
-        color: '#06B6D4',
+        color: 'rgba(6, 182, 212, 0.7)',
     },
     prevColumn: {
         width: normalize(90),
@@ -321,7 +327,7 @@ const stylesLocal = StyleSheet.create({
         width: '100%',
     },
     neuralInputText: {
-        color: COLORS.textPrimary,
+        color: '#d1d5db',
         fontSize: normalize(15),
         fontWeight: '600',
         textAlign: 'center', 
@@ -329,29 +335,27 @@ const stylesLocal = StyleSheet.create({
         letterSpacing: 0.2,
     },
     neuralInputTextPlaceholder: {
-        color: COLORS.textSecondary,
-        opacity: 0.5,
+        color: '#6b7280',
+        opacity: 0.6,
         fontWeight: '500',
         fontSize: normalize(12),
         lineHeight: normalize(20),
     },
     neuralInputTextPlaceholderFocused: {
-        opacity: 0.7,
-        color: '#06B6D4',
+        opacity: 0.8,
+        color: '#FF9500',
     },
     neuralInputTextFocused: {
-        color: '#06B6D4',
+        color: '#FF9500',
     },
     neuralInputFocused: {
-        borderColor: 'rgba(6, 182, 212, 0.4)',
+        borderColor: 'rgba(255, 149, 0, 0.5)',
         borderWidth: 2,
-        backgroundColor: 'rgba(6, 182, 212, 0.08)',
-        shadowColor: 'rgba(6, 182, 212, 0.25)',
+        backgroundColor: 'rgba(255, 149, 0, 0.08)',
     },
     neuralInputCompleted: {
         borderColor: 'rgba(6, 182, 212, 0.35)',
         backgroundColor: 'rgba(6, 182, 212, 0.06)',
-        shadowColor: '#06B6D4',
     },
     quantumCheck: {
         width: normalize(40),
@@ -364,17 +368,17 @@ const stylesLocal = StyleSheet.create({
         justifyContent: 'center',
     },
     quantumCheckCompleted: {
-    borderColor: 'rgba(6, 182, 212, 0.5)',
-    backgroundColor: 'rgba(6, 182, 212, 0.15)',
-    shadowColor: 'rgba(6, 182, 212, 0.3)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-},
+        borderColor: 'rgba(6, 182, 212, 0.5)',
+        backgroundColor: 'rgba(6, 182, 212, 0.15)',
+        shadowColor: 'rgba(6, 182, 212, 0.3)',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 3,
+    },
     quantumCheckText: {
         fontSize: normalize(18),
-        color: "#E5E7EB",
+        color: "#9ca3af",
         fontWeight: '700',
     },
     deleteButton: {

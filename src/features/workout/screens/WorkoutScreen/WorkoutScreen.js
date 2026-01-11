@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useContext } from 'react';
 import { View, Text, TouchableOpacity, Modal, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { normalize } from '../../../../shared/hooks/useResponsive';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import { fetchSplitsFromFirestore } from '../../handlers/WorkoutHandler';
+import { WorkoutContext } from '../../context/WorkoutContext';
 import styles from './WorkoutScreenStyles';
 
 const DAYS_MAP = {
@@ -17,6 +18,35 @@ const DAYS_MAP = {
     4: 'thursday',
     5: 'friday',
     6: 'saturday'
+};
+
+const LiveTimer = ({ startTime }) => {
+    const [elapsed, setElapsed] = useState(0);
+
+    React.useEffect(() => {
+        const updateElapsed = () => {
+            const now = Date.now();
+            const seconds = Math.floor((now - startTime) / 1000);
+            setElapsed(seconds);
+        };
+
+        updateElapsed();
+        const interval = setInterval(updateElapsed, 1000);
+        return () => clearInterval(interval);
+    }, [startTime]);
+
+    const formatTime = (timeInSeconds) => {
+        const hours = Math.floor(timeInSeconds / 3600);
+        const minutes = Math.floor((timeInSeconds % 3600) / 60);
+        const seconds = timeInSeconds % 60;
+        
+        if (hours > 0) {
+            return `${hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+        }
+        return `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+    };
+
+    return <Text style={styles.compactTimerText}>{formatTime(elapsed)}</Text>;
 };
 
 const HeaderSection = React.memo(({ stats }) => (
@@ -171,6 +201,8 @@ const WorkoutScreen = () => {
     const [loading, setLoading] = useState(true);
     const [userStats, setUserStats] = useState({ streak: 0, weeklyTime: '0h 0m', workoutCount: 0 });
 
+    const { activeWorkout } = useContext(WorkoutContext);
+
     const loadActiveSplit = useCallback(async () => {
         try {
             setLoading(true);
@@ -184,7 +216,6 @@ const WorkoutScreen = () => {
             const active = splits[0];
             setActiveSplit(active);
             
-            // Stats logic - replace with your actual stats fetch logic
             setUserStats({
                 streak: active.data?.streak || 0,
                 weeklyTime: active.data?.weeklyTime || '0h 0m',
@@ -244,7 +275,23 @@ const WorkoutScreen = () => {
 
     useFocusEffect(useCallback(() => { loadActiveSplit(); }, [loadActiveSplit]));
 
-    const handleStartWorkout = useCallback(() => { navigation.replace('StartWorkout'); }, [navigation]);
+    const handleStartWorkout = useCallback(() => {
+        if (primaryWorkout.workout && !primaryWorkout.isRestDay) {
+            console.log('Starting with exercises:', primaryWorkout.workout.exercises);
+            navigation.navigate('StartWorkout', {
+                selectedWorkout: {
+                    note: '',
+                    templateName: primaryWorkout.workout.name,
+                    exercises: primaryWorkout.workout.exercises
+                }
+            });
+        } else {
+            console.log('Starting a new workout without a predefined template');
+            navigation.navigate('StartWorkout');
+        }
+    }, [navigation, primaryWorkout]);
+
+    const handleResumeWorkout = useCallback(() => { navigation.navigate('StartWorkout'); }, [navigation]);
     const handlePreviewWorkout = useCallback((workout) => { setPreviewWorkout(workout); setIsModalVisible(true); }, []);
     const handleCloseModal = useCallback(() => { setIsModalVisible(false); setPreviewWorkout(null); }, []);
     const handleTemplatesPress = useCallback(() => { navigation.navigate('WorkoutLibrary', { initialSegment: 'Templates' }); }, [navigation]);
@@ -276,6 +323,24 @@ const WorkoutScreen = () => {
     return (
         <ApplicationCustomScreen>
             <View style={[styles.container, { paddingBottom: 70 + insets.bottom, paddingHorizontal: normalize(16) }]}>
+                {activeWorkout && (
+                    <TouchableOpacity 
+                        style={styles.compactBanner}
+                        onPress={handleResumeWorkout}
+                        activeOpacity={0.8}
+                    >
+                        <View style={styles.bannerLeft}>
+                            <View style={styles.pulseDot} />
+                            <Text style={styles.bannerText}>Workout Active</Text>
+                            <Text style={styles.bannerExercises}>{activeWorkout.exercises.length} exercises</Text>
+                        </View>
+                        <View style={styles.bannerRight}>
+                            <LiveTimer startTime={activeWorkout.startTime} />
+                            <Ionicons name="chevron-forward" size={normalize(14)} color="#666" />
+                        </View>
+                    </TouchableOpacity>
+                )}
+
                 <HeaderSection stats={userStats} />
                 
                 <MainWorkoutCard
@@ -320,18 +385,60 @@ const WorkoutScreen = () => {
                                 <Ionicons name="close" size={normalize(18)} color="#FFFFFF" />
                             </TouchableOpacity>
                         </View>
-                        <ScrollView style={styles.modalScrollView}>
-                            {previewWorkout?.exercises?.map((exercise, index) => (
-                                <View key={index} style={styles.modalExerciseItem}>
-                                    <View style={styles.modalExerciseNumber}><Text style={styles.modalExerciseNumberText}>{index + 1}</Text></View>
-                                    <View style={styles.modalExerciseContent}>
-                                        <Text style={styles.modalExerciseText}>{exercise.exerciseName}</Text>
-                                        <Text style={styles.modalExerciseReps}>{exercise.numSets} sets × {exercise.repRange} reps</Text>
-                                    </View>
+                        
+                        <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
+                            <View style={styles.modalStatsRow}>
+                                <View style={styles.modalStatItem}>
+                                    <Text style={styles.modalStatValue}>{previewWorkout?.duration?.replace(' mins', 'm') || '0m'}</Text>
+                                    <Text style={styles.modalStatLabel}>Time</Text>
                                 </View>
-                            ))}
+                                <View style={styles.modalStatDivider} />
+                                <View style={styles.modalStatItem}>
+                                    <Text style={styles.modalStatValue}>{previewWorkout?.exercises?.reduce((acc, ex) => acc + (parseInt(ex.numSets) || 0), 0) || 0}</Text>
+                                    <Text style={styles.modalStatLabel}>Sets</Text>
+                                </View>
+                                <View style={styles.modalStatDivider} />
+                                <View style={styles.modalStatItem}>
+                                    <Text style={styles.modalStatValue}>{previewWorkout?.exercises?.length || 0}</Text>
+                                    <Text style={styles.modalStatLabel}>Exercises</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.modalExercisesList}>
+                                {previewWorkout?.exercises?.map((exercise, index) => {
+                                    const isLast = index === previewWorkout.exercises.length - 1;
+                                    return (
+                                        <View key={index} style={[styles.modalExerciseRow, isLast && styles.modalExerciseRowLast]}>
+                                            <View style={styles.modalExerciseLeft}>
+                                                <Text style={styles.modalExerciseSets}>{exercise.numSets}x</Text>
+                                                <Text style={styles.modalExerciseName} numberOfLines={1}>
+                                                    {exercise.exerciseName}
+                                                </Text>
+                                            </View>
+                                            <View style={styles.modalBestSetContainer}>
+                                                <Text style={styles.modalBestSetValue}>
+                                                    {exercise.repRange} reps
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    );
+                                })}
+                            </View>
                         </ScrollView>
-                        <TouchableOpacity style={styles.modalStartButton} onPress={() => { setIsModalVisible(false); handleStartWorkout(); }}>
+                        
+                        <TouchableOpacity 
+                            style={styles.modalStartButton} 
+                            onPress={() => { 
+                                setIsModalVisible(false); 
+                                navigation.navigate('StartWorkout', {
+                                    selectedWorkout: {
+                                        note: '',
+                                        templateName: previewWorkout?.name,
+                                        exercises: previewWorkout?.exercises || []
+                                    }
+                                });
+                            }}
+                        >
                             <Ionicons name="play" size={normalize(14)} color="#0A0E13" style={{ marginRight: normalize(6) }} />
                             <Text style={styles.modalStartButtonText}>Start Workout</Text>
                         </TouchableOpacity>

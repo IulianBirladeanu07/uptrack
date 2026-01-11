@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, memo } from 'react';
 import { FlatList, Text, View, TouchableOpacity, StyleSheet } from 'react-native';
-import { Coffee, Sun, Moon, Apple, Utensils, ChevronRight, ChevronDown } from 'lucide-react-native';
+import { Coffee, Sun, Moon, Apple, Utensils } from 'lucide-react-native';
 import FoodSearchResults from './FoodSearchResults';
 import FoodItem from './FoodItem';
 import MealItem from './MealItem';
@@ -15,9 +15,7 @@ const colors = {
   surface: '#151B23',
   surfaceLight: '#1F2937',
   primary: '#FF9500',
-  success: '#32D74B',
-  warning: '#FF9F0A',
-  purple: '#9333EA',
+  cyan: '#00d4ff',
   textPrimary: '#F9FAFB',
   textSecondary: '#9CA3AF',
   textTertiary: '#6B7280',
@@ -154,9 +152,9 @@ const MealHeader = memo(({
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-          <Text style={styles.toggleText}>
-            {isExpanded ? 'Show less' : 'Show more'}
-          </Text>
+            <Text style={styles.toggleText}>
+              {isExpanded ? 'Show less' : 'Show more'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
