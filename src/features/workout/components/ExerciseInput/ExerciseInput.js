@@ -13,6 +13,7 @@ const ExerciseInput = ({
   openAnimatedMessage,
   onKeyboardChange,
   focusedInputData,
+  navigation,
 }) => {
   if (!exerciseData || !Array.isArray(exerciseData) || !exerciseData[exerciseIndex]) {
     return (
@@ -154,6 +155,7 @@ const ExerciseInput = ({
       exerciseIndex={exerciseIndex}
       previousSetData={exercise.lastWorkoutSets?.[setIndex]}
       handlePreviousSetPress={handlePreviousSetPress}
+      totalSetsInExercise={currentSets.length}
       fadeAnim={animRefs.fade}
       inputRefs={inputRefs}
       exercise={exercise}
@@ -195,6 +197,7 @@ const ExerciseInput = ({
           setIsMenuVisible={setIsMenuVisible}
           menuOptions={menuOptions}
           handleMenuOption={handleMenuOption}
+          navigation={navigation}
         />
         <Animated.View style={gridStyles}>
           <View style={styles.gridHeader}>

@@ -4,28 +4,25 @@ import { normalize } from '../../../../shared/hooks/useResponsive';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const COLORS = {
-  background: '#0F172A',
-  surface: 'rgba(30, 41, 59, 0.5)',
-  surfaceLight: 'rgba(15, 23, 42, 0.5)',
-  surfaceHighlight: 'rgba(255, 255, 255, 0.05)',
-  text: '#FFFFFF',
-  textSecondary: '#CBD5E1',
-  textMuted: '#999999',
-  textInactive: 'rgba(148, 163, 184, 0.4)',
-  primary: '#FF8535',
-  primaryDark: '#F97316',
-  primaryLight: '#FFBC7D',
-  primaryTransparent: 'rgba(255, 133, 53, 0.08)',
-  primaryBorder: 'rgba(255, 133, 53, 0.3)',
-  accent2: '#06B6D4',
-  accent2Transparent: 'rgba(6, 182, 212, 0.05)',
-  accent2Border: 'rgba(6, 182, 212, 0.5)',
-  accent3: '#EF4444',
-  border: 'rgba(255, 255, 255, 0.1)',
-  borderDivider: 'rgba(255, 255, 255, 0.05)',
-  inputBackground: 'rgba(30, 41, 59, 0.5)',
-  inputBorder: 'rgba(71, 85, 105, 0.5)',
-  shadow: 'rgba(0, 0, 0, 0.3)',
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: '#1C2128',
+  
+  text: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textMuted: '#6B7280',
+  
+  primary: '#FF9500',
+  primaryTransparent: 'rgba(255, 149, 0, 0.15)',
+  
+  cyan: '#06B6D4',
+  cyanTransparent: 'rgba(6, 182, 212, 0.15)',
+  
+  danger: '#FF453A',
+  dangerTransparent: 'rgba(255, 69, 58, 0.15)',
+  
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.05)',
 };
 
 const CustomDropdown = ({ options, onSelect, isVisible, onClose }) => {
@@ -33,12 +30,14 @@ const CustomDropdown = ({ options, onSelect, isVisible, onClose }) => {
 
   const getIconForOption = (value) => {
     switch (value) {
-      case 'edit':
-        return 'pencil-outline';
+      case 'replace':
+        return 'swap-horizontal-outline';
       case 'delete':
         return 'trash-outline';
       case 'history':
         return 'time-outline';
+      case 'edit':
+        return 'pencil-outline';
       default:
         return 'ellipse-outline';
     }
@@ -47,11 +46,26 @@ const CustomDropdown = ({ options, onSelect, isVisible, onClose }) => {
   const getColorForOption = (value) => {
     switch (value) {
       case 'delete':
-        return COLORS.accent3;
+        return COLORS.danger;
       case 'history':
-        return COLORS.accent2;
+        return COLORS.cyan;
+      case 'replace':
+        return COLORS.primary;
       default:
         return COLORS.text;
+    }
+  };
+
+  const getBackgroundForOption = (value) => {
+    switch (value) {
+      case 'delete':
+        return COLORS.dangerTransparent;
+      case 'history':
+        return COLORS.cyanTransparent;
+      case 'replace':
+        return COLORS.primaryTransparent;
+      default:
+        return 'rgba(255, 255, 255, 0.05)';
     }
   };
 
@@ -75,16 +89,20 @@ const CustomDropdown = ({ options, onSelect, isVisible, onClose }) => {
             ]}
             activeOpacity={0.7}
           >
-            <Ionicons
-              name={getIconForOption(option.value)}
-              size={normalize(18)}
-              color={getColorForOption(option.value)}
-              style={styles.dropdownIcon}
-            />
+            <View style={[
+              styles.iconContainer,
+              { backgroundColor: getBackgroundForOption(option.value) }
+            ]}>
+              <Ionicons
+                name={getIconForOption(option.value)}
+                size={normalize(16)}
+                color={getColorForOption(option.value)}
+              />
+            </View>
             <Text
               style={[
                 styles.dropdownItemText,
-                { color: getColorForOption(option.value) },
+                option.value === 'delete' && styles.dropdownItemTextDanger
               ]}
             >
               {option.label}
@@ -116,26 +134,25 @@ const styles = StyleSheet.create({
   },
   dropdown: {
     position: 'absolute',
-    backgroundColor: 'rgba(30, 41, 59, 0.95)', // More opaque for better readability
-    borderRadius: normalize(14),
+    backgroundColor: COLORS.surface,
+    borderRadius: normalize(12),
     width: normalize(190),
-    paddingVertical: normalize(4),
+    paddingVertical: normalize(6),
     elevation: 12,
-    top: normalize(50),
-    right: normalize(12),
+    top: normalize(48),
+    right: normalize(8),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.6,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
     zIndex: 1000,
     borderWidth: 1,
-    borderColor: 'rgba(71, 85, 105, 0.5)',
-    backdropFilter: 'blur(10px)', // For iOS blur effect
+    borderColor: COLORS.border,
   },
   dropdownArrow: {
     position: 'absolute',
-    top: normalize(-6),
-    right: normalize(28),
+    top: normalize(-7),
+    right: normalize(20),
     width: 0,
     height: 0,
     backgroundColor: 'transparent',
@@ -145,36 +162,44 @@ const styles = StyleSheet.create({
     borderBottomWidth: normalize(8),
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: 'rgba(30, 41, 59, 0.95)',
+    borderBottomColor: COLORS.surface,
     zIndex: 1001,
   },
   dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: normalize(14),
-    paddingHorizontal: normalize(16),
+    paddingVertical: normalize(10),
+    paddingHorizontal: normalize(12),
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: COLORS.borderLight,
     backgroundColor: 'transparent',
   },
   dropdownItemFirst: {
-    borderTopLeftRadius: normalize(14),
-    borderTopRightRadius: normalize(14),
+    borderTopLeftRadius: normalize(12),
+    borderTopRightRadius: normalize(12),
   },
   dropdownItemLast: {
     borderBottomWidth: 0,
-    borderBottomLeftRadius: normalize(14),
-    borderBottomRightRadius: normalize(14),
+    borderBottomLeftRadius: normalize(12),
+    borderBottomRightRadius: normalize(12),
   },
-  dropdownIcon: {
-    marginRight: normalize(12),
+  iconContainer: {
+    width: normalize(30),
+    height: normalize(30),
+    borderRadius: normalize(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: normalize(10),
   },
   dropdownItemText: {
-    fontSize: normalize(14),
+    fontSize: normalize(13),
     fontWeight: '600',
     color: COLORS.text,
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
     flex: 1,
+  },
+  dropdownItemTextDanger: {
+    color: COLORS.danger,
   },
 });
 

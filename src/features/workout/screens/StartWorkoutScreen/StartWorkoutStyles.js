@@ -87,18 +87,23 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
 
-  timerContainer: {
-    position: 'relative',
-    width: normalize(90),
-    height: normalize(40),
+timerContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: normalize(20),
+    paddingHorizontal: normalize(14),
+    paddingVertical: normalize(10),
+    backgroundColor: '#151B23',
+    borderRadius: normalize(12),
     borderWidth: 1,
-    borderColor: COLORS.primaryBorder,
-  },
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+},
 
+timerText: {
+    fontSize: normalize(15),
+    fontWeight: '700',
+    color: '#9CA3AF',
+    letterSpacing: 0.5,
+},
   timerProgress: {
     position: 'absolute',
     width: '100%',

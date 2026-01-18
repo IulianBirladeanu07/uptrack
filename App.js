@@ -34,35 +34,55 @@ import CreateSplitScreen from './src/features/workout/screens/CreateSplitScreen/
 import WeightTracker from './src/features/nutrition/components/WeightTracker/WeightTracker';
 import ViewSplitScreen from './src/features/workout/screens/CreateSplitScreen/components/ViewSplitScreen';
 import CreateExerciseScreen from './src/features/workout/screens/CreateExerciseScreen/CreateExerciseScreen';
+import ExerciseHistory from './src/features/workout/components/ExerciseInput/ExerciseHistory';
 
 const Stack = createNativeStackNavigator();
 
 const AuthenticatedScreens = React.memo(() => (
   <FoodProvider>
     <WorkoutProvider>
-      <Stack.Navigator>
-        <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Workout" component={WorkoutScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Nutrition" component={NutritionScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Progress" component={ProgressScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="CustomFood" component={CustomFoodScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="WorkoutHistory" component={WorkoutHistory} options={{ headerShown: false }} />
-        <Stack.Screen name="WorkoutDetails" component={WorkoutDetails} options={{ headerShown: false }} />
-        <Stack.Screen name="Measurements" component={MeasurementScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="StartWorkout" component={StartWorkout} options={{ headerShown: false }} />
-        <Stack.Screen name="ExerciseSelection" component={ExerciseSelectionScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="WorkoutLibrary" component={WorkoutLibraryScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="CreateWorkout" component={CreateWorkout} options={{ headerShown: false }} />
-        <Stack.Screen name="FoodSelection" component={FoodSelectionScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="FoodDetail" component={FoodDetailScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="CreateSplit" component={CreateSplitScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="WeightTracker" component={WeightTracker} options={{ headerShown: false }} />
-        <Stack.Screen name="ViewSplit" component={ViewSplitScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="CreateExercise" component={CreateExerciseScreen} options={{ headerShown: false }} />
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          cardStyle: { backgroundColor: '#0A0E13' },
+          contentStyle: { backgroundColor: '#0A0E13' },
+          animation: 'fade',
+          animationDuration: 180,
+        }}
+      >
+        <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        <Stack.Screen name="Workout" component={WorkoutScreen} />
+        <Stack.Screen name="Nutrition" component={NutritionScreen} />
+        <Stack.Screen name="Progress" component={ProgressScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        <Stack.Screen name="CustomFood" component={CustomFoodScreen} />
+        <Stack.Screen name="WorkoutHistory" component={WorkoutHistory} />
+        <Stack.Screen name="WorkoutDetails" component={WorkoutDetails} />
+        <Stack.Screen name="Measurements" component={MeasurementScreen} />
+        
+        <Stack.Screen 
+          name="StartWorkout" 
+          component={StartWorkout} 
+          options={{ 
+            presentation: 'card',
+            gestureEnabled: false,
+            animation: 'simple_push',
+          }} 
+        />
+        
+        <Stack.Screen name="ExerciseSelection" component={ExerciseSelectionScreen} />
+        <Stack.Screen name="ExerciseHistory" component={ExerciseHistory} />
+        <Stack.Screen name="WorkoutLibrary" component={WorkoutLibraryScreen} />
+        <Stack.Screen name="CreateWorkout" component={CreateWorkout} />
+        <Stack.Screen name="FoodSelection" component={FoodSelectionScreen} />
+        <Stack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} />
+        <Stack.Screen name="FoodDetail" component={FoodDetailScreen} />
+        <Stack.Screen name="CreateSplit" component={CreateSplitScreen} />
+        <Stack.Screen name="WeightTracker" component={WeightTracker} />
+        <Stack.Screen name="ViewSplit" component={ViewSplitScreen} />
+        <Stack.Screen name="CreateExercise" component={CreateExerciseScreen} />
       </Stack.Navigator>
     </WorkoutProvider>
   </FoodProvider>

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, memo } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -7,13 +7,15 @@ import Animated, {
   withTiming,
   interpolate,
   Extrapolation,
+  runOnJS,
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 
 const CONSTANTS = {
-  DELETE_BUTTON_WIDTH: normalize(50),
+  DELETE_THRESHOLD: -80,
   SPRING_CONFIG: { damping: 20, stiffness: 300 },
   TIMING_CONFIG: { duration: 150 },
   MAX_NAME_LENGTH: 35,
@@ -116,19 +118,6 @@ const PlusButton = memo(({ isChecked, onPress, showButton }) => {
   );
 });
 
-const DeleteButton = memo(({ onPress, animatedStyle }) => (
-  <Animated.View style={[styles.deleteButton, animatedStyle]}>
-    <TouchableOpacity
-      onPress={onPress}
-      style={styles.deleteTouch}
-      hitSlop={styles.hitSlop}
-      activeOpacity={0.7}
-    >
-      <MaterialCommunityIcons name="trash-can-outline" size={22} color="#fff" />
-    </TouchableOpacity>
-  </Animated.View>
-));
-
 const CaloriesDisplay = memo(({ calories, customStyles }) => (
   <View style={styles.caloriesDisplay}>
     <Text style={customStyles.caloriesValue}>{calories}</Text>
@@ -156,39 +145,61 @@ const FoodInfo = memo(
   )
 );
 
-const useSwipeAnimation = (shouldAnimate) => {
+const useSwipeAnimation = (shouldAnimate, onDelete) => {
   const translateX = useSharedValue(0);
-  const deleteOpacity = useSharedValue(0);
+  const deleteProgress = useSharedValue(0);
+  const hasTriggeredHaptic = useSharedValue(false);
+
+  const confirmDelete = useCallback(() => {
+    Alert.alert(
+      "Delete Item",
+      "Are you sure you want to delete this food item?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+          onPress: () => {
+            translateX.value = withSpring(0, CONSTANTS.SPRING_CONFIG);
+            deleteProgress.value = withSpring(0, CONSTANTS.SPRING_CONFIG);
+          }
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => onDelete?.()
+        }
+      ]
+    );
+  }, [onDelete, translateX, deleteProgress]);
 
   const gesture = shouldAnimate
     ? Gesture.Pan()
-        .activeOffsetX([-15, 15])
+        .activeOffsetX([-8, 8])
         .failOffsetY([-8, 8])
-        .minPointers(1)
-        .maxPointers(1)
         .onUpdate((event) => {
-          const dragX = Math.min(0, event.translationX);
-          translateX.value = dragX > -CONSTANTS.DELETE_BUTTON_WIDTH ? dragX : -CONSTANTS.DELETE_BUTTON_WIDTH;
-          deleteOpacity.value = interpolate(
-            -dragX,
-            [0, CONSTANTS.DELETE_BUTTON_WIDTH],
-            [0, 1],
-            Extrapolation.CLAMP
-          );
+          const x = Math.max(CONSTANTS.DELETE_THRESHOLD, Math.min(0, event.translationX));
+          const newProgress = Math.abs(x / CONSTANTS.DELETE_THRESHOLD);
+          
+          translateX.value = x;
+          deleteProgress.value = newProgress;
+          
+          if (!hasTriggeredHaptic.value && newProgress >= 1) {
+            hasTriggeredHaptic.value = true;
+            runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+          }
         })
         .onEnd((event) => {
-          const shouldSnap = event.translationX < -CONSTANTS.DELETE_BUTTON_WIDTH * 0.5;
-          if (shouldSnap) {
-            translateX.value = withSpring(-CONSTANTS.DELETE_BUTTON_WIDTH, CONSTANTS.SPRING_CONFIG);
-            deleteOpacity.value = withSpring(1, CONSTANTS.SPRING_CONFIG);
+          if (event.translationX < CONSTANTS.DELETE_THRESHOLD) {
+            runOnJS(confirmDelete)();
           } else {
             translateX.value = withSpring(0, CONSTANTS.SPRING_CONFIG);
-            deleteOpacity.value = withSpring(0, CONSTANTS.SPRING_CONFIG);
+            deleteProgress.value = withSpring(0, CONSTANTS.SPRING_CONFIG);
           }
+          hasTriggeredHaptic.value = false;
         })
     : null;
 
-  return { translateX, deleteOpacity, gesture };
+  return { translateX, deleteProgress, gesture };
 };
 
 const usePressAnimation = () => {
@@ -252,7 +263,12 @@ const FoodItem = memo(
     });
 
     const shouldAnimate = isFoodDeletable && !isScrolling;
-    const { translateX, deleteOpacity, gesture } = useSwipeAnimation(shouldAnimate);
+    
+    const handleDelete = useCallback(() => {
+      onSwipeableOpen?.(item);
+    }, [item, onSwipeableOpen]);
+
+    const { translateX, deleteProgress, gesture } = useSwipeAnimation(shouldAnimate, handleDelete);
     const { scale, animatePress } = usePressAnimation();
 
     const handlePlusPress = useCallback(() => {
@@ -265,20 +281,35 @@ const FoodItem = memo(
       onPress?.(item);
     }, [item, onPress, animatePress]);
 
-    const handleDelete = useCallback(() => {
-      onSwipeableOpen?.(item);
-    }, [item, onSwipeableOpen]);
+    const containerStyle = useAnimatedStyle(() => {
+      const progress = deleteProgress.value;
+      const rowScale = 1 - (progress * 0.02);
+      
+      return shouldAnimate
+        ? {
+            transform: [
+              { translateX: translateX.value },
+              { scale: rowScale }
+            ],
+          }
+        : {
+            transform: [{ scale: scale.value }]
+          };
+    }, [shouldAnimate]);
 
-    const containerStyle = useAnimatedStyle(() => ({
-      transform: shouldAnimate
-        ? [{ translateX: translateX.value }, { scale: scale.value }]
-        : [{ scale: scale.value }],
-    }), [shouldAnimate]);
-
-    const deleteButtonStyle = useAnimatedStyle(() => ({
-      width: CONSTANTS.DELETE_BUTTON_WIDTH,
-      opacity: deleteOpacity.value,
-    }), []);
+    const trashStyle = useAnimatedStyle(() => {
+      const progress = deleteProgress.value;
+      const iconScale = 1 + (progress * 0.15);
+      const rotate = progress * 90;
+      
+      return {
+        opacity: progress,
+        transform: [
+          { scale: iconScale },
+          { rotate: `${rotate}deg` }
+        ],
+      };
+    }, []);
 
     const Content = (
       <TouchableOpacity
@@ -286,11 +317,7 @@ const FoodItem = memo(
         style={styles.touchable}
         activeOpacity={0.9}
         delayPressIn={0}
-        delayLongPress={300}
-        delayPressOut={0}
         disabled={false}
-        shouldActivateOnStart={false}
-        pressRetentionOffset={{ top: 10, left: 10, bottom: 10, right: 10 }}
       >
         <View style={customStyles.item}>
           <FoodImage uri={item.image} icon={itemData.icon} style={customStyles.image} isScrolling={isScrolling} />
@@ -309,28 +336,36 @@ const FoodItem = memo(
       </TouchableOpacity>
     );
 
-  if (!isFoodDeletable) {
+    if (!isFoodDeletable) {
+      return (
+        <View style={[
+          customStyles.container,
+          isChecked && styles.containerSelected
+        ]}>
+          {Content}
+        </View>
+      );
+    }
+
     return (
       <View style={[
         customStyles.container,
         isChecked && styles.containerSelected
       ]}>
-        {Content}
+        <View style={styles.deleteButtonContainer}>
+          <Animated.View style={[styles.deleteIconWrapper, trashStyle]}>
+            <MaterialCommunityIcons 
+              name="trash-can-outline" 
+              size={normalize(20)} 
+              color="#DC2626" 
+            />
+          </Animated.View>
+        </View>
+        <GestureDetector gesture={gesture}>
+          <Animated.View style={containerStyle}>{Content}</Animated.View>
+        </GestureDetector>
       </View>
     );
-  }
-
-  return (
-    <View style={[
-      customStyles.container,
-      isChecked && styles.containerSelected
-    ]}>
-      <DeleteButton onPress={handleDelete} animatedStyle={deleteButtonStyle} />
-      <GestureDetector gesture={gesture}>
-        <Animated.View style={containerStyle}>{Content}</Animated.View>
-      </GestureDetector>
-    </View>
-  );
   },
 );
 
@@ -482,25 +517,23 @@ const styles = StyleSheet.create({
     shadowColor: '#10b981',
   },
   
-  deleteButton: {
+  deleteButtonContainer: {
     position: 'absolute',
-    right: 0,
+    right: normalize(16),
     top: 0,
     bottom: 0,
-    backgroundColor: '#DC2626',
     justifyContent: 'center',
     alignItems: 'center',
-    borderTopRightRadius: normalize(14),
-    borderBottomRightRadius: normalize(14),
-    zIndex: 2,
+    zIndex: 1,
   },
-  
-  deleteTouch: {
-    flex: 1,
-    width: '100%',
+
+  deleteIconWrapper: {
+    width: normalize(40),
+    height: normalize(40),
+    borderRadius: normalize(14),
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: normalize(8),
+    backgroundColor: 'rgba(220, 38, 38, 0.1)',
   },
   
   quantityLabel: {

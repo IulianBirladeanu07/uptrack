@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSetsFromLastWorkout } from '../handlers/WorkoutHandler';
 
 class WorkoutService {
   constructor() {
@@ -8,6 +9,7 @@ class WorkoutService {
     this.batchingUpdates = false;
     this.workoutStartTime = null;
     this.workoutNote = '';
+    this.lastSetCache = new Map();
   }
 
   subscribe(listener) {
@@ -71,6 +73,7 @@ class WorkoutService {
     this.exerciseData = [];
     this.workoutStartTime = null;
     this.workoutNote = '';
+    this.lastSetCache.clear();
     await AsyncStorage.removeItem('activeWorkout');
     this.notifyListeners();
   }
@@ -104,6 +107,86 @@ class WorkoutService {
     return [...this.exerciseData];
   }
 
+  async fetchLastSets(exerciseName) {
+    if (this.lastSetCache.has(exerciseName)) {
+      return this.lastSetCache.get(exerciseName);
+    }
+    
+    try {
+      const sets = await getSetsFromLastWorkout(exerciseName);
+      this.lastSetCache.set(exerciseName, sets);
+      return sets;
+    } catch (error) {
+      console.error(`Error fetching last sets for ${exerciseName}:`, error);
+      return [];
+    }
+  }
+
+  async loadWorkoutFromTemplate(templateExercises) {
+    if (!Array.isArray(templateExercises) || templateExercises.length === 0) {
+      return [];
+    }
+
+    const validExercises = templateExercises.filter(e => e && e.exerciseName);
+    
+    const exerciseNames = validExercises.map(e => e.exerciseName);
+    const lastSetsPromises = exerciseNames.map(name => this.fetchLastSets(name));
+    const allLastSets = await Promise.all(lastSetsPromises);
+    
+    const exercisesWithHistory = validExercises.map((ex, idx) => {
+      const lastSets = allLastSets[idx];
+      
+      if (ex.sets && ex.sets.length > 0 && ex.sets[0].weight !== undefined) {
+        return {
+          ...ex,
+          lastWorkoutSets: lastSets,
+          sets: ex.sets.map(set => ({
+            weight: set.weight || '',
+            reps: set.reps || '',
+            isValidated: false,
+            repsModified: false
+          })),
+          repRange: ex.repRange || '',
+        };
+      }
+      
+      const numSets = parseInt(ex.numSets) || 1;
+      const repRangeMatch = ex.repRange?.match(/(\d+)-(\d+)/);
+      let defaultReps;
+      
+      if (repRangeMatch) {
+        const minReps = parseInt(repRangeMatch[1]);
+        const maxReps = parseInt(repRangeMatch[2]);
+        defaultReps = Array.from({length: numSets}, (_, i) => 
+          i === 0 ? maxReps.toString() : minReps.toString()
+        );
+      } else {
+        defaultReps = Array(numSets).fill('');
+      }
+      
+      const sets = Array.from({length: numSets}, (_, i) => {
+        const previousSet = lastSets[i];
+        return {
+          weight: previousSet?.weight || '',
+          reps: previousSet?.reps || defaultReps[i] || '',
+          isValidated: false,
+          repsModified: false
+        };
+      });
+      
+      return {
+        ...ex,
+        lastWorkoutSets: lastSets,
+        sets,
+        repRange: ex.repRange || '',
+      };
+    });
+    
+    this.exerciseData = exercisesWithHistory;
+    this.notifyListeners();
+    return [...this.exerciseData];
+  }
+
   updateWeight(exerciseIndex, setIndex, value) {
     if (!this.exerciseData[exerciseIndex]?.sets[setIndex]) return;
     
@@ -112,7 +195,8 @@ class WorkoutService {
     this.exerciseData[exerciseIndex].sets = [...this.exerciseData[exerciseIndex].sets];
     this.exerciseData[exerciseIndex].sets[setIndex] = { 
       ...this.exerciseData[exerciseIndex].sets[setIndex],
-      weight: value 
+      weight: value,
+      weightModified: true
     };
     
     this.notifyListeners();
@@ -126,7 +210,8 @@ class WorkoutService {
     this.exerciseData[exerciseIndex].sets = [...this.exerciseData[exerciseIndex].sets];
     this.exerciseData[exerciseIndex].sets[setIndex] = { 
       ...this.exerciseData[exerciseIndex].sets[setIndex],
-      reps: value 
+      reps: value,
+      repsModified: true
     };
     
     this.notifyListeners();
@@ -181,14 +266,14 @@ class WorkoutService {
     if (!this.exerciseData[exerciseIndex]) return;
     
     const exercise = this.exerciseData[exerciseIndex];
-    const repRangeMatch = exercise.repRange ? exercise.repRange.match(/(\d+)-(\d+)/) : null;
-    const minReps = repRangeMatch ? parseInt(repRangeMatch[1]).toString() : '';
+    const lastSet = exercise.sets[exercise.sets.length - 1];
     
     const newSet = {
-      weight: '',
-      reps: minReps,
+      weight: lastSet?.weight || '',
+      reps: lastSet?.reps || '',
       isValidated: false,
-      repsModified: false
+      repsModified: false,
+      weightModified: false
     };
 
     const newData = this.exerciseData.map((ex, idx) => {
@@ -203,12 +288,20 @@ class WorkoutService {
     this.notifyListeners();
   }
 
-  deleteSet(exerciseIndex, setIndex) {
+deleteSet(exerciseIndex, setIndex, onLastSetDelete) {
     if (!this.exerciseData[exerciseIndex]?.sets[setIndex]) return;
     
     const exercise = this.exerciseData[exerciseIndex];
     
     if (exercise.sets.length <= 1) {
+      if (onLastSetDelete && typeof onLastSetDelete === 'function') {
+        onLastSetDelete(() => {
+          this.exerciseData = this.exerciseData.filter((_, idx) => idx !== exerciseIndex);
+          this.notifyListeners();
+        });
+        return;
+      }
+      
       this.exerciseData = this.exerciseData.filter((_, idx) => idx !== exerciseIndex);
       this.notifyListeners();
       return;
@@ -225,7 +318,6 @@ class WorkoutService {
     this.exerciseData = newData;
     this.notifyListeners();
   }
-
   deleteExercise(exerciseIndex) {
     this.exerciseData = this.exerciseData.filter((_, idx) => idx !== exerciseIndex);
     this.notifyListeners();

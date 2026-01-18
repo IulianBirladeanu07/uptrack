@@ -4,7 +4,6 @@ import { normalize } from '../../../../shared/hooks/useResponsive';
 
 const PreviousSetDisplay = ({ previousSetData, onPress, setIndex, isCompleted }) => {
   const hasPreviousData = previousSetData && (previousSetData.weight || previousSetData.reps);
-
   return (
     <TouchableOpacity
       style={styles.previousContainer}

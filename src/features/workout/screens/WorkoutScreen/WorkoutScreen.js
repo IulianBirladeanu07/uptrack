@@ -39,7 +39,7 @@ const LiveTimer = ({ startTime }) => {
         const hours = Math.floor(timeInSeconds / 3600);
         const minutes = Math.floor((timeInSeconds % 3600) / 60);
         const seconds = timeInSeconds % 60;
-        
+
         if (hours > 0) {
             return `${hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
         }
@@ -124,9 +124,9 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
                 )}
             </View>
             <View style={styles.startButtonContainer}>
-                <TouchableOpacity 
-                    style={[styles.startButton, hasActiveWorkout && styles.startButtonDisabled]} 
-                    onPress={onStart} 
+                <TouchableOpacity
+                    style={[styles.startButton, hasActiveWorkout && styles.startButtonDisabled]}
+                    onPress={onStart}
                     activeOpacity={0.8}
                     disabled={hasActiveWorkout}
                 >
@@ -140,26 +140,29 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
     );
 });
 
-const WeeklyProgressSection = React.memo(({ completedDays, totalDays }) => {
+const WeeklyProgressSection = React.memo(({ completedDays }) => {
     const daysOfWeek = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     return (
         <View style={styles.progressCard}>
             <View style={styles.progressHeader}>
                 <Text style={styles.sectionTitle}>Weekly Progress</Text>
-                <Text style={styles.progressSubtitle}>{completedDays}/{totalDays} Days</Text>
+                <Text style={styles.progressSubtitle}>{completedDays.length}/7 Days</Text>
             </View>
             <View style={styles.daysContainer}>
-                {daysOfWeek.map((day, index) => (
-                    <View
-                        key={index}
-                        style={[styles.dayCircle, index < completedDays ? styles.activeDayCircle : styles.inactiveDayCircle]}
-                    >
-                        <Text style={[styles.dayText, index >= completedDays && styles.inactiveDayText]}>
-                            {day}
-                        </Text>
-                    </View>
-                ))}
+                {daysOfWeek.map((day, index) => {
+                    const isCompleted = completedDays.includes(index + 1);
+                    return (
+                        <View
+                            key={index}
+                            style={[styles.dayCircle, isCompleted ? styles.activeDayCircle : styles.inactiveDayCircle]}
+                        >
+                            <Text style={[styles.dayText, !isCompleted && styles.inactiveDayText]}>
+                                {day}
+                            </Text>
+                        </View>
+                    );
+                })}
             </View>
         </View>
     );
@@ -173,8 +176,8 @@ const WorkoutActionsSection = React.memo(({ upcomingWorkouts, onPreview }) => {
             </View>
             <View style={styles.upcomingGrid}>
                 {upcomingWorkouts.map((workout, index) => (
-                    <TouchableOpacity 
-                        key={index} 
+                    <TouchableOpacity
+                        key={index}
                         style={[styles.upcomingGridItem, workout.isRest && styles.upcomingGridItemRest]}
                         onPress={() => !workout.isRest && onPreview(workout)}
                         disabled={workout.isRest}
@@ -206,15 +209,80 @@ const WorkoutScreen = () => {
     const [todayWorkout, setTodayWorkout] = useState(null);
     const [upcomingWorkouts, setUpcomingWorkouts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [userStats, setUserStats] = useState({ streak: 0, weeklyTime: '0h 0m', workoutCount: 0 });
 
-    const { activeWorkout } = useContext(WorkoutContext);
+    const { activeWorkout, workoutHistory } = useContext(WorkoutContext);
+
+    const userStats = useMemo(() => {
+        const completedDaysThisWeek = [];
+        const now = new Date();
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay() + 1);
+        weekStart.setHours(0, 0, 0, 0);
+
+        let totalMinutes = 0;
+        let streak = 0;
+
+        if (workoutHistory && workoutHistory.length > 0) {
+            const sortedHistory = [...workoutHistory].sort((a, b) => {
+                const aTime = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0;
+                const bTime = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0;
+                return bTime - aTime;
+            });
+
+            sortedHistory.forEach(workout => {
+                const workoutDate = workout.timestamp?.toDate ? workout.timestamp.toDate() : null;
+                if (!workoutDate) return;
+
+                if (workoutDate >= weekStart) {
+                    const dayOfWeek = workoutDate.getDay();
+                    if (!completedDaysThisWeek.includes(dayOfWeek)) {
+                        completedDaysThisWeek.push(dayOfWeek);
+                    }
+
+                    const duration = workout.duration || '0:00';
+                    const parts = duration.split(':');
+                    if (parts.length === 2) {
+                        totalMinutes += parseInt(parts[0]) * 60 + parseInt(parts[1]);
+                    }
+                }
+            });
+
+            let currentDate = new Date(now);
+            currentDate.setHours(0, 0, 0, 0);
+
+            for (let i = 0; i < sortedHistory.length; i++) {
+                const workoutDate = sortedHistory[i].timestamp?.toDate();
+                if (!workoutDate) break;
+
+                const wDate = new Date(workoutDate);
+                wDate.setHours(0, 0, 0, 0);
+
+                if (wDate.getTime() === currentDate.getTime()) {
+                    streak++;
+                    currentDate.setDate(currentDate.getDate() - 1);
+                } else if (wDate.getTime() < currentDate.getTime()) {
+                    break;
+                }
+            }
+        }
+
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        const weeklyTime = `${hours}h ${mins}m`;
+
+        return {
+            streak,
+            weeklyTime,
+            workoutCount: workoutHistory?.length || 0,
+            completedDaysThisWeek
+        };
+    }, [workoutHistory]);
 
     const loadActiveSplit = useCallback(async () => {
         try {
             setLoading(true);
             const splits = await fetchSplitsFromFirestore();
-            
+
             if (splits.length === 0) {
                 setLoading(false);
                 return;
@@ -222,12 +290,6 @@ const WorkoutScreen = () => {
 
             const active = splits[0];
             setActiveSplit(active);
-            
-            setUserStats({
-                streak: active.data?.streak || 0,
-                weeklyTime: active.data?.weeklyTime || '0h 0m',
-                workoutCount: active.data?.totalWorkouts || 0
-            });
 
             const today = new Date().getDay();
             const todayKey = DAYS_MAP[today];
@@ -250,7 +312,7 @@ const WorkoutScreen = () => {
                 const futureDayKey = DAYS_MAP[futureDay];
                 const workout = schedule?.[futureDayKey];
                 const exercises = workout?.exercises || [];
-                
+
                 if (exercises.length > 0) {
                     const muscleGroups = [...new Set(exercises.map(e => e.muscleGroup))].join(', ');
                     upcoming.push({
@@ -287,12 +349,12 @@ const WorkoutScreen = () => {
     const primaryWorkout = useMemo(() => {
         if (!isRestDay && todayWorkout) return { workout: todayWorkout, isRestDay: false };
         if (upcomingWorkouts.length > 0 && !upcomingWorkouts[0].isRest) {
-            return { 
+            return {
                 workout: {
                     name: upcomingWorkouts[0].name,
                     duration: upcomingWorkouts[0].duration,
                     exercises: upcomingWorkouts[0].exercises
-                }, 
+                },
                 isRestDay: false
             };
         }
@@ -337,7 +399,7 @@ const WorkoutScreen = () => {
         <ApplicationCustomScreen>
             <View style={[styles.container, { paddingBottom: 70 + insets.bottom, paddingHorizontal: normalize(16) }]}>
                 {activeWorkout && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={styles.compactBanner}
                         onPress={handleResumeWorkout}
                         activeOpacity={0.8}
@@ -355,7 +417,7 @@ const WorkoutScreen = () => {
                 )}
 
                 <HeaderSection stats={userStats} />
-                
+
                 <MainWorkoutCard
                     workoutData={primaryWorkout.workout}
                     onPreview={() => primaryWorkout.workout && handlePreviewWorkout(primaryWorkout.workout)}
@@ -365,10 +427,10 @@ const WorkoutScreen = () => {
                     hasActiveWorkout={!!activeWorkout}
                 />
 
-                <WeeklyProgressSection completedDays={userStats.streak % 7} totalDays={7} />
+                <WeeklyProgressSection completedDays={userStats.completedDaysThisWeek} />
 
                 {remainingUpcoming.length > 0 && (
-                    <WorkoutActionsSection 
+                    <WorkoutActionsSection
                         upcomingWorkouts={remainingUpcoming}
                         onPreview={handlePreviewWorkout}
                     />
@@ -399,7 +461,7 @@ const WorkoutScreen = () => {
                                 <Ionicons name="close" size={normalize(18)} color="#FFFFFF" />
                             </TouchableOpacity>
                         </View>
-                        
+
                         <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
                             <View style={styles.modalStatsRow}>
                                 <View style={styles.modalStatItem}>
@@ -439,15 +501,15 @@ const WorkoutScreen = () => {
                                 })}
                             </View>
                         </ScrollView>
-                        
-                        <TouchableOpacity 
+
+                        <TouchableOpacity
                             style={[
                                 styles.modalStartButton,
                                 activeWorkout && styles.modalStartButtonDisabled
-                            ]} 
-                            onPress={() => { 
+                            ]}
+                            onPress={() => {
                                 if (activeWorkout) return;
-                                setIsModalVisible(false); 
+                                setIsModalVisible(false);
                                 navigation.navigate('StartWorkout', {
                                     selectedWorkout: {
                                         note: '',
@@ -462,12 +524,11 @@ const WorkoutScreen = () => {
                             <Text style={styles.modalStartButtonText}>
                                 {activeWorkout ? 'Workout in Progress' : 'Start Workout'}
                             </Text>
-                        </TouchableOpacity>                    
+                        </TouchableOpacity>
                     </View>
                 </Pressable>
             </Modal>
         </ApplicationCustomScreen>
     );
 };
-
 export default React.memo(WorkoutScreen);
