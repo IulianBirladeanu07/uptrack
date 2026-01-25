@@ -25,18 +25,15 @@ const CircularProgress = ({
   const animatedValue = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  // Learning mode logic
   const isLearningMode = !hasTargets;
   const learningProgress = Math.min(daysLogged / requiredDays, 1);
   const daysRemaining = Math.max(requiredDays - daysLogged, 0);
   const isLearningComplete = daysLogged >= requiredDays;
 
-  // Target mode logic
   const isOverconsumed = hasTargets && value > maxValue;
   const absoluteValue = hasTargets ? (isOverconsumed ? value - maxValue : maxValue - value) : value;
   const percentage = hasTargets && maxValue > 0 ? Math.min((value / maxValue) * 100, 100) : 0;
 
-  // Calculate progress (0 to 1)
   let progress;
   if (isLearningMode) {
     progress = learningProgress;
@@ -46,9 +43,6 @@ const CircularProgress = ({
 
   const getProgressColor = () => {
     if (isLearningMode) {
-      // if (learningProgress < 0.3) return "#9CA3AF";
-      // if (learningProgress < 0.7) return "#F59E0B";
-      // if (isLearningComplete) return "#10B981";
       return "#FFA726";
     }
     
@@ -60,7 +54,6 @@ const CircularProgress = ({
 
   const progressColor = getProgressColor();
 
-  // Simple animation - just animate to the progress value
   useEffect(() => {
     Animated.timing(animatedValue, {
       toValue: progress,
@@ -69,10 +62,9 @@ const CircularProgress = ({
     }).start();
   }, [progress, duration]);
 
-  // Calculate stroke dash offset from animated value
   const strokeDashoffset = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [circumference, Math.max(0, circumference * 0.02)], // Leave 2% visible at minimum
+    outputRange: [circumference, Math.max(0, circumference * 0.02)],
   });
 
   const changeView = () => {
@@ -124,10 +116,13 @@ const CircularProgress = ({
         return (
           <View style={styles.textContainer}>
             <Text style={[styles.mainValue, dynamicStyles.mainValue]}>
-              {Math.round(value)}
+              {Math.round(value).toLocaleString()}
             </Text>
             <Text style={[styles.statusText, dynamicStyles.statusText]}>
               {measure} LOGGED
+            </Text>
+            <Text style={[styles.progressText, dynamicStyles.progressText]}>
+              Building baseline
             </Text>
             {renderIndicators()}
           </View>
@@ -153,7 +148,7 @@ const CircularProgress = ({
             {isLearningComplete && weeklyAvgCalories > 0 ? (
               <>
                 <Text style={[styles.mainValue, dynamicStyles.mainValue]}>
-                  {Math.round(weeklyAvgCalories)}
+                  {Math.round(weeklyAvgCalories).toLocaleString()}
                 </Text>
                 <Text style={[styles.statusText, dynamicStyles.statusText]}>
                   WEEKLY AVG
@@ -189,10 +184,13 @@ const CircularProgress = ({
         return (
           <View style={styles.textContainer}>
             <Text style={[styles.mainValue, dynamicStyles.mainValue]}>
-              {Math.round(absoluteValue)}
+              {Math.round(absoluteValue).toLocaleString()}
             </Text>
             <Text style={[styles.statusText, dynamicStyles.statusText]}>
               {isOverconsumed ? `${measure} OVER` : `${measure} LEFT`}
+            </Text>
+            <Text style={[styles.progressText, dynamicStyles.progressText]}>
+              {Math.round(value).toLocaleString()} / {Math.round(maxValue).toLocaleString()}
             </Text>
             {renderIndicators()}
           </View>
@@ -207,7 +205,7 @@ const CircularProgress = ({
               COMPLETE
             </Text>
             <Text style={[styles.progressText, dynamicStyles.progressText]}>
-              {Math.round(value)} / {Math.round(maxValue)}
+              {Math.round(value).toLocaleString()} / {Math.round(maxValue).toLocaleString()}
             </Text>
             {renderIndicators()}
           </View>
@@ -223,7 +221,6 @@ const CircularProgress = ({
     <TouchableOpacity onPress={changeView} style={styles.container}>
       <View style={styles.svgContainer}>
         <Svg height={size} width={size} viewBox={`0 0 ${size} ${size}`}>
-          {/* Trail circle */}
           <Circle
             cx={size / 2}
             cy={size / 2}
@@ -232,7 +229,6 @@ const CircularProgress = ({
             strokeWidth={strokeWidth}
             fill="transparent"
           />
-          {/* Progress circle */}
           <AnimatedCircle
             cx={size / 2}
             cy={size / 2}
@@ -248,7 +244,7 @@ const CircularProgress = ({
         </Svg>
       </View>
       <Animated.View style={[styles.contentContainer, { opacity: fadeAnim }]}>
-        { isLearningMode ? renderLearningView() : renderTargetView()}
+        {isLearningMode ? renderLearningView() : renderTargetView()}
       </Animated.View>
     </TouchableOpacity>
   );

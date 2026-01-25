@@ -1,81 +1,382 @@
 import { StyleSheet, Platform } from 'react-native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 
-const COLORS = {
-  background: '#0A0E13',
-  navBackground: 'rgba(21, 27, 35, 0.95)',
-  
+export const COLORS = {
+  bg: '#0A0E13',
+  surface: '#151B23',
+  surfaceLight: 'rgba(255, 255, 255, 0.05)',
+  primary: '#FF9500',
+  primaryAlpha: 'rgba(255, 149, 0, 0.3)',
+  primaryFaded: 'rgba(255, 149, 0, 0.15)',
+  success: '#32D74B',
+  successFaded: 'rgba(50, 215, 75, 0.15)',
+  purple: '#9333EA',
+  purpleFaded: 'rgba(147, 51, 234, 0.15)',
+  cyan: '#00d4ff',
+  cyanFaded: 'rgba(0, 212, 255, 0.15)',
+  stepsRed: '#FF5722',
+  stepsRedFaded: 'rgba(255, 87, 34, 0.15)',
   textPrimary: '#F9FAFB',
   textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
-  
-  accentPrimary: '#FF9500',
-  accentDark: '#E68600',
-  
+  textTertiary: '#6B7280',
   border: 'rgba(255, 255, 255, 0.08)',
-  borderDivider: 'rgba(255, 255, 255, 0.05)',
+  accentPrimaryFaded: 'rgba(255, 149, 0, 0.15)',
 };
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    padding: normalize(15),
+    backgroundColor: COLORS.bg,
   },
-
+  content: {
+    flex: 1,
+  },
+  cardLabel: {
+    fontSize: normalize(10),
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    letterSpacing: 0.8,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: normalize(6),
+  },
+  workoutCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: normalize(18),
+    padding: normalize(18),
+    marginBottom: normalize(20),
+    borderWidth: normalize(1),
+    borderColor: COLORS.border,
+  },
+  workoutContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: normalize(12),
+    gap: normalize(14),
+  },
+  restIconContainer: {
+    width: normalize(52),
+    height: normalize(52),
+    borderRadius: normalize(26),
+    backgroundColor: COLORS.cyanFaded,
+    borderWidth: normalize(1),
+    borderColor: 'rgba(0, 212, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  workoutInfo: {
+    flex: 1,
+  },
+  workoutTitle: {
+    fontSize: normalize(20),
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginBottom: normalize(5),
+    letterSpacing: normalize(-0.3),
+  },
+  workoutSubtitle: {
+    fontSize: normalize(13),
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  workoutMeta: {
+    flexDirection: 'row',
+    gap: normalize(12),
+    alignItems: 'center',
+  },
+  metaText: {
+    fontSize: normalize(13),
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  playButton: {
+    width: normalize(42),
+    height: normalize(42),
+    borderRadius: normalize(21),
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nutritionCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: normalize(18),
+    padding: normalize(18),
+    marginBottom: normalize(20),
+    borderWidth: normalize(1),
+    borderColor: COLORS.border,
+  },
+  nutritionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: normalize(14),
+  },
+  percentageBadge: {
+    backgroundColor: COLORS.accentPrimaryFaded,
+    borderWidth: normalize(1),
+    borderColor: COLORS.primaryAlpha,
+    paddingHorizontal: normalize(8),
+    paddingVertical: normalize(4),
+    borderRadius: normalize(6),
+  },
+  percentageText: {
+    fontSize: normalize(10),
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  caloriesRow: {
+    marginBottom: normalize(12),
+  },
+  caloriesValues: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: normalize(6),
+  },
+  caloriesValue: {
+    fontSize: normalize(32),
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    letterSpacing: normalize(-1),
+  },
+  caloriesTarget: {
+    fontSize: normalize(18),
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+    marginLeft: normalize(4),
+  },
+  remainingText: {
+    fontSize: normalize(13),
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  nutritionProgress: {
+    height: normalize(8),
+    backgroundColor: COLORS.border,
+    borderRadius: normalize(10),
+    overflow: 'hidden',
+    marginBottom: normalize(14),
+  },
+  nutritionProgressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: normalize(10),
+  },
+  macroRow: {
+    flexDirection: 'row',
+    gap: normalize(10),
+  },
+  macroItem: {
+    flex: 1,
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: normalize(12),
+    padding: normalize(12),
+    borderWidth: normalize(1),
+    borderColor: COLORS.border,
+  },
+  macroHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: normalize(4),
+    marginBottom: normalize(8),
+  },
+  macroDot: {
+    width: normalize(6),
+    height: normalize(6),
+    borderRadius: normalize(3),
+  },
+  macroLabel: {
+    fontSize: normalize(9),
+    color: COLORS.textSecondary,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  macroValue: {
+    fontSize: normalize(16),
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    letterSpacing: normalize(-0.3),
+  },
+  weeklyCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: normalize(18),
+    padding: normalize(18),
+    marginBottom: normalize(20),
+    borderWidth: normalize(1),
+    borderColor: COLORS.border,
+  },
+  weeklyCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: normalize(20),
+  },
+  chartTitle: {
+    fontSize: normalize(11),
+    fontWeight: '600',
+    color: COLORS.textTertiary,
+  },
+  chartContainer: {
+    flexDirection: 'row',
+    marginBottom: normalize(24),
+    marginTop: normalize(8),
+  },
+  yAxisLabels: {
+    width: normalize(42),
+    justifyContent: 'space-between',
+    paddingRight: normalize(10),
+    paddingVertical: normalize(4),
+  },
+  yAxisLabel: {
+    fontSize: normalize(9),
+    color: COLORS.textTertiary,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  chartWrapper: {
+    flex: 1,
+    height: normalize(120),
+    position: 'relative',
+  },
+  chartGridLines: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'space-between',
+    paddingVertical: normalize(4),
+  },
+  gridLine: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    opacity: 0.3,
+  },
+  barsContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingTop: normalize(20),
+  },
+  barColumn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  barWrapper: {
+    width: '100%',
+    height: normalize(100),
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: normalize(2),
+  },
+  barValue: {
+    fontSize: normalize(9),
+    fontWeight: '700',
+    color: COLORS.textTertiary,
+    marginBottom: normalize(4),
+  },
+  barValueToday: {
+    color: COLORS.primary,
+  },
+  bar: {
+    width: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: normalize(4),
+    minHeight: normalize(4),
+    opacity: 0.5,
+  },
+  barToday: {
+    opacity: 1,
+  },
+  dayLabel: {
+    fontSize: normalize(10),
+    color: COLORS.textTertiary,
+    fontWeight: '600',
+    marginTop: normalize(6),
+  },
+  dayLabelToday: {
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  weeklyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: normalize(12),
+    justifyContent: 'center',
+  },
+  weeklyStatItem: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: normalize(10),
+    paddingVertical: normalize(4),
+  },
+  weeklyIconContainer: {
+    width: normalize(36),
+    height: normalize(36),
+    borderRadius: normalize(10),
+    borderWidth: normalize(1),
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  weeklyStatText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  weeklyStatValue: {
+    fontSize: normalize(16),
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    letterSpacing: normalize(-0.3),
+    marginBottom: normalize(2),
+  },
+  weeklyStatLabel: {
+    fontSize: normalize(10),
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
   bottomNav: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.navBackground,
+    backgroundColor: COLORS.surface,
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    alignItems: 'center',
-    paddingHorizontal: normalize(12),
+    paddingHorizontal: normalize(8),
+    paddingTop: normalize(6),
     borderTopWidth: normalize(1),
-    borderTopColor: COLORS.borderDivider,
+    borderTopColor: COLORS.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: normalize(-2) },
+        shadowOpacity: 0.15,
+        shadowRadius: normalize(8),
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
-
   navItem: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: normalize(12),
+    gap: normalize(5),
   },
-
-  navItemContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    paddingVertical: normalize(4),
-  },
-
-  activeBackground: {
-    position: 'absolute',
-  },
-
-  iconWrapper: {
-    width: normalize(45),
-    height: normalize(45),
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-
   navLabel: {
-    fontSize: normalize(10),
-    color: COLORS.textMuted,
+    fontSize: normalize(9),
+    color: COLORS.textTertiary,
     fontWeight: '500',
-    letterSpacing: 0.2,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    marginTop: normalize(2),
-    zIndex: 1,
   },
-
   navLabelActive: {
-    color: COLORS.accentPrimary,
-    fontWeight: '700',
+    color: COLORS.primary,
+    fontWeight: '600',
   },
 });
-
-export default styles;

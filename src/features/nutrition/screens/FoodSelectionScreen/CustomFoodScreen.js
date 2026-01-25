@@ -56,11 +56,7 @@ const FoodInfoField = memo(forwardRef(({ label, field, iconName, unit, nextField
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
-}), (prevProps, nextProps) => (
-  prevProps.value === nextProps.value &&
-  prevProps.error === nextProps.error &&
-  prevProps.field === nextProps.field
-));
+}));
 
 const NutrientDataField = memo(forwardRef(({ field, label, color, iconName, unit, width, nextField, value, onChangeText, onFocus, onSubmitEditing }, ref) => {
   const textInputRef = useRef(null);
@@ -105,15 +101,14 @@ const NutrientDataField = memo(forwardRef(({ field, label, color, iconName, unit
       </View>
     </View>
   );
-}), (prevProps, nextProps) => (
-  prevProps.value === nextProps.value && prevProps.field === nextProps.field
-));
+}));
 
 const Footer = memo(({ foodData, handleSubmit, onAmountChange, visible }) => {
   if (!visible) return null;
 
-  const canSubmit = !!foodData.productName;
-  const calories = foodData.calories || 0;
+  const canSubmit = !!foodData.productName && !!foodData.calories;
+  // Apply the thousands separator for the preview
+  const formattedKcal = Math.round(foodData.calories || 0).toLocaleString();
 
   return (
     <View style={styles.footer}>
@@ -142,18 +137,12 @@ const Footer = memo(({ foodData, handleSubmit, onAmountChange, visible }) => {
       >
         <MaterialCommunityIcons name="plus" size={24} color={COLORS.background} />
         <Text style={styles.addButtonText}>
-          Add to Diary • {calories} kcal
+          Add to Diary • {formattedKcal} kcal
         </Text>
       </TouchableOpacity>
     </View>
   );
-}, (prevProps, nextProps) => (
-  prevProps.visible === nextProps.visible &&
-  prevProps.foodData.amount === nextProps.foodData.amount &&
-  prevProps.foodData.productName === nextProps.foodData.productName &&
-  prevProps.foodData.calories === nextProps.foodData.calories
-));
-
+});
 
 const CustomFoodScreen = () => {
   const route = useRoute();
@@ -179,6 +168,13 @@ const CustomFoodScreen = () => {
     focusFirstField
   } = useCustomFood(type, navigation, remainingCalories, barcode, meal, selectedDate, inputRefs);
 
+  // BUG FIX: Ensure barcode from navigation is synced to state on mount
+  useEffect(() => {
+    if (barcode) {
+      handleFieldChange('barcode', barcode);
+    }
+  }, [barcode]);
+
   const handleFieldFocus = useCallback((field) => {
     setCurrentFocusedField(field);
     originalHandleFieldFocus(field);
@@ -188,7 +184,7 @@ const CustomFoodScreen = () => {
       if (inputRef && inputRef.measure && scrollViewRef.current) {
         inputRef.measure((x, y, width, height, pageX, pageY) => {
           scrollViewRef.current?.scrollTo({ 
-            y: Math.max(0, pageY - 100), 
+            y: Math.max(0, pageY - 150), 
             animated: true 
           });
         });
@@ -201,24 +197,21 @@ const CustomFoodScreen = () => {
   };
 
   const showFooter = !keyboardVisible || currentFocusedField === 'amount';
-  const shouldShowBarcode = useMemo(() => type === 'foodWithBarcode', [type]);
+  const shouldShowBarcode = type === 'foodWithBarcode';
 
   useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboardVisible(true)
-    );
-    const keyboardDidHideListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardVisible(false)
-    );
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    
+    const showListener = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideListener = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
 
     const timer = setTimeout(focusFirstField, 300);
 
     return () => {
       clearTimeout(timer);
-      keyboardDidHideListener.remove();
-      keyboardDidShowListener.remove();
+      showListener.remove();
+      hideListener.remove();
     };
   }, [focusFirstField]);
 
@@ -237,20 +230,17 @@ const CustomFoodScreen = () => {
 
   const screenTitle = useMemo(() => {
     switch (type) {
-      case 'foodWithoutBarcode': return 'Create Your Own Food';
-      case 'foodWithBarcode': return 'Add Food with Barcode';
-      case 'meals': return 'Add a Meal';
-      case 'customFood': return 'Add Custom Food';
-      default: return 'Add Food';
+      case 'foodWithoutBarcode': return 'Create Food';
+      case 'foodWithBarcode': return 'Add Barcode Food';
+      default: return 'Custom Food';
     }
   }, [type]);
 
   return (
     <View style={styles.container}>
       <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           ref={scrollViewRef}
@@ -260,33 +250,27 @@ const CustomFoodScreen = () => {
             (keyboardVisible && !showFooter) && { paddingBottom: 20 }
           ]}
           keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled={true}
         >
           <Text style={styles.header}>{screenTitle}</Text>
 
           <View style={styles.tabContainer}>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'essential' && styles.activeTab]}
-              onPress={() => setActiveTab('essential')}
-            >
-              <Text style={[styles.tabText, activeTab === 'essential' && styles.activeTabText]}>
-                Essential
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'detailed' && styles.activeTab]}
-              onPress={() => setActiveTab('detailed')}
-            >
-              <Text style={[styles.tabText, activeTab === 'detailed' && styles.activeTabText]}>
-                Detailed
-              </Text>
-            </TouchableOpacity>
+            {['essential', 'detailed'].map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tab, activeTab === tab && styles.activeTab]}
+                onPress={() => setActiveTab(tab)}
+              >
+                <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           <FoodInfoField
             label="Name"
             field="productName"
-            iconName="food"
+            iconName="food-apple"
             nextField={shouldShowBarcode ? 'barcode' : 'calories'}
             value={foodData.productName}
             error={errors.productName}
@@ -300,7 +284,7 @@ const CustomFoodScreen = () => {
             <FoodInfoField
               label="Barcode"
               field="barcode"
-              iconName="barcode"
+              iconName="barcode-scan"
               nextField="calories"
               value={foodData.barcode}
               error={errors.barcode}
@@ -325,41 +309,24 @@ const CustomFoodScreen = () => {
             ref={registerInputRef('calories')}
           />
 
-          {activeTab === 'essential' ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Macronutrients</Text>
-              <View style={styles.nutrientRow}>
-                {macronutrients.map((nutrient) => (
-                  <NutrientDataField
-                    key={nutrient.field}
-                    {...nutrient}
-                    value={foodData[nutrient.field]}
-                    onChangeText={handleFieldChange}
-                    onFocus={handleFieldFocus}
-                    onSubmitEditing={handleSubmitEditing}
-                    ref={registerInputRef(nutrient.field)}
-                  />
-                ))}
-              </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {activeTab === 'essential' ? 'Macronutrients' : 'Additional Nutrients'}
+            </Text>
+            <View style={activeTab === 'essential' ? styles.nutrientRow : styles.otherNutrientGrid}>
+              {(activeTab === 'essential' ? macronutrients : otherNutrients).map((n) => (
+                <NutrientDataField
+                  key={n.field}
+                  {...n}
+                  value={foodData[n.field]}
+                  onChangeText={handleFieldChange}
+                  onFocus={handleFieldFocus}
+                  onSubmitEditing={handleSubmitEditing}
+                  ref={registerInputRef(n.field)}
+                />
+              ))}
             </View>
-          ) : (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Additional Nutrients</Text>
-              <View style={styles.otherNutrientGrid}>
-                {otherNutrients.map((nutrient) => (
-                  <NutrientDataField
-                    key={nutrient.field}
-                    {...nutrient}
-                    value={foodData[nutrient.field]}
-                    onChangeText={handleFieldChange}
-                    onFocus={handleFieldFocus}
-                    onSubmitEditing={handleSubmitEditing}
-                    ref={registerInputRef(nutrient.field)}
-                  />
-                ))}
-              </View>
-            </View>
-          )}
+          </View>
         </ScrollView>
 
         <Footer

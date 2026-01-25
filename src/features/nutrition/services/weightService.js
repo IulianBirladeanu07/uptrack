@@ -134,6 +134,45 @@ export class WeightService {
     }
   }
 
+  static async getWeightDisplayData(userId) {
+    try {
+      const userData = await this.getUserWeightData(userId);
+      if (!userData || !userData.weightIns) {
+        return {
+          currentWeight: userData?.currentWeight || null,
+          weeklyAverage: null,
+          lastWeekAverage: null,
+          weeklyTrend: null,
+          weighInCount: 0,
+        };
+      }
+
+      const sortedWeeks = [...userData.weightIns].sort((a, b) => 
+        new Date(b.weekStart) - new Date(a.weekStart)
+      );
+      
+      const currentWeek = sortedWeeks[0];
+      const lastWeek = sortedWeeks[1];
+
+      return {
+        currentWeight: userData.currentWeight || null,
+        weeklyAverage: currentWeek?.average || null,
+        lastWeekAverage: lastWeek?.average || null,
+        weeklyTrend: userData.weeklyTrend || null,
+        weighInCount: currentWeek ? Object.keys(currentWeek.days).length : 0,
+      };
+    } catch (error) {
+      console.error('Error getting weight display data:', error);
+      return {
+        currentWeight: null,
+        weeklyAverage: null,
+        lastWeekAverage: null,
+        weeklyTrend: null,
+        weighInCount: 0,
+      };
+    }
+  }
+
   static async getWeightForDate(userId, date) {
     try {
       const userData = await this.getUserWeightData(userId);
@@ -160,7 +199,15 @@ export class WeightService {
       if (!userData || !userData.weightIns) return null;
 
       const weekStartDate = this.getWeekStartDate(date).toISOString().split('T')[0];
-      const weekEntry = userData.weightIns.find(entry => entry.weekStart === weekStartDate);
+      
+      let weekEntry = userData.weightIns.find(entry => entry.weekStart === weekStartDate);
+      
+      if (!weekEntry) {
+        const altWeekStart = new Date(weekStartDate);
+        altWeekStart.setDate(altWeekStart.getDate() + 1);
+        const altWeekStartStr = altWeekStart.toISOString().split('T')[0];
+        weekEntry = userData.weightIns.find(entry => entry.weekStart === altWeekStartStr);
+      }
 
       if (weekEntry) {
         return {
@@ -231,35 +278,6 @@ export class WeightService {
     } catch (error) {
       console.error('Error getting weight history:', error);
       return [];
-    }
-  }
-
-  static async getWeightDisplayData(userId, selectedDate) {
-    try {
-      const [currentWeekData, trendData, userData] = await Promise.all([
-        this.getCurrentWeekData(userId, selectedDate),
-        this.getWeightTrend(userId, selectedDate),
-        this.getUserWeightData(userId),
-      ]);
-
-      const dayWeight = await this.getWeightForDate(userId, selectedDate);
-
-      return {
-        currentWeight: dayWeight || userData?.currentWeight || null,
-        weeklyAverage: currentWeekData?.average || null,
-        lastWeekAverage: trendData.lastWeekAverage,
-        weeklyTrend: trendData.trend,
-        weighInCount: currentWeekData?.weighInCount || 0,
-      };
-    } catch (error) {
-      console.error('Error getting weight display data:', error);
-      return {
-        currentWeight: null,
-        weeklyAverage: null,
-        lastWeekAverage: null,
-        weeklyTrend: null,
-        weighInCount: 0,
-      };
     }
   }
 

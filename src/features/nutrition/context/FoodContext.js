@@ -17,10 +17,10 @@ export const useFoodContext = () => {
   return context;
 };
 
-// Enhanced cache with better memory management
 class MealCache {
   constructor(maxSize = 30) {
     this.data = new Map();
+    this.stepsData = new Map();
     this.accessOrder = new Map();
     this.maxSize = maxSize;
     this.defaultMeals = { breakfast: [], lunch: [], dinner: [], snacks: [] };
@@ -52,6 +52,7 @@ class MealCache {
   
   clear() { 
     this.data.clear();
+    this.stepsData.clear();
     this.accessOrder.clear();
   }
   
@@ -92,23 +93,42 @@ class MealCache {
     
     return results;
   }
+
+  setSteps(dateKey, steps) {
+    this.stepsData.set(dateKey, steps);
+  }
+  
+  getSteps(dateKey) {
+    return this.stepsData.get(dateKey) || 0;
+  }
+  
+  getStepsRange(startDate, endDate) {
+    const results = [];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dateKey = formatDate(d);
+      results.push({ date: dateKey, steps: this.getSteps(dateKey) });
+    }
+    
+    return results;
+  }
 }
 
-// Utility functions
 const formatDate = (date) => {
   return (date instanceof Date ? date : new Date(date)).toISOString().split('T')[0];
 };
 
 export const FoodProvider = ({ children }) => {
-  // Core state
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [dailySteps, setDailySteps] = useState(0);
   
-  // Meal state
   const [mealState, setMealState] = useState({
     breakfast: [],
     lunch: [],
@@ -116,30 +136,26 @@ export const FoodProvider = ({ children }) => {
     snacks: []
   });
   
-  // Category data state
   const [categoryData, setCategoryData] = useState({
     recentMeals: [],
     frequentFoods: [],
     favoriteFoods: []
   });
 
-  // Refs and utilities
   const initializationRef = useRef(false);
   const mealCache = useRef(new MealCache());
   const mountedRef = useRef(true);
   const pendingOps = useRef(new Set());
   
-  // Custom hook for nutrition calculations with enhanced learning data
   const nutritionHookData = useDailyNutrition(
     mealState.breakfast, 
     mealState.lunch, 
     mealState.dinner, 
     mealState.snacks,
     selectedDate,
-    userProfile // Pass userProfile so it can use updated targets
+    userProfile
   );
 
-  // Enhanced learning data calculation using cache
   const enhancedLearningData = useMemo(() => {
     if (nutritionHookData.hasTargets) {
       return nutritionHookData.learningData;
@@ -151,25 +167,22 @@ export const FoodProvider = ({ children }) => {
       daysLogged: learningStats.daysLogged,
       weeklyAvgCalories: learningStats.averages.calories,
       isLearningComplete: learningStats.isComplete,
-      averages: learningStats.averages // Include all averages for potential use
+      averages: learningStats.averages
     };
   }, [nutritionHookData, selectedDate, mealState]);
   
-  // Calculate remaining calories
   const remainingCalories = useMemo(() => {
     const target = nutritionHookData.userMacros?.targetCalories || 2000;
     const consumed = nutritionHookData.dailyNutrition?.calories || 0;
     return Math.max(0, target - consumed);
   }, [nutritionHookData.userMacros?.targetCalories, nutritionHookData.dailyNutrition?.calories]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       mountedRef.current = false;
     };
   }, []);
 
-  // Enhanced error handling
   const handleError = useCallback((error, context) => {
     console.error(`Error in ${context}:`, error);
     if (mountedRef.current) {
@@ -177,7 +190,6 @@ export const FoodProvider = ({ children }) => {
     }
   }, []);
 
-  // Clear error after timeout
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => {
@@ -189,7 +201,6 @@ export const FoodProvider = ({ children }) => {
     }
   }, [error]);
 
-  // Async operation lock
   const executeWithLock = useCallback(async (key, operation) => {
     if (pendingOps.current.has(key)) {
       console.warn(`Operation ${key} already in progress`);
@@ -204,7 +215,6 @@ export const FoodProvider = ({ children }) => {
     }
   }, []);
 
-  // Enhanced meal state management
   const updateMealState = useCallback((mealType, foods) => {
     if (!mountedRef.current) return;
     
@@ -218,7 +228,37 @@ export const FoodProvider = ({ children }) => {
     mealCache.current.updateMealType(dateKey, mealType, foods);
   }, [selectedDate]);
 
-  // Cache update functions
+  const updateDailySteps = useCallback((steps, dateKey) => {
+    if (!mountedRef.current) return;
+    const key = dateKey || formatDate(selectedDate);
+    if (key === formatDate(selectedDate)) {
+      setDailySteps(steps);
+    }
+    mealCache.current.setSteps(key, steps);
+  }, [selectedDate]);
+
+  const getWeeklyAvgSteps = useCallback(() => {
+    const endDate = new Date(selectedDate);
+    const startDate = new Date(endDate);
+    startDate.setDate(endDate.getDate() - 6);
+    
+    const data = mealCache.current.getStepsRange(startDate, endDate);
+    
+    const todayKey = formatDate(selectedDate);
+    const isToday = todayKey === formatDate(new Date());
+    
+    const updatedData = data.map(d => {
+      if (isToday && d.date === todayKey) {
+        return { ...d, steps: dailySteps };
+      }
+      return d;
+    });
+    
+    const total = updatedData.reduce((sum, d) => sum + d.steps, 0);
+    console.log('Weekly steps data:', updatedData, 'Total:', total, 'Average:', Math.round(total / 7));
+    return Math.round(total / 7);
+  }, [selectedDate, dailySteps]);
+
   const updateCaches = useCallback(({
     frequentFoods: newFrequentFoods,
     recentMeal: newRecentMeal
@@ -257,7 +297,6 @@ export const FoodProvider = ({ children }) => {
     });
   }, []);
 
-  // Main meal operations
   const handleAddMeal = useCallback(async (mealType, foods, mealDate) => {
     if (!currentUser || !mealType || !foods?.length) {
       throw new Error('Invalid meal parameters');
@@ -333,7 +372,6 @@ export const FoodProvider = ({ children }) => {
     });
   }, [currentUser, selectedDate, updateMealState, executeWithLock, handleError]);
 
-  // User profile management
   const fetchUserProfile = useCallback(async (uid) => {
     try {
       const profileDoc = await getDoc(doc(db, 'users', uid));
@@ -344,7 +382,6 @@ export const FoodProvider = ({ children }) => {
     }
   }, []);
 
-  // Data loading
   const loadCategoryData = useCallback(async () => {
     if (!mountedRef.current) return;
     
@@ -367,12 +404,12 @@ export const FoodProvider = ({ children }) => {
     }
   }, []);
 
-  // Date and meal management
   const updateCurrentDayMeals = useCallback((date) => {
     if (!mountedRef.current) return;
     
     const dateKey = formatDate(date);
     const dayMeals = mealCache.current.get(dateKey);
+    const daySteps = mealCache.current.getSteps(dateKey);
     
     setMealState({
       breakfast: dayMeals.breakfast || [],
@@ -380,6 +417,8 @@ export const FoodProvider = ({ children }) => {
       dinner: dayMeals.dinner || [],
       snacks: dayMeals.snacks || []
     });
+    
+    setDailySteps(daySteps);
   }, []);
 
   const handleDateChange = useCallback((date) => {
@@ -387,7 +426,6 @@ export const FoodProvider = ({ children }) => {
     updateCurrentDayMeals(date);
   }, [updateCurrentDayMeals]);
 
-  // Initialization
   const initializeAppData = useCallback(async (user) => {
     if (initializationRef.current || !mountedRef.current) return;
     initializationRef.current = true;
@@ -407,7 +445,6 @@ export const FoodProvider = ({ children }) => {
         updateCurrentDayMeals(new Date());
         setInitialLoadComplete(true);
         
-        // Load category data in background
         setTimeout(() => {
           if (mountedRef.current) {
             loadCategoryData();
@@ -427,7 +464,6 @@ export const FoodProvider = ({ children }) => {
     }
   }, [fetchUserProfile, loadCategoryData, updateCurrentDayMeals, handleError]);
 
-  // Check and complete learning when 7 days are reached
   useEffect(() => {
     const checkLearningCompletion = async () => {
       if (currentUser && enhancedLearningData.isLearningComplete && !nutritionHookData.hasTargets) {
@@ -441,7 +477,6 @@ export const FoodProvider = ({ children }) => {
           );
           
           if (newTargets) {
-            // Update local user profile to reflect new targets
             setUserProfile(prev => ({
               ...prev,
               ...newTargets
@@ -458,7 +493,6 @@ export const FoodProvider = ({ children }) => {
     checkLearningCompletion();
   }, [currentUser, enhancedLearningData.isLearningComplete, nutritionHookData.hasTargets, selectedDate, handleError]);
 
-  // Authentication effect
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!mountedRef.current) return;
@@ -467,7 +501,6 @@ export const FoodProvider = ({ children }) => {
       if (user && !initializationRef.current) {
         initializeAppData(user);
       } else if (!user) {
-        // Reset state when user logs out
         initializationRef.current = false;
         mealCache.current.clear();
         setCategoryData({
@@ -482,6 +515,7 @@ export const FoodProvider = ({ children }) => {
           dinner: [],
           snacks: []
         });
+        setDailySteps(0);
         setError(null);
         setLoading(false);
         setInitialLoadComplete(false);
@@ -490,7 +524,6 @@ export const FoodProvider = ({ children }) => {
     return () => unsubscribe();
   }, [initializeAppData]);
 
-  // Trend data utility
   const getTrendData = useCallback((days = 7) => {
     const endDate = new Date(selectedDate);
     const startDate = new Date(endDate);
@@ -510,43 +543,30 @@ export const FoodProvider = ({ children }) => {
     return { daily, total, average };
   }, [selectedDate]);
 
-  // Context value
   const contextValue = useMemo(() => ({
-    // Meal data
     breakfastFoods: mealState.breakfast,
     lunchFoods: mealState.lunch,
     dinnerFoods: mealState.dinner,
     snacksFoods: mealState.snacks,
-    
-    // Date management
     selectedDate,
     setSelectedDate: handleDateChange,
-    
-    // Category data
     recentMeals: categoryData.recentMeals,
     frequentFoods: categoryData.frequentFoods,
     favoriteFoods: categoryData.favoriteFoods,
-    
-    // User data
     userProfile,
     hasTargets: nutritionHookData.hasTargets,
     learningData: enhancedLearningData,
-    
-    // Nutrition
     remainingCalories,
     dailyNutrition: nutritionHookData.dailyNutrition,
     userMacros: nutritionHookData.userMacros,
-    
-    // Actions
     handleAddMeal,
     handleDeleteMeal,
     updateMealInDatabase,
     updateFoods: updateMealState,
-    
-    // Advanced features
     getTrendData,
-    
-    // State
+    dailySteps,
+    updateDailySteps,
+    getWeeklyAvgSteps,
     loading,
     error,
     initialLoadComplete,
@@ -555,7 +575,8 @@ export const FoodProvider = ({ children }) => {
     userProfile, nutritionHookData.hasTargets, enhancedLearningData,
     remainingCalories, nutritionHookData.dailyNutrition, nutritionHookData.userMacros,
     handleAddMeal, handleDeleteMeal, updateMealInDatabase, updateMealState,
-    getTrendData, loading, error, initialLoadComplete
+    getTrendData, dailySteps, updateDailySteps, getWeeklyAvgSteps,
+    loading, error, initialLoadComplete
   ]);
   
   return (

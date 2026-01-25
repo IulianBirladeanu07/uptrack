@@ -1,62 +1,49 @@
-import React, { useMemo } from 'react';
-import { View } from 'react-native';
+import { useMemo, useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { getAuth } from 'firebase/auth';
 import CircularProgress from '../../../../shared/components/CircularProgress/CircularProgress';
-import GoogleFitStepDisplay from '../../../../shared/components/GoogleFit/GoogleFit';
-import WeightDisplay from '../WeightDisplay/WeightDisplay';
+import GoogleFitStepDisplay from '../../../../shared/components/GoogleFitStepDisplay/GoogleFitStepDisplay';
 import MacroProgressBar from '../MacroProgresBar/MacroProgressBar';
-import styles from '../../screens/NutritionScreen/NutritionScreenStyles';
+import WeightService from '../../services/weightService';
+import { useFoodContext } from '../../context/FoodContext';
+import styles, {colors} from '../../screens/NutritionScreen/NutritionScreenStyles';
 
-const STEP_GOAL = 10000;
+function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets, learningData, selectedDate }) {
+  const [weightData, setWeightData] = useState({
+    currentWeight: null,
+    weeklyAverage: null,
+    weeklyTrend: null,
+    weighInCount: 0,
+  });
+  const [weightLoading, setWeightLoading] = useState(true);
 
-const MemoizedCircularProgress = React.memo(({ 
-  calories,
-  targetCalories,
-  hasTargets,
-  learningData
-}) => {
-  return (
-    <CircularProgress 
-      value={Math.round(calories || 0)} 
-      maxValue={hasTargets ? Math.round(targetCalories || 0) : 0} 
-      size={100}
-      strokeWidth={10} 
-      color="#FFA726" 
-      duration={1500} 
-      measure="KCAL"
-      hasTargets={hasTargets}
-      daysLogged={Math.round(learningData?.daysLogged || 0)}
-      weeklyAvgCalories={Math.round(learningData?.weeklyAvgCalories || 0)}
-    />
-  );
-}, (prevProps, nextProps) => {
-  return (
-    Math.round(prevProps.calories || 0) === Math.round(nextProps.calories || 0) &&
-    Math.round(prevProps.targetCalories || 0) === Math.round(nextProps.targetCalories || 0) &&
-    prevProps.hasTargets === nextProps.hasTargets &&
-    Math.round(prevProps.learningData?.daysLogged || 0) === Math.round(nextProps.learningData?.daysLogged || 0) &&
-    Math.round(prevProps.learningData?.weeklyAvgCalories || 0) === Math.round(nextProps.learningData?.weeklyAvgCalories || 0)
-  );
-});
+  const { updateDailySteps, dailySteps, initialLoadComplete } = useFoodContext();
 
-const MemoizedGoogleFitStepDisplay = React.memo(() => {
-  return (
-    <GoogleFitStepDisplay 
-      metricValueStyle={styles.metricValue}
-      metricLabelStyle={styles.metricLabel}
-      stepGoal={STEP_GOAL}
-    />
-  );
-});
+  useEffect(() => {
+    const fetchWeight = async () => {
+      try {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) {
+          setWeightLoading(false);
+          return;
+        }
 
-function NutritionStats({ 
-  weightData, 
-  onWeightPress, 
-  dailyNutrition, 
-  userMacros, 
-  hasTargets, 
-  learningData 
-}) {
+        const data = await WeightService.getWeightDisplayData(user.uid, selectedDate);
+        setWeightData(data);
+      } catch (error) {
+        console.error('Weight fetch error:', error);
+      } finally {
+        setWeightLoading(false);
+      }
+    };
+
+    if (initialLoadComplete) {
+      fetchWeight();
+    }
+  }, [selectedDate, initialLoadComplete]);
+
   const macroValues = useMemo(() => ({
     carbs: dailyNutrition.carbs || 0,
     protein: dailyNutrition.protein || 0,
@@ -67,37 +54,86 @@ function NutritionStats({
   }), [dailyNutrition.carbs, dailyNutrition.protein, dailyNutrition.fat, 
        userMacros.targetCarbs, userMacros.targetProtein, userMacros.targetFats]);
 
+  if (!initialLoadComplete) {
+    return (
+      <View style={[styles.statsContainer, { justifyContent: 'center', alignItems: 'center', minHeight: 200 }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.statsContainer}>
+      <GoogleFitStepDisplay onStepsUpdate={updateDailySteps} />
+      
       <View style={styles.metricsRow}>
-        {/* Weight Display */}
-        <WeightDisplay 
-          weightData={weightData} 
-          onPress={onWeightPress} 
-        />
+        <TouchableOpacity 
+          style={styles.leftMetricContainer}
+          onPress={onWeightPress}
+          activeOpacity={0.7}
+        >
+          <View style={styles.metricIconContainer}>
+            <MaterialCommunityIcons name="scale-bathroom" size={20} color="#FF9500" />
+          </View>
+          {weightLoading ? (
+            <>
+              <ActivityIndicator size="small" color="#FF9500" style={{ marginVertical: 4 }} />
+              <Text style={styles.metricLabel}>Loading...</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.metricValue}>
+                {weightData.currentWeight 
+                  ? `${weightData.currentWeight.toFixed(1)} kg` 
+                  : 'Tap to weigh'}
+              </Text>
+              <Text style={styles.metricLabel}>
+                {weightData.currentWeight ? `Today's weight` : 'Tap to weigh'}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
         
-        {/* Calories Display */}
         <View style={styles.circularProgressContainer}>
-          <MemoizedCircularProgress
-            calories={dailyNutrition.calories}
-            targetCalories={userMacros.targetCalories}
+          <CircularProgress 
+            value={Math.round(dailyNutrition.calories || 0)} 
+            maxValue={hasTargets ? Math.round(userMacros.targetCalories || 0) : 0} 
+            size={100}
+            strokeWidth={10} 
+            color="#FFA726" 
+            duration={1500} 
+            measure="KCAL"
             hasTargets={hasTargets}
-            learningData={learningData}
+            daysLogged={Math.round(learningData?.daysLogged || 0)}
+            weeklyAvgCalories={Math.round(learningData?.weeklyAvgCalories || 0)}
           />
         </View>
         
-        {/* Steps Display */}
         <View style={styles.rightMetricContainer}>
-          <View style={styles.stepIconContainer}>
+          <View style={[
+            styles.stepIconContainer,
+            {
+              backgroundColor: dailySteps >= 10000 
+                ? colors.successFaded
+                : colors.stepsRedFaded,
+              borderColor: dailySteps >= 10000 
+                ? colors.successBorder
+                : colors.stepsRedBorder,
+            }
+          ]}>
             <MaterialCommunityIcons name="run-fast" size={20} color="#FF5722" />
           </View>
-          <MemoizedGoogleFitStepDisplay />
+          <Text style={styles.metricValue}>
+            {dailySteps > 0 ? dailySteps.toLocaleString() : '--'}
+          </Text>
+          <Text style={styles.metricLabel}>
+            {dailySteps >= 10000 ? 'Goal reached!' : '10,000 goal'}
+          </Text>
         </View>
       </View>
 
       <View style={styles.separator} />
 
-      {/* Macro Section */}
       <View style={styles.macroSection}>
         <View style={styles.macroContainer}>
           <MacroProgressBar

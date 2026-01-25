@@ -1,14 +1,19 @@
 import { StyleSheet } from 'react-native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 
-const colors = {
+export const colors = {
   bg: '#0A0E13',
   surface: '#151B23',
   surfaceLight: '#1F2937',
   primary: '#FF9500',
   primaryDark: '#E68600',
   success: '#32D74B',
+  successFaded: 'rgba(50, 215, 75, 0.15)',
+  successBorder: 'rgba(50, 215, 75, 0.3)',
   danger: '#FF453A',
+  stepsRed: '#FF5722',
+  stepsRedFaded: 'rgba(255, 87, 34, 0.15)',
+  stepsRedBorder: 'rgba(255, 87, 34, 0.3)',
   textPrimary: '#F9FAFB',
   textSecondary: '#9CA3AF',
   textTertiary: '#6B7280',
@@ -127,12 +132,12 @@ const styles = StyleSheet.create({
     width: normalize(40),
     height: normalize(40),
     borderRadius: normalize(20),
-    backgroundColor: 'rgba(50, 215, 75, 0.15)',
+    backgroundColor: 'rgba(255, 87, 34, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: normalize(8),
     borderWidth: 1,
-    borderColor: 'rgba(50, 215, 75, 0.3)',
+    borderColor: 'rgba(255, 87, 34, 0.3)',
   },
   metricValue: {
     color: colors.textPrimary,

@@ -69,7 +69,7 @@ const HeaderSection = React.memo(({ stats }) => (
     </View>
 ));
 
-const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExercises, isRestDay, hasActiveWorkout }) => {
+const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExercises, isRestDay, hasActiveWorkout, isToday }) => {
     const visibleExercises = allExercises.slice(0, 3);
     const hasMoreExercises = allExercises.length > 3;
 
@@ -151,7 +151,8 @@ const WeeklyProgressSection = React.memo(({ completedDays }) => {
             </View>
             <View style={styles.daysContainer}>
                 {daysOfWeek.map((day, index) => {
-                    const isCompleted = completedDays.includes(index + 1);
+                    const dayIndex = index === 6 ? 0 : index + 1;
+                    const isCompleted = completedDays.includes(dayIndex);
                     return (
                         <View
                             key={index}
@@ -215,8 +216,11 @@ const WorkoutScreen = () => {
     const userStats = useMemo(() => {
         const completedDaysThisWeek = [];
         const now = new Date();
+        
         const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - now.getDay() + 1);
+        const currentDay = now.getDay();
+        const daysToMonday = currentDay === 0 ? 6 : currentDay - 1;
+        weekStart.setDate(now.getDate() - daysToMonday);
         weekStart.setHours(0, 0, 0, 0);
 
         let totalMinutes = 0;
@@ -234,7 +238,7 @@ const WorkoutScreen = () => {
                 if (!workoutDate) return;
 
                 if (workoutDate >= weekStart) {
-                    const dayOfWeek = workoutDate.getDay();
+                    const dayOfWeek = workoutDate.getUTCDay();
                     if (!completedDaysThisWeek.includes(dayOfWeek)) {
                         completedDaysThisWeek.push(dayOfWeek);
                     }
@@ -242,6 +246,8 @@ const WorkoutScreen = () => {
                     const duration = workout.duration || '0:00';
                     const parts = duration.split(':');
                     if (parts.length === 2) {
+                        totalMinutes += parseInt(parts[0]) * 60 + parseInt(parts[1]);
+                    } else if (parts.length === 3) {
                         totalMinutes += parseInt(parts[0]) * 60 + parseInt(parts[1]);
                     }
                 }
@@ -270,6 +276,8 @@ const WorkoutScreen = () => {
         const mins = totalMinutes % 60;
         const weeklyTime = `${hours}h ${mins}m`;
 
+        console.log('Completed days this week:', completedDaysThisWeek);
+
         return {
             streak,
             weeklyTime,
@@ -288,20 +296,39 @@ const WorkoutScreen = () => {
                 return;
             }
 
-            const active = splits[0];
+            const rawSplit = splits[0];
+            const active = {
+                id: rawSplit.id || rawSplit.data?.id,
+                name: rawSplit.name || rawSplit.data?.name,
+                schedule: rawSplit.schedule || rawSplit.data?.schedule || {},
+            };
+            
             setActiveSplit(active);
 
             const today = new Date().getDay();
             const todayKey = DAYS_MAP[today];
-            const schedule = active.data?.schedule || active.schedule;
+            const schedule = active.schedule;
+
+            console.log('Today index:', today);
+            console.log('Today key:', todayKey);
+            console.log('Schedule keys:', Object.keys(schedule));
+            console.log('Today workout data:', schedule[todayKey]);
 
             if (schedule && schedule[todayKey]) {
                 const workout = schedule[todayKey];
-                setTodayWorkout({
-                    name: workout.templateName || 'Rest Day',
-                    duration: workout.duration ? `${workout.duration} mins` : '0 mins',
-                    exercises: workout.exercises || []
-                });
+                const exercises = workout.exercises || [];
+                
+                if (exercises.length > 0) {
+                    setTodayWorkout({
+                        name: workout.templateName || 'Workout',
+                        duration: workout.duration ? `${workout.duration} mins` : '45 mins',
+                        exercises: exercises
+                    });
+                } else {
+                    setTodayWorkout(null);
+                }
+            } else {
+                setTodayWorkout(null);
             }
 
             const upcoming = [];
@@ -338,6 +365,7 @@ const WorkoutScreen = () => {
             setUpcomingWorkouts(upcoming);
             setLoading(false);
         } catch (error) {
+            console.error('Error loading split:', error);
             setLoading(false);
         }
     }, []);
@@ -347,18 +375,24 @@ const WorkoutScreen = () => {
     const isRestDay = useMemo(() => !todayWorkout || !todayWorkout.exercises || todayWorkout.exercises.length === 0, [todayWorkout]);
 
     const primaryWorkout = useMemo(() => {
-        if (!isRestDay && todayWorkout) return { workout: todayWorkout, isRestDay: false };
+        if (!isRestDay && todayWorkout) {
+            return { workout: todayWorkout, isRestDay: false, isToday: true };
+        }
+        
         if (upcomingWorkouts.length > 0 && !upcomingWorkouts[0].isRest) {
             return {
                 workout: {
                     name: upcomingWorkouts[0].name,
                     duration: upcomingWorkouts[0].duration,
-                    exercises: upcomingWorkouts[0].exercises
+                    exercises: upcomingWorkouts[0].exercises,
+                    day: upcomingWorkouts[0].day
                 },
-                isRestDay: false
+                isRestDay: false,
+                isToday: false
             };
         }
-        return { workout: null, isRestDay: true };
+        
+        return { workout: null, isRestDay: true, isToday: false };
     }, [isRestDay, todayWorkout, upcomingWorkouts]);
 
     const handleStartWorkout = useCallback(() => {
@@ -382,7 +416,13 @@ const WorkoutScreen = () => {
     const handleHistoryPress = useCallback(() => { navigation.navigate('WorkoutHistory'); }, [navigation]);
     const handleSplitsPress = useCallback(() => { navigation.navigate('WorkoutLibrary', { initialSegment: 'Splits' }); }, [navigation]);
 
-    const remainingUpcoming = useMemo(() => isRestDay && upcomingWorkouts.length > 0 && !upcomingWorkouts[0].isRest ? upcomingWorkouts.slice(1, 3) : upcomingWorkouts.slice(0, 2), [isRestDay, upcomingWorkouts]);
+    const remainingUpcoming = useMemo(() => {
+    if (!primaryWorkout.isToday && upcomingWorkouts.length > 0) {
+        return upcomingWorkouts.slice(1, 3);
+    }
+    return upcomingWorkouts.slice(0, 2);
+    }, [primaryWorkout.isToday, upcomingWorkouts]);
+
     const allExercises = useMemo(() => !primaryWorkout || !primaryWorkout.workout || !primaryWorkout.workout.exercises ? [] : primaryWorkout.workout.exercises.map(e => e.exerciseName), [primaryWorkout]);
 
     if (loading || !primaryWorkout) {
@@ -425,6 +465,7 @@ const WorkoutScreen = () => {
                     allExercises={allExercises}
                     isRestDay={primaryWorkout.isRestDay}
                     hasActiveWorkout={!!activeWorkout}
+                    isToday={primaryWorkout.isToday}
                 />
 
                 <WeeklyProgressSection completedDays={userStats.completedDaysThisWeek} />
