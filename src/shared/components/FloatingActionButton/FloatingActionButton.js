@@ -127,7 +127,6 @@ const FloatingActionButton = React.memo(({
         animateMenu(false);
         setTimeout(() => {
             callback?.();
-            console.log(`${label} pressed`);
         }, 150);
     }, [animateMenu]);
 

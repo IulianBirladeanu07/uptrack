@@ -1,4 +1,3 @@
-// screens/BarcodeScannerScreen.js
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
@@ -75,7 +74,6 @@ const BarcodeScannerScreen = ({ navigation }) => {
   const route = useRoute();
   const { selectedDate, meal } = route.params;
 
-  console.log('meal in scanner: ', meal);
   const {
     scannedProducts,
     isScanning,
@@ -91,7 +89,6 @@ const BarcodeScannerScreen = ({ navigation }) => {
     handleBatchScanComplete,
   } = useBarcodeScanner(barcodedProducts, navigation, meal, selectedDate);
 
-  // Modified to navigate directly to FoodDetail when a product is scanned
   useEffect(() => {
     if (currentProduct && !isScanning && !batchMode) {
       navigation.navigate('FoodDetail', { 
@@ -296,7 +293,7 @@ const BarcodeScannerScreen = ({ navigation }) => {
         </View>
       )}
 
-      {/* Batch Mode Indicator */}
+      {}
       {isScanning && batchMode && (
         <View style={styles.batchModeIndicator}>
           <Text style={styles.batchModeText}>
@@ -308,7 +305,7 @@ const BarcodeScannerScreen = ({ navigation }) => {
         </View>
       )}
 
-      {/* Done Button for Batch Mode */}
+      {}
       {isScanning && batchMode && (
         <TouchableOpacity
           style={styles.doneButton}

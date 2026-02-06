@@ -1,30 +1,20 @@
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Coffee, Utensils, Moon, Cookie } from 'lucide-react-native';
 import FoodItem from './FoodItem';
-import { normalize } from '../../../../shared/hooks/useResponsive';
+import { createStyles } from '../../../../shared/theme/createStyles';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
-const colors = {
-  bg: '#0A0E13',
-  surface: '#151B23',
-  surfaceLight: '#1F2937',
-  primary: '#FF9500',
-  primaryDark: '#E68600',
-  success: '#32D74B',
-  warning: '#FF9F0A',
-  purple: '#9333EA',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textTertiary: '#6B7280',  
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderLight: 'rgba(255, 255, 255, 0.05)',
+const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'];
+
+const MEAL_LABELS = {
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner',
+  snacks: 'Snacks',
 };
 
 const MealContainer = ({
   foods,
-  foodName,
-  foodCalories,
-  foodNutrient,
-  foodContainer,
   onSwipeableOpen,
   onPress,
   mealContainer,
@@ -33,9 +23,9 @@ const MealContainer = ({
   setSelectedMeal,
 }) => {
   const getMealIcon = (meal) => {
-    const iconColor = selectedMeal === meal ? colors.primary : colors.textTertiary;
-    const iconSize = normalize(16);
-    
+    const iconColor = selectedMeal === meal ? colors.accent.primary : colors.text.secondary;
+    const iconSize = spacing[4];
+
     switch (meal) {
       case 'breakfast':
         return <Coffee size={iconSize} color={iconColor} />;
@@ -50,82 +40,60 @@ const MealContainer = ({
     }
   };
 
-  const getMealCalories = (meal) => {
-    return foods
-      .filter(food => food.mealType === meal)
-      .reduce((total, food) => total + (food.calories || 0), 0);
-  };
-
-  const getMealLabel = (meal) => {
-    switch (meal) {
-      case 'breakfast':
-        return 'Breakfast';
-      case 'lunch':
-        return 'Lunch';
-      case 'dinner':
-        return 'Dinner';
-      case 'snacks':
-        return 'Snacks';
-      default:
-        return meal;
-    }
-  };
-
-  const filteredFoods = foods.filter(food => food.mealType === selectedMeal);
-
   return (
     <View style={[mealContainer, styles.container]}>
       <View style={styles.header}>
         <View style={styles.mealButtonsContainer}>
-          {['breakfast', 'lunch', 'dinner', 'snacks'].map(meal => {
-            const mealCalories = getMealCalories(meal);
-            return (
-              <TouchableOpacity 
-                key={meal} 
-                onPress={() => setSelectedMeal(meal)} 
-                style={[
-                  styles.mealButton,
-                  selectedMeal === meal && styles.selectedMealButton
-                ]}
-                activeOpacity={0.7}
-              >
-                <View style={styles.mealButtonContent}>
-                  {getMealIcon(meal)}
-                  <Text style={[
-                    styles.mealButtonText,
-                    selectedMeal === meal && styles.selectedMealText
-                  ]}>
-                    {getMealLabel(meal)}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+          {MEALS.map(meal => (
+            <TouchableOpacity
+              key={meal}
+              onPress={() => setSelectedMeal(meal)}
+              style={[
+                styles.mealButton,
+                selectedMeal === meal && styles.selectedMealButton
+              ]}
+              activeOpacity={0.7}
+            >
+              <View style={styles.mealButtonContent}>
+                {getMealIcon(meal)}
+                <Text style={[
+                  styles.mealButtonText,
+                  selectedMeal === meal && styles.selectedMealText
+                ]}>
+                  {MEAL_LABELS[meal]}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
       <View style={styles.listContainer}>
-        {filteredFoods.length > 0 ? (
-          <ScrollView 
+        {foods.length > 0 ? (
+          <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             style={styles.scrollView}
             nestedScrollEnabled={true}
           >
-            {filteredFoods.map((item, index) => (
-              <View key={`${item.productName}_${index}`} style={styles.foodItemWrapper}>
+            {foods.map((item, index) => (
+              <View key={item.id ?? `${item.productName}_${index}`} style={styles.foodItemWrapper}>
                 <FoodItem
                   item={item}
-                  meal={selectedMeal}
                   onSwipeableOpen={onSwipeableOpen}
                   onPress={() => onPress(item, selectedMeal)}
-                  foodName={foodName}
-                  foodContainer={foodContainer}
-                  foodCalories={foodCalories}
-                  foodNutrient={foodNutrient}
                   isFoodDeletable={isFoodDeletable}
+                  compact={true}
+                  foodContainer={styles.foodContainer}
+                  foodName={styles.foodName}
+                  foodCaloriesValue={styles.foodCaloriesValue}
+                  foodImage={styles.foodImage}
+                  foodItemContainer={styles.foodItemContainer}
+                  quantityLabel={styles.quantityLabel}
+                  quantityLabelText={styles.quantityLabelText}
+                  macroLabel={styles.macroLabel}
                 />
-                {index < filteredFoods.length - 1 && (
+                {index < foods.length - 1 && (
                   <View style={styles.divider} />
                 )}
               </View>
@@ -138,7 +106,7 @@ const MealContainer = ({
               {getMealIcon(selectedMeal)}
             </View>
             <Text style={styles.noFoodsText}>
-              No foods added for {getMealLabel(selectedMeal).toLowerCase()}
+              No foods added for {MEAL_LABELS[selectedMeal]?.toLowerCase()}
             </Text>
             <Text style={styles.emptySubText}>
               Tap + to add your first meal
@@ -150,16 +118,16 @@ const MealContainer = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles(() => ({
   container: {
     width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: normalize(20),
-    padding: normalize(20),
-    marginVertical: normalize(10),
-    minHeight: normalize(335),
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[5],
+    padding: spacing[5],
+    marginVertical: spacing[2],
+    minHeight: spacing[80],
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.border.default,
   },
   header: {
     flexDirection: 'row',
@@ -169,42 +137,41 @@ const styles = StyleSheet.create({
   mealButtonsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: normalize(8),
+    gap: spacing[2],
   },
   mealButton: {
-    paddingVertical: normalize(10),
-    borderRadius: normalize(14),
-    paddingHorizontal: normalize(12),
+    paddingVertical: spacing[1],
+    borderRadius: radius[3],
+    paddingHorizontal: spacing[3],
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.border.light,
     flex: 1,
-    minWidth: normalize(85),
-    maxWidth: normalize(110),
+    minWidth: spacing[22],
+    maxWidth: spacing[30],
     backgroundColor: 'transparent',
   },
   selectedMealButton: {
-    backgroundColor: 'rgba(255, 149, 0, 0.15)',
-    borderColor: 'rgba(255, 149, 0, 0.3)',
+    backgroundColor: colors.faded.primary,
+    borderColor: colors.border.primary,
   },
   mealButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: normalize(5),
+    gap: spacing[2],
   },
   mealButtonText: {
-    fontSize: normalize(11),
-    color: colors.textTertiary,
-    fontWeight: '600',
-    // letterSpacing: 0.2,
+    fontSize: fontSize[10],
+    color: colors.text.secondary,
+    fontWeight: fontWeight.semibold,
   },
   selectedMealText: {
-    fontWeight: '700',
-    color: colors.primary,
+    fontWeight: fontWeight.bold,
+    color: colors.accent.primary,
   },
   listContainer: {
     flex: 1,
-    marginTop: normalize(16),
+    marginTop: spacing[4],
   },
   scrollView: {
     flex: 1,
@@ -213,56 +180,107 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: normalize(4),
-    paddingVertical: normalize(4),
-    minHeight: normalize(200),
+    paddingHorizontal: spacing[1],
+    paddingVertical: spacing[1],
+    minHeight: spacing[50],
     backgroundColor: 'transparent',
   },
   foodItemWrapper: {
     overflow: 'visible',
-    marginVertical: normalize(1),
+    marginVertical: 0,
     backgroundColor: 'transparent',
-    paddingHorizontal: normalize(2),
   },
   scrollBottomPadding: {
-    height: normalize(20),
+    height: spacing[5],
   },
   emptyStateContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: normalize(50),
+    paddingVertical: spacing[12],
   },
   emptyIconContainer: {
-    width: normalize(64),
-    height: normalize(64),
-    borderRadius: normalize(32),
-    backgroundColor: 'rgba(255, 149, 0, 0.15)',
+    width: spacing[16],
+    height: spacing[16],
+    borderRadius: radius[8],
+    backgroundColor: colors.faded.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: normalize(16),
+    marginBottom: spacing[4],
     borderWidth: 1,
-    borderColor: 'rgba(255, 149, 0, 0.3)',
+    borderColor: colors.border.primary,
   },
   noFoodsText: {
     textAlign: 'center',
-    color: colors.textSecondary,
-    fontSize: normalize(15),
-    fontWeight: '600',
-    marginBottom: normalize(6),
+    color: colors.text.secondary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing[1],
     letterSpacing: 0.2,
   },
   emptySubText: {
     textAlign: 'center',
-    color: colors.textTertiary,
-    fontSize: normalize(13),
-    fontWeight: '500',
+    color: colors.text.tertiary,
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.medium,
   },
   divider: {
-    height: normalize(1),
-    marginVertical: normalize(4),
-    backgroundColor: colors.borderLight,
+    height: 1,
+    marginVertical: spacing[1],
+    backgroundColor: colors.border.light,
   },
-});
+  foodContainer: {
+    marginBottom: spacing[1],
+    paddingHorizontal: spacing[1],
+    paddingVertical: spacing[1],
+  },
+  foodItemContainer: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: spacing[2],
+    position: 'relative',
+  },
+  foodName: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    lineHeight: 14,
+    marginBottom: spacing[1],
+  },
+  foodCaloriesValue: {
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.extrabold,
+    color: colors.accent.primaryLight,
+    lineHeight: 16,
+  },
+  foodImage: {
+    width: spacing[9],
+    height: spacing[9],
+    borderRadius: radius[2],
+    padding: spacing[1],
+    borderWidth: 1,
+    borderColor: colors.border.light,
+    backgroundColor: colors.faded.surfaceLight,
+  },
+  quantityLabel: {
+    paddingHorizontal: spacing[1],
+    paddingVertical: 2,
+    backgroundColor: colors.faded.surfaceMedium,
+    borderRadius: radius[1],
+  },
+  quantityLabelText: {
+    fontSize: fontSize[8],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.tertiary,
+  },
+  macroLabel: {
+    paddingHorizontal: spacing[1],
+    paddingVertical: 2,
+    borderRadius: radius[1],
+    fontSize: fontSize[8],
+    fontWeight: fontWeight.black,
+    lineHeight: 10,
+  },
+}));
 
 export default MealContainer;

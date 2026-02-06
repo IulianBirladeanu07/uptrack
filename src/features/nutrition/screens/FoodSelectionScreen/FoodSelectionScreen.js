@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, ActivityIndicator, Alert, Text, Keyboard, BackHandler, TextInput } from 'react-native';
+import { View, ActivityIndicator, Alert, Text, Keyboard, BackHandler } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFoodContext } from '../../context/FoodContext';
@@ -249,13 +249,10 @@ const FoodSelectionScreen = () => {
   }, [handleAddMeal, meal, selectedDate, navigation]);
 
   const handleEnterSearch = useCallback(() => {
-    console.log('Entering search mode');
     setIsSearching(true);
   }, []);
 
   const handleExitSearch = useCallback(() => {
-    console.log('Exiting search mode');
-    
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
@@ -267,14 +264,11 @@ const FoodSelectionScreen = () => {
   }, [setSearchQuery]);
 
   const handleSearchInput = useCallback((query) => {
-    console.log('Search input changed:', query);
     setSearchQuery(query);
-    
     debouncedSearch(query);
   }, [setSearchQuery, debouncedSearch]);
 
   const handleSearchFocus = useCallback(() => {
-    console.log('Search bar focused');
     handleEnterSearch();
   }, [handleEnterSearch]);
 
@@ -285,12 +279,8 @@ const FoodSelectionScreen = () => {
   }, [searchQuery, handleSearchComplete]);
 
   const handleRecentSearchPress = useCallback(async (searchTerm) => {
-    console.log('Recent search pressed:', searchTerm);
-    
     setSearchQuery(searchTerm);
-    
     handleSearch(searchTerm);
-    
     await addRecentSearch(searchTerm);
   }, [setSearchQuery, handleSearch, addRecentSearch]);
 
@@ -317,21 +307,9 @@ const FoodSelectionScreen = () => {
     navigation.navigate('CalorieGoal');
   }, [navigation]);
 
-  const handleAddFoodFromHeader = useCallback(() => {
-    navigation.navigate('AddFood', { meal, selectedDate });
-  }, [navigation, meal, selectedDate]);
-
   const handleToggleCollapse = useCallback((collapsed) => {
     setHeaderCollapsed(collapsed);
   }, []);
-
-  const handleAddFood = useCallback(() => {
-    navigation.navigate('AddFood', { meal, selectedDate });
-  }, [navigation, meal, selectedDate]);
-
-  const handleScanBarcode = useCallback(() => {
-    navigation.navigate('BarcodeScanner', { meal, selectedDate });
-  }, [navigation, meal, selectedDate]);
 
   const isLoading = contextLoading || categoryLoading;
   const hasError = error && !isLoading;
@@ -354,10 +332,6 @@ const FoodSelectionScreen = () => {
           onCaloriePress={handleCaloriePress}
           currentCalories={currentCalories}
           targetCalories={targetCalories}
-          onAddFood={handleAddFoodFromHeader}
-          showQuickActions={!headerCollapsed}
-          isCollapsible={true}
-          onToggleCollapse={handleToggleCollapse}
         />  
       )}
 
@@ -424,9 +398,9 @@ const FoodSelectionScreen = () => {
 
       {!isSearching && (
         <MemoizedFabMenu 
-          onAddFood={handleAddFood}
-          onScanBarcode={handleScanBarcode}
           navigation={navigation}
+          meal={meal}
+          isSearching={isSearching}
         />
       )}
 

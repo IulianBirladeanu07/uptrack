@@ -1,206 +1,220 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, TouchableWithoutFeedback, StyleSheet } from 'react-native';
-import { normalize } from '../../../../shared/hooks/useResponsive';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { memo, useMemo, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable, StatusBar, Animated, Easing } from 'react-native';
+import { Flame } from 'lucide-react-native';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
-const COLORS = {
-  bg: '#0A0E13',
-  surface: '#151B23',
-  surfaceLight: '#1C2128',
-  
-  text: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
-  
-  primary: '#FF9500',
-  primaryTransparent: 'rgba(255, 149, 0, 0.15)',
-  
-  cyan: '#06B6D4',
-  cyanTransparent: 'rgba(6, 182, 212, 0.15)',
-  
-  danger: '#FF453A',
-  dangerTransparent: 'rgba(255, 69, 58, 0.15)',
-  
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderLight: 'rgba(255, 255, 255, 0.05)',
-};
+const FoodSelectionHeader = ({
+  date,
+  dailyGoal = 2000,
+  selectedFoods = [],
+  onCaloriePress,
+  currentCalories = 0,
+  targetCalories = 2000,
+}) => {
+  const { calculatedCurrentCalories, foodCount, calorieProgress, isOverGoal } = useMemo(() => {
+    const selectedFoodsCalories = Math.round(
+      selectedFoods.reduce((total, food) => total + (Number(food.calories) || 0), 0)
+    );
+    
+    const totalCurrentCalories = Math.round((currentCalories || 0) + selectedFoodsCalories);
+    const calculatedFoodCount = selectedFoods.length;
+    const effectiveTargetCalories = targetCalories || dailyGoal;
+    const calculatedCalorieProgress = Math.min((totalCurrentCalories / effectiveTargetCalories) * 100, 100);
+    const calculatedIsOverGoal = totalCurrentCalories > effectiveTargetCalories;
 
-const CustomDropdown = ({ options, onSelect, isVisible, onClose }) => {
-  if (!isVisible) return null;
+    return {
+      calculatedCurrentCalories: totalCurrentCalories,
+      foodCount: calculatedFoodCount,
+      calorieProgress: calculatedCalorieProgress,
+      isOverGoal: calculatedIsOverGoal,
+    };
+  }, [selectedFoods, currentCalories, targetCalories, dailyGoal]);
 
-  const getIconForOption = (value) => {
-    switch (value) {
-      case 'replace':
-        return 'swap-horizontal-outline';
-      case 'delete':
-        return 'trash-outline';
-      case 'history':
-        return 'time-outline';
-      case 'edit':
-        return 'pencil-outline';
-      default:
-        return 'ellipse-outline';
-    }
-  };
+  const formattedDate = useMemo(() => {
+    return date || new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
+    });
+  }, [date]);
 
-  const getColorForOption = (value) => {
-    switch (value) {
-      case 'delete':
-        return COLORS.danger;
-      case 'history':
-        return COLORS.cyan;
-      case 'replace':
-        return COLORS.primary;
-      default:
-        return COLORS.text;
-    }
-  };
+  const effectiveTargetCalories = useMemo(() => {
+    return targetCalories || dailyGoal;
+  }, [targetCalories, dailyGoal]);
 
-  const getBackgroundForOption = (value) => {
-    switch (value) {
-      case 'delete':
-        return COLORS.dangerTransparent;
-      case 'history':
-        return COLORS.cyanTransparent;
-      case 'replace':
-        return COLORS.primaryTransparent;
-      default:
-        return 'rgba(255, 255, 255, 0.05)';
-    }
-  };
+  const animatedProgress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(animatedProgress, {
+      toValue: calorieProgress,
+      duration: 750,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start();
+  }, [calorieProgress]);
+
+  const progressWidth = animatedProgress.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+  });
 
   return (
-    <View style={styles.dropdownContainer}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay} />
-      </TouchableWithoutFeedback>
-      <View style={styles.dropdown}>
-        <View style={styles.dropdownArrow} />
-        {options.map((option, index) => (
-          <TouchableOpacity
-            key={option.value}
-            onPress={() => {
-              onSelect(option.value);
-            }}
-            style={[
-              styles.dropdownItem,
-              index === 0 && styles.dropdownItemFirst,
-              index === options.length - 1 && styles.dropdownItemLast,
-            ]}
-            activeOpacity={0.7}
-          >
-            <View style={[
-              styles.iconContainer,
-              { backgroundColor: getBackgroundForOption(option.value) }
-            ]}>
-              <Ionicons
-                name={getIconForOption(option.value)}
-                size={normalize(16)}
-                color={getColorForOption(option.value)}
-              />
-            </View>
-            <Text
-              style={[
-                styles.dropdownItemText,
-                option.value === 'delete' && styles.dropdownItemTextDanger
-              ]}
-            >
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      <View style={styles.topRow}>
+        <View style={styles.titleContainer}>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>Food Selection</Text>
+            {foodCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {foodCount} item{foodCount !== 1 ? 's' : ''}
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.date}>{formattedDate}</Text>
+        </View>
       </View>
-    </View>
+
+      <Pressable onPress={onCaloriePress} style={styles.calorieCard}>
+        <View style={styles.calorieHeader}>
+          <Text style={styles.calorieLabel}>Daily Progress</Text>
+          <View style={styles.calorieValueContainer}>
+            <Flame 
+              size={spacing.iconSm} 
+              color={colors.accent.primary} 
+              strokeWidth={2.5}
+            />
+            <Text style={styles.calorieValue}>
+              {calculatedCurrentCalories.toLocaleString()} / {effectiveTargetCalories.toLocaleString()} kcal
+            </Text>
+          </View>
+        </View>
+        
+        <View style={styles.progressRow}>
+          <View style={styles.progressTrack}>
+            <Animated.View 
+              style={[
+                styles.progressFill,
+                { 
+                  width: progressWidth,
+                  backgroundColor: colors.accent.primary,
+                },
+              ]} 
+            />
+          </View>
+          <Text style={styles.progressPercent}>
+            {Math.round(calorieProgress)}%
+          </Text>
+        </View>
+      </Pressable>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
-  dropdownContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 9999,
-  },
-  overlay: {
-    position: 'absolute',
-    top: -1000,
-    left: -1000,
-    right: -1000,
-    bottom: -1000,
-    backgroundColor: 'transparent',
-    zIndex: 999,
-  },
-  dropdown: {
-    position: 'absolute',
-    backgroundColor: COLORS.surface,
-    borderRadius: normalize(12),
-    width: normalize(190),
-    paddingVertical: normalize(6),
-    elevation: 12,
-    top: normalize(48),
-    right: normalize(8),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    zIndex: 1000,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  dropdownArrow: {
-    position: 'absolute',
-    top: normalize(-7),
-    right: normalize(20),
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: normalize(8),
-    borderRightWidth: normalize(8),
-    borderBottomWidth: normalize(8),
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: COLORS.surface,
-    zIndex: 1001,
-  },
-  dropdownItem: {
+  topRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: normalize(10),
-    paddingHorizontal: normalize(12),
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-    backgroundColor: 'transparent',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing[5],
   },
-  dropdownItemFirst: {
-    borderTopLeftRadius: normalize(12),
-    borderTopRightRadius: normalize(12),
-  },
-  dropdownItemLast: {
-    borderBottomWidth: 0,
-    borderBottomLeftRadius: normalize(12),
-    borderBottomRightRadius: normalize(12),
-  },
-  iconContainer: {
-    width: normalize(30),
-    height: normalize(30),
-    borderRadius: normalize(8),
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: normalize(10),
-  },
-  dropdownItemText: {
-    fontSize: normalize(13),
-    fontWeight: '600',
-    color: COLORS.text,
-    letterSpacing: 0.1,
+  titleContainer: {
     flex: 1,
   },
-  dropdownItemTextDanger: {
-    color: COLORS.danger,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    marginBottom: 2,
+  },
+  title: {
+    fontSize: fontSize[28],
+    fontWeight: fontWeight.extrabold,
+    color: colors.text.primary,
+    letterSpacing: -0.5,
+  },
+  date: {
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+  },
+  badge: {
+    backgroundColor: colors.faded.success,
+    borderRadius: radius[3],
+    minWidth: spacing[6],
+    height: spacing[5],
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing[2],
+    marginTop: spacing[1],
+    borderWidth: 1,
+    borderColor: colors.border.success,
+  },
+  badgeText: {
+    fontSize: fontSize[10],
+    fontWeight: fontWeight.bold,
+    color: colors.accent.successAlt,
+    letterSpacing: 0.2,
+  },
+  calorieCard: {
+    backgroundColor: colors.background.secondary,
+    borderColor: colors.border.default,
+    borderRadius: radius[4],
+    padding: spacing[4],
+    marginBottom: spacing[2],
+    borderWidth: 1,
+    paddingVertical: spacing[5],
+  },
+  calorieHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing[3],
+  },
+  calorieLabel: {
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    letterSpacing: 0.3,
+  },
+  calorieValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+  },
+  calorieValue: {
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.bold,
+    color: colors.accent.primary,
+    letterSpacing: 0.2,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  progressTrack: {
+    flex: 1,
+    height: spacing[2],
+    backgroundColor: colors.background.tertiary,
+    borderRadius: radius[1],
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: radius[1],
+    minWidth: spacing[1],
+  },
+  progressPercent: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    minWidth: 38,
+    textAlign: 'right',
   },
 });
 
-export default CustomDropdown;
+export default memo(FoodSelectionHeader);

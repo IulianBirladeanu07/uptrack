@@ -2,10 +2,8 @@ import { StyleSheet, Dimensions, PixelRatio } from 'react-native';
 
 const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
 
-// Scale function for responsive font sizes and dimensions
 const scale = size => PixelRatio.get() * size;
 
-// Colors
 const colors = {
   backgroundDark: '#02202B',
   accentBlue: '#00bfff',
@@ -20,22 +18,22 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    padding: windowWidth * 0.05, // 5% of screen width
+    padding: windowWidth * 0.05,
   },
   backButton: {
     position: 'absolute',
-    top: windowHeight * 0.05, // Adjusted for 5% of screen height
-    left: windowWidth * 0.05, // Adjusted for 5% of screen width
+    top: windowHeight * 0.05,
+    left: windowWidth * 0.05,
     zIndex: 1,
   },
   headerContainer: {
     alignItems: 'center',
-    marginVertical: windowHeight * 0.03, // 3% vertical margin
+    marginVertical: windowHeight * 0.03,
   },
   circleContainer: {
-    width: windowWidth * 0.25, // 25% of screen width
+    width: windowWidth * 0.25,
     height: windowWidth * 0.25,
-    borderRadius: windowWidth * 0.125, // Half of width to make a circle
+    borderRadius: windowWidth * 0.125,
     borderWidth: 2,
     borderColor: colors.accentBlue,
     shadowColor: colors.shadowColor,
@@ -50,22 +48,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    fontSize: scale(7), // Responsive font size
+    fontSize: scale(7),
     color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: windowHeight * 0.02,
   },
   detailsSection: {
     width: '100%',
-    paddingHorizontal: windowWidth * 0.025, // 2.5% horizontal padding
+    paddingHorizontal: windowWidth * 0.025,
   },
   measurementInputContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: windowHeight * 0.015, // 1.5% vertical margin
+    marginBottom: windowHeight * 0.015,
   },
   measurementLabel: {
-    fontSize: scale(4), // Responsive font size
+    fontSize: scale(4),
     color: colors.textPrimary,
     flex: 1,
     textAlign: 'center',
@@ -73,20 +71,20 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: colors.backgroundDark,
     color: colors.textPrimary,
-    padding: scale(4), // Responsive padding
+    padding: scale(4),
     borderRadius: 5,
     fontSize: scale(3.5),
     flex: 1,
     textAlign: 'center',
-    marginHorizontal: windowWidth * 0.01, // 1% horizontal margin
+    marginHorizontal: windowWidth * 0.01,
     borderWidth: 1,
     borderColor: colors.accentBlue,
   },
   card: {
     backgroundColor: colors.backgroundDark,
     borderRadius: 10,
-    padding: scale(4), // Responsive padding
-    marginBottom: windowHeight * 0.02, // 2% vertical margin
+    padding: scale(4),
+    marginBottom: windowHeight * 0.02,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: colors.shadowColor,
@@ -96,10 +94,10 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   icon: {
-    marginRight: scale(2), // Responsive margin
+    marginRight: scale(2),
   },
   measurementLabelCard: {
-    fontSize: scale(4), // Responsive font size
+    fontSize: scale(4),
     color: colors.textPrimary,
     flex: 1,
   },
@@ -117,7 +115,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: windowHeight * 0.02, // 2% vertical margin
+    marginTop: windowHeight * 0.02,
   },
   saveButton: {
     flex: 1,

@@ -7,9 +7,9 @@ const CustomNumericKeyboard = ({
   onClose, 
   onSubmit,
   currentValue = '',
-  keyboardType = 'number' // 'number' or 'decimal'
+  keyboardType = 'number' 
 }) => {
-  // Animation for sliding the keyboard up
+  
   const slideAnim = React.useRef(new Animated.Value(300)).current;
   
   useEffect(() => {
@@ -30,7 +30,6 @@ const CustomNumericKeyboard = ({
 
   if (!isVisible) return null;
 
-  // Handle key press
   const handleKeyPress = (key) => {
     switch (key) {
       case 'delete':
@@ -40,7 +39,7 @@ const CustomNumericKeyboard = ({
         onSubmit();
         break;
       case '.':
-        // Only add decimal if one doesn't already exist and type is decimal
+        
         if (keyboardType === 'decimal' && !currentValue.includes('.')) {
           onKeyPress(currentValue + key);
         }
@@ -143,7 +142,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 10,
-    paddingBottom: 30, // Extra padding for iPhone X and newer
+    paddingBottom: 30, 
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,

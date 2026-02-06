@@ -1,27 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 
-/**
- * Hook to track learning completion and show user feedback
- * @param {Object} learningData - Learning data from context
- * @param {boolean} hasTargets - Whether user has targets set
- * @returns {Object} - Learning completion state and handlers
- */
 export const useLearningCompletion = (learningData, hasTargets) => {
   const [wasInLearning, setWasInLearning] = useState(false);
   const [justCompleted, setJustCompleted] = useState(false);
 
   useEffect(() => {
-    // Track if we were in learning mode
     if (!hasTargets && learningData?.daysLogged > 0) {
       setWasInLearning(true);
     }
 
-    // Detect when learning just completed
     if (wasInLearning && hasTargets && !justCompleted) {
       setJustCompleted(true);
       
-      // Show completion alert
       Alert.alert(
         "Learning Complete! 🎉",
         `Based on your 7 days of logging, we've set your daily targets:\n\n` +
@@ -33,7 +24,6 @@ export const useLearningCompletion = (learningData, hasTargets) => {
             text: "Got it!",
             style: "default",
             onPress: () => {
-              // Reset the flag after user acknowledges
               setTimeout(() => setJustCompleted(false), 1000);
             }
           }
@@ -43,7 +33,6 @@ export const useLearningCompletion = (learningData, hasTargets) => {
     }
   }, [hasTargets, learningData, wasInLearning, justCompleted]);
 
-  // Reset states when targets are manually removed (edge case)
   useEffect(() => {
     if (!hasTargets) {
       setJustCompleted(false);

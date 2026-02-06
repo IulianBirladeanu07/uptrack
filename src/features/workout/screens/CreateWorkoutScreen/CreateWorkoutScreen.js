@@ -56,13 +56,6 @@ const CreateWorkout = ({ navigation, route }) => {
     visible: false,
   });
 
-    console.log('=== CreateWorkout Debug ===');
-  console.log('isEditing:', isEditing);
-  console.log('existingTemplate:', existingTemplate);
-  console.log('preferredDays from template:', existingTemplate?.preferredDays);
-  console.log('========================');
-
-
   const fabAnim = useRef(new Animated.Value(1)).current;
   const scrollViewRef = useRef(null);
 

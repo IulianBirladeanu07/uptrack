@@ -1,9 +1,10 @@
 import { useState, useMemo, useCallback, memo } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import FoodItem from './FoodItem';
-import { normalize } from '../../../../shared/hooks/useResponsive';
+import { createStyles } from '../../../../shared/theme/createStyles';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
 const formatMealTitle = (date, mealType) => {
   const mealTypeNames = {
@@ -11,7 +12,7 @@ const formatMealTitle = (date, mealType) => {
     lunch: 'Lunch',
     dinner: 'Dinner',
     snack: 'Snack',
-    snacks: 'Snacks',
+    snacks: 'Snacks', 
     'mid-morning': 'Mid-Morning',
     'afternoon': 'Afternoon Snack',
     'evening': 'Evening Snack'
@@ -38,13 +39,11 @@ const formatMealTitle = (date, mealType) => {
 
   const daysDiff = Math.floor((today - mealDate) / (1000 * 60 * 60 * 24));
   
-  // For dates within the last week, show day name
   if (daysDiff <= 7) {
     const dayName = mealDate.toLocaleDateString('en-US', { weekday: 'long' });
     return `${dayName}'s ${mealName}`;
   }
 
-  // For dates within the current year, show "Month Day" format
   if (mealDate.getFullYear() === today.getFullYear()) {
     const monthDay = mealDate.toLocaleDateString('en-US', { 
       month: 'long', 
@@ -53,75 +52,6 @@ const formatMealTitle = (date, mealType) => {
     return `${monthDay} ${mealName}`;
   }
 
-  // For dates in previous years, include the year
-  const fullDate = mealDate.toLocaleDateString('en-US', { 
-    month: 'long', 
-    day: 'numeric',
-    year: 'numeric'
-  });
-  return `${fullDate} ${mealName}`;
-};
-
-// Alternative version with more concise recent dates
-const formatMealTitleAlternative = (date, mealType) => {
-  const mealTypeNames = {
-    breakfast: 'Breakfast',
-    lunch: 'Lunch',
-    dinner: 'Dinner',
-    snack: 'Snack',
-    snacks: 'Snacks',
-    'mid-morning': 'Mid-Morning',
-    'afternoon': 'Afternoon Snack',
-    'evening': 'Evening Snack'
-  };
-
-  const mealName = mealTypeNames[mealType.toLowerCase()] || mealType;
-  const today = new Date();
-  const mealDate = new Date(date);
-
-  const resetTime = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-
-  const isDateToday = resetTime(mealDate).getTime() === resetTime(today).getTime();
-
-  if (isDateToday) {
-    return `Today's ${mealName}`;
-  }
-
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-
-  if (resetTime(mealDate).getTime() === resetTime(yesterday).getTime()) {
-    return `Yesterday's ${mealName}`;
-  }
-
-  const daysDiff = Math.floor((today - mealDate) / (1000 * 60 * 60 * 24));
-  
-  // For dates within the last week, show day name
-  if (daysDiff <= 7) {
-    const dayName = mealDate.toLocaleDateString('en-US', { weekday: 'long' });
-    return `${dayName}'s ${mealName}`;
-  }
-
-  // For dates within the last month, show relative format
-  if (daysDiff <= 30) {
-    const weeksDiff = Math.floor(daysDiff / 7);
-    if (weeksDiff === 1) {
-      return `Last week's ${mealName}`;
-    } else if (weeksDiff > 1) {
-      return `${weeksDiff} weeks ago - ${mealName}`;
-    }
-  }
-
-  // For dates within the current year, show "Month Day" format
-  if (mealDate.getFullYear() === today.getFullYear()) {
-    const monthDay = mealDate.toLocaleDateString('en-US', { 
-      month: 'long', 
-      day: 'numeric' 
-    });
-    return `${monthDay} ${mealName}`;
-  }
-
-  // For dates in previous years, include the year
   const fullDate = mealDate.toLocaleDateString('en-US', { 
     month: 'long', 
     day: 'numeric',
@@ -282,7 +212,7 @@ const MealItem = memo(({
           >
             <Text style={[
               styles.addMealButtonText,
-              { color: isMealAdded ? '#000000' : '#F59E0B' }
+              { color: isMealAdded ? '#000000' : colors.accent.primary }
             ]}>
               {isMealAdded ? '✓ Added' : '+ Add All'}
             </Text>
@@ -359,99 +289,99 @@ const MealItem = memo(({
   );
 });
 
-const styles = StyleSheet.create({
+const styles = createStyles(() => ({
   mealItem: {
-    marginVertical: normalize(12),
-    borderRadius: normalize(16),
-    backgroundColor: '#151B23',
+    marginVertical: spacing[3],
+    borderRadius: radius[4],
+    backgroundColor: colors.background.secondary,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: colors.border.default,
   },
   header: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: colors.border.default,
   },
   headerMain: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: normalize(12),
-    paddingVertical: normalize(12),
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[3],
   },
   headerContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginRight: normalize(12),
+    marginRight: spacing[3],
   },
   mealIconContainer: {
-    marginRight: normalize(14),
-    paddingTop: normalize(2),
+    marginRight: spacing[4],
+    paddingTop: 2,
   },
   mealIcon: {
-    width: normalize(46),
-    height: normalize(46),
-    borderRadius: normalize(14),
-    backgroundColor: 'rgba(255, 149, 0, 0.15)',
+    width: spacing[11],
+    height: spacing[11],
+    borderRadius: radius[4],
+    backgroundColor: colors.faded.primary,
     borderWidth: 1,
-    borderColor: 'rgba(255, 149, 0, 0.3)',
+    borderColor: colors.border.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   mealIconText: {
-    fontSize: normalize(20),
+    fontSize: fontSize[20],
   },
   headerLeft: {
     flex: 1,
     justifyContent: 'center',
-    paddingVertical: normalize(2),
+    paddingVertical: 2,
   },
   mealTitle: {
-    fontSize: normalize(17),
-    fontWeight: '700',
-    color: '#F9FAFB',
-    marginBottom: normalize(4),
+    fontSize: fontSize[18],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing[1],
     letterSpacing: 0.3,
-    lineHeight: normalize(22),
+    lineHeight: 24,
   },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: normalize(1),
+    marginTop: 1,
   },
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   totalCalories: {
-    fontSize: normalize(14),
-    fontWeight: '700',
-    color: '#FF9500',
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.bold,
+    color: colors.accent.primary,
     letterSpacing: 0.2,
   },
   statsDevider: {
-    color: '#6B7280',
-    marginHorizontal: normalize(6),
-    fontSize: normalize(10),
+    color: colors.text.tertiary,
+    marginHorizontal: 6,
+    fontSize: fontSize[10],
   },
   itemCount: {
-    fontSize: normalize(14),
-    color: '#9CA3AF',
-    fontWeight: '600',
+    fontSize: fontSize[14],
+    color: colors.text.secondary,
+    fontWeight: fontWeight.semibold,
   },
   addMealButton: {
-    paddingVertical: normalize(10),
-    paddingHorizontal: normalize(18),
-    borderRadius: normalize(12),
-    backgroundColor: 'rgba(255, 149, 0, 0.15)',
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[5],
+    borderRadius: radius[3],
+    backgroundColor: colors.faded.primary,
     borderWidth: 1,
-    borderColor: 'rgba(255, 149, 0, 0.3)',
+    borderColor: colors.border.primary,
   },
   addMealButtonToggled: {
-    backgroundColor: '#FF9500',
-    borderColor: '#FF9500',
-    shadowColor: '#FF9500',
+    backgroundColor: colors.accent.primary,
+    borderColor: colors.accent.primary,
+    shadowColor: colors.accent.primary,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -461,8 +391,8 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   addMealButtonText: {
-    fontSize: normalize(14),
-    fontWeight: '700',
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
   },
   foodItemsContainer: {
@@ -470,59 +400,59 @@ const styles = StyleSheet.create({
   },
   foodItemWrapper: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: colors.border.light,
   },
   foodItemContainer: {
-    paddingHorizontal: normalize(16),
-    paddingVertical: normalize(8),
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
   },
   viewAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: normalize(14),
-    paddingHorizontal: normalize(16),
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[4],
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: colors.border.default,
     backgroundColor: 'rgba(10, 14, 19, 0.4)',
   },
   viewAllButtonText: {
-    color: '#FF9500',
-    fontSize: normalize(14),
-    fontWeight: '600',
-    marginRight: normalize(6),
+    color: colors.accent.primary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
+    marginRight: spacing[1],
   },
   viewAllChevron: {
-    color: '#FF9500',
-    fontSize: normalize(16),
-    fontWeight: '700',
+    color: colors.accent.primary,
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.bold,
     transform: [{ rotate: '0deg' }],
   },
   viewAllChevronRotated: {
     transform: [{ rotate: '90deg' }],
   },
   addMoreText: {
-    color: '#9CA3AF',
-    fontSize: normalize(14),
-    fontWeight: '500',
+    color: colors.text.secondary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.medium,
     textAlign: 'center',
-    paddingVertical: normalize(4),
+    paddingVertical: spacing[1],
   },
   emptyState: {
     alignItems: 'center',
-    padding: normalize(24),
+    padding: spacing[6],
     backgroundColor: 'rgba(10, 14, 19, 0.3)',
   },
   emptyStateText: {
-    color: '#6B7280',
-    fontSize: normalize(16),
-    marginBottom: normalize(12),
-    fontWeight: '500',
+    color: colors.text.tertiary,
+    fontSize: fontSize[16],
+    marginBottom: spacing[3],
+    fontWeight: fontWeight.medium,
   },
   errorContainer: {
-    margin: normalize(16),
-    padding: normalize(16),
-    borderRadius: normalize(12),
+    margin: spacing[4],
+    padding: spacing[4],
+    borderRadius: radius[3],
     backgroundColor: '#FF453A',
     borderWidth: 1,
     borderColor: 'rgba(255, 69, 58, 0.3)',
@@ -530,11 +460,9 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#FFFFFF',
     textAlign: 'center',
-    fontSize: normalize(16),
-    fontWeight: '600',
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.semibold,
   },
-});
-
-MealItem.displayName = 'MealItem';
+}));
 
 export default MealItem;

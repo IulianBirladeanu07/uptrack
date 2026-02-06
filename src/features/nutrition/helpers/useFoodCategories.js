@@ -10,8 +10,6 @@ const useFoodCategories = () => {
   } = useFoodContext();
   
   const [selectedCategory, setSelectedCategory] = useState('Frequent');
-
-  // Optimized category data functions with early returns
   const getCategoryFoods = useCallback((category) => {
     const categoryLower = category?.toLowerCase();
     
@@ -52,7 +50,6 @@ const useFoodCategories = () => {
     }
   }, [contextLoading, frequentFoods, recentMeals, favoriteFoods]);
 
-  // Current category data with better memoization
   const categoryData = useMemo(() => {
     return getCategoryFoods(selectedCategory);
   }, [selectedCategory, getCategoryFoods]);
@@ -61,7 +58,6 @@ const useFoodCategories = () => {
     return getCategoryLoadingState(selectedCategory);
   }, [selectedCategory, getCategoryLoadingState]);
 
-  // Simplified category messages
   const message = useMemo(() => {
     if (loading) return `Loading ${selectedCategory.toLowerCase()} foods...`;
     
@@ -76,12 +72,10 @@ const useFoodCategories = () => {
     return '';
   }, [selectedCategory, categoryData.data.length, loading]);
 
-  // Category management
   const handleCategoryChange = useCallback((category) => {
     setSelectedCategory(category);
   }, []);
 
-  // Utility functions with better performance
   const getFoodsForCategory = useCallback((category) => {
     const { data } = getCategoryFoods(category);
     return data;
@@ -97,7 +91,6 @@ const useFoodCategories = () => {
     return loaded;
   }, [getCategoryFoods]);
 
-  // Optimized category statistics
   const getCategoryStats = useMemo(() => {
     const stats = {};
     
@@ -111,38 +104,31 @@ const useFoodCategories = () => {
   }, [frequentFoods, recentMeals, favoriteFoods, contextLoading]);
 
   return {
-    // Core functions
     getCategoryFoods,
     getCategoryLoadingState,
     
-    // Selected category state
     selectedCategory,
     setSelectedCategory,
     handleCategoryChange,
     
-    // Current category data
     categoryFoods: categoryData.data,
     loading,
     isDataReady: categoryData.loaded,
     message,
     
-    // Utility functions
     getFoodsForCategory,
     isCategoryEmpty,
     isCategoryAvailable,
     getCategoryStats,
     
-    // Direct data access (for compatibility)
     frequentFoods: frequentFoods || [],
     recentMeals: recentMeals || [],
     favoriteFoods: favoriteFoods || [],
     
-    // Individual loading states
     frequentFoodsLoaded: !contextLoading && Array.isArray(frequentFoods),
     recentMealsLoaded: !contextLoading && Array.isArray(recentMeals),
     favoriteFoodsLoaded: !contextLoading && Array.isArray(favoriteFoods),
     
-    // Global state
     dataReady: !contextLoading,
   };
 };

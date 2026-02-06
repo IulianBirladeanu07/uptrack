@@ -1,14 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { normalize } from '../../../../shared/hooks/useResponsive';
+import { View, Text } from 'react-native';
+import { colors, spacing, radius, fontWeight, fontSize } from '../../../../shared/theme';
+import { createStyles } from '../../../../shared/theme/createStyles';
 
-const COLORS = {
-  bg: '#0A0E13',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-};
-
-const NutrientRow = ({ label, value, unit = 'g', color = '#10B981' }) => (
+const NutrientRow = ({ label, value, unit = 'g', color = colors.accent.success }) => (
   <View style={styles.nutrientRow}>
     <View style={styles.leftContent}>
       <View style={[styles.nutrientDot, { backgroundColor: color }]} />
@@ -20,40 +15,40 @@ const NutrientRow = ({ label, value, unit = 'g', color = '#10B981' }) => (
   </View>
 );
 
-const styles = StyleSheet.create({
+const styles = createStyles(() => ({
   nutrientRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: normalize(14),
+    paddingVertical: spacing[4],
   },
   leftContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(10),
+    gap: spacing[2],
   },
   nutrientDot: {
-    width: normalize(8),
-    height: normalize(8),
-    borderRadius: normalize(4),
+    width: spacing[2],
+    height: spacing[2],
+    borderRadius: radius[1],
   },
   nutrientLabel: {
-    fontSize: normalize(15),
-    color: COLORS.textPrimary,
-    fontWeight: '600',
+    fontSize: fontSize[14],
+    color: colors.text.primary,
+    fontWeight: fontWeight.semibold,
     letterSpacing: 0.2,
   },
   nutrientValue: {
-    fontSize: normalize(15),
-    color: COLORS.textPrimary,
-    fontWeight: '700',
+    fontSize: fontSize[14],
+    color: colors.text.primary,
+    fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
   },
   unitText: {
-    fontSize: normalize(13),
-    color: COLORS.textSecondary,
-    fontWeight: '600',
+    fontSize: fontSize[12],
+    color: colors.text.secondary,
+    fontWeight: fontWeight.semibold,
   },
-});
+}));
 
 export default React.memo(NutrientRow);

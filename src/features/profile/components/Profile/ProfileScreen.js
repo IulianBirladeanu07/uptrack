@@ -11,7 +11,7 @@ import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 
 const ProfileScreen = ({ navigation }) => {
   const { setUserSettings, userSettings } = useContext(WorkoutContext);
-  const [profilePicture, setProfilePicture] = useState(userSettings?.profilePicture || 'https://via.placeholder.com/150');
+  const [profilePicture, setProfilePicture] = useState(userSettings?.profilePicture || 'https:
   const [targetCalories, setTargetCalories] = useState(String(userSettings?.targetCalories || ''));
   const [targetProtein, setTargetProtein] = useState(String(userSettings?.targetProtein || ''));
   const [targetFats, setTargetFats] = useState(String(userSettings?.targetFats || ''));
@@ -142,7 +142,7 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const handleCancel = () => {
-    setProfilePicture(userSettings?.profilePicture || 'https://via.placeholder.com/150');
+    setProfilePicture(userSettings?.profilePicture || 'https:
     setTargetCalories(String(userSettings?.targetCalories || ''));
     setTargetProtein(String(userSettings?.targetProtein || ''));
     setTargetFats(String(userSettings?.targetFats || ''));

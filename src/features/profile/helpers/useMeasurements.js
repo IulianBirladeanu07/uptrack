@@ -22,7 +22,6 @@ export const saveMeasurementsToFirestore = async (measurements) => {
     const measurementDocRef = doc(userMeasurementsRef, formattedTimestamp);
 
     await setDoc(measurementDocRef, measurementsDataToSend);
-    console.log('Measurements saved:', measurementsDataToSend);
   } catch (error) {
     console.error('Error saving measurements:', error.message);
     throw new Error('Failed to save measurements');

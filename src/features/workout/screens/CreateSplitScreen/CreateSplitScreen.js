@@ -45,8 +45,6 @@ const CreateSplitScreen = ({ navigation, route }) => {
       : 'monday'
   );
   
-  console.log(isEditing ? "Editing split:" : "Creating new split:", splitData);
-
   useEffect(() => {
     const loadWorkouts = async () => {
       setLoading(true);
@@ -62,7 +60,6 @@ const CreateSplitScreen = ({ navigation, route }) => {
             colorIndex: index,
           };
         });
-        console.log('Loaded workouts:', normalizedWorkouts.length);
         setWorkouts(normalizedWorkouts);
       } catch (error) {
         console.error('Error loading workouts:', error);

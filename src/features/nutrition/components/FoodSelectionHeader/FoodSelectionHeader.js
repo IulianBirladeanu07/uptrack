@@ -1,22 +1,7 @@
 import { memo, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, StatusBar, Animated, Easing } from 'react-native';
 import { Flame } from 'lucide-react-native';
-import { normalize } from '../../../../shared/hooks/useResponsive';
-
-const colors = {
-  bg: '#0A0E13',
-  surface: '#151B23',
-  surfaceLight: '#1F2937',
-  primary: '#FF9500',
-  primaryDark: '#E68600',
-  success: '#32D74B',
-  danger: '#FF453A',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textTertiary: '#6B7280',
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderLight: 'rgba(255, 255, 255, 0.05)',
-};
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
 const FoodSelectionHeader = ({
   date,
@@ -26,7 +11,7 @@ const FoodSelectionHeader = ({
   currentCalories = 0,
   targetCalories = 2000,
 }) => {
-  const { calculatedCurrentCalories, foodCount, calorieProgress, isOverGoal } = useMemo(() => {
+  const { calculatedCurrentCalories, foodCount, calorieProgress } = useMemo(() => {
     const selectedFoodsCalories = Math.round(
       selectedFoods.reduce((total, food) => total + (Number(food.calories) || 0), 0)
     );
@@ -74,74 +59,67 @@ const FoodSelectionHeader = ({
   });
 
   return (
-    <View style={headerStyles.container}>
+    <View>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
-      <View style={headerStyles.content}>
-        <View style={headerStyles.topRow}>
-          <View style={headerStyles.titleContainer}>
-            <View style={headerStyles.titleRow}>
-              <Text style={headerStyles.title}>Food Selection</Text>
-              {foodCount > 0 && (
-                <View style={headerStyles.compactBadge}>
-                  <Text style={headerStyles.compactBadgeText}>
-                    {foodCount} item{foodCount !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <Text style={headerStyles.date}>{formattedDate}</Text>
+      <View style={styles.topRow}>
+        <View style={styles.titleContainer}>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>Food Selection</Text>
+            {foodCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {foodCount} item{foodCount !== 1 ? 's' : ''}
+                </Text>
+              </View>
+            )}
           </View>
+          <Text style={styles.date}>{formattedDate}</Text>
         </View>
+      </View>
 
-        <Pressable onPress={onCaloriePress} style={headerStyles.calorieSection}>
-          <View style={headerStyles.calorieHeader}>
-            <Text style={headerStyles.calorieLabel}>Daily Progress</Text>
-            <View style={headerStyles.calorieTextContainer}>
-              <Flame 
-                size={normalize(16)} 
-                color={colors.primary} 
-                strokeWidth={2.5}
-              />
-              <Text style={[
-                headerStyles.calorieText,
-                isOverGoal && headerStyles.calorieTextOver
-              ]}>
-                {calculatedCurrentCalories.toLocaleString()} / {effectiveTargetCalories.toLocaleString()} kcal
-              </Text>
-            </View>
-          </View>
-          
-          <View style={headerStyles.progressContainer}>
-            <View style={headerStyles.progressTrack}>
-              <Animated.View 
-                style={[
-                  headerStyles.progressFill,
-                  { 
-                    width: progressWidth,
-                    backgroundColor: colors.primary,
-                  },
-                ]} 
-              />
-            </View>
-            <Text style={headerStyles.progressPercent}>
-              {Math.round(calorieProgress)}%
+      <Pressable onPress={onCaloriePress} style={styles.calorieCard}>
+        <View style={styles.calorieHeader}>
+          <Text style={styles.calorieLabel}>Daily Progress</Text>
+          <View style={styles.calorieValueContainer}>
+            <Flame 
+              size={spacing.iconSm} 
+              color={colors.accent.primary} 
+              strokeWidth={2.5}
+            />
+            <Text style={styles.calorieValue}>
+              {calculatedCurrentCalories.toLocaleString()} / {effectiveTargetCalories.toLocaleString()} kcal
             </Text>
           </View>
-        </Pressable>
-      </View>
+        </View>
+        
+        <View style={styles.progressRow}>
+          <View style={styles.progressTrack}>
+            <Animated.View 
+              style={[
+                styles.progressFill,
+                { 
+                  width: progressWidth,
+                  backgroundColor: colors.accent.primary,
+                },
+              ]} 
+            />
+          </View>
+          <Text style={styles.progressPercent}>
+            {Math.round(calorieProgress)}%
+          </Text>
+        </View>
+      </Pressable>
     </View>
   );
 };
 
-const headerStyles = StyleSheet.create({
-  container: {},
-  content: {},
+const styles = StyleSheet.create({
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: normalize(20),
+    marginBottom: spacing[2],
   },
   titleContainer: {
     flex: 1,
@@ -149,95 +127,93 @@ const headerStyles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(12),
-    marginBottom: normalize(2),
+    gap: spacing[2],
   },
   title: {
-    fontSize: normalize(28),
-    fontWeight: '800',
-    color: colors.textPrimary,
+    fontSize: fontSize[20],
+    fontWeight: fontWeight.extrabold,
+    color: colors.text.primary,
     letterSpacing: -0.5,
   },
   date: {
-    fontSize: normalize(15),
-    fontWeight: '600',
-    color: colors.textSecondary,
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    marginBottom: spacing[2]
   },
-  compactBadge: {
-    backgroundColor: 'rgba(52, 211, 153, 0.15)',
-    borderRadius: normalize(12),
-    minWidth: normalize(24),
-    height: normalize(22),
+  badge: {
+    backgroundColor: colors.faded.success,
+    borderRadius: radius[3],
+    minWidth: spacing[6],
+    height: spacing[5],
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: normalize(8),
-    marginTop: normalize(4),
+    paddingHorizontal: spacing[2],
+    marginTop: spacing[1],
     borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.3)',
+    borderColor: colors.border.success,
   },
-  compactBadgeText: {
-    fontSize: normalize(11),
-    fontWeight: '700',
-    color: colors.success,
+  badgeText: {
+    fontSize: fontSize[10],
+    fontWeight: fontWeight.bold,
+    color: colors.accent.successAlt,
     letterSpacing: 0.2,
   },
-  calorieSection: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: normalize(16),
-    padding: normalize(16),
-    marginBottom: normalize(8),
+
+  calorieCard: {
+    backgroundColor: colors.background.secondary,
+    borderColor: colors.border.default,
+    borderRadius: radius[4],
+    padding: spacing[3],
+    marginBottom: spacing[1],
     borderWidth: 1,
-    paddingVertical: normalize(20),
+    paddingVertical: spacing[3],
   },
   calorieHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: normalize(12),
+    marginBottom: spacing[2],
   },
   calorieLabel: {
-    fontSize: normalize(14),
-    fontWeight: '600',
-    color: colors.textSecondary,
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
     letterSpacing: 0.3,
   },
-  calorieTextContainer: {
+  calorieValueContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(6),
+    gap: spacing[1],
   },
-  calorieText: {
-    fontSize: normalize(16),
-    fontWeight: '700',
-    color: colors.primary,
+  calorieValue: {
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.bold,
+    color: colors.accent.primary,
     letterSpacing: 0.2,
   },
-  calorieTextOver: {
-    // color: colors.danger,s
-  },
-  progressContainer: {
+  progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(12),
+    gap: spacing[3],
   },
   progressTrack: {
     flex: 1,
-    height: normalize(8),
-    backgroundColor: colors.surfaceLight,
-    borderRadius: normalize(4),
+    height: spacing[2],
+    backgroundColor: colors.background.tertiary,
+    borderRadius: radius[1],
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: normalize(4),
-    minWidth: normalize(4),
+    borderRadius: radius[1],
+    minWidth: spacing[1],
   },
   progressPercent: {
-    fontSize: normalize(13),
-    fontWeight: '700',
-    color: colors.textPrimary,
-    minWidth: normalize(38),
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    minWidth: spacing[10],
     textAlign: 'right',
   },
 });

@@ -50,7 +50,7 @@ const ExerciseListItem = ({
       <View style={styles.exerciseHeader}>
         <View style={styles.exerciseImageContainer}>
           <Image
-            source={{ uri: 'https://cdn.dribbble.com/users/589508/screenshots/17154942/media/4c7d0d0b0b8c6b7d0c3c9b0e2b4f9f7d.png' }}
+            source={{ uri: 'https:
             style={styles.exerciseImage}
           />
         </View>

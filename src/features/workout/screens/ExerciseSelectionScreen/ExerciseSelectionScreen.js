@@ -389,8 +389,8 @@ const ExerciseSelectionScreen = ({ route }) => {
   }, [allGroupedExercises.length]);
 
   useEffect(() => {
-     clearExercisesCache(true); // Clear images too
- fetchExercises(true); // Force refresh
+     clearExercisesCache(true); 
+ fetchExercises(true); 
     prefetchExercises().catch(() => {});
     loadExercises();
   }, [loadExercises]);

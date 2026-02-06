@@ -42,8 +42,6 @@ const StartWorkout = ({ route, navigation }) => {
     const insets = useSafeAreaInsets();
     const isFinishingWorkout = useRef(false);
     const isInitialized = useRef(false);
-    const backPressCount = useRef(0);
-    const backPressTimer = useRef(null);
 
     const { formattedTime } = useWorkoutTimer();
 

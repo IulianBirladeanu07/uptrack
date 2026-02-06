@@ -19,14 +19,6 @@ const getEnvVars = () => {
 
 const { supabaseUrl, supabaseAnonKey, supabaseServiceKey } = getEnvVars();
 
-if (__DEV__) {
-  console.log('Environment Config:', {
-    hasUrl: !!supabaseUrl,
-    hasAnonKey: !!supabaseAnonKey,
-    hasServiceKey: !!supabaseServiceKey
-  });
-}
-
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
     'Missing Supabase configuration. Please ensure supabaseUrl and supabaseAnonKey are set.'

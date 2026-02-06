@@ -4,7 +4,6 @@ import { Picker } from '@react-native-picker/picker';
 import styles from '../components/ProfileSetup/FitnessProfileSetupStepsStyle';
 import stepConfig from './stepConfig';
 
-// Unit conversion functions
 const convertLbsToKg = (lbs) => (parseFloat(lbs) * 0.453592).toFixed(1);
 const convertFtInToCm = (feet, inches) => {
   const totalInches = (parseFloat(feet) * 12) + parseFloat(inches || 0);
@@ -32,20 +31,17 @@ const renderTextInput = (value, onChangeText, placeholder) => (
   />
 );
 
-// Render input that changes based on selected unit system
 const renderUnitInput = (step, formData, handleChange) => {
   const unitSystem = formData.unitSystem || 'metric';
   const { key } = step;
 
   if (unitSystem === 'metric') {
-    // Render metric input
     return renderTextInput(
       formData[key], 
       (value) => handleChange(key, value), 
       step.metric.placeholder
     );
   } else if (key === 'height') {
-    // Special case for height in imperial (feet and inches)
     return (
       <View style={styles.imperialHeightContainer}>
         <View style={styles.feetInputWrapper}>
@@ -77,7 +73,6 @@ const renderUnitInput = (step, formData, handleChange) => {
       </View>
     );
   } else {
-    // Render imperial weight input
     return renderTextInput(
       formData[`${key}_lbs`], 
       (value) => {
@@ -92,7 +87,6 @@ const renderUnitInput = (step, formData, handleChange) => {
   }
 };
 
-// Helper function to render descriptions dynamically
 const renderDescription = (key, value) => {
   const stepDescription = stepConfig.find((step) => step.key === key)?.details?.[value];
   return stepDescription ? (
@@ -106,7 +100,6 @@ const renderDescription = (key, value) => {
   ) : null;
 };
 
-// Function to render content based on the type
 const renderContent = (step, formData, handleChange) => {
   const { type, key, options } = step;
   

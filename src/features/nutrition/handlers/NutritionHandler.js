@@ -114,7 +114,6 @@ export const fetchRecentMeals = async () => {
       throw new Error('User not authenticated.');
     }
 
-    // Check cache
     const cacheKey = `recentMeals_${user.uid}`;
     const cachedMeals = await handleCache.get(cacheKey);
     if (cachedMeals) {
@@ -143,7 +142,6 @@ export const fetchRecentMeals = async () => {
       };
     });
 
-    // Cache the results
     await handleCache.set(cacheKey, meals);
     return meals;
   } catch (error) {
@@ -253,12 +251,9 @@ const performEnhancedSearch = async (searchQuery, limitCount = 50) => {
       });
 
       scoredResults.sort((a, b) => b.similarity_score - a.similarity_score);
-      
-      console.log(`Found ${scoredResults.length} results using ILIKE search`);
       return scoredResults;
     }
 
-    console.log('Trying very loose search');
     const { data: looseResults, error: looseError } = await supabase
       .from('non_barcoded_products')
       .select('*')
@@ -269,7 +264,6 @@ const performEnhancedSearch = async (searchQuery, limitCount = 50) => {
       throw new Error(`Loose search error: ${looseError.message}`);
     }
 
-    console.log(`Found ${looseResults?.length || 0} results using loose search`);
     return looseResults || [];
 
   } catch (error) {
@@ -416,7 +410,6 @@ export const fetchFavoriteFoods = async (limitCount = 10) => {
       const foods = data.foods || [];
       foods.forEach(food => {
         if (food.isFavorite) {
-          console.log('Favorite food:', food);
           favoriteFoods.push({ ...food, mealId: doc.id });
         }
       });

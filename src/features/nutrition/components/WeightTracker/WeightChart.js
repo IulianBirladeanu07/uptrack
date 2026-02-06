@@ -60,7 +60,6 @@ const WeightChart = ({ data }) => {
         last30Days.push({ date: currentDay.toISOString(), weight: dayWeight });
       }
       
-      // Calculate weekly averages
       const weeklyAverages = [];
       for (let i = 0; i < 4; i++) {
         const weekStart = i * 7;

@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: 'bold',
     fontSize: normalize(18),
-    marginLeft: normalize(10), // Space between icon and text
+    marginLeft: normalize(10),
   },
   googleButtonIcon: {
     marginRight: normalize(10),
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   appleButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#000', // Apple Black
+    backgroundColor: '#000',
     borderRadius: normalize(20),
     paddingVertical: normalize(20),
     paddingHorizontal: normalize(10),

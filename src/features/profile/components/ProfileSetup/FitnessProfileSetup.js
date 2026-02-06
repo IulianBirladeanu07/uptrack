@@ -34,12 +34,9 @@ const FitnessProfileSetup = () => {
   const { setProfileSetupComplete, refreshUserData } = useContext(AuthContext);
 
   const [loading, setLoading] = useState(false);
-  const [animatedProgress] = useState(new Animated.Value(0)); // Animates progress bar
+  const [animatedProgress] = useState(new Animated.Value(0));
 
-  
   const firestore = getFirestore();
-
-  // Helper to animate the progress bar
   const animateProgress = useCallback((toValue) => {
     Animated.timing(animatedProgress, {
       toValue,
@@ -49,26 +46,22 @@ const FitnessProfileSetup = () => {
     }).start();
   }, [animatedProgress]);
 
-  // Generate steps dynamically
   const stepsArray = useMemo(() => {
     return steps(formData, (key, value) => {
       setFormData((prev) => ({ ...prev, [key]: value }));
     });
   }, [formData]);
 
-  // Calculate current step's progress percentage
   const progressPercentage = useMemo(() => {
     return (step / stepsArray.length) * 100;
   }, [step, stepsArray.length]);
 
-  // Update progress bar whenever the step changes
   useEffect(() => {
     if (stepsArray.length > 0) {
       animateProgress(progressPercentage);
     }
   }, [step, stepsArray.length, animateProgress, progressPercentage]);
 
-  // Handle step transitions
   const handleStepChange = useCallback((direction) => {
     const newStep = direction === 'next' ? step + 1 : step - 1;
 
@@ -80,7 +73,6 @@ const FitnessProfileSetup = () => {
     setStep(newStep);
   }, [step, stepsArray.length]);
 
-  // Save profile data to Firebase and complete setup
   const handleSaveProfile = async () => {
     setLoading(true);
     const user = auth.currentUser;
@@ -104,10 +96,7 @@ const FitnessProfileSetup = () => {
       await setDoc(doc(firestore, 'users', user.uid), userData, { merge: true });
       await refreshUserData();
       
-      // Complete the profile setup directly
-      setProfileSetupComplete(true);
-      
-      // Reset form data and steps
+      setProfileSetupComplete(true);      
       setFormData({
         currentWeight: '',
         targetWeight: '',
@@ -118,7 +107,7 @@ const FitnessProfileSetup = () => {
         height: '',
         stressLevel: 'low',
       });
-      setStep(1); // Reset to the first step
+      setStep(1);
       animatedProgress.setValue(0);
       
     } catch (error) {
@@ -129,9 +118,6 @@ const FitnessProfileSetup = () => {
     }
   };
 
-
-
-  // Validation for the next button
   const isStepValid = useMemo(() => {
     const currentKey = stepsArray[step - 1]?.key;
     return validateInput(currentKey, formData[currentKey]);
@@ -149,7 +135,6 @@ const FitnessProfileSetup = () => {
             <ActivityIndicator size="large" color="#FFA726" />
           ) : (
             <>
-              {/* Animated progress bar */}
               <View style={styles.progressBarContainer}>
                 <Animated.View
                   style={[
@@ -161,14 +146,13 @@ const FitnessProfileSetup = () => {
                       }),
                       backgroundColor: animatedProgress.interpolate({
                         inputRange: [0, 100],
-                        outputRange: ['#FFA726', '#28A745'], // Gradient effect
+                        outputRange: ['#FFA726', '#28A745'],
                       }),
                     },
                   ]}
                 />
               </View>
 
-              {/* Current step */}
               <FitnessProfileSetupSteps
                 title={stepsArray[step - 1]?.title}
                 description={stepsArray[step - 1]?.description}

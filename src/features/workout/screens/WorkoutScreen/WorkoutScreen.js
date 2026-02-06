@@ -3,11 +3,11 @@ import { View, Text, TouchableOpacity, Modal, Pressable, ScrollView, ActivityInd
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { normalize } from '../../../../shared/hooks/useResponsive';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import { fetchSplitsFromFirestore } from '../../handlers/WorkoutHandler';
 import { WorkoutContext } from '../../context/WorkoutContext';
+import { colors, spacing } from '../../../../shared/theme';
 import styles from './WorkoutScreenStyles';
 
 const DAYS_MAP = {
@@ -52,17 +52,17 @@ const LiveTimer = ({ startTime }) => {
 const HeaderSection = React.memo(({ stats }) => (
     <View style={styles.headerStatsRow}>
         <View style={styles.headerStatItem}>
-            <Ionicons name="flame-outline" size={normalize(14)} color="#ff8535" style={styles.headerStatIcon} />
+            <Ionicons name="flame-outline" size={14} color="#ff8535" style={styles.headerStatIcon} />
             <Text style={styles.headerStatValue}>{stats.streak}</Text>
             <Text style={styles.headerStatLabel}>Day Streak</Text>
         </View>
         <View style={styles.headerStatItem}>
-            <Ionicons name="time-outline" size={normalize(14)} color="#00d4ff" style={styles.headerStatIcon} />
+            <Ionicons name="time-outline" size={14} color="#00d4ff" style={styles.headerStatIcon} />
             <Text style={styles.headerStatValue}>{stats.weeklyTime}</Text>
             <Text style={styles.headerStatLabel}>This Week</Text>
         </View>
         <View style={styles.headerStatItem}>
-            <Ionicons name="barbell-outline" size={normalize(14)} color="#a855f7" style={styles.headerStatIcon} />
+            <Ionicons name="barbell-outline" size={14} color="#a855f7" style={styles.headerStatIcon} />
             <Text style={styles.headerStatValue}>{stats.workoutCount}</Text>
             <Text style={styles.headerStatLabel}>Workouts</Text>
         </View>
@@ -78,7 +78,7 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
             <View style={styles.restDayCard}>
                 <View style={styles.restDayContent}>
                     <View style={styles.restDayIconContainer}>
-                        <Ionicons name="moon" size={normalize(28)} color="#06B6D4" />
+                        <Ionicons name="moon" size={28} color={colors.accent.cyan} />
                     </View>
                     <View style={styles.restDayText}>
                         <Text style={styles.restDayTitle}>Rest Day</Text>
@@ -98,17 +98,17 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
                     </View>
                     <View style={styles.workoutMetrics}>
                         <View style={styles.metricItem}>
-                            <Ionicons name="time-outline" size={normalize(14)} color="#d1d5db" />
+                            <Ionicons name="time-outline" size={14} color="#d1d5db" />
                             <Text style={styles.metricText}>{workoutData.duration}</Text>
                         </View>
                         <View style={styles.metricItem}>
-                            <Ionicons name="barbell-outline" size={normalize(14)} color="#d1d5db" />
+                            <Ionicons name="barbell-outline" size={14} color="#d1d5db" />
                             <Text style={styles.metricText}>{allExercises.length} exercises</Text>
                         </View>
                     </View>
                 </View>
                 <TouchableOpacity style={styles.previewButton} onPress={onPreview}>
-                    <Ionicons name="eye-outline" size={normalize(18)} color="#00d4ff" />
+                    <Ionicons name="eye-outline" size={18} color={colors.accent.cyan} />
                 </TouchableOpacity>
             </View>
             <View style={styles.exerciseGrid}>
@@ -130,7 +130,7 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
                     activeOpacity={0.8}
                     disabled={hasActiveWorkout}
                 >
-                    <Ionicons name="play" size={normalize(14)} style={styles.playIcon} />
+                    <Ionicons name="play" size={14} style={styles.playIcon} />
                     <Text style={styles.startButtonText}>
                         {hasActiveWorkout ? 'WORKOUT IN PROGRESS' : 'START'}
                     </Text>
@@ -187,7 +187,7 @@ const WorkoutActionsSection = React.memo(({ upcomingWorkouts, onPreview }) => {
                         <View style={styles.upcomingGridHeader}>
                             <Text style={styles.upcomingGridDay}>{workout.day}</Text>
                             {!workout.isRest && (
-                                <Ionicons name="arrow-forward" size={normalize(12)} color="#00d4ff" />
+                                <Ionicons name="arrow-forward" size={12} color={colors.accent.cyan} />
                             )}
                         </View>
                         <Text style={[styles.upcomingGridName, workout.isRest && styles.upcomingGridNameRest]}>
@@ -276,8 +276,6 @@ const WorkoutScreen = () => {
         const mins = totalMinutes % 60;
         const weeklyTime = `${hours}h ${mins}m`;
 
-        console.log('Completed days this week:', completedDaysThisWeek);
-
         return {
             streak,
             weeklyTime,
@@ -308,11 +306,6 @@ const WorkoutScreen = () => {
             const today = new Date().getDay();
             const todayKey = DAYS_MAP[today];
             const schedule = active.schedule;
-
-            console.log('Today index:', today);
-            console.log('Today key:', todayKey);
-            console.log('Schedule keys:', Object.keys(schedule));
-            console.log('Today workout data:', schedule[todayKey]);
 
             if (schedule && schedule[todayKey]) {
                 const workout = schedule[todayKey];
@@ -429,7 +422,7 @@ const WorkoutScreen = () => {
         return (
             <ApplicationCustomScreen>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#FF9500" />
+                    <ActivityIndicator size="large" color={colors.accent.primary} />
                 </View>
             </ApplicationCustomScreen>
         );
@@ -437,7 +430,7 @@ const WorkoutScreen = () => {
 
     return (
         <ApplicationCustomScreen>
-            <View style={[styles.container, { paddingBottom: 70 + insets.bottom, paddingHorizontal: normalize(16) }]}>
+            <View style={[styles.container, { paddingBottom: 70 + insets.bottom, paddingHorizontal: spacing[4] }]}>
                 {activeWorkout && (
                     <TouchableOpacity
                         style={styles.compactBanner}
@@ -451,7 +444,7 @@ const WorkoutScreen = () => {
                         </View>
                         <View style={styles.bannerRight}>
                             <LiveTimer startTime={activeWorkout.startTime} />
-                            <Ionicons name="chevron-forward" size={normalize(14)} color="#666" />
+                            <Ionicons name="chevron-forward" size={14} color="#666" />
                         </View>
                     </TouchableOpacity>
                 )}
@@ -479,15 +472,15 @@ const WorkoutScreen = () => {
 
                 <View style={styles.quickActionsContainer}>
                     <TouchableOpacity style={styles.quickActionButton} onPress={handleTemplatesPress}>
-                        <Ionicons name="albums-outline" size={normalize(20)} color="#FF9500" />
+                        <Ionicons name="albums-outline" size={20} color={colors.accent.primary} />
                         <Text style={styles.quickActionButtonText}>Templates</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.quickActionButton} onPress={handleHistoryPress}>
-                        <Ionicons name="stats-chart-outline" size={normalize(20)} color="#06B6D4" />
+                        <Ionicons name="stats-chart-outline" size={20} color={colors.accent.cyan} />
                         <Text style={styles.quickActionButtonText}>History</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.quickActionButton} onPress={handleSplitsPress}>
-                        <Ionicons name="calendar-outline" size={normalize(20)} color="#a855f7" />
+                        <Ionicons name="calendar-outline" size={20} color={colors.accent.purple} />
                         <Text style={styles.quickActionButtonText}>Programs</Text>
                     </TouchableOpacity>
                 </View>
@@ -499,7 +492,7 @@ const WorkoutScreen = () => {
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>{previewWorkout?.name || 'Workout'}</Text>
                             <TouchableOpacity onPress={handleCloseModal} style={styles.modalCloseButton}>
-                                <Ionicons name="close" size={normalize(18)} color="#FFFFFF" />
+                                <Ionicons name="close" size={18} color="#FFFFFF" />
                             </TouchableOpacity>
                         </View>
 
@@ -561,7 +554,7 @@ const WorkoutScreen = () => {
                             }}
                             disabled={!!activeWorkout}
                         >
-                            <Ionicons name="play" size={normalize(14)} color="#0A0E13" style={{ marginRight: normalize(6) }} />
+                            <Ionicons name="play" size={14} color={colors.background.primary} style={{ marginRight: spacing[2] }} />
                             <Text style={styles.modalStartButtonText}>
                                 {activeWorkout ? 'Workout in Progress' : 'Start Workout'}
                             </Text>

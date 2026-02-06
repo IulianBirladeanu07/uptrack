@@ -483,9 +483,6 @@ const ExerciseItem = React.memo(
       customRest: { visible: false },
     });
 
-    console.log('Rendering ExerciseItem:', exercise?.exerciseName || exercise?.name, 'at index', index);
-console.log("exercise image URL:", exercise?.imageURL);
-
     const iconAnim = useRef(new Animated.Value(index === 0 ? 1.2 : 1)).current;
     const iconRotation = useRef(new Animated.Value(index === 0 ? 0 : 1)).current;
     const detailsOpacity = useRef(new Animated.Value(index === 0 ? 1 : 0)).current;

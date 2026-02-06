@@ -7,7 +7,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { styles, COLORS } from './FitnessProfileSummaryModalStyle';
 
-// Icons for each section
 const SECTION_ICONS = {
   planProgress: 'chart-timeline-variant',
   userProfile: 'account-details',
@@ -15,7 +14,6 @@ const SECTION_ICONS = {
   additionalNotes: 'text-box',
 };
 
-// Returns an appropriate icon for the note type
 const getIconForNoteType = (type) => {
   switch (type) {
     case 'goal': return 'trophy';
@@ -26,7 +24,6 @@ const getIconForNoteType = (type) => {
   }
 };
 
-// Returns background color for note type
 const getIconBackgroundColor = (type) => {
   switch (type) {
     case 'goal': return '#FFC107';
@@ -37,7 +34,6 @@ const getIconBackgroundColor = (type) => {
   }
 };
 
-// Utility to format goal names
 const getFormattedGoalName = (goalType) => {
   switch (goalType) {
     case 'muscle_gain': return 'Muscle Gain';
@@ -71,7 +67,6 @@ const AccordionSection = ({ title, iconName, color, expanded, toggleExpanded, ch
   </View>
 );
 
-// Macro Item Component for Visual Representation
 const MacroItem = ({ label, value, percentage, color, iconName }) => (
   <View style={styles.macroItem}>
     <View style={[styles.macroIconContainer, { backgroundColor: color }]}>
@@ -87,7 +82,6 @@ const MacroItem = ({ label, value, percentage, color, iconName }) => (
   </View>
 );
 
-// Note Component for better visualization
 const NoteCard = ({ type, text }) => (
   <View style={styles.noteCardContainer}>
     <View style={[styles.noteIconContainer, { backgroundColor: getIconBackgroundColor(type) }]}>
@@ -107,7 +101,6 @@ const FitnessProfileSummaryModal = ({ visible, onClose, formData, weightChangePl
     setExpandedSection((prev) => (prev === section ? null : section));
   }, []);
 
-  // Render the macros section
   const renderMacros = (macros = {}, percentages = {}) => {
     const macroConfig = [
       { key: 'protein', label: 'Protein', color: COLORS.protein },
@@ -151,7 +144,7 @@ const FitnessProfileSummaryModal = ({ visible, onClose, formData, weightChangePl
                 <ActivityIndicator size="large" color={COLORS.accent} />
               ) : (
                 <>
-                  {/* Plan & Progress */}
+                  {}
                   <AccordionSection
                     title="Plan Overview"
                     iconName={SECTION_ICONS.planProgress}
@@ -187,7 +180,7 @@ const FitnessProfileSummaryModal = ({ visible, onClose, formData, weightChangePl
                     </View>
                   </AccordionSection>
 
-                  {/* User Profile */}
+                  {}
                   <AccordionSection
                     title="User Profile"
                     iconName={SECTION_ICONS.userProfile}
@@ -216,7 +209,7 @@ const FitnessProfileSummaryModal = ({ visible, onClose, formData, weightChangePl
                     </View>
                   </AccordionSection>
 
-                  {/* Nutrition Overview */}
+                  {}
                   <AccordionSection
                     title="Nutrition Overview"
                     iconName={SECTION_ICONS.nutritionOverview}
@@ -224,18 +217,18 @@ const FitnessProfileSummaryModal = ({ visible, onClose, formData, weightChangePl
                     expanded={expandedSection === 'nutritionOverview'}
                     toggleExpanded={() => toggleSection('nutritionOverview')}
                   >
-                    {/* Calories Card */}
+                    {}
                     <View style={styles.caloriesCard}>
                       <Text style={styles.caloriesLabel}>Target Calories</Text>
                       <Text style={styles.caloriesValue}>{weightChangePlan.goalCalories} kcal</Text>
                     </View>
 
-                    {/* Macros Section */}
+                    {}
                     <Text style={styles.sectionTitle}>Daily Macronutrients</Text>
                     {renderMacros(weightChangePlan.macros, weightChangePlan.macroPercentages)}
                   </AccordionSection>
 
-                  {/* Additional Notes */}
+                  {}
                   <AccordionSection
                     title="Additional Notes"
                     iconName={SECTION_ICONS.additionalNotes}

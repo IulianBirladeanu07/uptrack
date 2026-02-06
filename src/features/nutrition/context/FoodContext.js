@@ -1,11 +1,12 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { auth, db } from '../../auth/services/firebaseConfigService';
+import { auth } from '../../auth/services/firebaseConfigService';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import { fetchFrequentFoods, fetchRecentMeals, fetchFavoriteFoods } from '../handlers/NutritionHandler';
 import { addMeal, deleteMealItem, updateMealItem, fetchLast30DaysMeals } from '../services/mealService';
 import useDailyNutrition from '../helpers/useDailyNutrition';
-import { checkAndCompleteLearning, calculateLearningStats } from '../helpers/learningCompletionService'
+import { checkAndCompleteLearning, calculateLearningStats } from '../helpers/learningCompletionService';
+import MealCache from './cache/MealCache';
+import { formatDate } from '../utils/dateUtils';
 
 const FoodContext = createContext();
 
@@ -17,113 +18,10 @@ export const useFoodContext = () => {
   return context;
 };
 
-class MealCache {
-  constructor(maxSize = 30) {
-    this.data = new Map();
-    this.stepsData = new Map();
-    this.accessOrder = new Map();
-    this.maxSize = maxSize;
-    this.defaultMeals = { breakfast: [], lunch: [], dinner: [], snacks: [] };
-  }
-  
-  get(key) { 
-    if (this.data.has(key)) {
-      this.accessOrder.delete(key);
-      this.accessOrder.set(key, Date.now());
-      return this.data.get(key);
-    }
-    return { ...this.defaultMeals }; 
-  }
-  
-  set(key, value) { 
-    if (this.data.size >= this.maxSize && !this.data.has(key)) {
-      const oldestKey = this.accessOrder.keys().next().value;
-      this.data.delete(oldestKey);
-      this.accessOrder.delete(oldestKey);
-    }
-    
-    this.data.set(key, value);
-    this.accessOrder.set(key, Date.now());
-  }
-  
-  has(key) { 
-    return this.data.has(key); 
-  }
-  
-  clear() { 
-    this.data.clear();
-    this.stepsData.clear();
-    this.accessOrder.clear();
-  }
-  
-  updateMealType(dateKey, mealType, foods) {
-    const dayMeals = this.get(dateKey);
-    dayMeals[mealType] = foods;
-    this.set(dateKey, dayMeals);
-    return dayMeals;
-  }
-  
-  buildFromMeals(meals) {
-    this.clear();
-    const groupedMeals = new Map();
-    
-    meals.forEach(meal => {
-      const dateKey = meal.date;
-      if (!groupedMeals.has(dateKey)) {
-        groupedMeals.set(dateKey, { ...this.defaultMeals });
-      }
-      groupedMeals.get(dateKey)[meal.mealType] = meal.foods || [];
-    });
-    
-    groupedMeals.forEach((meals, date) => {
-      this.set(date, meals);
-    });
-  }
-
-  getDateRange(startDate, endDate) {
-    const results = [];
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dateKey = formatDate(d);
-      const meals = this.get(dateKey);
-      results.push({ date: dateKey, meals });
-    }
-    
-    return results;
-  }
-
-  setSteps(dateKey, steps) {
-    this.stepsData.set(dateKey, steps);
-  }
-  
-  getSteps(dateKey) {
-    return this.stepsData.get(dateKey) || 0;
-  }
-  
-  getStepsRange(startDate, endDate) {
-    const results = [];
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dateKey = formatDate(d);
-      results.push({ date: dateKey, steps: this.getSteps(dateKey) });
-    }
-    
-    return results;
-  }
-}
-
-const formatDate = (date) => {
-  return (date instanceof Date ? date : new Date(date)).toISOString().split('T')[0];
-};
-
-export const FoodProvider = ({ children }) => {
+export const FoodProvider = ({ children, initialUserData }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [userProfile, setUserProfile] = useState(null);
+  const [userProfile, setUserProfile] = useState(initialUserData || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
@@ -240,24 +138,19 @@ export const FoodProvider = ({ children }) => {
   const getWeeklyAvgSteps = useCallback(() => {
     const endDate = new Date(selectedDate);
     const startDate = new Date(endDate);
-    startDate.setDate(endDate.getDate() - 6);
+    startDate.setDate(endDate.getDate() - 7);
     
     const data = mealCache.current.getStepsRange(startDate, endDate);
-    
     const todayKey = formatDate(selectedDate);
     const isToday = todayKey === formatDate(new Date());
     
-    const updatedData = data.map(d => {
-      if (isToday && d.date === todayKey) {
-        return { ...d, steps: dailySteps };
-      }
-      return d;
-    });
+    const completedDays = isToday 
+      ? data.filter(d => d.date !== todayKey)
+      : data;
     
-    const total = updatedData.reduce((sum, d) => sum + d.steps, 0);
-    console.log('Weekly steps data:', updatedData, 'Total:', total, 'Average:', Math.round(total / 7));
-    return Math.round(total / 7);
-  }, [selectedDate, dailySteps]);
+    const total = completedDays.reduce((sum, d) => sum + d.steps, 0);
+    return completedDays.length > 0 ? Math.round(total / completedDays.length) : 0;
+  }, [selectedDate]);
 
   const updateCaches = useCallback(({
     frequentFoods: newFrequentFoods,
@@ -372,16 +265,6 @@ export const FoodProvider = ({ children }) => {
     });
   }, [currentUser, selectedDate, updateMealState, executeWithLock, handleError]);
 
-  const fetchUserProfile = useCallback(async (uid) => {
-    try {
-      const profileDoc = await getDoc(doc(db, 'users', uid));
-      return profileDoc.exists() ? profileDoc.data() : null;
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      return null;
-    }
-  }, []);
-
   const loadCategoryData = useCallback(async () => {
     if (!mountedRef.current) return;
     
@@ -434,13 +317,10 @@ export const FoodProvider = ({ children }) => {
     setError(null);
     
     try {
-      const [userProfileData, last30DaysMeals] = await Promise.all([
-        fetchUserProfile(user.uid),
-        fetchLast30DaysMeals(user.uid)
-      ]);
+      const last30DaysMeals = await fetchLast30DaysMeals(user.uid);
 
       if (mountedRef.current) {
-        setUserProfile(userProfileData);
+        setUserProfile(initialUserData);
         mealCache.current.buildFromMeals(last30DaysMeals);
         updateCurrentDayMeals(new Date());
         setInitialLoadComplete(true);
@@ -462,13 +342,12 @@ export const FoodProvider = ({ children }) => {
         setLoading(false);
       }
     }
-  }, [fetchUserProfile, loadCategoryData, updateCurrentDayMeals, handleError]);
+  }, [initialUserData, loadCategoryData, updateCurrentDayMeals, handleError]);
 
   useEffect(() => {
     const checkLearningCompletion = async () => {
       if (currentUser && enhancedLearningData.isLearningComplete && !nutritionHookData.hasTargets) {
         try {
-          console.log('Learning phase complete, setting user targets...');
           const newTargets = await checkAndCompleteLearning(
             currentUser.uid, 
             mealCache.current, 
@@ -481,7 +360,6 @@ export const FoodProvider = ({ children }) => {
               ...prev,
               ...newTargets
             }));
-            console.log('User targets set successfully:', newTargets);
           }
         } catch (error) {
           console.error('Failed to complete learning phase:', error);

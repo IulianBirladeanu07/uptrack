@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFoodContext } from '../../context/FoodContext';
+import { colors, spacing } from '../../../../shared/theme';
 import styles from './FoodDetailScreenStyle';
 
 import MacroSection from './MacroSection'
@@ -23,13 +24,14 @@ const FoodDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
-  const { food, meal, update, foodId, selectedDate } = route.params || {};
+  const { food, meal, update, foodId, selectedDate: rawSelectedDate } = route.params || {};
+  const selectedDate = rawSelectedDate ? new Date(rawSelectedDate) : new Date();
 
   if (!food) {
     return (
       <View style={styles.container}>
         <View style={styles.errorContainer}>
-          <MaterialCommunityIcons name="alert-circle" size={48} color="#EF4444" />
+          <MaterialCommunityIcons name="alert-circle" size={48} color={colors.accent.errorAlt} />
           <Text style={styles.errorText}>No food data available</Text>
         </View>
       </View>
@@ -129,7 +131,7 @@ const FoodDetailScreen = () => {
             accessible
             accessibilityLabel="Go back"
           >
-            <MaterialCommunityIcons name="arrow-left" size={24} color="#F9FAFB" />
+            <MaterialCommunityIcons name="arrow-left" size={spacing.iconLg} color={colors.text.primary} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.floatingFavoriteButton}
@@ -139,8 +141,8 @@ const FoodDetailScreen = () => {
           >
             <MaterialCommunityIcons
               name={isFavorite ? 'heart' : 'heart-outline'}
-              size={24}
-              color={isFavorite ? '#EF4444' : '#F9FAFB'}
+              size={spacing.iconLg}
+              color={isFavorite ? colors.accent.errorAlt : colors.text.primary}
             />
           </TouchableOpacity>
         </View>
@@ -168,10 +170,10 @@ const FoodDetailScreen = () => {
 
           <Text style={styles.sectionTitle}>Micronutrients</Text>
           <View style={styles.nutrientsList}>
-            <NutrientRow label="Fiber" value={memoizedTotalNutrients.fiber} color="#10B981" />
-            <NutrientRow label="Sugar" value={memoizedTotalNutrients.sugar} color="#EF4444" />
-            <NutrientRow label="Salt" value={memoizedTotalNutrients.salt} unit="g" color="#3B82F6" />
-            <NutrientRow label="Saturated Fats" value={memoizedTotalNutrients.saturatedFats} color="#F59E0B" />
+            <NutrientRow label="Fiber" value={memoizedTotalNutrients.fiber} color={colors.accent.success} />
+            <NutrientRow label="Sugar" value={memoizedTotalNutrients.sugar} color={colors.accent.errorAlt} />
+            <NutrientRow label="Salt" value={memoizedTotalNutrients.salt} unit="g" color={colors.accent.blue} />
+            <NutrientRow label="Saturated Fats" value={memoizedTotalNutrients.saturatedFats} color={colors.accent.amber} />
           </View>
         </View>
       </ScrollView>
@@ -184,14 +186,14 @@ const FoodDetailScreen = () => {
         onSelectUnit={handleUnitSelect}
       />
 
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom || 20 }]}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom || spacing[5] }]}>
         <TouchableOpacity
           style={styles.addButton}
           onPress={handleAddFood}
           accessible
           accessibilityLabel="Add food to diary"
         >
-          <MaterialCommunityIcons name={update ? "check-circle" : "plus-circle"} size={20} color="#0f172a" />
+          <MaterialCommunityIcons name={update ? "check-circle" : "plus-circle"} size={spacing.iconMd} color={colors.accent.buttonText} />
           <Text style={styles.addButtonText}>
             {update ? 'Update Food' : `Add to Diary • ${memoizedTotalNutrients.calories} cal`}
           </Text>

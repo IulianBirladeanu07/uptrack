@@ -1,4 +1,4 @@
-// CustomButton.js
+
 import React, { useRef } from 'react';
 import { TouchableOpacity, Animated, Text, StyleSheet, Dimensions, PixelRatio } from 'react-native';
 import { normalize } from '../../hooks/useResponsive';

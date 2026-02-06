@@ -32,7 +32,6 @@ const SettingsScreen = ({ navigation }) => {
         darkTheme,
       };
 
-      // Update settings in your backend/database here
       setUserSettings(newSettings);
       Alert.alert('Success', 'Settings updated successfully!');
     } catch (error) {
@@ -62,7 +61,7 @@ const SettingsScreen = ({ navigation }) => {
         </TouchableOpacity>
         <Text style={styles.header}>Settings</Text>
 
-        {/* Notifications Settings */}
+        {}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Enable Notifications</Text>
           <Switch
@@ -73,7 +72,7 @@ const SettingsScreen = ({ navigation }) => {
           />
         </View>
 
-        {/* Dark Theme Settings */}
+        {}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Dark Theme</Text>
           <Switch
@@ -84,19 +83,19 @@ const SettingsScreen = ({ navigation }) => {
           />
         </View>
 
-        {/* Change Password */}
+        {}
         <TouchableOpacity style={styles.card} onPress={handleChangePassword}>
           <Text style={styles.cardTitle}>Change Password</Text>
           <Ionicons name="chevron-forward-outline" size={normalize(24)} color="#fff" />
         </TouchableOpacity>
 
-        {/* Logout Button */}
+        {}
         <TouchableOpacity style={styles.card} onPress={handleLogout}>
           <Text style={styles.cardTitle}>Logout</Text>
           <Ionicons name="exit-outline" size={normalize(24)} color="#fff" />
         </TouchableOpacity>
 
-        {/* Save Settings */}
+        {}
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
             <View style={styles.buttonBackground}>
@@ -124,44 +123,44 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   header: {
-    fontSize: normalize(28), // Slightly larger font size for better emphasis
+    fontSize: normalize(28),
     color: '#fff',
     textAlign: 'center',
-    marginBottom: normalize(35), // Adjusted spacing for balance
+    marginBottom: normalize(35),
     marginTop: normalize(60),
-    fontWeight: '600', // Use a slightly lighter font weight for better readability
+    fontWeight: '600',
     letterSpacing: normalize(1),
   },
   card: {
     backgroundColor: '#02202B',
-    paddingVertical: normalize(18), // Vertical padding for a better touch area
-    paddingHorizontal: normalize(20), // Horizontal padding to balance spacing
-    borderRadius: normalize(20), // Slightly reduced radius for a more modern look
-    marginBottom: normalize(15), // Reduced margin for a more compact layout
+    paddingVertical: normalize(18), 
+    paddingHorizontal: normalize(20),
+    borderRadius: normalize(20), 
+    marginBottom: normalize(15),
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 }, // Deeper shadow for a floating effect
+    shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 6, // Increased elevation for a more prominent effect
+    elevation: 6,
   },
   cardTitle: {
     color: '#fff',
     fontSize: normalize(18),
     fontWeight: 'bold',
-    letterSpacing: normalize(0.5), // Slight letter spacing for clarity
+    letterSpacing: normalize(0.5),
   },
   buttonContainer: {
     marginTop: normalize(30),
-    marginBottom: normalize(20), // Ensure space between save button and last card
+    marginBottom: normalize(20),
   },
   saveButton: {
     backgroundColor: '#FFA726',
-    paddingVertical: normalize(20), // Increased padding for a more prominent button
+    paddingVertical: normalize(20),
     borderRadius: normalize(25),
-    shadowOffset: { width: 0, height: 5 }, // Subtle shadow effect for depth
+    shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
@@ -174,10 +173,10 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontSize: normalize(18), // Larger text size for emphasis
+    fontSize: normalize(18),
     fontWeight: 'bold',
     textAlign: 'center',
-    letterSpacing: normalize(0.8), // Slight letter spacing for better readability
+    letterSpacing: normalize(0.8),
   },
 });
 

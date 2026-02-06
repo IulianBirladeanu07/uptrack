@@ -34,7 +34,7 @@ const MeasurementScreen = () => {
     rightLeg: '',
     leftLeg: '',
     neck: '',
-    date: new Date().toISOString().split('T')[0], // Set default date to today
+    date: new Date().toISOString().split('T')[0],
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -81,7 +81,6 @@ const MeasurementScreen = () => {
     try {
       await saveMeasurementsToFirestore(measurements);
       Alert.alert('Measurements Saved', 'Your measurements have been saved successfully.');
-      // Clear the inputs after saving
       setMeasurements({
         bodyWeight: '',
         shoulders: '',

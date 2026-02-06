@@ -39,7 +39,7 @@ const WeightDisplay = React.memo(({ weightData, onPress }) => {
     return { main: 'Tap to weigh', sub: 'Track your progress' };
   }, [weightData.currentWeight, weightData.weeklyAverage, weightData.weeklyTrend, weightData.weighInCount]);
 
-  const trendColor = weightData.weeklyTrend > 0 ? "#10B981" : 
+  const tr1endColor = weightData.weeklyTrend > 0 ? "#10B981" : 
                      weightData.weeklyTrend < 0 ? "#EF4444" : "#9CA3AF";
 
   return (
@@ -71,7 +71,6 @@ const WeightDisplay = React.memo(({ weightData, onPress }) => {
     </TouchableOpacity>
   );
 }, (prevProps, nextProps) => {
-  // Deep comparison for weightData
   const prevData = prevProps.weightData;
   const nextData = nextProps.weightData;
   

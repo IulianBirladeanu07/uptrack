@@ -62,7 +62,6 @@ const CustomPieChart = ({ data, size = normalize(200), selectedIndex, onPress, c
                   stroke={COLORS.background}
                   strokeWidth={normalize(2)}
                 />
-                {/* Wrap Path in TouchableOpacity for press events */}
                 <TouchableOpacity
                   style={{
                     position: 'absolute',
@@ -70,14 +69,13 @@ const CustomPieChart = ({ data, size = normalize(200), selectedIndex, onPress, c
                     height: size,
                   }}
                   onPress={() => {
-                    console.log(`Pressed pie segment: ${index}`); // Debugging log
                     onPress(index);
                   }}
                   activeOpacity={0.8}
                 >
                   <Path
                     d={path}
-                    fill="transparent" // Make the touchable Path transparent
+                    fill="transparent"
                     stroke="transparent"
                     strokeWidth={normalize(2)}
                   />
@@ -121,7 +119,7 @@ const CustomPieChart = ({ data, size = normalize(200), selectedIndex, onPress, c
 };
 
 const ReviewStep = ({ splitData, setCurrentStep }) => {
-  const [selectedMuscleIndex, setSelectedMuscleIndex] = useState(0); // Default to first muscle group
+  const [selectedMuscleIndex, setSelectedMuscleIndex] = useState(0); 
   const [activeTab, setActiveTab] = useState('overview');
   const [animatedValue] = useState(new Animated.Value(0));
   const muscleListRef = useRef(null);
@@ -139,7 +137,6 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
     }).start();
   }, []);
 
-  // Generate schedule days based on split type
   const scheduleDays = useMemo(() => {
     if (isWeeklySchedule) {
       return daysOfWeek;
@@ -423,7 +420,6 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
               size={normalize(200)}
               selectedIndex={selectedMuscleIndex}
               onPress={(index) => {
-                console.log(`Setting selected muscle index: ${index}`); // Debugging log
                 setSelectedMuscleIndex(index);
               }}
               colors={pieChartColors}
@@ -451,7 +447,6 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
                       isSelected && styles.muscleCardItemSelected,
                     ]}
                     onPress={() => {
-                      console.log(`Selected muscle pill: ${index}`); // Debugging log
                       setSelectedMuscleIndex(index);
                     }}
                     activeOpacity={0.8}

@@ -2,19 +2,18 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 const BarGraph = ({ dailyCalories, targetCalories, colors }) => {
-  // Filter out days with zero calories for average calculation
+  
   const activeDays = dailyCalories.filter(cal => cal > 0);
-  const averageCalories = activeDays.reduce((sum, curr) => sum + curr, 0) / (activeDays.length || 1); // Avoid division by zero
+  const averageCalories = activeDays.reduce((sum, curr) => sum + curr, 0) / (activeDays.length || 1); 
 
-  // Determine the maximum scale using a fixed base, max from data, or targetCalories
-  const baseMaxCalorie = 3000; // Adjust this base to suit typical data ranges
+  const baseMaxCalorie = 3000; 
   const maxCalorie = Math.max(baseMaxCalorie, ...dailyCalories, averageCalories, targetCalories);
-  const containerHeight = 175; // Fixed container height
-  const minBarHeight = 5; // Minimum bar height for visibility
+  const containerHeight = 175; 
+  const minBarHeight = 5; 
 
   const getSafeHeight = (calories) => {
     const height = (calories / maxCalorie) * containerHeight;
-    return Math.max(height, minBarHeight); // Ensures minimum height
+    return Math.max(height, minBarHeight); 
   };
 
   const renderDottedLine = (position) => (
@@ -81,7 +80,7 @@ const styles = StyleSheet.create({
   dayContainer: {
     flex: 1,
     alignItems: 'center',
-    marginHorizontal: 8, // Increased margin
+    marginHorizontal: 8, 
     borderRadius: 5,
     justifyContent: 'flex-end',
     marginBottom: 10,

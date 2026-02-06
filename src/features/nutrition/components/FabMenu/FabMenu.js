@@ -1,68 +1,54 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { View, TouchableOpacity, Text, Animated, Easing, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { normalize } from '../../../../shared/hooks/useResponsive';
-
-// Updated color palette matching weight tracker
-const colors = {
-  bg: '#0A0E13',
-  surface: '#151B23',
-  surfaceLight: '#1F2937',
-  primary: '#FF9500',
-  primaryDark: '#E68600',
-  success: '#32D74B',
-  danger: '#FF453A',
-  purple: '#9333EA',
-  yellow: '#FF9F0A',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textTertiary: '#6B7280',
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderLight: 'rgba(255, 255, 255, 0.05)',
-};
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
 const menuItems = [
   {
-    icon: 'food-variant',
+    icon: 'food-apple',
     label: 'Add New Food',
     sublabel: 'without barcode',
     type: 'foodWithoutBarcode',
-    color: colors.success,
-    emoji: '🥗'
+    color: colors.accent.success,
+    bgColor: colors.faded.successAlt,
+    borderColor: colors.border.successAlt,
   },
   {
     icon: 'barcode-scan',
-    label: 'Add New Food',
-    sublabel: 'with barcode',
+    label: 'Scan Barcode',
+    sublabel: 'quick food entry',
     type: 'foodWithBarcode',
-    color: colors.purple,
-    emoji: '📊'
+    color: colors.accent.purple,
+    bgColor: colors.faded.purple,
+    borderColor: colors.border.default,
   },
   {
     icon: 'silverware-fork-knife',
-    label: 'Add New Meals',
-    sublabel: 'Create a meal combination',
+    label: 'Create Meal',
+    sublabel: 'meal combination',
     type: 'meals',
-    color: colors.primary,
-    emoji: '🍽️'
+    color: colors.accent.cyan,
+    bgColor: colors.faded.cyan,
+    borderColor: colors.border.cyan,
   },
   {
     icon: 'calculator-variant',
     label: 'Add Calories',
-    sublabel: 'Quick calorie entry',
+    sublabel: 'quick calorie entry',
     type: 'calories',
-    color: colors.yellow,
-    emoji: '🔢'
+    color: colors.accent.primary,
+    bgColor: colors.faded.primary,
+    borderColor: colors.border.primary,
   }
 ];
 
 const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
   const [isFabExpanded, setIsFabExpanded] = useState(false);
+  const insets = useSafeAreaInsets();
   
-  // Single animated value for all animations
   const animationValue = useRef(new Animated.Value(0)).current;
 
-  // Memoize animated styles to prevent recalculation
   const animatedStyles = useMemo(() => ({
     backdrop: {
       opacity: animationValue,
@@ -107,7 +93,6 @@ const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
     }))
   }), [animationValue]);
 
-  // Memoize animation function
   const animate = useCallback((toExpanded) => {
     Animated.timing(animationValue, {
       toValue: toExpanded ? 1 : 0,
@@ -130,41 +115,40 @@ const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
     animate(false);
   }, [navigation, meal, animate]);
 
-  // Memoize menu items to prevent re-renders
   const memoizedMenuItems = useMemo(() => 
-    menuItems.map((item, index) => {
-      const iconStyle = [
-        styles.menuIcon, 
-        { 
-          backgroundColor: `${item.color}15`,
-          borderColor: `${item.color}30`
-        }
-      ];
-
-      return (
-        <Animated.View
-          key={item.type}
-          style={[
-            styles.menuItemWrapper,
-            animatedStyles.menuItems[index]
-          ]}
+    menuItems.map((item, index) => (
+      <Animated.View
+        key={item.type}
+        style={[
+          styles.menuItemWrapper,
+          animatedStyles.menuItems[index]
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.menuOption}
+          onPress={() => handleItemPress(item.type)}
+          activeOpacity={0.7}
         >
-          <TouchableOpacity
-            style={styles.menuOption}
-            onPress={() => handleItemPress(item.type)}
-            activeOpacity={0.7}
-          >
-            <View style={iconStyle}>
-              <Text style={styles.menuEmoji}>{item.emoji}</Text>
-            </View>
-            <View style={styles.menuText}>
-              <Text style={styles.menuLabel}>{item.label}</Text>
-              <Text style={styles.menuSublabel}>{item.sublabel}</Text>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-      );
-    }),
+          <View style={[
+            styles.menuIcon, 
+            { 
+              backgroundColor: item.bgColor,
+              borderColor: item.borderColor,
+            }
+          ]}>
+            <MaterialCommunityIcons 
+              name={item.icon} 
+              size={spacing.iconLg} 
+              color={item.color} 
+            />
+          </View>
+          <View style={styles.menuText}>
+            <Text style={styles.menuLabel}>{item.label}</Text>
+            <Text style={styles.menuSublabel}>{item.sublabel}</Text>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    )),
     [animatedStyles.menuItems, handleItemPress]
   );
 
@@ -172,7 +156,6 @@ const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
 
   return (
     <>
-      {/* Backdrop */}
       <Animated.View
         style={[
           styles.backdrop,
@@ -189,12 +172,11 @@ const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
         />
       </Animated.View>
 
-      {/* FAB Button */}
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: spacing[20] + insets.bottom }]}
         onPress={toggleMenu}
         activeOpacity={0.9}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        hitSlop={{ top: spacing[2], bottom: spacing[2], left: spacing[2], right: spacing[2] }}
       >
         <Animated.View
           style={[
@@ -202,28 +184,29 @@ const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
             animatedStyles.fabRotation,
           ]}
         >
-          <MaterialCommunityIcons name="plus" size={normalize(22)} color={colors.textPrimary} />
+          <MaterialCommunityIcons 
+            name="plus" 
+            size={spacing.iconLg} 
+            color={colors.text.primary} 
+          />
         </Animated.View>
       </TouchableOpacity>
 
-      {/* Bottom Sheet Menu */}
       <Animated.View
         style={[
           styles.menuContainer,
+          { paddingBottom: spacing[7] + insets.bottom },
           animatedStyles.menuContainer,
         ]}
         pointerEvents={isFabExpanded ? 'auto' : 'none'}
       >
-        {/* Menu Handle */}
         <View style={styles.menuHandle} />
 
-        {/* Menu Header */}
         <View style={styles.menuHeader}>
           <Text style={styles.menuHeaderTitle}>Quick Actions</Text>
           <Text style={styles.menuHeaderSubtitle}>Choose an option to continue</Text>
         </View>
 
-        {/* Menu Items */}
         {memoizedMenuItems}
       </Animated.View>
     </>
@@ -233,28 +216,28 @@ const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10, 14, 19, 0.95)',
+    backgroundColor: colors.background.overlay,
     zIndex: 999,
   },
   fab: {
     position: 'absolute',
-    top: normalize(50),
-    right: normalize(25),
-    width: normalize(40),
-    height: normalize(40),
-    backgroundColor: colors.primary,
-    borderRadius: normalize(20),
+    bottom: spacing[20],
+    right: spacing[5],
+    width: spacing[14],
+    height: spacing[14],
+    backgroundColor: colors.accent.primary,
+    borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
     zIndex: 1001,
-    shadowColor: colors.primary,
+    shadowColor: colors.accent.primary,
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: spacing[1],
     },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: spacing[2],
   },
   fabIconContainer: {
     width: '100%',
@@ -267,89 +250,82 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: normalize(24),
-    borderTopRightRadius: normalize(24),
-    paddingHorizontal: normalize(20),
-    paddingBottom: normalize(30),
-    paddingTop: normalize(12),
+    backgroundColor: colors.background.secondary,
+    borderTopLeftRadius: radius[4],
+    borderTopRightRadius: radius[4],
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[3],
     zIndex: 1000,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.border.default,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: -4,
+      height: -spacing[1],
     },
     shadowOpacity: 0.3,
-    shadowRadius: 16,
+    shadowRadius: spacing[4],
     elevation: 16,
   },
   menuHandle: {
-    width: normalize(40),
-    height: normalize(4),
-    backgroundColor: colors.textTertiary,
-    borderRadius: normalize(2),
+    width: spacing[10],
+    height: spacing[1],
+    backgroundColor: colors.text.quaternary,
+    borderRadius: radius[1],
     alignSelf: 'center',
-    marginBottom: normalize(20),
+    marginBottom: spacing[4],
     opacity: 0.5,
   },
   menuHeader: {
-    marginBottom: normalize(16),
-    paddingHorizontal: normalize(4),
+    marginBottom: spacing[3],
   },
   menuHeaderTitle: {
-    fontSize: normalize(20),
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginBottom: normalize(4),
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing[1],
     letterSpacing: -0.3,
   },
   menuHeaderSubtitle: {
-    fontSize: normalize(14),
-    fontWeight: '500',
-    color: colors.textSecondary,
-    letterSpacing: 0.1,
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.medium,
+    color: colors.text.secondary,
   },
   menuItemWrapper: {
-    marginBottom: normalize(8),
+    marginBottom: spacing[2],
   },
   menuOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceLight,
-    borderRadius: normalize(16),
-    padding: normalize(16),
-    gap: normalize(16),
+    backgroundColor: colors.faded.surfaceLight,
+    borderRadius: radius[3],
+    padding: spacing[3],
+    gap: spacing[3],
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.border.default,
   },
   menuIcon: {
-    width: normalize(48),
-    height: normalize(48),
-    borderRadius: normalize(12),
+    width: spacing[11],
+    height: spacing[11],
+    borderRadius: radius[2],
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-  },
-  menuEmoji: {
-    fontSize: normalize(22),
   },
   menuText: {
     flex: 1,
   },
   menuLabel: {
-    fontSize: normalize(15),
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: normalize(3),
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: 2,
     letterSpacing: 0.2,
   },
   menuSublabel: {
-    fontSize: normalize(13),
-    fontWeight: '500',
-    color: colors.textSecondary,
-    letterSpacing: 0.1,
+    fontSize: fontSize[10],
+    fontWeight: fontWeight.medium,
+    color: colors.text.secondary,
   },
 });
 

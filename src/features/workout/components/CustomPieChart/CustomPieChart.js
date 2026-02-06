@@ -20,14 +20,12 @@ const CustomPieChart = ({
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
 
-  // Calculate total value
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
   useEffect(() => {
-    // Reset animations
+    
     animatedValues.forEach(val => val.setValue(0));
 
-    // Animate each segment with staggered timing
     const animations = animatedValues.map((animValue, index) => 
       Animated.timing(animValue, {
         toValue: 1,
@@ -43,7 +41,6 @@ const CustomPieChart = ({
     ]).start();
   }, [data, animationDuration]);
 
-  // Calculate segments with cumulative angles
   let cumulativePercentage = 0;
   const segments = data.map((item, index) => {
     const percentage = (item.value / total) * 100;
@@ -66,7 +63,7 @@ const CustomPieChart = ({
     <View style={[{ alignItems: 'center', justifyContent: 'center' }, style]}>
       <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
         <G>
-          {/* Background circle */}
+          {}
           <Circle
             cx={center}
             cy={center}
@@ -76,7 +73,7 @@ const CustomPieChart = ({
             fill="transparent"
           />
           
-          {/* Data segments */}
+          {}
           {segments.map((segment, index) => (
             <AnimatedCircle
               key={segment.key || `segment-${index}`}
@@ -103,7 +100,7 @@ const CustomPieChart = ({
             />
           ))}
           
-          {/* Inner circle for donut effect */}
+          {}
           {innerRadius > 0 && (
             <Circle
               cx={center}

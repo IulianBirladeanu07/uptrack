@@ -1,7 +1,5 @@
 import { StyleSheet } from 'react-native';
-// import { RFPercentage, RFValue } from 'react-native-responsive-fontsize';
 
-// Styles for the ProgressScreen
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,

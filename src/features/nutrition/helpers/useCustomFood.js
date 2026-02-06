@@ -96,6 +96,7 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
         try {
             const formattedData = formatFoodDataForSubmission(formData);
             const updatedRemainingCalories = remainingCalories - formattedData.calories;
+            const serializedDate = selectedDate ? new Date(selectedDate).toISOString() : new Date().toISOString();
             
             if (type === 'foodWithBarcode') {
                 const { data: existingProduct, error: fetchError } = await supabase
@@ -129,7 +130,7 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
                 navigation.navigate('FoodDetail', { 
                     food: foodForDetail,
                     meal: meal,
-                    selectedDate: selectedDate || new Date(),
+                    selectedDate: serializedDate,
                     remainingCalories: updatedRemainingCalories,
                     update: false,
                     refreshBarcodedProducts: true
@@ -140,7 +141,7 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
                 navigation.navigate('FoodDetail', {
                     food: foodForDetail,
                     meal: meal,
-                    selectedDate: selectedDate || new Date(),
+                    selectedDate: serializedDate,
                     remainingCalories: updatedRemainingCalories,
                     update: false,
                 });

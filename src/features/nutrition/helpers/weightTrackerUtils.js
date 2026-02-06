@@ -1,20 +1,13 @@
-// weightTrackerUtils.js
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../auth/services/firebaseConfigService';
-import { Animated, Vibration } from 'react-native';
+import { Animated } from 'react-native';
 
-/**
- * Validates if the given value is a valid weight (numeric, > 0, <= 1000).
- */
 export const validateWeight = (value) => {
   const numValue = parseFloat(value);
   return !isNaN(numValue) && numValue > 0 && numValue <= 1000;
 };
 
-/**
- * Helper to get the start of the week (Monday).
- */
 export const getWeekStartDate = (date) => {
   const d = new Date(date);
   const day = d.getDay();
@@ -22,17 +15,11 @@ export const getWeekStartDate = (date) => {
   return new Date(d.setDate(diff));
 };
 
-/**
- * Helper to get day key for database storage.
- */
 export const getDayKey = (date) => {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   return days[date.getDay()];
 };
 
-/**
- * Calculates the average of non-null/undefined weights in a weekly object.
- */
 export const calculateWeeklyAverage = (weeklyWeights) => {
   const weights = Object.values(weeklyWeights).filter(w => w !== null && w !== undefined);
   if (weights.length === 0) return null;
@@ -40,9 +27,6 @@ export const calculateWeeklyAverage = (weeklyWeights) => {
   return parseFloat((sum / weights.length).toFixed(2));
 };
 
-/**
- * Formats a Date object into a readable string.
- */
 export const formatDate = (date) => {
   const options = {
     weekday: 'long',
@@ -52,10 +36,6 @@ export const formatDate = (date) => {
   return date.toLocaleDateString('en-US', options);
 };
 
-/**
- * Simplified function to load user weight data without weightIns processing.
- * The InputView component now handles weightIns fetching directly.
- */
 export const loadUserWeightData = async (
   userId,
   currentDate,
@@ -107,13 +87,6 @@ export const loadUserWeightData = async (
         });
       }
       setTrendData(last7Days);
-
-      console.log('Weight data loaded successfully:', {
-        currentWeight: data.currentWeight,
-        weeklyDataCount: weightIns.length,
-        currentWeekAverage: currentWeek?.average,
-        lastWeekAverage: lastWeek?.average
-      });
     }
   } catch (error) {
     console.error('Error loading weight data:', error);
@@ -233,153 +206,13 @@ export const handleSaveLogic = async (
     setCurrentWeight(weightValue);
     setWeeklyAverage(currentWeekAverage);
 
-    // Reload all data to ensure UI is updated
     await loadDataCallback();
-
-    console.log('Weight saved successfully:', {
-      weight: weightValue,
-      weekStart: weekStartDate,
-      dayKey: dayKey,
-      weekAverage: currentWeekAverage,
-      totalWeeks: updatedWeightIns.length
-    });
-
   } catch (error) {
     console.error('Error saving weight: ', error);
     throw error;
   }
 };
 
-export async function addWeightDataToFirestore(userId) {
-  // Weight data to add to existing user profile
-  const newWeightIns = [
-    // Week 1 (July 7-13, 2025)
-    {
-      average: 88.54,
-      createdAt: "2025-07-07T00:00:00.000Z",
-      days: {
-        sunday: 88.95,
-        monday: 88.65,
-        tuesday: 88.45,
-        wednesday: 88.00,
-        thursday: 88.80,
-        friday: 88.70,
-        saturday: 88.20
-      },
-      weekStart: "2025-07-07"
-    },
-    // Week 2 (July 14-20, 2025)
-    {
-      average: 87.89,
-      createdAt: "2025-07-14T00:00:00.000Z",
-      days: {
-        sunday: 88.40,
-        monday: 88.70,
-        tuesday: 88.75,
-        wednesday: 87.45,
-        thursday: 87.35,
-        friday: 87.25,
-        saturday: 87.35
-      },
-      weekStart: "2025-07-14"
-    },
-    // Week 3 (July 21-27, 2025)
-    {
-      average: 87.2,
-      createdAt: "2025-07-21T00:00:00.000Z",
-      days: {
-        sunday: 87.75,
-        monday: 87.75,
-        tuesday: 87.6,
-        wednesday: 87.25,
-        thursday: 87,
-        friday: 86.3,
-        saturday: 86.75
-      },
-      weekStart: "2025-07-21"
-    },
-    // Week 4 (July 28 - Aug 3, 2025)
-    {
-      average: 85.88,
-      createdAt: "2025-07-28T00:00:00.000Z",
-      days: {
-        sunday: 86.2,
-        monday: 86.25,
-        tuesday: 86,
-        wednesday: 85.8,
-        thursday: 85.8,
-        friday: 85.6,
-        saturday: 85.5
-      },
-      weekStart: "2025-07-28"
-    },
-    // Week 5 (Aug 4-10, 2025)
-    {
-      average: 85.09,
-      createdAt: "2025-08-04T00:00:00.000Z",
-      days: {
-        sunday: 85.75,
-        monday: 85.75,
-        tuesday: 85.00,
-        wednesday: 84.95,
-        thursday: 85.10,
-        friday: 84.55,
-        saturday: 84.55
-      },
-      weekStart: "2025-08-04"
-    },
-    // Week 6 (Aug 11-17, 2025) - Incomplete week
-    {
-      average: 84.52,
-      createdAt: "2025-08-11T00:00:00.000Z",
-      days: {
-        sunday: 84.95,
-        monday: 84.55,
-        tuesday: 84.55,
-        wednesday: 84.75,
-        thursday: 83.85,
-        friday: 84.45
-      },
-      weekStart: "2025-08-11"
-    }
-  ];
-
-  try {
-    // Get current user data
-    const userDocRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
-
-    if (!userDoc.exists()) {
-      throw new Error('User document not found');
-    }
-
-    const currentData = userDoc.data();
-
-    // Add new weight data to existing weightIns array
-    const existingWeightIns = currentData.weightIns || [];
-    const updatedWeightIns = [...existingWeightIns, ...newWeightIns];
-
-    // Update user document with new weight data
-    await setDoc(userDocRef, {
-      ...currentData,
-      weightIns: updatedWeightIns,
-      currentWeight: 84.45, // Most recent weight
-      lastWeightUpdate: "2025-08-16T00:00:00.000Z"
-    }, { merge: true });
-
-    console.log('Weight data successfully added to Firestore');
-    return { success: true, addedWeeks: newWeightIns.length };
-
-  } catch (error) {
-    console.error('Error adding weight data to Firestore:', error);
-    throw error;
-  }
-}
-
-/**
- * Utility function to process weightIns data for display in components.
- * This can be used by any component that needs to display weight entries.
- */
 export const processWeightInsForDisplay = (weightIns, limit = 20) => {
   if (!weightIns || !Array.isArray(weightIns) || weightIns.length === 0) {
     return [];
@@ -387,7 +220,6 @@ export const processWeightInsForDisplay = (weightIns, limit = 20) => {
 
   const entries = [];
   
-  // Process each week's data
   weightIns.forEach(week => {
     if (!week.days || !week.weekStart) return;
     
@@ -412,14 +244,10 @@ export const processWeightInsForDisplay = (weightIns, limit = 20) => {
     });
   });
 
-  // Sort by date (most recent first) and limit results
   entries.sort((a, b) => b.date - a.date);
   return entries.slice(0, limit);
 };
 
-/**
- * Helper function to format dates for display.
- */
 const formatDisplayDate = (date) => {
   const today = new Date();
   const yesterday = new Date(today);
@@ -446,17 +274,11 @@ const formatDisplayDate = (date) => {
   }
 };
 
-/**
- * Adjusts weight value by increment within bounds.
- */
 export const adjustWeight = (currentWeight, increment) => {
   const currentVal = parseFloat(currentWeight) || 0;
   return Math.max(0, Math.min(1000, currentVal + increment)).toFixed(1);
 };
 
-/**
- * Shows success notification with animation.
- */
 export const showSuccessNotification = (setShowSuccess, successAnim) => {
   setShowSuccess(true);
   Animated.sequence([
@@ -478,9 +300,6 @@ export const showSuccessNotification = (setShowSuccess, successAnim) => {
   });
 };
 
-/**
- * Handles tab navigation animation.
- */
 export const handleTabPress = (tab, setActiveTab, tabIndicatorAnim) => {
   setActiveTab(tab);
   const tabIndex = ['input', 'week', 'trend'].indexOf(tab);
@@ -491,9 +310,6 @@ export const handleTabPress = (tab, setActiveTab, tabIndicatorAnim) => {
   }).start();
 };
 
-/**
- * Gets color based on weight change relative to average.
- */
 export const getWeightChangeColor = (weight, average) => {
   if (weight === null || weight === undefined || average === null || average === undefined) {
     return '#64748B';
@@ -504,17 +320,11 @@ export const getWeightChangeColor = (weight, average) => {
   return '#94A3B8';
 };
 
-/**
- * Returns week days configuration.
- */
 export const getWeekDays = () => ({
   days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   dayKeys: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
 });
 
-/**
- * Calculates trend statistics from weight data.
- */
 export const calculateTrendStats = (trendData) => {
   if (!trendData || trendData.length === 0) {
     return {

@@ -1,83 +1,40 @@
 import { useState, useMemo, useCallback, memo } from 'react';
-import { FlatList, Text, View, TouchableOpacity, StyleSheet } from 'react-native';
+import { FlatList, Text, View, TouchableOpacity } from 'react-native';
 import { Coffee, Sun, Moon, Apple, Utensils } from 'lucide-react-native';
 import FoodSearchResults from './FoodSearchResults';
 import FoodItem from './FoodItem';
 import MealItem from './MealItem';
-import { normalize } from '../../../../shared/hooks/useResponsive';
+import { colors, spacing, fontSize, fontWeight, radius, LIST, EMPTY_STATE } from '../../../../shared/theme';
+import { createStyles } from '../../../../shared/theme/createStyles';
 
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snacks'];
-const ITEM_HEIGHT = normalize(80);
-const HEADER_HEIGHT = normalize(40);
 
-const colors = {
-  bg: '#0A0E13',
-  surface: '#151B23',
-  surfaceLight: '#1F2937',
-  primary: '#FF9500',
-  cyan: '#00d4ff',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textTertiary: '#6B7280',
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderLight: 'rgba(255, 255, 255, 0.05)',
-
-  breakfast: '#FFB627',
-  breakfastBg: 'rgba(255, 182, 39, 0.06)',
-  breakfastBorder: 'rgba(255, 182, 39, 0.12)',
-
-  lunch: '#FFB627',
-  lunchBg: 'rgba(255, 182, 39, 0.06)',
-  lunchBorder: 'rgba(255, 182, 39, 0.12)',
-
-  dinner: '#A78BFA',
-  dinnerBg: 'rgba(167, 139, 250, 0.06)',
-  dinnerBorder: 'rgba(167, 139, 250, 0.12)',
-
-  snacks: '#34D399',
-  snacksBg: 'rgba(52, 211, 153, 0.06)',
-  snacksBorder: 'rgba(52, 211, 153, 0.12)',
+const MEAL_STYLES = {
+  breakfast: { background: colors.faded.breakfast, border: colors.border.breakfast },
+  lunch: { background: colors.faded.lunch, border: colors.border.lunch },
+  dinner: { background: colors.faded.dinner, border: colors.border.dinner },
+  snacks: { background: colors.faded.snacks, border: colors.border.snacks },
 };
 
-const getMealIcon = (mealType, size = normalize(20)) => {
-  const iconProps = {
-    size,
-    strokeWidth: 2.5,
-  };
-  
-  switch (mealType.toLowerCase()) {
+const DEFAULT_MEAL_STYLE = { background: 'rgba(156, 163, 184, 0.12)', border: 'rgba(156, 163, 184, 0.2)' };
+
+const getMealStyle = (mealType) => MEAL_STYLES[mealType?.toLowerCase()] || DEFAULT_MEAL_STYLE;
+
+const getMealIcon = (mealType, size = spacing[5]) => {
+  const iconProps = { size, strokeWidth: 2.5 };
+
+  switch (mealType?.toLowerCase()) {
     case 'breakfast':
-      return <Coffee {...iconProps} color={colors.breakfast} />;
+      return <Coffee {...iconProps} color={colors.meal.breakfast} />;
     case 'lunch':
-      return <Sun {...iconProps} color={colors.lunch} />;
+      return <Sun {...iconProps} color={colors.meal.lunch} />;
     case 'dinner':
-      return <Moon {...iconProps} color={colors.dinner} />;
+      return <Moon {...iconProps} color={colors.meal.dinner} />;
     case 'snacks':
-      return <Apple {...iconProps} color={colors.snacks} />;
+      return <Apple {...iconProps} color={colors.meal.snacks} />;
     default:
-      return <Utensils {...iconProps} color={colors.textSecondary} />;
+      return <Utensils {...iconProps} color={colors.text.secondary} />;
   }
-};
-
-const getMealIconBackground = (mealType) => {
-  const backgrounds = {
-    breakfast: colors.breakfastBg,
-    lunch: colors.lunchBg,
-    dinner: colors.dinnerBg,
-    snacks: colors.snacksBg,
-  };
-  
-  return backgrounds[mealType.toLowerCase()] || 'rgba(156, 163, 184, 0.12)';
-};
-
-const getMealIconBorder = (mealType) => {
-  const borders = {
-    breakfast: colors.breakfastBorder,
-    lunch: colors.lunchBorder,
-    dinner: colors.dinnerBorder,
-    snacks: colors.snacksBorder,
-  };
-  return borders[mealType.toLowerCase()] || 'rgba(156, 163, 184, 0.2)';
 };
 
 const renderMealItem = (item, meal, onPress, onPlusPress, index) => (
@@ -103,37 +60,36 @@ const renderFoodItem = (item, onPress, onPlusPress, index) => (
   />
 );
 
-const EmptyComponent = memo(({ text, mealType }) => (
-  <View style={styles.emptyContainer}>
-    <View style={[
-      styles.emptyIconContainer,
-      { 
-        backgroundColor: getMealIconBackground(mealType || 'default'),
-        borderColor: getMealIconBorder(mealType || 'default')
-      }
-    ]}>
-      {getMealIcon(mealType || 'default', normalize(28))}
-    </View>
-    <Text style={styles.emptyText}>{text}</Text>
-    <Text style={styles.emptySubtext}>
-      {mealType ? `Add your first ${mealType} item` : 'Try searching for foods'}
-    </Text>
-  </View>
-));
+const EmptyComponent = memo(({ text, mealType }) => {
+  const mealStyle = getMealStyle(mealType);
 
-const MealHeader = memo(({ 
-  mealType, 
-  itemCount, 
-  isExpanded, 
-  maxItems, 
-  onToggle 
+  return (
+    <View style={styles.emptyContainer}>
+      <View style={[
+        styles.emptyIconContainer,
+        { backgroundColor: mealStyle.background, borderColor: mealStyle.border }
+      ]}>
+        {getMealIcon(mealType || 'default', spacing[7])}
+      </View>
+      <Text style={styles.emptyText}>{text}</Text>
+      <Text style={styles.emptySubtext}>
+        {mealType ? `Add your first ${mealType} item` : 'Try searching for foods'}
+      </Text>
+    </View>
+  );
+});
+
+const MealHeader = memo(({
+  mealType,
+  itemCount,
+  isExpanded,
+  maxItems,
+  onToggle
 }) => {
   const shouldShowToggle = itemCount > maxItems;
-  
+
   const handlePress = useCallback(() => {
-    if (shouldShowToggle) {
-      onToggle(mealType);
-    }
+    if (shouldShowToggle) onToggle(mealType);
   }, [mealType, onToggle, shouldShowToggle]);
 
   return (
@@ -150,7 +106,7 @@ const MealHeader = memo(({
             style={styles.toggleButton}
             onPress={handlePress}
             activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: spacing[2], bottom: spacing[2], left: spacing[2], right: spacing[2] }}
           >
             <Text style={styles.toggleText}>
               {isExpanded ? 'Show less' : 'Show more'}
@@ -160,60 +116,54 @@ const MealHeader = memo(({
       </View>
     </View>
   );
-}, (prevProps, nextProps) => {
-  return (
-    prevProps.mealType === nextProps.mealType &&
-    prevProps.itemCount === nextProps.itemCount &&
-    prevProps.isExpanded === nextProps.isExpanded &&
-    prevProps.maxItems === nextProps.maxItems
-  );
-});
+}, (prevProps, nextProps) => (
+  prevProps.mealType === nextProps.mealType &&
+  prevProps.itemCount === nextProps.itemCount &&
+  prevProps.isExpanded === nextProps.isExpanded &&
+  prevProps.maxItems === nextProps.maxItems
+));
 
 const createOptimizedFlatData = (foods, expandedMealType, maxItems) => {
   if (!foods?.length) return [];
-  
+
   const grouped = Object.create(null);
   const flatData = [];
-  
+
   for (let i = 0; i < foods.length; i++) {
     const food = foods[i];
-    const mealType = food.mealType;
-    if (!grouped[mealType]) {
-      grouped[mealType] = [];
-    }
-    grouped[mealType].push(food);
+    if (!grouped[food.mealType]) grouped[food.mealType] = [];
+    grouped[food.mealType].push(food);
   }
-  
+
   for (let j = 0; j < MEAL_ORDER.length; j++) {
     const mealType = MEAL_ORDER[j];
     const mealFoods = grouped[mealType];
-    
     if (!mealFoods?.length) continue;
-    
+
     const isExpanded = expandedMealType === mealType;
     const itemsToShow = isExpanded ? mealFoods : mealFoods.slice(0, maxItems);
-    
+
     flatData.push({
       type: 'header',
       mealType,
       itemCount: mealFoods.length,
       isExpanded,
       id: `header_${mealType}`,
-      height: HEADER_HEIGHT,
+      height: LIST.HEADER_HEIGHT,
     });
-    
+
     for (let k = 0; k < itemsToShow.length; k++) {
       const food = itemsToShow[k];
       flatData.push({
         type: 'food',
         food,
         id: `${mealType}_${k}_${food.id || food.productName}`,
-        height: ITEM_HEIGHT,
+        height: LIST.ITEM_HEIGHT,
         index: k,
       });
     }
   }
-  
+
   return flatData;
 };
 
@@ -226,7 +176,7 @@ const FoodListItem = memo(({
   handleNavigateToFoodDetail,
   handlePlusPress,
   meal,
-  maxItemsToShow = 3,
+  maxItemsToShow = LIST.INITIAL_ITEMS_COUNT,
   recentSearches = [],
   setSearchQuery,
   handleSearch,
@@ -255,7 +205,6 @@ const FoodListItem = memo(({
         />
       );
     }
-    
     return renderFoodItem(item.food, handleNavigateToFoodDetail, handlePlusPress, index);
   }, [maxItemsToShow, handleToggleExpand, handleNavigateToFoodDetail, handlePlusPress]);
 
@@ -265,56 +214,43 @@ const FoodListItem = memo(({
     windowSize: 4,
     updateCellsBatchingPeriod: 50,
     removeClippedSubviews: true,
-    disableVirtualization: false,
     scrollEventThrottle: 16,
     decelerationRate: 0.998,
     keyboardShouldPersistTaps: 'handled',
-    delayPressIn: 0,
-    delayPressOut: 0,
-    delayLongPress: 150,
     showsVerticalScrollIndicator: false,
     bounces: true,
     alwaysBounceVertical: false,
     overScrollMode: 'never',
-    maintainVisibleContentPosition: null,
-    inverted: false,
-    legacyImplementation: false,
     nestedScrollEnabled: true,
-    canCancelContentTouches: true,
-    pagingEnabled: false,
     keyboardDismissMode: 'on-drag',
     onEndReachedThreshold: 0.2,
-    persistentScrollbar: false,
-    fadingEdgeLength: 0,
-    contentContainerStyle: styles.contentContainer,
   }), []);
 
-  const getItemKey = useCallback((item, index) => 
+  const getItemKey = useCallback((item, index) =>
     item.id || item.productName || `item_${index}`, []
   );
-  
+
   const getFlatKey = useCallback((item) => item.id, []);
 
   const getItemLayout = useCallback((data, index) => {
     if (!data || !data[index]) {
-      return { length: ITEM_HEIGHT, offset: index * ITEM_HEIGHT, index };
+      return { length: LIST.ITEM_HEIGHT, offset: index * LIST.ITEM_HEIGHT, index };
     }
-    
+
     const item = data[index];
-    const itemHeight = item.height || (item.type === 'header' ? HEADER_HEIGHT : ITEM_HEIGHT);
-    
+    const itemHeight = item.height || (item.type === 'header' ? LIST.HEADER_HEIGHT : LIST.ITEM_HEIGHT);
+
     if (item.offset !== undefined) {
       return { length: itemHeight, offset: item.offset, index };
     }
-    
+
     let offset = 0;
     for (let i = 0; i < index; i++) {
       const prevItem = data[i];
-      offset += prevItem?.height || (prevItem?.type === 'header' ? HEADER_HEIGHT : ITEM_HEIGHT);
+      offset += prevItem?.height || (prevItem?.type === 'header' ? LIST.HEADER_HEIGHT : LIST.ITEM_HEIGHT);
     }
-    
+
     item.offset = offset;
-    
     return { length: itemHeight, offset, index };
   }, []);
 
@@ -324,14 +260,6 @@ const FoodListItem = memo(({
     onRecentSearchPress?.(searchTerm);
   }, [setSearchQuery, handleSearch, onRecentSearchPress]);
 
-  const handleCreateFood = useCallback(() => {
-    console.log('Create food clicked');
-  }, []);
-
-  const handleRecentItems = useCallback(() => {
-    console.log('Recent items clicked');
-  }, []);
-
   if (isSearching) {
     return (
       <FoodSearchResults
@@ -340,8 +268,6 @@ const FoodListItem = memo(({
         onItemPress={handleNavigateToFoodDetail}
         onPlusPress={handlePlusPress}
         showPlusButton={true}
-        onCreateFood={handleCreateFood}
-        onRecentItems={handleRecentItems}
         recentSearches={recentSearches}
         onRecentSearchPress={handleRecentSearchPress}
       />
@@ -359,9 +285,6 @@ const FoodListItem = memo(({
           getItemLayout={getItemLayout}
           ListEmptyComponent={<EmptyComponent text="No frequent foods found" />}
           extraData={`${expandedMealType}_${flatData.length}`}
-          stickyHeaderIndices={[]}
-          CellRendererComponent={undefined}
-          debug={false}
         />
       );
 
@@ -374,22 +297,16 @@ const FoodListItem = memo(({
           keyExtractor={getItemKey}
           ListEmptyComponent={<EmptyComponent text="No recent meals found" mealType={meal} />}
           getItemLayout={(data, index) => ({
-            length: ITEM_HEIGHT,
-            offset: ITEM_HEIGHT * index,
+            length: LIST.ITEM_HEIGHT,
+            offset: LIST.ITEM_HEIGHT * index,
             index,
           })}
           extraData={categoryFoods.length}
-          stickyHeaderIndices={[]}
         />
       );
 
     case 'Favorite':
-      return (
-        <EmptyComponent 
-          text="Favorite foods coming soon!" 
-          mealType="favorite"
-        />
-      );
+      return <EmptyComponent text="Favorite foods coming soon!" mealType="favorite" />;
 
     default:
       return null;
@@ -403,10 +320,9 @@ export default memo(FoodListItem, (prev, next) => {
   if (prev.meal !== next.meal) return false;
   if (prev.searchQuery !== next.searchQuery) return false;
   if (prev.recentSearches?.length !== next.recentSearches?.length) return false;
-  
   if (prev.searchResults?.length !== next.searchResults?.length) return false;
   if (prev.categoryFoods?.length !== next.categoryFoods?.length) return false;
-  
+
   return (
     prev.searchResults === next.searchResults &&
     prev.categoryFoods === next.categoryFoods &&
@@ -419,73 +335,85 @@ export default memo(FoodListItem, (prev, next) => {
   );
 });
 
-const styles = StyleSheet.create({
-  contentContainer: {},
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: normalize(24),
-    paddingVertical: normalize(48),
-  },
-  emptyIconContainer: {
-    width: normalize(64),
-    height: normalize(64),
-    borderRadius: normalize(20),
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: normalize(20),
-  },
-  emptyText: {
-    fontSize: normalize(18),
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: normalize(8),
-    letterSpacing: 0.3,
-  },
-  emptySubtext: {
-    fontSize: normalize(14),
-    color: colors.textTertiary,
-    textAlign: 'center',
-    lineHeight: normalize(20),
-    fontWeight: '500',
-  },
+const styles = createStyles(() => ({
   mealHeaderContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: HEADER_HEIGHT,
+    minHeight: LIST.HEADER_HEIGHT,
   },
+
   headerContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: spacing[1],
   },
+
   titleRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: normalize(6),
+    gap: spacing[2],
   },
+
+  itemCountText: {
+    fontSize: fontSize[14],
+    color: colors.text.quaternary,
+    fontWeight: fontWeight.medium,
+    letterSpacing: 0.1,
+    marginLeft: spacing[1],
+  },
+
   mealTypeTitle: {
-    fontSize: normalize(18),
-    fontWeight: '700',
-    color: colors.textPrimary,
+    fontSize: fontSize[18],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
     letterSpacing: 0.2,
   },
-  itemCountText: {
-    fontSize: normalize(14),
-    color: colors.textTertiary,
-    fontWeight: '500',
-    letterSpacing: 0.1,
-  },
+
   toggleButton: {
-    paddingHorizontal: normalize(8),
+    paddingHorizontal: spacing[2],
   },
+
   toggleText: {
-    fontSize: normalize(12),
-    color: colors.primary,
-    fontWeight: '500',
+    fontSize: fontSize[12],
+    color: colors.accent.primary,
+    fontWeight: fontWeight.medium,
   },
-});
+
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing[6],
+    paddingVertical: spacing[12],
+  },
+
+  emptyIconContainer: {
+    width: EMPTY_STATE.ICON_SIZE,
+    height: EMPTY_STATE.ICON_SIZE,
+    borderRadius: radius[5],
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[5],
+  },
+
+  emptyText: {
+    fontSize: fontSize[18],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginBottom: spacing[2],
+    letterSpacing: 0.3,
+  },
+
+  emptySubtext: {
+    fontSize: fontSize[14],
+    color: colors.text.quaternary,
+    textAlign: 'center',
+    lineHeight: 20,
+    fontWeight: fontWeight.medium,
+  },
+
+}));

@@ -1,4 +1,3 @@
-// customFoodValidators.js
 export const validateField = (field, value, type) => {
     const parseNumber = (val) => {
         if (val === null || val === undefined || val === '') return null;

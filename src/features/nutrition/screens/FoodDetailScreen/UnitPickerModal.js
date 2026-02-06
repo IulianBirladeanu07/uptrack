@@ -1,212 +1,157 @@
 import React from 'react';
-import { Modal, Pressable, View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { Modal, Pressable, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import { createStyles } from '../../../../shared/theme/createStyles';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 
-const COLORS = {
-  bg: '#0A0E13',
-  surface: '#151B23',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textTertiary: '#6B7280',
-  primary: '#FF9500',
-  border: 'rgba(255, 255, 255, 0.08)',
-  primaryBg: 'rgba(255, 149, 0, 0.15)',
-  primaryBorder: 'rgba(255, 149, 0, 0.3)',
-  primaryTransparent: 'rgba(255, 149, 0, 0.1)',
+const UNIT_LABELS = {
+  g: 'Grams',
+  oz: 'Ounces',
+  mL: 'Milliliters',
+  cup: 'Cups',
+  serving: 'Servings',
 };
 
-const UnitPickerModal = ({ visible, onClose, units, selectedUnit, onSelectUnit }) => (
-  <Modal visible={visible} transparent animationType="slide">
-    <Pressable style={styles.modalOverlay} onPress={onClose}>
-      <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-        {/* Handle bar */}
-        <View style={styles.handleBar} />
-        
-        <View style={styles.modalHeader}>
-          <View style={styles.headerLeft}>
-            <View style={styles.iconBadge}>
-              <MaterialCommunityIcons name="scale" size={normalize(20)} color={COLORS.primary} />
+const UnitPickerModal = ({ visible, onClose, units, selectedUnit, onSelectUnit }) => {
+  const insets = useSafeAreaInsets();
+  
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable style={styles.sheetWrapper} onPress={(e) => e.stopPropagation()}>
+          <View style={[styles.sheet, { paddingBottom: spacing[7] + insets.bottom }]}>
+            <View style={styles.handle} />
+
+            <View style={styles.header}>
+              <Text style={styles.title}>Serving Unit</Text>
+              <Text style={styles.subtitle}>Select your preferred measurement</Text>
             </View>
-            <Text style={styles.modalTitle}>Serving Unit</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.modalCloseButton} 
-            onPress={onClose}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <MaterialCommunityIcons name="close" size={normalize(22)} color={COLORS.textTertiary} />
-          </TouchableOpacity>
-        </View>
 
-        <ScrollView 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {units.map((unit, index) => (
-            <TouchableOpacity
-              key={unit}
-              style={[
-                styles.modalOption,
-                unit === selectedUnit && styles.modalOptionSelected,
-                index === units.length - 1 && styles.lastOption
-              ]}
-              onPress={() => onSelectUnit(unit)}
-              activeOpacity={0.7}
+            <ScrollView 
+              style={styles.scrollView}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
             >
-              <View style={styles.optionContent}>
-                <View style={[
-                  styles.radioOuter,
-                  unit === selectedUnit && styles.radioOuterSelected
-                ]}>
-                  {unit === selectedUnit && (
-                    <View style={styles.radioInner} />
-                  )}
-                </View>
-                <Text style={[
-                  styles.modalOptionText,
-                  unit === selectedUnit && styles.modalOptionTextSelected
-                ]}>
-                  {unit}
-                </Text>
-              </View>
-              {unit === selectedUnit && (
-                <View style={styles.checkmarkContainer}>
-                  <MaterialCommunityIcons 
-                    name="check-circle" 
-                    size={normalize(20)} 
-                    color={COLORS.primary} 
-                  />
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+              {units.map((unit) => {
+                const isSelected = unit === selectedUnit;
+                
+                return (
+                  <TouchableOpacity
+                    key={unit}
+                    style={[styles.option, isSelected && styles.optionSelected]}
+                    onPress={() => onSelectUnit(unit)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.textContent}>
+                      <Text style={[styles.unitLabel, isSelected && styles.unitLabelSelected]}>
+                        {UNIT_LABELS[unit] || unit}
+                      </Text>
+                      <Text style={[styles.unitCode, isSelected && styles.unitCodeSelected]}>
+                        {unit}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={normalize(18)}
+                        color={colors.accent.primary}
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </Pressable>
       </Pressable>
-    </Pressable>
-  </Modal>
-);
+    </Modal>
+  );
+};
 
-const styles = StyleSheet.create({
-  modalOverlay: {
+const styles = createStyles(() => ({
+  backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(10, 14, 19, 0.85)',
+    backgroundColor: colors.background.overlay,
     justifyContent: 'flex-end',
   },
-  modalContent: {
-    backgroundColor: COLORS.bg,
-    borderTopLeftRadius: normalize(24),
-    borderTopRightRadius: normalize(24),
+  sheetWrapper: {
     maxHeight: '60%',
-    paddingBottom: normalize(20),
   },
-  handleBar: {
-    width: normalize(40),
-    height: normalize(4),
-    backgroundColor: COLORS.textTertiary,
-    borderRadius: normalize(2),
+  sheet: {
+    backgroundColor: colors.background.secondary,
+    borderTopLeftRadius: radius[4],
+    borderTopRightRadius: radius[4],
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[3],
+    borderTopWidth: 1,
+    borderTopColor: colors.border.default,
+  },
+  handle: {
+    width: spacing[10],
+    height: spacing[1],
+    backgroundColor: colors.text.quaternary,
+    borderRadius: radius[1],
     alignSelf: 'center',
-    marginTop: normalize(12),
-    marginBottom: normalize(8),
-    opacity: 0.4,
+    marginBottom: spacing[4],
+    opacity: 0.5,
   },
-  modalHeader: {
+  header: {
+    marginBottom: spacing[4],
+  },
+  title: {
+    fontSize: fontSize[20],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing[1],
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.medium,
+    color: colors.text.secondary,
+  },
+  scrollView: {
+    flexGrow: 0,
+  },
+  option: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: normalize(20),
-    paddingTop: normalize(12),
-    paddingBottom: normalize(16),
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: normalize(12),
-  },
-  iconBadge: {
-    width: normalize(44),
-    height: normalize(44),
-    borderRadius: normalize(14),
-    backgroundColor: COLORS.primaryBg,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: colors.faded.surfaceLight,
+    borderRadius: radius[3],
+    padding: spacing[4],
     borderWidth: 1,
-    borderColor: COLORS.primaryBorder,
+    borderColor: colors.border.default,
+    marginBottom: spacing[2],
+    minHeight: spacing[14],
   },
-  modalTitle: {
-    fontSize: normalize(18),
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    letterSpacing: 0.2,
+  optionSelected: {
+    backgroundColor: colors.faded.primary,
+    borderColor: colors.border.primary,
   },
-  modalCloseButton: {
-    width: normalize(36),
-    height: normalize(36),
-    borderRadius: normalize(18),
-    backgroundColor: COLORS.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
+  textContent: {
+    flex: 1,
   },
-  scrollContent: {
-    paddingHorizontal: normalize(16),
-    paddingTop: normalize(8),
+  unitLabel: {
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing[1],
+    letterSpacing: -0.2,
   },
-  modalOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.surface,
-    borderRadius: normalize(14),
-    paddingVertical: normalize(16),
-    paddingHorizontal: normalize(16),
-    marginBottom: normalize(8),
-    borderWidth: 1,
-    borderColor: COLORS.border,
+  unitLabelSelected: {
+    color: colors.text.primary,
   },
-  modalOptionSelected: {
-    backgroundColor: COLORS.primaryTransparent,
-    borderColor: COLORS.primary,
-    borderWidth: 1.5,
+  unitCode: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
   },
-  lastOption: {
-    marginBottom: 0,
+  unitCodeSelected: {
+    color: colors.text.secondary,
   },
-  optionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: normalize(12),
-  },
-  radioOuter: {
-    width: normalize(22),
-    height: normalize(22),
-    borderRadius: normalize(11),
-    borderWidth: 2,
-    borderColor: COLORS.textTertiary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioOuterSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryTransparent,
-  },
-  radioInner: {
-    width: normalize(10),
-    height: normalize(10),
-    borderRadius: normalize(5),
-    backgroundColor: COLORS.primary,
-  },
-  modalOptionText: {
-    fontSize: normalize(16),
-    color: COLORS.textSecondary,
-    fontWeight: '600',
-  },
-  modalOptionTextSelected: {
-    color: COLORS.textPrimary,
-    fontWeight: '700',
-  },
-  checkmarkContainer: {
-    marginLeft: normalize(8),
-  },
-});
+}));
 
 export default React.memo(UnitPickerModal);

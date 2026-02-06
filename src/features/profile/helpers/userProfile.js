@@ -1,14 +1,11 @@
-// helpers/userProfile.js
-
 import { db, collection, setDoc, doc, getDoc } from '../services/firebaseConfigService';
 import WeightService from './weightService';
-import { calculateWeightChangePlan } from './nutritionCalculations'; // Assuming this exists
+import { calculateWeightChangePlan } from './nutritionCalculations';
 
 export const saveUserProfile = async (uid, profileData) => {
   try {
     const userDocRef = doc(collection(db, 'users'), uid);
     await setDoc(userDocRef, profileData, { merge: true });
-    console.log('Profile data saved successfully!');
   } catch (error) {
     console.error('Error saving profile data:', error.message);
     throw new Error('Failed to save profile data');
@@ -22,7 +19,6 @@ export const fetchUserProfile = async (uid) => {
     if (userDoc.exists()) {
       return userDoc.data();
     } else {
-      console.log('No such document!');
       return null;
     }
   } catch (error) {
@@ -31,9 +27,6 @@ export const fetchUserProfile = async (uid) => {
   }
 };
 
-/**
- * Initialize user profile with weight tracking setup
- */
 export const initializeUserWeightTracking = async (uid, initialWeight) => {
   try {
     const today = new Date();
@@ -63,29 +56,19 @@ export const initializeUserWeightTracking = async (uid, initialWeight) => {
   }
 };
 
-/**
- * Update user's nutrition plan based on current weight and progress
- */
 export const updateUserNutritionPlan = async (uid) => {
   try {
     const userProfile = await fetchUserProfile(uid);
     if (!userProfile) throw new Error('User profile not found');
 
-    // Get recent weight data
-    const weightData = await WeightService.getWeightDisplayData(uid, new Date());
-    
-    // Use current weight if available, otherwise use profile weight
+    const weightData = await WeightService.getWeightDisplayData(uid, new Date());    
     const currentWeight = weightData.currentWeight || userProfile.currentWeight;
-
-    // Recalculate nutrition plan with updated weight
     const updatedFormData = {
       ...userProfile,
       currentWeight: currentWeight,
     };
 
     const newWeightChangePlan = calculateWeightChangePlan(updatedFormData);
-
-    // Update profile with new plan
     const updatedProfile = {
       ...userProfile,
       currentWeight: currentWeight,
@@ -101,15 +84,12 @@ export const updateUserNutritionPlan = async (uid) => {
   }
 };
 
-/**
- * Get comprehensive user data including weight trends
- */
 export const getUserDashboardData = async (uid, selectedDate = new Date()) => {
   try {
     const [userProfile, weightData, weightHistory] = await Promise.all([
       fetchUserProfile(uid),
       WeightService.getWeightDisplayData(uid, selectedDate),
-      WeightService.getWeightHistory(uid, 8), // Last 8 weeks
+      WeightService.getWeightHistory(uid, 8),
     ]);
 
     return {
@@ -124,20 +104,11 @@ export const getUserDashboardData = async (uid, selectedDate = new Date()) => {
   }
 };
 
-/**
- * Weekly maintenance task - adjust user targets based on progress
- */
 export const performWeeklyUserMaintenance = async (uid) => {
-  try {
-    console.log(`Performing weekly maintenance for user ${uid}`);
-    
-    // Check if targets need adjustment
+  try {    
     const adjustmentResult = await WeightService.adjustUserTargetsBasedOnProgress(uid);
     
     if (adjustmentResult) {
-      console.log(`Adjusted targets for user ${uid}:`, adjustmentResult);
-      
-      // Update the user profile with new targets
       await saveUserProfile(uid, {
         weightChangePlan: adjustmentResult,
         lastMaintenanceRun: new Date().toISOString(),
@@ -148,7 +119,6 @@ export const performWeeklyUserMaintenance = async (uid) => {
         newPlan: adjustmentResult,
       };
     } else {
-      // Just update maintenance timestamp
       await saveUserProfile(uid, {
         lastMaintenanceRun: new Date().toISOString(),
       });
@@ -167,9 +137,6 @@ export const performWeeklyUserMaintenance = async (uid) => {
   }
 };
 
-/**
- * Get user's current macro targets (with latest adjustments)
- */
 export const getCurrentUserMacros = async (uid) => {
   try {
     const userProfile = await fetchUserProfile(uid);
@@ -193,9 +160,6 @@ export const getCurrentUserMacros = async (uid) => {
   }
 };
 
-/**
- * Check if user needs a nutrition plan update
- */
 export const shouldUpdateNutritionPlan = async (uid) => {
   try {
     const userProfile = await fetchUserProfile(uid);
@@ -203,12 +167,7 @@ export const shouldUpdateNutritionPlan = async (uid) => {
 
     const lastUpdate = new Date(userProfile.lastNutritionUpdate || userProfile.createdAt);
     const daysSinceUpdate = (new Date() - lastUpdate) / (1000 * 60 * 60 * 24);
-    
-    // Suggest update if:
-    // 1. No update in 14 days
-    // 2. Significant weight change (>2kg from target)
-    // 3. No weight data but plan exists
-    
+
     if (daysSinceUpdate > 14) return true;
     
     const weightData = await WeightService.getWeightDisplayData(uid, new Date());

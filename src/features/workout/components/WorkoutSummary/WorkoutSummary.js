@@ -22,7 +22,6 @@ const WorkoutSummary = ({
   const [isLoading, setIsLoading] = useState(false);
   const [imageUri, setImageUri] = useState(null);
 
-  // Format duration as per original logic
   const formatDuration = (duration) => {
     const [hours, minutes] = duration.split(':').map(Number);
     if (isNaN(hours) || isNaN(minutes)) return "0 min";

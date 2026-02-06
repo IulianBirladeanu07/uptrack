@@ -1,21 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
-
-const COLORS = {
-  bg: '#0A0E13',
-  surface: '#151B23',
-  surfaceLight: '#1F2937',
-  primary: '#FF9500',
-  primaryDark: '#E68600',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textTertiary: '#6B7280',
-  border: 'rgba(255, 255, 255, 0.08)',
-  primaryTransparent: 'rgba(255, 149, 0, 0.1)',
-  primaryBorder: 'rgba(255, 149, 0, 0.3)',
-  danger: '#FF453A',
-};
+import { colors, spacing, radius, fontSize, fontWeight } from '../../../../shared/theme';
 
 const ServingSizeSelector = ({
   quantity,
@@ -24,7 +10,6 @@ const ServingSizeSelector = ({
   onServingUnitPress,
   predefinedSizes = [],
   onPredefinedSizePress,
-  selectedSize,
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -46,7 +31,6 @@ const ServingSizeSelector = ({
     }
   }, [inputValue, onQuantityChange]);
 
-  // Check if current quantity matches a predefined size
   const isQuantityPredefined = predefinedSizes.includes(quantity);
 
   return (
@@ -62,7 +46,7 @@ const ServingSizeSelector = ({
           keyboardType="numeric"
           onChangeText={setInputValue}
           placeholder="Enter quantity"
-          placeholderTextColor={COLORS.textTertiary}
+          placeholderTextColor={colors.text.quaternary}
           accessible
           accessibilityLabel="Serving quantity input"
         />
@@ -111,89 +95,89 @@ const ServingSizeSelector = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: normalize(20),
+    marginBottom: normalize(spacing[5]),
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(12),
-    marginBottom: normalize(12),
+    gap: normalize(spacing[3]),
+    marginBottom: normalize(spacing[3]),
   },
   input: {
     flex: 1,
-    height: normalize(52),
+    height: normalize(spacing.inputHeight),
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: normalize(12),
-    paddingHorizontal: normalize(16),
-    fontSize: normalize(16),
-    backgroundColor: COLORS.surface,
-    color: COLORS.textPrimary,
-    fontWeight: '600',
+    borderColor: colors.border.default,
+    borderRadius: normalize(radius[3]),
+    paddingHorizontal: normalize(spacing[4]),
+    fontSize: normalize(fontSize[16]),
+    backgroundColor: colors.background.secondary,
+    color: colors.text.primary,
+    fontWeight: fontWeight.semibold,
   },
   inputError: {
-    borderColor: COLORS.danger,
+    borderColor: colors.accent.error,
     borderWidth: 1.5,
   },
   inputSelected: {
-    borderColor: COLORS.primary,
+    borderColor: colors.accent.primary,
     borderWidth: 1.5,
-    backgroundColor: COLORS.primaryTransparent,
+    backgroundColor: colors.faded.primaryLight,
   },
   unitButton: {
-    height: normalize(52),
-    paddingHorizontal: normalize(20),
-    borderRadius: normalize(12),
-    backgroundColor: COLORS.primary,
+    height: normalize(spacing.inputHeight),
+    paddingHorizontal: normalize(spacing[5]),
+    borderRadius: normalize(radius[3]),
+    backgroundColor: colors.accent.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   unitText: {
-    fontSize: normalize(16),
+    fontSize: normalize(fontSize[16]),
     color: '#0f172a',
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
   },
   predefinedSizesLabel: {
-    fontSize: normalize(14),
-    color: COLORS.textSecondary,
-    marginBottom: normalize(12),
-    fontWeight: '600',
+    fontSize: normalize(fontSize[14]),
+    color: colors.text.secondary,
+    marginBottom: normalize(spacing[3]),
+    fontWeight: fontWeight.semibold,
   },
   predefinedSizesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: normalize(10),
+    gap: normalize(spacing[2] + spacing[1] / 2),
   },
   predefinedSizeButton: {
-    paddingVertical: normalize(12),
-    paddingHorizontal: normalize(18),
-    borderRadius: normalize(12),
-    backgroundColor: COLORS.surface,
+    paddingVertical: normalize(spacing[3]),
+    paddingHorizontal: normalize(spacing[4] + spacing[1] / 2),
+    borderRadius: normalize(radius[3]),
+    backgroundColor: colors.background.secondary,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border.default,
     alignItems: 'center',
     justifyContent: 'center',
   },
   predefinedSizeButtonSelected: {
-    backgroundColor: COLORS.primaryTransparent,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.faded.primaryLight,
+    borderColor: colors.accent.primary,
     borderWidth: 1.5,
   },
   predefinedSizeText: {
-    fontSize: normalize(14),
-    fontWeight: '600',
-    color: COLORS.textSecondary,
+    fontSize: normalize(fontSize[14]),
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
   },
   predefinedSizeTextSelected: {
-    color: COLORS.primary,
-    fontWeight: '700',
+    color: colors.accent.primary,
+    fontWeight: fontWeight.bold,
   },
   errorText: {
-    color: COLORS.danger,
-    fontSize: normalize(12),
-    marginTop: normalize(-8),
-    marginBottom: normalize(12),
-    fontWeight: '600',
+    color: colors.accent.error,
+    fontSize: normalize(fontSize[12]),
+    marginTop: normalize(-spacing[2]),
+    marginBottom: normalize(spacing[3]),
+    fontWeight: fontWeight.semibold,
   },
 });
 

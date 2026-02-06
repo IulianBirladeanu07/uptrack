@@ -34,7 +34,6 @@ const CategorySelector = ({ selectedCategory, setSelectedCategory, loading }) =>
   }, [loading]);
 
   useEffect(() => {
-    // Animate background based on selection
     bgAnims.forEach((anim, index) => {
       const isSelected = selectedCategory === categories[index];
       Animated.spring(anim, {

@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.borderLight,
   },
   exercisesList: {
-    // No specific styles needed - container for ExerciseItem components
+    
   },
   emptyExerciseContainer: {
     alignItems: 'center',

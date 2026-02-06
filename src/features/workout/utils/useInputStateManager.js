@@ -1,8 +1,5 @@
 import { useState, useCallback } from 'react';
 
-/**
- * Centralized input state manager - PROPERLY triggers React re-renders
- */
 export const useInputStateManager = () => {
   const [inputStates, setInputStates] = useState({});
   const [focusedInput, setFocusedInput] = useState(null);

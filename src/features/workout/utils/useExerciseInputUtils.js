@@ -8,14 +8,12 @@ export const useExerciseInputUtils = () => {
   };
 
   const handleAddSet = (exerciseIndex, exerciseData, setExerciseData) => {
-    console.log("handleAddSet called for exerciseIndex:", exerciseIndex);
     if (!exerciseData || !setExerciseData) {
       console.error('handleAddSet: Missing required parameters', { exerciseData: !!exerciseData, setExerciseData: !!setExerciseData });
       return;
     }
 
     try {
-      console.log("handleAddSet: Updating exercise data");
       setExerciseData(currentData => {
         if (!Array.isArray(currentData) || !currentData[exerciseIndex]) {
           console.error('handleAddSet: Invalid exercise data structure', { currentData, exerciseIndex });
@@ -23,7 +21,6 @@ export const useExerciseInputUtils = () => {
         }
 
         const updatedData = [...currentData];
-        console.log("handleAddSet: Current exercise data", { exercise: updatedData[exerciseIndex] });
         const exercise = updatedData[exerciseIndex];
         const newSet = {
           weight: '',

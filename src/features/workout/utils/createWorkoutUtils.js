@@ -1,6 +1,5 @@
 import { Platform, Alert, ToastAndroid } from 'react-native';
 
-// Step definitions
 export const TEMPLATE_STEPS = [
   { icon: 'create-outline', title: 'Basic Info' },
   { icon: 'barbell-outline', title: 'Exercises' },
@@ -13,10 +12,8 @@ export const SPLIT_STEPS = [
   { id: 'review', icon: 'checkmark-circle-outline', title: 'Review' }
 ];
 
-
 export const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 
-// Validation functions
 export const validateBasicInfo = (templateName) => {
   if (!templateName.trim()) {
     if (Platform.OS === 'android') {
@@ -58,7 +55,6 @@ export const validateForm = (templateName, exercises) => {
          !exercises.find(ex => !ex.numSets || !ex.repRange);
 };
 
-// Common UI notification function
 export const showNotification = (message, isError = false) => {
   if (Platform.OS === 'android') {
     ToastAndroid.show(message, isError ? ToastAndroid.LONG : ToastAndroid.SHORT);
@@ -68,29 +64,29 @@ export const showNotification = (message, isError = false) => {
 };
 
 export const createExerciseFromSelection = (selectedExercises) => {
-  // Handle array of exercises or single exercise
+  
   if (Array.isArray(selectedExercises)) {
-    // Handle multiple exercises
+    
     return selectedExercises.map(exercise => ({
       exerciseName: exercise.name || '',
       name: exercise.name || '',
       muscleGroup: exercise.muscleGroup || '',
       category: exercise.category || '',
       imageURL: exercise.imageURL || '',
-      numSets: '', // Default values
-      repRange: '', // Default values
+      numSets: '', 
+      repRange: '', 
       note: '',
     }));
   } else if (selectedExercises && typeof selectedExercises === 'object') {
-    // Handle single exercise
+    
     return {
       exerciseName: selectedExercises.name || '',
       name: selectedExercises.name || '',
       muscleGroup: selectedExercises.muscleGroup || '',
       category: selectedExercises.category || '',
       imageURL: selectedExercises.imageURL || '',
-      numSets: '3', // Default values
-      repRange: '8-12', // Default values
+      numSets: '3', 
+      repRange: '8-12', 
       note: '',
     };
   }

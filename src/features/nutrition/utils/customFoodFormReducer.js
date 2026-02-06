@@ -1,13 +1,11 @@
 import { validateField } from './customFoodValidators';
 
-// Action types
 export const UPDATE_FIELD = 'UPDATE_FIELD';
 export const VALIDATE_FIELD = 'VALIDATE_FIELD';
 export const BULK_VALIDATE = 'BULK_VALIDATE';
 export const UPDATE_ALL = 'UPDATE_ALL';
 export const RESET_ERRORS = 'RESET_ERRORS';
 
-// Get initial state function
 export const getInitialState = () => ({
     foodData: {
         productName: '',
@@ -27,11 +25,9 @@ export const getInitialState = () => ({
     isDirty: {},
 });
 
-// Helper functions
 const validateFieldAndUpdateErrors = (state, field, value, foodType) => {
     const error = validateField(field, value, foodType);
     
-    // Only create a new errors object if there's an actual change
     if ((error && !state.errors[field]) || (!error && state.errors[field]) || 
         (error && state.errors[field] && error !== state.errors[field])) {
         const newErrors = { ...state.errors };
@@ -48,18 +44,15 @@ const validateFieldAndUpdateErrors = (state, field, value, foodType) => {
     return state.errors;
 };
 
-// Reducer function with performance optimizations
 export const reducer = (state, action) => {
     switch (action.type) {
         case UPDATE_FIELD: {
             const { field, value } = action;
             
-            // Check if the value has actually changed to avoid unnecessary updates
             if (state.foodData[field] === value) {
                 return state;
             }
             
-            // Only create new objects when necessary
             return {
                 ...state,
                 foodData: {
@@ -74,16 +67,12 @@ export const reducer = (state, action) => {
         }
         
         case VALIDATE_FIELD: {
-            const { field, value, foodType } = action;
-            
-            // Only validate if the field is dirty
+            const { field, value, foodType } = action;            
             if (!state.isDirty[field]) {
                 return state;
             }
             
-            const newErrors = validateFieldAndUpdateErrors(state, field, value, foodType);
-            
-            // Only create a new state object if errors have changed
+            const newErrors = validateFieldAndUpdateErrors(state, field, value, foodType);            
             if (newErrors !== state.errors) {
                 return {
                     ...state,
@@ -115,7 +104,6 @@ export const reducer = (state, action) => {
                 }
             }
             
-            // Only update state if there are changes
             if (hasChanges) {
                 return {
                     ...state,
@@ -131,8 +119,7 @@ export const reducer = (state, action) => {
             const newData = { ...state.foodData };
             const newIsDirty = { ...state.isDirty };
             let hasChanges = false;
-            
-            // Only update fields that actually changed
+
             for (const [key, value] of Object.entries(data)) {
                 if (state.foodData[key] !== value) {
                     newData[key] = value;
@@ -141,7 +128,6 @@ export const reducer = (state, action) => {
                 }
             }
             
-            // Only create a new state object if there are changes
             if (hasChanges) {
                 return {
                     ...state,
@@ -154,7 +140,6 @@ export const reducer = (state, action) => {
         }
         
         case RESET_ERRORS:
-            // Only create a new state if there are actually errors to clear
             if (Object.keys(state.errors).length > 0) {
                 return {
                     ...state,

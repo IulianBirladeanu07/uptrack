@@ -234,9 +234,7 @@ const styles = StyleSheet.create({
     bottom: normalize(30),
     right: 0,
     alignSelf: 'center',
-    // paddingHorizontal: normalize(8),
-    // paddingVertical: normalize(0),
-    // borderRadius: normalize(8),
+
   },
   durationText: {
     fontSize: normalize(14),

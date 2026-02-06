@@ -1,128 +1,109 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { normalize } from '../../../../shared/hooks/useResponsive';
+import { View, Text } from 'react-native';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import { createStyles } from '../../../../shared/theme/createStyles';
 
-const COLORS = {
-  bg: '#0A0E13',
-  surface: '#151B23',
-  surfaceLight: '#1F2937',
-  primary: '#FF9500',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  border: 'rgba(255, 255, 255, 0.08)',
-  // Macro colors matching the app theme
-  protein: '#A78BFA',
-  proteinBg: 'rgba(167, 139, 250, 0.1)',
-  carbs: '#34D399',
-  carbsBg: 'rgba(52, 211, 153, 0.1)',
-  fat: '#60A5FA',
-  fatBg: 'rgba(96, 165, 250, 0.1)',
-};
+const MacroSection = ({ totalCalories, protein, carbs, fat }) => (
+  <View style={styles.container}>
+    <View style={styles.calorieContainer}>
+      <Text style={styles.calorieValue}>{totalCalories}</Text>
+      <Text style={styles.calorieUnit}>calories</Text>
+    </View>
 
-const MacroSection = ({ totalCalories, protein, carbs, fat }) => {
-  return (
-    <View style={styles.container}>
-      <View style={styles.calorieContainer}>
-        <Text style={styles.calorieValue}>{totalCalories}</Text>
-        <Text style={styles.calorieUnit}>calories</Text>
+    <View style={styles.macrosContainer}>
+      <View style={[styles.macroItem, styles.proteinContainer]}>
+        <View style={[styles.macroIconDot, { backgroundColor: colors.macro.protein }]} />
+        <Text style={styles.label}>Protein</Text>
+        <Text style={[styles.value, { color: colors.macro.protein }]}>{protein.toFixed(1)} g</Text>
       </View>
-      
-      <View style={styles.macrosContainer}>
-        <View style={[styles.macroItem, styles.proteinContainer]}>
-          <View style={[styles.macroIconDot, { backgroundColor: COLORS.protein }]} />
-          <Text style={styles.label}>Protein</Text>
-          <Text style={[styles.value, { color: COLORS.protein }]}>{protein.toFixed(1)} g</Text>
-        </View>
-        
-        <View style={[styles.macroItem, styles.carbsContainer]}>
-          <View style={[styles.macroIconDot, { backgroundColor: COLORS.carbs }]} />
-          <Text style={styles.label}>Carbs</Text>
-          <Text style={[styles.value, { color: COLORS.carbs }]}>{carbs.toFixed(1)} g</Text>
-        </View>
-        
-        <View style={[styles.macroItem, styles.fatContainer]}>
-          <View style={[styles.macroIconDot, { backgroundColor: COLORS.fat }]} />
-          <Text style={styles.label}>Fat</Text>
-          <Text style={[styles.value, { color: COLORS.fat }]}>{fat.toFixed(1)} g</Text>
-        </View>
+
+      <View style={[styles.macroItem, styles.carbsContainer]}>
+        <View style={[styles.macroIconDot, { backgroundColor: colors.macro.carbs }]} />
+        <Text style={styles.label}>Carbs</Text>
+        <Text style={[styles.value, { color: colors.macro.carbs }]}>{carbs.toFixed(1)} g</Text>
+      </View>
+
+      <View style={[styles.macroItem, styles.fatContainer]}>
+        <View style={[styles.macroIconDot, { backgroundColor: colors.macro.fat }]} />
+        <Text style={styles.label}>Fat</Text>
+        <Text style={[styles.value, { color: colors.macro.fat }]}>{fat.toFixed(1)} g</Text>
       </View>
     </View>
-  );
-};
+  </View>
+);
 
-const styles = StyleSheet.create({
+const styles = createStyles(() => ({
   container: {
-    backgroundColor: COLORS.surface,
-    borderRadius: normalize(18),
-    padding: normalize(20),
+    backgroundColor: colors.background.secondary,
+    borderRadius: 18,
+    padding: spacing[5],
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border.default,
   },
   calorieContainer: {
     alignItems: 'center',
-    marginBottom: normalize(24),
-    paddingBottom: normalize(20),
+    marginBottom: spacing[6],
+    paddingBottom: spacing[5],
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border.default,
   },
   calorieValue: {
-    fontSize: normalize(56),
-    fontWeight: '800',
-    color: COLORS.primary,
+    fontSize: fontSize[56],
+    fontWeight: fontWeight.extrabold,
+    color: colors.accent.primary,
     letterSpacing: -2,
   },
   calorieUnit: {
-    fontSize: normalize(14),
-    color: COLORS.textSecondary,
-    marginTop: normalize(4),
-    fontWeight: '600',
+    fontSize: fontSize[14],
+    color: colors.text.secondary,
+    marginTop: spacing[1],
+    fontWeight: fontWeight.semibold,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   macrosContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: normalize(12),
+    gap: spacing[3],
   },
   macroItem: {
     flex: 1,
     alignItems: 'center',
-    padding: normalize(16),
-    borderRadius: normalize(14),
+    padding: spacing[4],
+    borderRadius: radius[3],
     borderWidth: 1,
-    position: 'relative',
   },
   macroIconDot: {
-    width: normalize(8),
-    height: normalize(8),
-    borderRadius: normalize(4),
-    marginBottom: normalize(10),
+    width: spacing[2],
+    height: spacing[2],
+    borderRadius: radius[1],
+    marginBottom: spacing[3],
   },
   proteinContainer: {
-    backgroundColor: COLORS.proteinBg,
-    borderColor: 'rgba(167, 139, 250, 0.2)',
+    backgroundColor: colors.faded.protein,
+    borderColor: colors.border.protein,
   },
   carbsContainer: {
-    backgroundColor: COLORS.carbsBg,
-    borderColor: 'rgba(52, 211, 153, 0.2)',
+    backgroundColor: colors.faded.carbs,
+    borderColor: colors.border.carbs,
   },
   fatContainer: {
-    backgroundColor: COLORS.fatBg,
-    borderColor: 'rgba(96, 165, 250, 0.2)',
+    backgroundColor: colors.faded.fat,
+    borderColor: colors.border.fat,
   },
   label: {
-    fontSize: normalize(12),
-    color: COLORS.textSecondary,
-    marginBottom: normalize(6),
-    fontWeight: '600',
+    fontSize: fontSize[12],
+    color: colors.text.secondary,
+    marginBottom: spacing[2],
+    fontWeight: fontWeight.semibold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   value: {
-    fontSize: normalize(18),
-    fontWeight: '800',
+    fontSize: fontSize[18],
+    fontWeight: fontWeight.extrabold,
     letterSpacing: 0.2,
   },
-});
+}));
 
 export default React.memo(MacroSection);

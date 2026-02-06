@@ -144,16 +144,14 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
     }
   };
 
-  const fetchLast6DaysSteps = async () => {
-    const yesterday = new Date();
+  const fetchLast7DaysSteps = async () => {
+  const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     yesterday.setHours(23, 59, 59, 999);
     
     const startDate = new Date(yesterday);
-    startDate.setDate(yesterday.getDate() - 5);
+    startDate.setDate(yesterday.getDate() - 6);
     startDate.setHours(0, 0, 0, 0);
-
-    console.log('Fetching historical steps from:', formatDate(startDate), 'to:', formatDate(yesterday));
 
     if (Platform.OS === 'ios') {
       return new Promise((resolve) => {
@@ -170,11 +168,9 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
             }
 
             if (results && results.length > 0 && onStepsUpdate) {
-              console.log('Historical steps by day:');
               results.forEach(day => {
                 const dateKey = formatDate(new Date(day.startDate));
                 const daySteps = day.value || 0;
-                console.log(`  ${dateKey}: ${daySteps} steps`);
                 onStepsUpdate(daySteps, dateKey);
               });
             }
@@ -200,7 +196,6 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
           for (const source of preferredSources) {
             sourceData = stepsData.find(data => data.source === source);
             if (sourceData && sourceData.steps && sourceData.steps.length > 0) {
-              console.log('Using source:', source);
               break;
             }
           }
@@ -209,18 +204,15 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
             for (const data of stepsData) {
               if (data.steps && data.steps.length > 0) {
                 sourceData = data;
-                console.log('Using fallback source:', data.source);
                 break;
               }
             }
           }
 
           if (sourceData && sourceData.steps) {
-            console.log('Historical steps by day:');
             sourceData.steps.forEach(step => {
               const dateKey = formatDate(new Date(step.date));
               const daySteps = step.value || 0;
-              console.log(`  ${dateKey}: ${daySteps} steps`);
               onStepsUpdate(daySteps, dateKey);
             });
           }
@@ -236,7 +228,6 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
     
     const steps = await fetchTodaySteps();
     const todayKey = formatDate(new Date());
-    console.log(`Today (${todayKey}): ${steps} steps`);
     
     if (onStepsUpdate) {
       onStepsUpdate(steps, todayKey);
@@ -257,7 +248,7 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
         await initializeGoogleFit();
       }
       
-      await fetchLast6DaysSteps();
+      await fetchLast7DaysSteps();
       await updateTodaySteps();
       
       setInitialized(true);

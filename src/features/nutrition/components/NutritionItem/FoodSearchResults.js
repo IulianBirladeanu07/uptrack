@@ -1,21 +1,9 @@
 import React, { memo, useCallback, useMemo } from 'react';
-import { Text, View, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { Text, View, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import FoodItem from './FoodItem';
-import { normalize } from '../../../../shared/hooks/useResponsive';
-
-const colors = {
-  bg: '#0A0E13',
-  surface: '#151B23',
-  surfaceLight: '#1F2937',
-  primary: '#FF9500',
-  cyan: '#00d4ff',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textTertiary: '#6B7280',
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderLight: 'rgba(255, 255, 255, 0.05)',
-};
+import { createStyles } from '../../../../shared/theme/createStyles';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
 const FoodSearchResults = memo(({
   searchResults = [],
@@ -84,7 +72,7 @@ const FoodSearchResults = memo(({
   if (recentSearchesLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <MaterialCommunityIcons name="loading" size={normalize(32)} color={colors.primary} />
+        <MaterialCommunityIcons name="loading" size={spacing[8]} color={colors.accent.primary} />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -98,12 +86,12 @@ const FoodSearchResults = memo(({
             <View style={styles.sectionHeader}>
               <View style={styles.headerLeft}>
                 <View style={styles.iconBadge}>
-                  <MaterialCommunityIcons name="clock-outline" size={normalize(18)} color={colors.primary} />
+                  <MaterialCommunityIcons name="clock-outline" size={spacing[5]} color={colors.accent.primary} />
                 </View>
                 <Text style={styles.sectionTitle}>Recent Searches</Text>
               </View>
               <TouchableOpacity style={styles.clearBtn} onPress={onClearAllRecentSearches}>
-                <MaterialCommunityIcons name="delete-sweep" size={normalize(16)} color="#EF4444" />
+                <MaterialCommunityIcons name="delete-sweep" size={spacing[4]} color={colors.accent.error} />
                 <Text style={styles.clearBtnText}>Clear</Text>
               </TouchableOpacity>
             </View>
@@ -111,11 +99,11 @@ const FoodSearchResults = memo(({
             {recentSearches.map((item, index) => (
               <TouchableOpacity key={index} style={styles.recentItem} onPress={() => onRecentSearchPress?.(item)}>
                 <View style={styles.recentLeft}>
-                  <MaterialCommunityIcons name="history" size={normalize(16)} color={colors.primary} />
+                  <MaterialCommunityIcons name="history" size={spacing[4]} color={colors.accent.primary} />
                   <Text style={styles.recentText} numberOfLines={1}>{item}</Text>
                 </View>
-                <TouchableOpacity onPress={() => onRemoveRecentSearch?.(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Ionicons name="close-circle" size={normalize(18)} color={colors.textTertiary} />
+                <TouchableOpacity onPress={() => onRemoveRecentSearch?.(item)} hitSlop={styles.hitSlop}>
+                  <Ionicons name="close-circle" size={spacing[5]} color={colors.text.tertiary} />
                 </TouchableOpacity>
               </TouchableOpacity>
             ))}
@@ -131,7 +119,7 @@ const FoodSearchResults = memo(({
                 {quickSuggestions.map((suggestion, index) => (
                   <TouchableOpacity key={index} style={styles.quickCard} onPress={() => onRecentSearchPress?.(suggestion.label)}>
                     <View style={styles.quickIcon}>
-                      <Ionicons name={suggestion.icon} size={normalize(20)} color={colors.primary} />
+                      <Ionicons name={suggestion.icon} size={spacing[6]} color={colors.accent.primary} />
                     </View>
                     <Text style={styles.quickLabel}>{suggestion.label}</Text>
                   </TouchableOpacity>
@@ -144,7 +132,7 @@ const FoodSearchResults = memo(({
         {recentSearches.length === 0 && (
           <View style={styles.emptyState}>
             <View style={styles.emptyIcon}>
-              <MaterialCommunityIcons name="magnify" size={normalize(48)} color={colors.primary} />
+              <MaterialCommunityIcons name="magnify" size={spacing[12]} color={colors.accent.primary} />
             </View>
             <Text style={styles.emptyTitle}>Search for Foods</Text>
             <Text style={styles.emptySubtitle}>Find nutritional information for thousands of foods</Text>
@@ -158,12 +146,12 @@ const FoodSearchResults = memo(({
     return (
       <View style={styles.emptyResults}>
         <View style={styles.emptyIcon}>
-          <MaterialCommunityIcons name="food-off" size={normalize(56)} color={colors.primary} />
+          <MaterialCommunityIcons name="food-off" size={spacing[14]} color={colors.accent.primary} />
         </View>
         <Text style={styles.emptyTitle}>No Results Found</Text>
         <Text style={styles.emptySubtitle}>We couldn't find "{searchQuery}"</Text>
         <TouchableOpacity onPress={onCreateFood} style={styles.createBtn}>
-          <Ionicons name="add-circle" size={normalize(20)} color={colors.bg} />
+          <Ionicons name="add-circle" size={spacing[6]} color={colors.background.primary} />
           <Text style={styles.createBtnText}>Create Custom Food</Text>
         </TouchableOpacity>
       </View>
@@ -182,8 +170,8 @@ const FoodSearchResults = memo(({
             >
               <Ionicons 
                 name={filter.icon} 
-                size={normalize(16)} 
-                color={selectedFilter === filter.key ? colors.primary : colors.textSecondary} 
+                size={spacing[4]} 
+                color={selectedFilter === filter.key ? colors.accent.primary : colors.text.secondary} 
               />
               <Text style={[styles.filterText, selectedFilter === filter.key && styles.filterTextActive]}>
                 {filter.label}
@@ -203,7 +191,7 @@ const FoodSearchResults = memo(({
           <View style={styles.bestMatchSection}>
             <View style={styles.bestMatchHeader}>
               <View style={styles.bestMatchBadge}>
-                <Ionicons name="star" size={normalize(12)} color={colors.primary} />
+                <Ionicons name="star" size={spacing[3]} color={colors.accent.primary} />
                 <Text style={styles.badgeText}>BEST MATCH</Text>
               </View>
               <Text style={styles.resultsCount}>
@@ -223,11 +211,11 @@ const FoodSearchResults = memo(({
               
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.primaryBtn} onPress={() => handlePlusPress(transformItem(bestMatch))}>
-                  <Ionicons name="add" size={normalize(18)} color={colors.bg} />
+                  <Ionicons name="add" size={spacing[5]} color={colors.background.primary} />
                   <Text style={styles.primaryBtnText}>Add to Log</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.secondaryBtn} onPress={() => handleItemPress(transformItem(bestMatch))}>
-                  <Ionicons name="information-circle-outline" size={normalize(18)} color={colors.textSecondary} />
+                  <Ionicons name="information-circle-outline" size={spacing[5]} color={colors.text.secondary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -237,7 +225,7 @@ const FoodSearchResults = memo(({
         {otherResults.length > 0 && (
           <View style={styles.otherSection}>
             <View style={styles.otherBadge}>
-              <MaterialCommunityIcons name="format-list-bulleted" size={normalize(12)} color={colors.textSecondary} />
+              <MaterialCommunityIcons name="format-list-bulleted" size={spacing[3]} color={colors.text.secondary} />
               <Text style={styles.badgeText}>MORE OPTIONS ({otherResults.length})</Text>
             </View>
             
@@ -260,7 +248,7 @@ const FoodSearchResults = memo(({
   );
 });
 
-const styles = StyleSheet.create({
+const styles = createStyles(() => ({
   container: {
     flex: 1,
   },
@@ -268,327 +256,320 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: normalize(60),
+    paddingVertical: spacing[15],
   },
   loadingText: {
-    fontSize: normalize(14),
-    color: colors.textSecondary,
-    fontWeight: '600',
-    marginTop: normalize(12),
+    fontSize: fontSize[14],
+    color: colors.text.secondary,
+    fontWeight: fontWeight.semibold,
+    marginTop: spacing[3],
   },
-  
-  section: {
+  hitSlop: {
+    top: spacing[2],
+    bottom: spacing[2],
+    left: spacing[2],
+    right: spacing[2],
   },
+  section: {},
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: normalize(16),
+    marginBottom: spacing[4],
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(12),
+    gap: spacing[3],
   },
   iconBadge: {
-    width: normalize(40),
-    height: normalize(40),
-    borderRadius: normalize(12),
-    backgroundColor: 'rgba(255, 149, 0, 0.15)',
+    width: spacing[10],
+    height: spacing[10],
+    borderRadius: radius[3],
+    backgroundColor: colors.faded.primary,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 149, 0, 0.3)',
+    borderColor: colors.border.primary,
   },
   sectionTitle: {
-    fontSize: normalize(16),
-    fontWeight: '700',
-    color: colors.textPrimary,
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
   },
   clearBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(6),
-    paddingHorizontal: normalize(12),
-    paddingVertical: normalize(8),
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: normalize(10),
+    gap: spacing[2],
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    backgroundColor: colors.faded.error,
+    borderRadius: radius[2],
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: colors.border.error,
   },
   clearBtnText: {
-    fontSize: normalize(12),
-    color: '#EF4444',
-    fontWeight: '600',
+    fontSize: fontSize[12],
+    color: colors.accent.error,
+    fontWeight: fontWeight.semibold,
   },
-  
   recentItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: normalize(14),
-    paddingVertical: normalize(14),
-    paddingHorizontal: normalize(14),
-    marginBottom: normalize(8),
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[3],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[3],
+    marginBottom: spacing[2],
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.border.default,
   },
   recentLeft: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(12),
+    gap: spacing[3],
   },
   recentText: {
     flex: 1,
-    fontSize: normalize(14),
-    color: colors.textPrimary,
-    fontWeight: '600',
+    fontSize: fontSize[14],
+    color: colors.text.primary,
+    fontWeight: fontWeight.semibold,
   },
-  
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: normalize(20),
+    marginVertical: spacing[5],
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.border.default,
   },
   dividerText: {
-    fontSize: normalize(11),
-    color: colors.textTertiary,
-    fontWeight: '600',
-    marginHorizontal: normalize(12),
+    fontSize: fontSize[10],
+    color: colors.text.tertiary,
+    fontWeight: fontWeight.semibold,
+    marginHorizontal: spacing[3],
     textTransform: 'uppercase',
   },
-  
   quickGridWrapper: {
     alignItems: 'center',
   },
   quickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: normalize(10),
+    gap: spacing[2],
     justifyContent: 'center',
-    maxWidth: normalize(400),
+    maxWidth: spacing[100],
   },
   quickCard: {
-    width: normalize(70),
-    backgroundColor: colors.surface,
-    borderRadius: normalize(16),
-    padding: normalize(10),
+    width: spacing[18],
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[4],
+    padding: spacing[2],
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.border.default,
   },
   quickIcon: {
-    width: normalize(44),
-    height: normalize(44),
-    borderRadius: normalize(12),
-    backgroundColor: 'rgba(255, 149, 0, 0.15)',
+    width: spacing[11],
+    height: spacing[11],
+    borderRadius: radius[3],
+    backgroundColor: colors.faded.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: normalize(8),
+    marginBottom: spacing[2],
     borderWidth: 1,
-    borderColor: 'rgba(255, 149, 0, 0.3)',
+    borderColor: colors.border.primary,
   },
   quickLabel: {
-    fontSize: normalize(12),
-    color: colors.textPrimary,
-    fontWeight: '600',
+    fontSize: fontSize[12],
+    color: colors.text.primary,
+    fontWeight: fontWeight.semibold,
   },
-  
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: normalize(40),
-    paddingTop: normalize(80),
+    paddingHorizontal: spacing[10],
+    paddingTop: spacing[20],
   },
   emptyIcon: {
-    width: normalize(100),
-    height: normalize(100),
-    borderRadius: normalize(24),
-    backgroundColor: colors.surface,
+    width: spacing[24],
+    height: spacing[24],
+    borderRadius: radius[6],
+    backgroundColor: colors.background.secondary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: normalize(20),
+    marginBottom: spacing[5],
     borderWidth: 1,
-    borderColor: 'rgba(255, 149, 0, 0.2)',
+    borderColor: colors.border.primary,
   },
   emptyTitle: {
-    fontSize: normalize(20),
-    color: colors.textPrimary,
-    fontWeight: '700',
-    marginBottom: normalize(8),
+    fontSize: fontSize[20],
+    color: colors.text.primary,
+    fontWeight: fontWeight.bold,
+    marginBottom: spacing[2],
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: normalize(14),
-    color: colors.textSecondary,
+    fontSize: fontSize[14],
+    color: colors.text.secondary,
     textAlign: 'center',
-    lineHeight: normalize(20),
-    fontWeight: '500',
+    lineHeight: 20,
+    fontWeight: fontWeight.medium,
   },
   emptyResults: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: normalize(40),
+    paddingHorizontal: spacing[10],
   },
   createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(8),
-    paddingVertical: normalize(16),
-    paddingHorizontal: normalize(28),
-    backgroundColor: colors.primary,
-    borderRadius: normalize(14),
-    marginTop: normalize(24),
-    shadowColor: colors.primary,
+    gap: spacing[2],
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[7],
+    backgroundColor: colors.accent.primary,
+    borderRadius: radius[3],
+    marginTop: spacing[6],
+    shadowColor: colors.accent.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
   createBtnText: {
-    fontSize: normalize(15),
-    color: colors.bg,
-    fontWeight: '700',
+    fontSize: fontSize[14],
+    color: colors.background.primary,
+    fontWeight: fontWeight.bold,
   },
-  
   filters: {
-    marginBottom: normalize(16),
+    marginBottom: spacing[4],
   },
   filterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(6),
-    paddingHorizontal: normalize(10),
-    paddingVertical: normalize(7),
-    backgroundColor: colors.surface,
-    borderRadius: normalize(10),
+    gap: spacing[2],
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[2],
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[2],
     borderWidth: 1,
-    borderColor: colors.border,
-    marginRight: normalize(8),
-    height: normalize(34),
+    borderColor: colors.border.default,
+    marginRight: spacing[2],
+    height: spacing[9],
   },
   filterPillActive: {
-    backgroundColor: 'rgba(255, 149, 0, 0.12)',
-    borderColor: 'rgba(255, 149, 0, 0.35)',
+    backgroundColor: colors.faded.primary,
+    borderColor: colors.border.primary,
   },
   filterText: {
-    fontSize: normalize(12),
-    fontWeight: '600',
-    color: colors.textSecondary,
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
   },
   filterTextActive: {
-    color: colors.primary,
+    color: colors.accent.primary,
   },
   filterBadge: {
-    paddingHorizontal: normalize(6),
-    paddingVertical: normalize(2),
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: normalize(6),
-    minWidth: normalize(22),
-    height: normalize(18),
+    paddingHorizontal: spacing[2],
+    paddingVertical: 2,
+    backgroundColor: colors.faded.surface,
+    borderRadius: radius[1],
+    minWidth: spacing[6],
+    height: spacing[5],
     alignItems: 'center',
     justifyContent: 'center',
   },
   filterBadgeActive: {
-    backgroundColor: 'rgba(255, 149, 0, 0.2)',
+    backgroundColor: colors.faded.primaryLight,
   },
   filterBadgeText: {
-    fontSize: normalize(10),
-    color: colors.textSecondary,
-    fontWeight: '700',
+    fontSize: fontSize[10],
+    color: colors.text.secondary,
+    fontWeight: fontWeight.bold,
   },
   filterBadgeTextActive: {
-    color: colors.primary,
+    color: colors.accent.primary,
   },
-  
   bestMatchSection: {
-    marginBottom: normalize(20),
+    marginBottom: spacing[5],
   },
   bestMatchHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: normalize(10),
-    paddingRight: normalize(4),
+    marginBottom: spacing[2],
+    paddingRight: spacing[1],
   },
   bestMatchBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(6),
+    gap: spacing[2],
   },
   badgeText: {
-    fontSize: normalize(11),
-    fontWeight: '700',
-    color: colors.primary,
+    fontSize: fontSize[10],
+    fontWeight: fontWeight.bold,
+    color: colors.accent.primary,
     letterSpacing: 1,
   },
   resultsCount: {
-    fontSize: normalize(13),
-    color: colors.textSecondary,
-    fontWeight: '600',
+    fontSize: fontSize[12],
+    color: colors.text.secondary,
+    fontWeight: fontWeight.semibold,
   },
   bestMatchCard: {
-    backgroundColor: colors.surface,
-    borderRadius: normalize(18),
-    padding: normalize(16),
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[4],
+    padding: spacing[4],
     borderWidth: 2,
-    borderColor: 'rgba(255, 149, 0, 0.4)',
+    borderColor: colors.border.primary,
   },
   bestMatchItemContainer: {
-    marginBottom: normalize(12),
+    marginBottom: spacing[3],
     paddingHorizontal: 0,
     paddingVertical: 0,
     borderWidth: 0,
   },
   actions: {
     flexDirection: 'row',
-    gap: normalize(10),
+    gap: spacing[2],
   },
   primaryBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: normalize(8),
-    backgroundColor: colors.primary,
-    paddingVertical: normalize(14),
-    borderRadius: normalize(12),
+    gap: spacing[2],
+    backgroundColor: colors.accent.primary,
+    paddingVertical: spacing[3],
+    borderRadius: radius[3],
   },
   primaryBtnText: {
-    fontSize: normalize(14),
-    fontWeight: '700',
-    color: colors.bg,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.bold,
+    color: colors.background.primary,
   },
   secondaryBtn: {
-    width: normalize(48),
-    height: normalize(48),
+    width: spacing[12],
+    height: spacing[12],
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.surfaceLight,
-    borderRadius: normalize(12),
+    backgroundColor: colors.background.tertiary,
+    borderRadius: radius[3],
     borderWidth: 1,
-    borderColor: colors.border,
-  },
-
-  otherSection: {
+    borderColor: colors.border.default,
   },
   otherBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(6),
-    marginBottom: normalize(12),
+    gap: spacing[2],
+    marginBottom: spacing[3],
   },
-  resultItem: {
-  },
-});
+}));
 
 export default FoodSearchResults;

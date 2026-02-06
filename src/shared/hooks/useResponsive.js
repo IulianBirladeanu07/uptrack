@@ -13,8 +13,7 @@ export const normalize = (size) => {
   const scaleWidth = SCREEN_WIDTH / baseWidth;
   const scaleHeight = SCREEN_HEIGHT / baseHeight;
   const scale = Math.min(scaleWidth, scaleHeight);
-  
-  // Apply multiplier to reduce the scale
+
   const adjustedScale = scale * SCALE_MULTIPLIER;
   
   const newSize = size * adjustedScale;

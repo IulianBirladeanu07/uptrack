@@ -10,7 +10,9 @@ import {
   Keyboard,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { styles, COLORS } from './CustomFoodScreenStyle';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import styles from './CustomFoodScreenStyle';
+import { colors } from '../../../../shared/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCustomFood } from '../../helpers/useCustomFood';
 import { useFoodContext } from '../../context/FoodContext';
@@ -34,12 +36,12 @@ const FoodInfoField = memo(forwardRef(({ label, field, iconName, unit, nextField
         <Text style={styles.label}>{label}</Text>
       </View>
       <View style={[styles.inputContainer, error && styles.errorInput]}>
-        {iconName && <MaterialCommunityIcons name={iconName} size={20} color={COLORS.accent} style={styles.inputIcon} />}
+        {iconName && <MaterialCommunityIcons name={iconName} size={20} color={colors.accent.primary} style={styles.inputIcon} />}
         <TextInput
           ref={textInputRef}
           style={styles.input}
           placeholder={label === 'Name' ? 'e.g., Chicken Breast' : `Enter ${label.toLowerCase()}`}
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={colors.text.secondary}
           value={value}
           onChangeText={(text) => onChangeText(field, text)}
           keyboardType={label === 'Name' ? 'default' : 'numeric'}
@@ -49,7 +51,6 @@ const FoodInfoField = memo(forwardRef(({ label, field, iconName, unit, nextField
           spellCheck={false}
           returnKeyType={nextField ? "next" : "done"}
           underlineColorAndroid="transparent"
-          blurOnSubmit={false}
         />
         {unit && <Text style={styles.unitText}>{unit}</Text>}
       </View>
@@ -84,7 +85,7 @@ const NutrientDataField = memo(forwardRef(({ field, label, color, iconName, unit
           ref={textInputRef}
           style={styles.nutrientInput}
           placeholder="0"
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={colors.text.secondary}
           value={value}
           onChangeText={(text) => onChangeText(field, text)}
           keyboardType="numeric"
@@ -95,7 +96,6 @@ const NutrientDataField = memo(forwardRef(({ field, label, color, iconName, unit
           returnKeyType={nextField ? "next" : "done"}
           underlineColorAndroid="transparent"
           maxLength={8}
-          blurOnSubmit={false}
         />
         {unit && <Text style={styles.unitText}>{unit}</Text>}
       </View>
@@ -104,19 +104,20 @@ const NutrientDataField = memo(forwardRef(({ field, label, color, iconName, unit
 }));
 
 const Footer = memo(({ foodData, handleSubmit, onAmountChange, visible }) => {
+  const insets = useSafeAreaInsets();
+
   if (!visible) return null;
 
   const canSubmit = !!foodData.productName && !!foodData.calories;
-  // Apply the thousands separator for the preview
   const formattedKcal = Math.round(foodData.calories || 0).toLocaleString();
 
   return (
-    <View style={styles.footer}>
+    <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
       <View style={styles.amountRow}>
         <TextInput
           style={styles.amountInput}
           placeholder="Serving amount"
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={colors.text.secondary}
           value={foodData.amount || ''}
           onChangeText={onAmountChange}
           keyboardType="numeric"
@@ -126,7 +127,7 @@ const Footer = memo(({ foodData, handleSubmit, onAmountChange, visible }) => {
         />
         <TouchableOpacity style={styles.unitSelector}>
           <Text style={styles.unitText}>{foodData.unit || 'g'}</Text>
-          <MaterialCommunityIcons name="chevron-down" size={20} color={COLORS.textSecondary} />
+          <MaterialCommunityIcons name="chevron-down" size={20} color={colors.text.secondary} />
         </TouchableOpacity>
       </View>
 
@@ -135,7 +136,7 @@ const Footer = memo(({ foodData, handleSubmit, onAmountChange, visible }) => {
         disabled={!canSubmit}
         onPress={handleSubmit}
       >
-        <MaterialCommunityIcons name="plus" size={24} color={COLORS.background} />
+        <MaterialCommunityIcons name="plus" size={24} color={colors.background.primary} />
         <Text style={styles.addButtonText}>
           Add to Diary • {formattedKcal} kcal
         </Text>
@@ -168,7 +169,6 @@ const CustomFoodScreen = () => {
     focusFirstField
   } = useCustomFood(type, navigation, remainingCalories, barcode, meal, selectedDate, inputRefs);
 
-  // BUG FIX: Ensure barcode from navigation is synced to state on mount
   useEffect(() => {
     if (barcode) {
       handleFieldChange('barcode', barcode);
@@ -216,16 +216,16 @@ const CustomFoodScreen = () => {
   }, [focusFirstField]);
 
   const macronutrients = useMemo(() => [
-    { field: 'carbohydrates', label: 'Carbs', color: COLORS.green, iconName: 'leaf', unit: 'g', width: '31%', nextField: 'protein' },
-    { field: 'protein', label: 'Protein', color: COLORS.purple, iconName: 'food-drumstick', unit: 'g', width: '31%', nextField: 'fats' },
-    { field: 'fats', label: 'Fats', color: COLORS.blue, iconName: 'water', unit: 'g', width: '31%', nextField: 'fiber' },
+    { field: 'carbohydrates', label: 'Carbs', color: colors.accent.success, iconName: 'leaf', unit: 'g', width: '31%', nextField: 'protein' },
+    { field: 'protein', label: 'Protein', color: colors.accent.purple, iconName: 'food-drumstick', unit: 'g', width: '31%', nextField: 'fats' },
+    { field: 'fats', label: 'Fats', color: colors.accent.cyan, iconName: 'water', unit: 'g', width: '31%', nextField: 'fiber' },
   ], []);
 
   const otherNutrients = useMemo(() => [
-    { field: 'fiber', label: 'Fiber', color: COLORS.green, iconName: 'leaf', unit: 'g', width: '48%', nextField: 'sugar' },
-    { field: 'sugar', label: 'Sugar', color: COLORS.purple, iconName: 'cube-outline', unit: 'g', width: '48%', nextField: 'saturatedFat' },
-    { field: 'saturatedFat', label: 'Sat Fat', color: COLORS.blue, iconName: 'water', unit: 'g', width: '48%', nextField: 'salt' },
-    { field: 'salt', label: 'Salt', color: COLORS.blue, iconName: 'shaker-outline', unit: 'g', width: '48%', nextField: null },
+    { field: 'fiber', label: 'Fiber', color: colors.accent.success, iconName: 'leaf', unit: 'g', width: '48%', nextField: 'sugar' },
+    { field: 'sugar', label: 'Sugar', color: colors.accent.purple, iconName: 'cube-outline', unit: 'g', width: '48%', nextField: 'saturatedFat' },
+    { field: 'saturatedFat', label: 'Sat Fat', color: colors.accent.cyan, iconName: 'water', unit: 'g', width: '48%', nextField: 'salt' },
+    { field: 'salt', label: 'Salt', color: colors.accent.primary, iconName: 'shaker-outline', unit: 'g', width: '48%', nextField: null },
   ], []);
 
   const screenTitle = useMemo(() => {

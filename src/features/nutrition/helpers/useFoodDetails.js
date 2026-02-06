@@ -1,7 +1,7 @@
 import { Alert } from 'react-native';
 
 export const calculateNutrientValue = (foodItem, desiredQuantity) => {
-  const originalQuantity = foodItem.quantity || 100; // Ensure correct scaling factor
+  const originalQuantity = foodItem.quantity || 100;
   const scalingFactor = desiredQuantity / originalQuantity;
   
   return {
@@ -15,7 +15,6 @@ export const calculateNutrientValue = (foodItem, desiredQuantity) => {
     saturatedFats: (parseFloat(foodItem.saturatedFats || 0) * scalingFactor).toFixed(1),
   };
 };
-
 
 export const calculateTotalNutrients = (foods, quantity = 100) => {
   return foods.reduce((totals, food) => {
@@ -45,7 +44,6 @@ export const calculateTotalNutrients = (foods, quantity = 100) => {
 
 export const generateRandomHexId = (length = 8) => {
   const hexId = [...Array(length)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
-  console.log('Generated random hex ID:', hexId);
   return hexId;
 };
 
@@ -64,8 +62,6 @@ export const handleFoodAddition = async ({
   update = false,
   isFavorite,
 }) => {
-  console.log('Handling food addition:', { quantity, unit, foodId, isMultipleFoods });
-
   if (quantity <= 0 || isNaN(quantity)) {
     Alert.alert("Invalid Quantity", "Please enter a valid quantity greater than 0.");
     return { success: false };
@@ -73,7 +69,6 @@ export const handleFoodAddition = async ({
 
   const currentFoodId = foodId || generateRandomHexId();
   const nutrients = calculateNutrientValue(food, quantity);
-  console.log ('Details: ' ,food)
   
   const updatedFoodDetails = {
     id: currentFoodId,
@@ -88,8 +83,6 @@ export const handleFoodAddition = async ({
     lastUpdated: new Date().toISOString(),
   };
 
-  console.log('Updated food details:', updatedFoodDetails);
-
   try {
     if (isMultipleFoods) {
       const updatedFoods = foods.map(foodItem => ({
@@ -97,7 +90,7 @@ export const handleFoodAddition = async ({
         quantity,
         unit,
         isFavorite: isFavorite,
-        mealType: foodItem.mealType || meal, // ✅ Preserve mealType for multiple foods
+        mealType: foodItem.mealType || meal,
         ...calculateNutrientValue(foodItem, quantity),
       }));
       

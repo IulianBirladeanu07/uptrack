@@ -7,7 +7,8 @@ import GoogleFitStepDisplay from '../../../../shared/components/GoogleFitStepDis
 import MacroProgressBar from '../MacroProgresBar/MacroProgressBar';
 import WeightService from '../../services/weightService';
 import { useFoodContext } from '../../context/FoodContext';
-import styles, {colors} from '../../screens/NutritionScreen/NutritionScreenStyles';
+import { colors } from '../../../../shared/theme';
+import styles from '../../screens/NutritionScreen/NutritionScreenStyles';
 
 function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets, learningData, selectedDate }) {
   const [weightData, setWeightData] = useState({
@@ -57,7 +58,7 @@ function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets,
   if (!initialLoadComplete) {
     return (
       <View style={[styles.statsContainer, { justifyContent: 'center', alignItems: 'center', minHeight: 200 }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.accent.primary} />
       </View>
     );
   }
@@ -73,11 +74,11 @@ function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets,
           activeOpacity={0.7}
         >
           <View style={styles.metricIconContainer}>
-            <MaterialCommunityIcons name="scale-bathroom" size={20} color="#FF9500" />
+            <MaterialCommunityIcons name="scale-bathroom" size={20} color={colors.accent.primary} />
           </View>
           {weightLoading ? (
             <>
-              <ActivityIndicator size="small" color="#FF9500" style={{ marginVertical: 4 }} />
+              <ActivityIndicator size="small" color={colors.accent.primary} style={{ marginVertical: 4 }} />
               <Text style={styles.metricLabel}>Loading...</Text>
             </>
           ) : (
@@ -114,14 +115,14 @@ function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets,
             styles.stepIconContainer,
             {
               backgroundColor: dailySteps >= 10000 
-                ? colors.successFaded
-                : colors.stepsRedFaded,
+                ? colors.faded.success
+                : colors.faded.stepsRed,
               borderColor: dailySteps >= 10000 
-                ? colors.successBorder
-                : colors.stepsRedBorder,
+                ? colors.border.success
+                : colors.border.stepsRed,
             }
           ]}>
-            <MaterialCommunityIcons name="run-fast" size={20} color="#FF5722" />
+            <MaterialCommunityIcons name="run-fast" size={20} color={colors.accent.stepsRed} />
           </View>
           <Text style={styles.metricValue}>
             {dailySteps > 0 ? dailySteps.toLocaleString() : '--'}

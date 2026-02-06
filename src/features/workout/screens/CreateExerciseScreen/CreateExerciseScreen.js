@@ -108,7 +108,6 @@ const OptionItem = React.memo(({ option, isSelected, onSelect }) => (
   </View>
 ));
 
-// --- Updated ModalPicker with forwardRef ---
 const ModalPicker = forwardRef(({ label, type, selectedValue, onSelect, error, placeholder }, ref) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -151,7 +150,6 @@ const ModalPicker = forwardRef(({ label, type, selectedValue, onSelect, error, p
     }).start(() => setModalVisible(false));
   }, [slideAnim]);
 
-  // Expose openModal to parent component via ref
   useImperativeHandle(ref, () => ({
     focus: openModal,
   }));
@@ -325,7 +323,7 @@ const CreateExerciseScreen = ({ route }) => {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const summaryAnim = useRef(new Animated.Value(0)).current;
-  const shakeAnim = useRef(new Animated.Value(0)).current; // For error shake
+  const shakeAnim = useRef(new Animated.Value(0)).current; 
 
   const progress = useMemo(() => {
     let filled = 0;

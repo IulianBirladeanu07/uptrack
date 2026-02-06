@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { handleWeightChange as weightHandler, handleRepsChange as repsHandler, getSetsFromLastWorkout } from '../handlers/WorkoutHandler';
 
-// Utility to update exerciseData immutably without new array refs for unchanged exercises
 const updateExerciseSet = (exerciseData, exerciseIndex, setIndex, updateFn) => {
   return exerciseData.map((exercise, idx) =>
     idx === exerciseIndex
@@ -10,7 +9,6 @@ const updateExerciseSet = (exerciseData, exerciseIndex, setIndex, updateFn) => {
   );
 };
 
-// Parse rep range like "8-10" or "8" and return { min, max }
 const parseRepRange = (repsStr) => {
   if (!repsStr) return null;
   const match = repsStr.match(/(\d+)(?:-(\d+))?/);
@@ -42,7 +40,6 @@ export const useWorkoutData = () => {
 
   const memoizedHandleValidation = useCallback(
     (exerciseIndex, setIndex) => {
-      console.log('memoizedHandleValidation called:', exerciseIndex, setIndex);
       
       setExerciseData(prev => {
         if (!prev[exerciseIndex] || !prev[exerciseIndex].sets[setIndex]) {
@@ -53,12 +50,8 @@ export const useWorkoutData = () => {
         const currentSet = prev[exerciseIndex].sets[setIndex];
         const weight = String(currentSet.weight || '').trim();
         const reps = String(currentSet.reps || '').trim();
-        
-        console.log('Validation attempt:', { weight, reps, isValidated: currentSet.isValidated });
-        
-        // Allow unvalidation if already validated
+
         if (currentSet.isValidated) {
-          console.log('Unvalidating set');
           return prev.map((exercise, idx) =>
             idx === exerciseIndex
               ? {
@@ -71,14 +64,11 @@ export const useWorkoutData = () => {
           );
         }
         
-        // Only validate if both weight and reps have actual values
         if (!weight || !reps) {
           console.log('Cannot validate - missing weight or reps');
           return prev;
         }
-        
-        console.log('Validating set');
-        
+                
         const updatedData = prev.map((exercise, idx) =>
           idx === exerciseIndex
             ? {
@@ -195,8 +185,6 @@ export const useWorkoutData = () => {
               sets: processedSets,
             };
           });
-
-        console.log('Loaded exercises from template:', JSON.stringify(exercisesWithLastSets, null, 2));
         
         setExerciseData(exercisesWithLastSets);
         setSelectedExercise(exercisesWithLastSets[0]?.exerciseName || null);

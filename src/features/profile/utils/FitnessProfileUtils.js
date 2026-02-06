@@ -1,36 +1,14 @@
-// deprecated for now.
-
-// what we will exactly do..
-// we cannot accurately predict maintenance calories without historical data. Thats why we need to get rid of this algorithm..
-
-
-// what we will do instead is:
-// we still need all that data from the profile setup and have it store in the users db and use those later.
-
-// after the user is done with the prfile setup, he will be encouraged to log everything he eats and also his/hers daily weight-ins. 
-// the steps will be monitored as well if the user chooses to connect to google fit or health connect.
-
-// expectations:
-    // after user has logged his meals and weight-ins for a few weeks, we will be able to calculate the maintenance calories based on the data we have collected. 
-    // this will be done by calculating the average daily calories consumed and the average weight change over time.
-
-    // then based on the profile setup data, we will be able to calculate the target calories for the user based on their goals (weight loss, muscle gain, maintenance).
-
-
-
-
-
 const CONSTANTS = {
-  HEIGHT_MIN: 120, // Minimum valid height in cm
-  HEIGHT_MAX: 250, // Maximum valid height in cm
-  MAX_TARGET_WEIGHT_MULTIPLIER: 1.5, // Max allowed target weight multiplier of current weight
-  WEEKS_PER_MONTH: 4.34524, // Average weeks per month
+  HEIGHT_MIN: 120,
+  HEIGHT_MAX: 250,
+  MAX_TARGET_WEIGHT_MULTIPLIER: 1.5,
+  WEEKS_PER_MONTH: 4.34524,
   STRESS_MULTIPLIERS: {
-    low: 1.05, // Increased metabolism with low stress
-    moderate: 1, // Neutral effect on metabolism
-    high: 0.9, // Decreased metabolism with high stress
+    low: 1.05,
+    moderate: 1,
+    high: 0.9,
   },
-  AGE_ADJUSTMENT_FACTOR: 0.95, // Slight metabolic reduction for age > 30
+  AGE_ADJUSTMENT_FACTOR: 0.95,
   ACTIVITY_MULTIPLIERS: {
     sedentary: 1.2,
     lightly_active: 1.375,
@@ -39,17 +17,15 @@ const CONSTANTS = {
     extremely_active: 1.9,
   },
   BULKING_RATE_RANGES: {
-    male: { min: 0.75, max: 1.5 }, // Monthly muscle gain rates (% of body weight)
+    male: { min: 0.75, max: 1.5 },
     female: { min: 0.5, max: 1.0 },
   },
   CUTTING_RATE_RANGES: {
-    male: { min: 0.5, max: 1.0 }, // Weekly weight loss rates (% of body weight)
+    male: { min: 0.5, max: 1.0 },
     female: { min: 0.5, max: 0.9 },
   },
-  BULKING_SURPLUS_PERCENTAGE: 0.1, // 10% surplus for bulking
-  CUTTING_DEFICIT_PERCENTAGE: 0.2, // 20% deficit for cutting
-
-  // Macronutrient constants
+  BULKING_SURPLUS_PERCENTAGE: 0.1,
+  CUTTING_DEFICIT_PERCENTAGE: 0.2,
   MACRO_RATIOS: {
     cutting: { protein: 0.35, carbs: 0.4, fats: 0.25 },
     bulking: { protein: 0.25, carbs: 0.5, fats: 0.25 },
@@ -62,14 +38,8 @@ const CONSTANTS = {
   },
 };
 
-/**
- * Utility: Validate input as a positive number
- */
 const isPositiveNumber = (value) => value && !isNaN(value) && parseFloat(value) > 0;
 
-/**
- * Validate user input
- */
 export const validateInput = (key, value, currentWeight) => {
   const parsedValue = parseFloat(value);
 
@@ -91,14 +61,10 @@ export const validateInput = (key, value, currentWeight) => {
   }
 };
 
-/**
- * Calculate BMR using the Mifflin-St Jeor equation with age and height adjustments
- */
 export const calculateBMR = (gender, weight, height, age) => {
   const genderConstant = gender === 'male' ? 5 : -161;
   let bmr = 10 * weight + 6.25 * height - 5 * age + genderConstant;
 
-  // Adjustment for age
   if (age > 40) {
     bmr *= CONSTANTS.AGE_ADJUSTMENT_FACTOR;
   }
@@ -106,82 +72,50 @@ export const calculateBMR = (gender, weight, height, age) => {
   return bmr;
 };
 
-/**
- * Get activity multiplier based on activity level
- */
 export const getActivityMultiplier = (activityLevel) =>
   CONSTANTS.ACTIVITY_MULTIPLIERS[activityLevel] || 1.0;
 
-/**
- * Calculate TDEE based on BMR and activity multiplier
- */
 export const calculateTDEE = (bmr, activityLevel) => {
   const activityMultiplier = getActivityMultiplier(activityLevel);
   return bmr * activityMultiplier;
 };
 
-/**
- * Calculate calorie adjustment based on goal
- */
 export const calculateCaloriesForGoal = (goal, tdee) => {
   let calorieAdjustment = 0;
 
   if (goal === 'muscle_gain') {
-    // Add surplus for bulking
     calorieAdjustment = tdee * CONSTANTS.BULKING_SURPLUS_PERCENTAGE;
   } else if (goal === 'weight_loss') {
-    // Create deficit for cutting
     calorieAdjustment = tdee * -CONSTANTS.CUTTING_DEFICIT_PERCENTAGE;
   }
 
   return tdee + calorieAdjustment;
 };
 
-/**
- * Calculate macronutrient distribution
- */
-/**
- * Calculate macronutrient distribution
- */
 export const calculateMacros = (goal, calories, weight) => {
-  // Get macro ratios based on the goal
   const macroRatios = CONSTANTS.MACRO_RATIOS[goal] || CONSTANTS.MACRO_RATIOS.maintenance;
   const { protein, carbs, fats } = macroRatios;
 
-  // Adjust protein intake based on cutting or bulking
   let proteinGrams;
-
-  // Calculate protein intake based on goal
   if (goal === 'weight_loss') {
-    // Allow for higher protein intake when losing weight
     proteinGrams = Math.min(weight * 2.4, 0.35 * calories / CONSTANTS.CALORIES_PER_GRAM.protein);
   } else if (goal === 'muscle_gain') {
-    // Moderate protein intake for muscle gain
     proteinGrams = Math.min(weight * 2.2, 0.25 * calories / CONSTANTS.CALORIES_PER_GRAM.protein);
   } else {
-    // Maintenance protein intake
     proteinGrams = (calories * protein) / CONSTANTS.CALORIES_PER_GRAM.protein;
   }
 
-  // Calculate calories from protein
   const proteinCalories = proteinGrams * CONSTANTS.CALORIES_PER_GRAM.protein;
 
-  // Calculate remaining calories after protein
   const remainingCalories = calories - proteinCalories;
-
-  // Ensure that remaining calories are not negative
   if (remainingCalories < 0) {
     console.warn("Remaining calories are negative after protein calculation. Adjusting protein intake.");
-    proteinGrams = Math.max(0, calories / CONSTANTS.CALORIES_PER_GRAM.protein); // Set protein to max possible within total calories
-    return calculateMacros(goal, calories, weight); // Recalculate macros
+    proteinGrams = Math.max(0, calories / CONSTANTS.CALORIES_PER_GRAM.protein);
+    return calculateMacros(goal, calories, weight);
   }
-
-  // Calculate carbs and fats based on the remaining calories
   const totalMacroRatio = carbs + fats;
   const carbsCalories = (remainingCalories * carbs) / totalMacroRatio;
   const fatsCalories = (remainingCalories * fats) / totalMacroRatio;
-
-  // Convert calorie values to grams
   const macros = {
     protein: parseFloat(proteinGrams.toFixed(1)),
     carbs: parseFloat((carbsCalories / CONSTANTS.CALORIES_PER_GRAM.carbs).toFixed(1)),
@@ -191,9 +125,6 @@ export const calculateMacros = (goal, calories, weight) => {
   return macros;
 };
 
-/**
- * Calculate rate of weight loss or muscle gain
- */
 export const calculateRate = (goal, formData) => {
   const {
     currentWeight,
@@ -209,13 +140,10 @@ export const calculateRate = (goal, formData) => {
   const weightToLose = weight - parseFloat(targetWeight);
 
   let rate = 0;
-
-  // Muscle Gain Calculation
   if (goal === 'muscle_gain') {
     const range = CONSTANTS.BULKING_RATE_RANGES[gender];
     let experienceFactor = 1;
 
-    // Adjust for experience level
     if (experienceLevel === 'beginner') experienceFactor = 1.35;
     if (experienceLevel === 'intermediate') experienceFactor = 1.15;
     if (experienceLevel === 'advanced') experienceFactor = 0.85;
@@ -248,11 +176,6 @@ export const calculateRate = (goal, formData) => {
 
   return rate;
 };
-
-/**
- * Generate a Weight Change Plan
- */
-// Separate function to generate notes
 const generateNotes = (goal, stressLevel, experienceLevel, ratePerWeek, ratePerMonth) => {
   const notes = [];
 
@@ -312,13 +235,12 @@ const generateNotes = (goal, stressLevel, experienceLevel, ratePerWeek, ratePerM
   return notes;
 };
 
-// Main function
 export const calculateWeightChangePlan = (formData) => {
   const { currentWeight, targetWeight, fitnessGoals, activityLevel, gender, height, age, experienceLevel, stressLevel } = formData;
 
   const currentWeightNum = parseFloat(currentWeight);
   const targetWeightNum = parseFloat(targetWeight);
-  const weightDifference = Math.abs(currentWeightNum - targetWeightNum).toFixed(0); // Absolute value of the difference
+  const weightDifference = Math.abs(currentWeightNum - targetWeightNum).toFixed(0);
 
   const deducedGoal =
     fitnessGoals ||

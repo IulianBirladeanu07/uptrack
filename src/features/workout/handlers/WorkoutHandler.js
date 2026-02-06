@@ -198,7 +198,6 @@ export const getSetsFromLastWorkout = async (exerciseName) => {
     );
     const querySnapshot = await getDocs(workoutQuery);
 
-    // Loop through ALL workouts to find the exercise
     for (const doc of querySnapshot.docs) {
       const workoutData = doc.data();
       const exercises = workoutData.exercises || [];
@@ -242,7 +241,6 @@ export const countWorkoutsThisWeek = async () => {
       }
     });
 
-    console.log(workoutCount);
     return workoutCount;
   } catch (error) {
     console.error('Error counting workouts for this week:', error.message);
@@ -295,7 +293,6 @@ export const addTemplateToFirestore = async (templateData, templateName) => {
     const templateDocRef = doc(db, 'workoutTemplates', formattedTemplateName);
     await setDoc(templateDocRef, fullTemplateData);
 
-    console.log('Template created with name:', formattedTemplateName, fullTemplateData);
   } catch (error) {
     console.error('Error adding template data to Firestore:', error.message);
     throw error;
@@ -325,7 +322,6 @@ export const fetchTemplatesFromFirestore = async () => {
       data: doc.data()
     }));
 
-    console.log('Templates retrieved for user:', templates);
     return templates;
   } catch (error) {
     console.error('Error retrieving user templates from Firestore:', error.message);
@@ -375,7 +371,6 @@ export const sendMeasurementsToFirestore = async (measurements) => {
     const measurementDocRef = doc(userMeasurementsRef, formattedTimestamp);
 
     await setDoc(measurementDocRef, measurementsDataToSend);
-    console.log('Measurements saved:', measurementsDataToSend);
   } catch (error) {
     console.error('Error saving measurements:', error.message);
     throw error;
@@ -866,7 +861,6 @@ export const updateSplitDay = async (splitId, day, workoutData) => {
       lastModified: serverTimestamp()
     });
     
-    console.log(`Updated ${day} for split ${splitId}`);
     return true;
   } catch (error) {
     console.error('Error updating split day:', error.message);
@@ -886,7 +880,6 @@ export const deleteSplitFromFirestore = async (splitId) => {
     const splitDocRef = doc(db, 'workoutSplits', splitId);
     
     await deleteDoc(splitDocRef);
-    console.log('Split deleted:', splitId);
     return true;
   } catch (error) {
     console.error('Error deleting split from Firestore:', error.message);

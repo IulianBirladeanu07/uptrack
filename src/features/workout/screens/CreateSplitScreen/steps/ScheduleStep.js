@@ -25,7 +25,6 @@ const ScheduleStep = ({
   const isWeeklySchedule = splitData.type === 'weekly';
   const isRotationSchedule = splitData.type === 'rotation';
 
-  // For rotation schedules, create numbered days
   const rotationDays = useMemo(() => {
     if (!isRotationSchedule) return [];
     
@@ -35,7 +34,6 @@ const ScheduleStep = ({
       .filter(num => !isNaN(num))
       .sort((a, b) => a - b);
     
-    // Use existing count or start with 5 days minimum
     const dayCount = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 5;
     
     return Array.from({ length: dayCount }, (_, i) => ({
@@ -60,14 +58,12 @@ const ScheduleStep = ({
     }
   }, [handleRemoveWorkout]);
 
-  // Handle opening the rotation days modal
   const handleOpenModal = useCallback(() => {
     if (!isRotationSchedule) return;
     setRotationDaysInput(rotationDays.length.toString());
     setIsModalVisible(true);
   }, [isRotationSchedule, rotationDays.length]);
 
-  // Handle saving rotation days
   const handleSaveRotationDays = useCallback(() => {
     const newDayCount = parseInt(rotationDaysInput);
     
@@ -81,9 +77,6 @@ const ScheduleStep = ({
       return;
     }
 
-    console.log('Updating rotation days from', rotationDays.length, 'to', newDayCount);
-
-    // Check if reducing days would remove assigned workouts
     if (newDayCount < rotationDays.length) {
       const wouldLoseWorkouts = rotationDays
         .slice(newDayCount)
@@ -117,19 +110,16 @@ const ScheduleStep = ({
     const currentDayCount = rotationDays.length;
     
     if (newDayCount === currentDayCount) {
-      return; // No change needed
+      return;
     }
     
-    // Add or remove days
     if (newDayCount > currentDayCount) {
-      // Add days
       for (let i = currentDayCount + 1; i <= newDayCount; i++) {
         if (handleAddRotationDay) {
           handleAddRotationDay(i);
         }
       }
     } else if (newDayCount < currentDayCount) {
-      // Remove days from the end
       for (let i = currentDayCount; i > newDayCount; i--) {
         if (handleRemoveRotationDay) {
           handleRemoveRotationDay(i);
@@ -137,7 +127,6 @@ const ScheduleStep = ({
       }
     }
     
-    // Adjust selected day if it's now out of range
     if (selectedDay > newDayCount) {
       setSelectedDay(1);
     }
@@ -161,11 +150,8 @@ const ScheduleStep = ({
     }
   };
 
-  // Initialize rotation schedule if needed
   React.useEffect(() => {
     if (isRotationSchedule && Object.keys(splitData.schedule).length === 0 && handleAddRotationDay) {
-      // Initialize with 5 days
-      console.log('Initializing rotation schedule with 5 days');
       for (let i = 1; i <= 5; i++) {
         handleAddRotationDay(i);
       }
@@ -175,9 +161,7 @@ const ScheduleStep = ({
 
   return (
     <View style={styles.container}>
-      {/* Fixed Header Section */}
       <View style={styles.fixedHeader}>
-        {/* Minimal Top Bar */}
         <View style={styles.topBar}>
           <View style={styles.titleSection}>
             <Text style={styles.title}>Assign Workouts</Text>
@@ -191,9 +175,7 @@ const ScheduleStep = ({
           </TouchableOpacity>
         </View>
 
-        {/* Day Pills - Conditional ScrollView for rotation, fixed layout for weekly */}
         {isWeeklySchedule ? (
-          // Weekly: Fixed layout without horizontal scroll
           <View style={[styles.dayPillsScrollView, { marginHorizontal: normalize(20) }]}>
             <View style={styles.dayPills}>
               {currentScheduleDays.map(day => {
@@ -232,7 +214,7 @@ const ScheduleStep = ({
             </View>
           </View>
         ) : (
-          // Rotation: Horizontal ScrollView
+          
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -284,7 +266,7 @@ const ScheduleStep = ({
           </ScrollView>
         )}
 
-        {/* Selected Day Context */}
+        {}
         <View style={styles.contextBar}>
           <View style={styles.contextLeft}>
             <Text style={styles.contextText}>
@@ -311,13 +293,13 @@ const ScheduleStep = ({
         </View>
       </View>
 
-      {/* Scrollable Workout Cards Section */}
+      {}
       <ScrollView 
         style={styles.scrollableContent}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Workout Cards */}
+        {}
         <View style={styles.workoutsList}>
           {workouts.length > 0 ? (
             workouts.map((workout, index) => (
@@ -352,7 +334,7 @@ const ScheduleStep = ({
         </View>
       </ScrollView>
 
-      {/* Rotation Days Configuration Modal */}
+      {}
       <Modal
         visible={isModalVisible}
         transparent={true}

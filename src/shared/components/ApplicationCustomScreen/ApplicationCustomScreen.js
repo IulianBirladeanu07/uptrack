@@ -25,7 +25,7 @@ const ApplicationCustomScreen = ({ children, showHeader = true }) => {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Shared Header */}
+      {}
       {showHeader && (
         <View style={styles.header}>
           <TouchableOpacity 
@@ -46,7 +46,7 @@ const ApplicationCustomScreen = ({ children, showHeader = true }) => {
         </View>
       )}
       
-      {/* Screen Content */}
+      {}
       <View style={styles.content}>
         {children}
       </View>

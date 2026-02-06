@@ -1,26 +1,18 @@
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
 
-// Default macro distribution percentages (can be customized)
 const DEFAULT_MACRO_DISTRIBUTION = {
-  protein: 0.25,  // 25% of calories from protein
-  carbs: 0.45,    // 45% of calories from carbs  
-  fat: 0.30       // 30% of calories from fat
+  protein: 0.25,
+  carbs: 0.45, 
+  fat: 0.30
 };
 
-// Calories per gram for each macro
 const CALORIES_PER_GRAM = {
   protein: 4,
   carbs: 4,
   fat: 9
 };
 
-/**
- * Calculate target macros based on maintenance calories
- * @param {number} maintenanceCalories - Average calories from learning period
- * @param {Object} distribution - Macro distribution percentages
- * @returns {Object} - Calculated macro targets in grams
- */
 export const calculateMacroTargets = (maintenanceCalories, distribution = DEFAULT_MACRO_DISTRIBUTION) => {
   const proteinCalories = maintenanceCalories * distribution.protein;
   const carbCalories = maintenanceCalories * distribution.carbs;
@@ -33,20 +25,11 @@ export const calculateMacroTargets = (maintenanceCalories, distribution = DEFAUL
   };
 };
 
-/**
- * Calculate detailed learning statistics from meal cache
- * @param {Object} mealCache - The meal cache instance
- * @param {Date} endDate - End date for calculation
- * @param {number} days - Number of days to analyze
- * @returns {Object} - Learning statistics
- */
 export const calculateLearningStats = (mealCache, endDate, days = 7) => {
   const startDate = new Date(endDate);
   startDate.setDate(endDate.getDate() - days + 1);
 
-  const weekData = mealCache.getDateRange(startDate, endDate);
-  
-  // Calculate daily totals
+  const weekData = mealCache.getDateRange(startDate, endDate);  
   const dailyStats = weekData.map(({ date, meals }) => {
     const dayTotals = Object.values(meals || {})
       .flat()
@@ -64,7 +47,6 @@ export const calculateLearningStats = (mealCache, endDate, days = 7) => {
     };
   });
 
-  // Filter days with actual data
   const daysWithData = dailyStats.filter(day => day.hasData);
   const daysLogged = daysWithData.length;
 
@@ -76,7 +58,6 @@ export const calculateLearningStats = (mealCache, endDate, days = 7) => {
     };
   }
 
-  // Calculate averages
   const totals = daysWithData.reduce((sum, day) => ({
     calories: sum.calories + day.calories,
     protein: sum.protein + day.protein,
@@ -99,13 +80,6 @@ export const calculateLearningStats = (mealCache, endDate, days = 7) => {
   };
 };
 
-/**
- * Complete the learning phase and set user targets
- * @param {string} userId - User ID
- * @param {Object} learningStats - Learning statistics
- * @param {Object} customDistribution - Optional custom macro distribution
- * @returns {Promise<Object>} - Updated user targets
- */
 export const completeLearningPhase = async (userId, learningStats, customDistribution) => {
   if (!userId || !learningStats.isComplete) {
     throw new Error('Invalid parameters for completing learning phase');
@@ -114,16 +88,13 @@ export const completeLearningPhase = async (userId, learningStats, customDistrib
   const { averages } = learningStats;
   const maintenanceCalories = averages.calories;
   
-  // Calculate macro targets based on maintenance calories
   const macroTargets = calculateMacroTargets(maintenanceCalories, customDistribution);
   
   const userTargets = {
-    // Set target calories equal to maintenance (can be adjusted later by user)
     targetCalories: maintenanceCalories,
     maintenanceCalories: maintenanceCalories,
     ...macroTargets,
     
-    // Metadata
     learningCompletedAt: new Date().toISOString(),
     learningData: {
       daysAnalyzed: learningStats.daysLogged,
@@ -132,11 +103,9 @@ export const completeLearningPhase = async (userId, learningStats, customDistrib
   };
 
   try {
-    // Update user document in Firestore
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, userTargets);
     
-    console.log('Learning phase completed successfully:', userTargets);
     return userTargets;
   } catch (error) {
     console.error('Error completing learning phase:', error);
@@ -144,14 +113,6 @@ export const completeLearningPhase = async (userId, learningStats, customDistrib
   }
 };
 
-/**
- * Check if learning should be completed and do it automatically
- * @param {string} userId - User ID
- * @param {Object} mealCache - Meal cache instance
- * @param {Date} currentDate - Current date
- * @param {boolean} hasTargets - Whether user already has targets
- * @returns {Promise<Object|null>} - New targets if learning was completed, null otherwise
- */
 export const checkAndCompleteLearning = async (userId, mealCache, currentDate, hasTargets) => {
   if (!userId || hasTargets) {
     return null;
