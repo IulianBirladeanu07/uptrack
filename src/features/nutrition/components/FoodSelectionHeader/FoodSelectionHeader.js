@@ -1,5 +1,5 @@
 import { memo, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, StatusBar, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, Pressable, StatusBar, Animated, Easing, TouchableOpacity } from 'react-native';
 import { Flame } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
@@ -10,6 +10,7 @@ const FoodSelectionHeader = ({
   onCaloriePress,
   currentCalories = 0,
   targetCalories = 2000,
+  onQuickActionsPress,
 }) => {
   const { calculatedCurrentCalories, foodCount, calorieProgress } = useMemo(() => {
     const selectedFoodsCalories = Math.round(
@@ -76,6 +77,14 @@ const FoodSelectionHeader = ({
           </View>
           <Text style={styles.date}>{formattedDate}</Text>
         </View>
+
+        <TouchableOpacity 
+          style={styles.createButton}
+          onPress={onQuickActionsPress}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.createButtonText}>Create Food</Text>
+        </TouchableOpacity>
       </View>
 
       <Pressable onPress={onCaloriePress} style={styles.calorieCard}>
@@ -142,7 +151,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing[2]
   },
   badge: {
-    backgroundColor: colors.faded.success,
     borderRadius: radius[3],
     minWidth: spacing[6],
     height: spacing[5],
@@ -151,15 +159,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[2],
     marginTop: spacing[1],
     borderWidth: 1,
-    borderColor: colors.border.success,
+    backgroundColor: colors.faded.successAlt,
+    borderColor: colors.border.successAlt,
+    shadowColor: colors.accent.success,
   },
   badgeText: {
     fontSize: fontSize[10],
     fontWeight: fontWeight.bold,
-    color: colors.accent.successAlt,
+    color: colors.accent.success,
     letterSpacing: 0.2,
   },
-
+  createButton: {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[3],
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    alignSelf: 'flex-start',
+  },
+  createButtonText: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.tertiary,
+    letterSpacing: 0.2,
+  },
   calorieCard: {
     backgroundColor: colors.background.secondary,
     borderColor: colors.border.default,
@@ -212,7 +236,7 @@ const styles = StyleSheet.create({
   progressPercent: {
     fontSize: fontSize[12],
     fontWeight: fontWeight.bold,
-    color: colors.text.primary,
+    color: colors.text.secondary,
     minWidth: spacing[10],
     textAlign: 'right',
   },

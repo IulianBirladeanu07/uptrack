@@ -369,17 +369,6 @@ chartContent: {
     paddingTop: spacing[2],
     borderTopWidth: 1,
     borderTopColor: colors.border.default,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
   },
   
   navItem: {
@@ -390,7 +379,7 @@ chartContent: {
   },
   
   navLabel: {
-    fontSize: fontSize[8],
+    fontSize: fontSize[10],
     color: colors.text.quaternary,
     fontWeight: fontWeight.medium,
   },

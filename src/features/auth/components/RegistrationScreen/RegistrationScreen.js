@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { signUpWithEmailAndPassword } from '../../services/firebaseAuthService';
-import styles from './RegistrationScreenStyle';
 import { Ionicons } from '@expo/vector-icons';
+import { createStyles } from '../../../../shared/theme/createStyles';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
 const RegistrationScreen = () => {
   const [email, setEmail] = useState('');
@@ -11,6 +12,7 @@ const RegistrationScreen = () => {
   const [confirmedPassword, setConfirmedPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigation = useNavigation();
 
@@ -51,9 +53,9 @@ const RegistrationScreen = () => {
         { cancelable: false }
       );
     } catch (error) {
-      console.error(error);
-      setError('An error occurred during registration. Please try again.');
-      Alert.alert('Error', 'An error occurred during registration. Please try again.');
+      const errorMessage = error.message || 'An error occurred during registration. Please try again.';
+      setError(errorMessage);
+      Alert.alert('Registration Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -90,11 +92,11 @@ const RegistrationScreen = () => {
   const getPasswordStrengthColor = (strength) => {
     switch (strength) {
       case 'Weak':
-        return 'red';
+        return colors.accent.error;
       case 'Good':
-        return 'orange';
+        return colors.accent.warning;
       case 'Strong':
-        return 'green';
+        return colors.accent.success;
       default:
         return 'transparent';
     }
@@ -105,49 +107,173 @@ const RegistrationScreen = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Registration</Text>
+
       <View style={styles.inputContainer}>
+        <Ionicons name="mail-outline" size={spacing.iconMd} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={email}
           onChangeText={setEmail}
           placeholder="Email"
+          placeholderTextColor={colors.text.tertiary}
           autoCapitalize="none"
+          keyboardType="email-address"
         />
       </View>
+
       <View style={styles.inputContainer}>
+        <Ionicons name="lock-closed-outline" size={spacing.iconMd} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={password}
           onChangeText={setPassword}
           placeholder="Password"
-          secureTextEntry={true}
+          placeholderTextColor={colors.text.tertiary}
+          secureTextEntry={!showPassword}
         />
-        <Text style={{ color: getPasswordStrengthColor(passwordStrength), marginLeft: 10 }}>
-          {passwordStrength}
-        </Text>
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+          <Ionicons name={showPassword ? "eye-off" : "eye"} size={spacing.iconMd} color={colors.text.tertiary} />
+        </TouchableOpacity>
       </View>
+      {password.length > 0 && (
+        <View style={styles.strengthContainer}>
+          <View style={[styles.strengthIndicator, { backgroundColor: getPasswordStrengthColor(passwordStrength) }]} />
+          <Text style={[styles.strengthText, { color: getPasswordStrengthColor(passwordStrength) }]}>
+            {passwordStrength}
+          </Text>
+        </View>
+      )}
+      {password.length > 0 && !isStrongPassword(password) && (
+        <Text style={styles.requirementsText}>
+          Password must include: uppercase, lowercase, number, and special character (!@#$%^&*(),.?":{}|&lt;&gt;)
+        </Text>
+      )}
+
       <View style={styles.inputContainer}>
+        <Ionicons name="lock-closed-outline" size={spacing.iconMd} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={confirmedPassword}
           onChangeText={setConfirmedPassword}
           placeholder="Confirm Password"
+          placeholderTextColor={colors.text.tertiary}
           secureTextEntry={!showConfirmPassword}
         />
         <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-          <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={24} color="gray" />
+          <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={spacing.iconMd} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
+
       {error && <Text style={styles.error}>{error}</Text>}
+
       <TouchableOpacity style={styles.button} onPress={handleSignUp} disabled={loading}>
         {loading ? (
-          <ActivityIndicator color="#FFFFFF" />
+          <ActivityIndicator color={colors.accent.buttonText} />
         ) : (
           <Text style={styles.buttonText}>Register</Text>
         )}
       </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+        <Text style={styles.linkText}>Already have an account? Login</Text>
+      </TouchableOpacity>
     </View>
   );
 };
+
+const styles = createStyles(() => ({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing[5],
+    backgroundColor: colors.background.primary,
+  },
+  title: {
+    fontSize: fontSize[24],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing[8],
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[3],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    marginBottom: spacing[4],
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  inputIcon: {
+    marginRight: spacing[3],
+  },
+  input: {
+    flex: 1,
+    color: colors.text.primary,
+    fontSize: fontSize[16],
+  },
+  strengthContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing[2],
+    width: '100%',
+    maxWidth: 400,
+  },
+  strengthIndicator: {
+    width: spacing[3],
+    height: spacing[3],
+    borderRadius: radius.full,
+    marginRight: spacing[2],
+  },
+  strengthText: {
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
+  },
+  requirementsText: {
+    color: colors.text.tertiary,
+    fontSize: fontSize[12],
+    marginTop: spacing[1],
+    marginBottom: spacing[2],
+    maxWidth: 400,
+  },
+  button: {
+    backgroundColor: colors.accent.primary,
+    padding: spacing[4],
+    borderRadius: radius[4],
+    marginTop: spacing[6],
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: colors.accent.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  buttonText: {
+    color: colors.accent.buttonText,
+    fontWeight: fontWeight.bold,
+    textAlign: 'center',
+    fontSize: fontSize[18],
+  },
+  error: {
+    color: colors.accent.error,
+    marginTop: spacing[2],
+    marginBottom: spacing[2],
+    textAlign: 'center',
+    fontSize: fontSize[14],
+    maxWidth: 400,
+  },
+  linkText: {
+    color: colors.accent.cyan,
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
+    marginTop: spacing[5],
+  },
+}));
 
 export default RegistrationScreen;

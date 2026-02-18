@@ -10,7 +10,6 @@ const SearchBar = memo(({
   meal,
   searchQuery,
   setSearchQuery,
-  handleSearch,
   onClear,
   onFocus,
   selectedDate,
@@ -81,8 +80,7 @@ const SearchBar = memo(({
 
   const handleChangeText = useCallback((text) => {
     setSearchQuery?.(text || '');
-    handleSearch?.(text || '');
-  }, [setSearchQuery, handleSearch]);
+  }, [setSearchQuery]);
 
   const handleSubmitEditing = useCallback(() => {
     if (searchQuery?.trim()) {
@@ -93,10 +91,9 @@ const SearchBar = memo(({
 
   const handleClearPress = useCallback(() => {
     setSearchQuery?.('');
-    handleSearch?.('');
     inputRef.current?.focus();
     setShowRecentSearches(true);
-  }, [setSearchQuery, handleSearch]);
+  }, [setSearchQuery]);
 
   const handleBackPress = useCallback(() => {
     inputRef.current?.blur();
@@ -108,13 +105,6 @@ const SearchBar = memo(({
     Keyboard.dismiss();
     navigation.navigate('BarcodeScanner', { meal, selectedDate });
   }, [navigation, meal, selectedDate]);
-
-  const handleRecentSearchPress = useCallback((searchTerm) => {
-    setSearchQuery?.(searchTerm);
-    handleSearch?.(searchTerm);
-    addToRecentSearches(searchTerm);
-    setShowRecentSearches(false);
-  }, [setSearchQuery, handleSearch, addToRecentSearches]);
 
   return (
     <View style={styles.searchContainer}>

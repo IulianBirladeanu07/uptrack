@@ -1,36 +1,22 @@
-import { useState, useRef, useEffect, memo, useMemo } from 'react';
+import { useState, useRef, memo, useMemo, useEffect } from 'react';
 import { 
   View, 
   Text, 
   TouchableOpacity, 
   ActivityIndicator, 
   TextInput, 
-  StyleSheet, 
   Animated,
   Vibration,
   Platform,
   FlatList
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { normalize } from '../../../../shared/hooks/useResponsive';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebaseConfigService';
-
-const colors = {
-  primaryBg: '#0A0E13',
-  cardBg: '#151B23',
-  surfaceBg: '#1F2937',
-  primaryOrange: '#FF9500',
-  secondaryOrange: '#FFB347',
-  success: '#32D74B',
-  danger: '#FF453A',
-  buttonNeutral: '#3A4A5C',
-  primaryText: '#FFFFFF',
-  secondaryText: '#9CA3AF',
-  tertiaryText: '#6B7280',
-  border: 'rgba(255, 255, 255, 0.08)',
-};
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import { createStyles } from '../../../../shared/theme/createStyles';
 
 const Notification = memo(({ message, visible, onHide }) => {
   const translateY = useRef(new Animated.Value(-100)).current;
@@ -87,8 +73,8 @@ const Notification = memo(({ message, visible, onHide }) => {
         <View style={styles.notificationIconWrapper}>
           <MaterialCommunityIcons 
             name="check-circle" 
-            size={normalize(16)} 
-            color={colors.primaryOrange}
+            size={16} 
+            color={colors.accent.primary}
           />
         </View>
         <Text style={styles.notificationText}>{message}</Text>
@@ -100,10 +86,10 @@ const Notification = memo(({ message, visible, onHide }) => {
 const EntryRow = memo(({ entry, isLast }) => (
   <View style={[styles.entryRow, !isLast && styles.entryRowBorder]}>
     <View style={styles.entryLeft}>
-      <View style={styles.entryIconContainer}>
-        <MaterialCommunityIcons name="scale-bathroom" size={normalize(18)} color={colors.primaryOrange} />
+      <View style={styles.iconContainer}>
+        <MaterialCommunityIcons name="calendar" size={24} color={colors.accent.primary} />
       </View>
-      <View style={styles.entryInfo}>
+      <View style={styles.entryTextContent}>
         <Text style={styles.entryWeight}>{entry.weight.toFixed(1)} kg</Text>
         <Text style={styles.entryDate}>{entry.displayDate}</Text>
       </View>
@@ -111,7 +97,7 @@ const EntryRow = memo(({ entry, isLast }) => (
     
     <View style={styles.entryRight}>
       {Math.abs(entry.change) > 0.05 ? (
-        <>
+        <View style={styles.changeContainer}>
           <Text style={[
             styles.entryChange,
             entry.positive ? styles.changePositive : styles.changeNegative
@@ -120,37 +106,37 @@ const EntryRow = memo(({ entry, isLast }) => (
             {entry.change.toFixed(1)}
           </Text>
           <View style={[
-            styles.trendBadge,
-            entry.positive ? styles.trendBadgePositive : styles.trendBadgeNegative
+            styles.arrowBadge,
+            entry.positive ? styles.arrowBadgePositive : styles.arrowBadgeNegative
           ]}>
             <MaterialCommunityIcons 
               name={entry.positive ? 'arrow-down' : 'arrow-up'} 
-              size={normalize(12)} 
-              color={entry.positive ? colors.success : colors.danger}
+              size={12} 
+              color={entry.positive ? colors.accent.success : colors.accent.error}
             />
           </View>
-        </>
+        </View>
       ) : (
-        <View style={styles.trendBadgeNeutral}>
-          <Text style={styles.trendNeutralText}>—</Text>
+        <View style={styles.neutralBadge}>
+          <Text style={styles.neutralText}>—</Text>
         </View>
       )}
     </View>
   </View>
 ));
 
-const WeightInInputView = ({
+const WeightInputView = ({
   weight,
   setWeight,
   isValid,
   saving,
   handleSave,
-  currentWeight,
   selectedDate,
   setSelectedDate,
   userId,
   setActiveView,
 }) => {
+  const insets = useSafeAreaInsets();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   const [recentEntries, setRecentEntries] = useState([]);
@@ -158,7 +144,6 @@ const WeightInInputView = ({
   const [weightIns, setWeightIns] = useState([]);
   const [showNotification, setShowNotification] = useState(false);
   
-  const fadeAnim = useRef(new Animated.Value(0)).current;
   const saveButtonScale = useRef(new Animated.Value(1)).current;
 
   const isExistingEntry = useMemo(() => {
@@ -166,6 +151,11 @@ const WeightInInputView = ({
     const dateStr = selectedDate.toISOString().split('T')[0];
     return recentEntries.some(e => e.dateKey === dateStr);
   }, [selectedDate, recentEntries]);
+
+  const lastEntry = useMemo(() => {
+    if (recentEntries.length === 0) return null;
+    return recentEntries[0];
+  }, [recentEntries]);
 
   const fetchWeightInsData = async () => {
     if (!userId) return;
@@ -187,19 +177,13 @@ const WeightInInputView = ({
     fetchWeightInsData();
   }, [userId]);
 
-  const currentWeightValue = parseFloat(weight) || currentWeight || 82.5;
-  const goalWeight = 78.0;
-  const startWeight = 87.0;
-  const totalLoss = startWeight - goalWeight;
-  const currentLoss = startWeight - currentWeightValue;
-  const progressPercentage = Math.min((currentLoss / totalLoss) * 100, 100);
-  const remainingWeight = Math.max(currentWeightValue - goalWeight, 0);
-  const weeklyRate = 0.5;
-
   const formatDate = (d) => {
     const val = d instanceof Date && !isNaN(d) ? d : new Date();
     if (val.toDateString() === new Date().toDateString()) return "Today";
-    return val.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (val.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return val.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
   const getRecentEntries = (data, limit = 10) => {
@@ -265,10 +249,6 @@ const WeightInInputView = ({
     setTimeout(() => setActiveView('summary'), 800);
   };
 
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
-  }, []);
-
   const handleWeightAdjust = (v) => {
     if (Platform.OS === 'ios') Vibration.vibrate(10);
     const curr = parseFloat(weight) || 0;
@@ -295,14 +275,22 @@ const WeightInInputView = ({
         onHide={() => setShowNotification(false)}
       />
       
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+      <View style={[styles.content, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setActiveView('summary')} style={styles.backButton}>
-            <MaterialCommunityIcons name="arrow-left" size={normalize(24)} color={colors.primaryText} />
+          <TouchableOpacity 
+            onPress={() => setActiveView('summary')} 
+            style={styles.backButton}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={24} color={colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Weight Entry</Text>
-          <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-            <MaterialCommunityIcons name="calendar" size={normalize(16)} color={colors.primaryText} />
+          <TouchableOpacity 
+            style={styles.dateButton} 
+            onPress={() => setShowDatePicker(true)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="calendar" size={16} color={colors.text.primary} />
             <Text style={styles.dateText}>{formatDate(selectedDate)}</Text>
           </TouchableOpacity>
         </View>
@@ -311,45 +299,45 @@ const WeightInInputView = ({
           <DateTimePicker value={selectedDate} mode="date" display="default" onChange={handleDateChange} />
         )}
 
-        <View style={styles.progressSection}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressTitle}>Progress to Goal</Text>
-            <View style={styles.progressBadge}>
-              <Text style={styles.progressBadgeText}>{progressPercentage.toFixed(0)}%</Text>
+        {lastEntry && (
+          <View style={styles.heroCard}>
+            <Text style={styles.heroLabel}>Last Entry</Text>
+            <View style={styles.heroMain}>
+              <Text style={styles.heroWeight}>{lastEntry.weight.toFixed(1)} kg</Text>
+              <Text style={styles.heroDate}>{lastEntry.displayDate}</Text>
+              {Math.abs(lastEntry.change) > 0.05 && (
+                <View style={[
+                  styles.heroChangeBadge,
+                  lastEntry.positive ? styles.heroChangeBadgePositive : styles.heroChangeBadgeNegative
+                ]}>
+                  <MaterialCommunityIcons 
+                    name={lastEntry.positive ? 'arrow-down' : 'arrow-up'} 
+                    size={14} 
+                    color={lastEntry.positive ? colors.accent.success : colors.accent.error}
+                  />
+                  <Text style={[
+                    styles.heroChangeText,
+                    lastEntry.positive ? styles.heroChangeTextPositive : styles.heroChangeTextNegative
+                  ]}>
+                    {lastEntry.change.toFixed(1)} kg
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
-          <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBarFill, { width: `${progressPercentage}%` }]} />
-          </View>
-          <View style={styles.progressMarkers}>
-            <Text style={styles.markerText}>87kg</Text>
-            <Text style={styles.markerText}>78kg</Text>
-          </View>
-          <View style={styles.progressSummary}>
-            <View style={styles.progressItem}>
-              <Text style={styles.progressLabel}>Lost</Text>
-              <Text style={styles.progressValue}>{currentLoss.toFixed(1)} kg</Text>
-            </View>
-            <View style={styles.progressDivider} />
-            <View style={styles.progressItem}>
-              <Text style={styles.progressLabel}>Remaining</Text>
-              <Text style={styles.progressValue}>{remainingWeight.toFixed(1)} kg</Text>
-            </View>
-            <View style={styles.progressDivider} />
-            <View style={styles.progressItem}>
-              <Text style={styles.progressLabel}>Rate</Text>
-              <Text style={styles.progressValue}>-{weeklyRate}</Text>
-            </View>
-          </View>
-        </View>
-        
-        <View style={styles.weightSection}>
-          <Text style={styles.sectionTitle}>Current Weight</Text>
-          <View style={styles.weightDisplay}>
-            <TouchableOpacity style={styles.adjustBtn} onPress={() => handleWeightAdjust(-0.1)}>
-              <MaterialCommunityIcons name="minus" size={normalize(24)} color={colors.primaryText} />
+        )}
+
+        <View style={styles.weightInputSection}>
+          <View style={styles.weightControls}>
+            <TouchableOpacity 
+              style={styles.controlButton} 
+              onPress={() => handleWeightAdjust(-0.1)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="minus" size={28} color={colors.text.primary} />
             </TouchableOpacity>
-            <View style={styles.weightContainer}>
+            
+            <View style={styles.weightInputWrapper}>
               <TextInput
                 style={[styles.weightInput, inputFocused && styles.weightInputFocused]}
                 value={weight}
@@ -360,97 +348,97 @@ const WeightInInputView = ({
                 selectTextOnFocus
                 maxLength={6}
                 placeholder="0.0"
-                placeholderTextColor={colors.tertiaryText}
+                placeholderTextColor={colors.text.tertiary}
               />
-              <Text style={styles.unitText}>kg</Text>
+              <Text style={styles.weightUnit}>kg</Text>
             </View>
-            <TouchableOpacity style={styles.adjustBtn} onPress={() => handleWeightAdjust(0.1)}>
-              <MaterialCommunityIcons name="plus" size={normalize(24)} color={colors.primaryText} />
+            
+            <TouchableOpacity 
+              style={styles.controlButton} 
+              onPress={() => handleWeightAdjust(0.1)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="plus" size={28} color={colors.text.primary} />
             </TouchableOpacity>
-          </View>
-          <View style={styles.quickAdjustContainer}>
-            {['-1.0', '-0.5', '+0.5', '+1.0'].map((v) => (
-              <TouchableOpacity key={v} style={styles.quickAdjustPill} onPress={() => handleWeightAdjust(parseFloat(v))}>
-                <Text style={styles.quickAdjustText}>{v}</Text>
-              </TouchableOpacity>
-            ))}
           </View>
         </View>
 
-        <View style={styles.historySection}>
-          <Text style={styles.sectionTitle}>Recent Entries</Text>
+        <View style={styles.entriesSection}>
+          <Text style={styles.entriesTitle}>Recent Entries</Text>
           {loadingEntries ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator color={colors.primaryOrange} size="small" />
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color={colors.accent.primary} size="small" />
               <Text style={styles.loadingText}>Loading entries...</Text>
             </View>
           ) : recentEntries.length > 0 ? (
-            <View style={styles.entriesContainerWrapper}>
+            <View style={styles.entriesWrapper}>
               <FlatList
                 data={recentEntries}
-                renderItem={({ item, index }) => <EntryRow entry={item} isLast={index === recentEntries.length - 1} />}
+                renderItem={({ item, index }) => (
+                  <EntryRow entry={item} isLast={index === recentEntries.length - 1} />
+                )}
                 keyExtractor={(item, index) => `${item.dateKey}-${index}`}
+                showsVerticalScrollIndicator={false}
                 scrollEnabled={true}
-                nestedScrollEnabled={true}
-                maxToRenderPerBatch={10}
-                windowSize={5}
-                initialNumToRender={4}
               />
             </View>
           ) : (
-            <View style={styles.emptyState}>
-              <MaterialCommunityIcons name="scale" size={normalize(48)} color={colors.tertiaryText} />
-              <Text style={styles.emptyStateText}>No weight entries yet</Text>
+            <View style={styles.emptyContainer}>
+              <MaterialCommunityIcons name="scale" size={48} color={colors.text.tertiary} />
+              <Text style={styles.emptyText}>No weight entries yet</Text>
+              <Text style={styles.emptySubtext}>Start tracking to see your history</Text>
             </View>
           )}
         </View>
+      </View>
 
-        <View style={styles.saveButtonContainer}>
-          <Animated.View style={{ transform: [{ scale: saveButtonScale }] }}>
-            <TouchableOpacity
-              style={[
-                styles.saveButton,
-                !isValid && styles.saveButtonDisabled,
-                saving && styles.saveButtonSaving,
-                isExistingEntry && !saving && { backgroundColor: colors.primaryOrange }
-              ]}
-              onPress={handleSavePress}
-              disabled={!isValid || saving}
-            >
-              <View style={styles.saveButtonContent}>
-                {saving ? (
-                  <ActivityIndicator color={colors.primaryText} size="small" />
-                ) : (
-                  <MaterialCommunityIcons name={isExistingEntry ? "refresh" : "check"} size={normalize(20)} color={colors.primaryText} />
-                )}
-                <Text style={styles.saveButtonText}>
-                  {saving ? (isExistingEntry ? 'Updating...' : 'Saving...') : (isExistingEntry ? 'Update Entry' : 'Save Entry')}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </Animated.View>
+      <View style={styles.bottomBar}>
+        <Animated.View style={{ transform: [{ scale: saveButtonScale }], flex: 1 }}>
+          <TouchableOpacity
+            style={[
+              styles.saveButton,
+              !isValid && styles.saveButtonDisabled,
+              saving && styles.saveButtonSaving
+            ]}
+            onPress={handleSavePress}
+            disabled={!isValid || saving}
+            activeOpacity={0.9}
+          >
+            {saving ? (
+              <ActivityIndicator color={colors.text.primary} size="small" />
+            ) : (
+              <MaterialCommunityIcons 
+                name={isExistingEntry ? "refresh" : "check"} 
+                size={20} 
+                color={colors.text.primary} 
+              />
+            )}
+            <Text style={styles.saveButtonText}>
+              {saving ? (isExistingEntry ? 'Updating...' : 'Saving...') : (isExistingEntry ? 'Update Entry' : 'Save Entry')}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles(() => ({
   container: {
     flex: 1,
-    backgroundColor: colors.primaryBg,
+    backgroundColor: colors.background.primary,
   },
   notification: {
     position: 'absolute',
-    top: normalize(70),
-    left: normalize(16),
-    right: normalize(16),
+    top: spacing[16],
+    left: spacing[4],
+    right: spacing[4],
     zIndex: 1000,
-    backgroundColor: colors.cardBg,
-    borderRadius: normalize(14),
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[4],
     borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#000',
+    borderColor: colors.border.default,
+    shadowColor: colors.background.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -459,357 +447,326 @@ const styles = StyleSheet.create({
   notificationContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: normalize(14),
-    paddingHorizontal: normalize(16),
-    gap: normalize(10),
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[4],
+    gap: spacing[2],
   },
   notificationIconWrapper: {
-    width: normalize(28),
-    height: normalize(28),
-    borderRadius: normalize(14),
-    backgroundColor: `${colors.primaryOrange}20`,
+    width: spacing[7],
+    height: spacing[7],
+    borderRadius: radius[3],
+    backgroundColor: colors.faded.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   notificationText: {
     flex: 1,
-    color: colors.primaryText,
-    fontSize: normalize(14),
-    fontWeight: '600',
+    color: colors.text.primary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
   },
   content: {
     flex: 1,
-    paddingHorizontal: normalize(20),
-    paddingTop: normalize(20),
+    paddingHorizontal: spacing[4],
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: normalize(20),
+    paddingVertical: spacing[3],
   },
   backButton: {
-    width: normalize(40),
-    height: normalize(40),
-    borderRadius: normalize(20),
-    backgroundColor: colors.cardBg,
+    width: spacing[11],
+    height: spacing[11],
+    borderRadius: radius[5],
+    backgroundColor: colors.background.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: normalize(20),
-    fontWeight: '700',
-    color: colors.primaryText,
+    fontSize: fontSize[20],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
   },
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.cardBg,
-    paddingHorizontal: normalize(12),
-    paddingVertical: normalize(8),
-    borderRadius: normalize(18),
-    gap: normalize(6),
+    backgroundColor: colors.background.secondary,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    borderRadius: radius[4],
+    gap: spacing[1],
   },
   dateText: {
-    fontSize: normalize(13),
-    fontWeight: '600',
-    color: colors.primaryText,
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
   },
-  progressSection: {
-    backgroundColor: colors.cardBg,
-    borderRadius: normalize(20),
+  heroCard: {
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[4],
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: normalize(20),
-    marginBottom: normalize(20),
+    borderColor: colors.border.default,
+    padding: spacing[4],
+    marginBottom: spacing[4],
   },
-  progressHeader: {
+  heroLabel: {
+    fontSize: fontSize[10],
+    color: colors.text.tertiary,
+    fontWeight: fontWeight.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing[2],
+  },
+  heroMain: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: normalize(16),
+    gap: spacing[2],
   },
-  progressTitle: {
-    fontSize: normalize(16),
-    fontWeight: '700',
-    color: colors.primaryText,
+  heroWeight: {
+    fontSize: fontSize[24],
+    fontWeight: fontWeight.extrabold,
+    color: colors.text.primary,
   },
-  progressBadge: {
-    backgroundColor: `${colors.primaryOrange}20`,
-    paddingHorizontal: normalize(8),
-    paddingVertical: normalize(4),
-    borderRadius: normalize(10),
+  heroDate: {
+    fontSize: fontSize[12],
+    color: colors.text.secondary,
+    fontWeight: fontWeight.medium,
   },
-  progressBadgeText: {
-    fontSize: normalize(11),
-    fontWeight: '700',
-    color: colors.primaryOrange,
-  },
-  progressBarContainer: {
-    height: normalize(8),
-    backgroundColor: colors.surfaceBg,
-    borderRadius: normalize(4),
-    overflow: 'hidden',
-    marginBottom: normalize(12),
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: colors.primaryOrange,
-    borderRadius: normalize(4),
-  },
-  progressMarkers: {
+  heroChangeBadge: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: normalize(16),
-  },
-  markerText: {
-    fontSize: normalize(11),
-    color: colors.tertiaryText,
-    fontWeight: '500',
-  },
-  progressSummary: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    borderRadius: radius[3],
+    gap: spacing[1],
+    marginLeft: spacing[2],
   },
-  progressItem: {
-    alignItems: 'center',
+  heroChangeBadgePositive: {
+    backgroundColor: colors.faded.success,
   },
-  progressLabel: {
-    fontSize: normalize(11),
-    color: colors.secondaryText,
-    fontWeight: '500',
-    marginBottom: normalize(4),
+  heroChangeBadgeNegative: {
+    backgroundColor: colors.faded.error,
   },
-  progressValue: {
-    fontSize: normalize(16),
-    fontWeight: '700',
-    color: colors.primaryText,
+  heroChangeText: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.bold,
   },
-  progressDivider: {
-    width: 1,
-    height: normalize(32),
-    backgroundColor: colors.surfaceBg,
+  heroChangeTextPositive: {
+    color: colors.accent.success,
   },
-  weightSection: {
-    alignItems: 'center',
-    marginBottom: normalize(20),
+  heroChangeTextNegative: {
+    color: colors.accent.error,
   },
-  sectionTitle: {
-    fontSize: normalize(16),
-    fontWeight: '700',
-    color: colors.primaryText,
-    marginBottom: normalize(16),
-    alignSelf: 'flex-start',
+  weightInputSection: {
+    paddingVertical: spacing[4],
   },
-  weightDisplay: {
+  weightControls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: normalize(24),
-    alignSelf: 'stretch',
+    gap: spacing[5],
   },
-  adjustBtn: {
-    width: normalize(56),
-    height: normalize(56),
-    borderRadius: normalize(28),
+  controlButton: {
+    width: spacing[15],
+    height: spacing[15],
+    borderRadius: radius[14],
+    backgroundColor: colors.background.secondary,
+    borderWidth: 1,
+    borderColor: colors.border.default,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.cardBg,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  weightContainer: {
+  weightInputWrapper: {
     alignItems: 'center',
-    marginHorizontal: normalize(32),
   },
   weightInput: {
-    fontSize: normalize(72),
-    fontWeight: '800',
+    fontSize: fontSize[48],
+    fontWeight: fontWeight.black,
     textAlign: 'center',
-    color: colors.primaryOrange,
-    paddingVertical: normalize(12),
-    minWidth: normalize(180),
+    color: colors.accent.primary,
+    minWidth: spacing[28],
     letterSpacing: -2,
   },
   weightInputFocused: {
-    color: colors.secondaryOrange,
+    color: colors.accent.primaryLight,
   },
-  unitText: {
-    fontSize: normalize(18),
-    color: colors.secondaryText,
-    fontWeight: '600',
-    marginTop: normalize(-8),
+  weightUnit: {
+    fontSize: fontSize[16],
+    color: colors.text.secondary,
+    fontWeight: fontWeight.semibold,
+    marginTop: -spacing[1],
   },
-  quickAdjustContainer: {
-    flexDirection: 'row',
-    gap: normalize(10),
-    alignSelf: 'stretch',
-  },
-  quickAdjustPill: {
+  entriesSection: {
     flex: 1,
-    paddingVertical: normalize(10),
-    borderRadius: normalize(14),
-    backgroundColor: colors.cardBg,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    alignItems: 'center',
+    marginTop: spacing[2],
   },
-  quickAdjustText: {
-    fontSize: normalize(14),
-    fontWeight: '700',
-    color: colors.primaryText,
+  entriesTitle: {
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing[3],
   },
-  historySection: {
+  entriesWrapper: {
     flex: 1,
-    marginBottom: normalize(16),
-  },
-  entriesContainerWrapper: {
-    backgroundColor: colors.cardBg,
-    borderRadius: normalize(12),
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[4],
     borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    height: normalize(235),
+    borderColor: colors.border.default,
   },
   entryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: normalize(10),
-    paddingHorizontal: normalize(12),
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[4],
   },
   entryRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.border.default,
   },
   entryLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    gap: normalize(10),
+    gap: spacing[3],
   },
-  entryIconContainer: {
-    width: normalize(36),
-    height: normalize(36),
-    borderRadius: normalize(9),
-    backgroundColor: `${colors.primaryOrange}15`,
+  iconContainer: {
+    width: spacing[8],
+    height: spacing[8],
     justifyContent: 'center',
     alignItems: 'center',
   },
-  entryInfo: {
+  entryTextContent: {
     flex: 1,
   },
   entryWeight: {
-    fontSize: normalize(15),
-    fontWeight: '700',
-    color: colors.primaryText,
-    marginBottom: normalize(1),
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    lineHeight: 20,
   },
   entryDate: {
-    fontSize: normalize(11),
-    color: colors.secondaryText,
-    fontWeight: '500',
+    fontSize: fontSize[12],
+    color: colors.text.secondary,
+    fontWeight: fontWeight.medium,
+    lineHeight: 16,
   },
   entryRight: {
+    marginLeft: spacing[2],
+  },
+  changeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(8),
+    gap: spacing[2],
   },
   entryChange: {
-    fontSize: normalize(14),
-    fontWeight: '700',
-    minWidth: normalize(45),
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.bold,
+    minWidth: spacing[9],
     textAlign: 'right',
   },
   changePositive: {
-    color: colors.success,
+    color: colors.accent.success,
   },
   changeNegative: {
-    color: colors.danger,
+    color: colors.accent.error,
   },
-  trendBadge: {
-    width: normalize(26),
-    height: normalize(26),
-    borderRadius: normalize(7),
+  arrowBadge: {
+    width: spacing[6],
+    height: spacing[6],
+    borderRadius: radius[2],
     justifyContent: 'center',
     alignItems: 'center',
   },
-  trendBadgePositive: {
-    backgroundColor: `${colors.success}20`,
+  arrowBadgePositive: {
+    backgroundColor: colors.faded.success,
   },
-  trendBadgeNegative: {
-    backgroundColor: `${colors.danger}20`,
+  arrowBadgeNegative: {
+    backgroundColor: colors.faded.error,
   },
-  trendBadgeNeutral: {
-    width: normalize(26),
-    height: normalize(26),
-    borderRadius: normalize(7),
-    backgroundColor: `${colors.tertiaryText}15`,
+  neutralBadge: {
+    width: spacing[6],
+    height: spacing[6],
+    borderRadius: radius[2],
+    backgroundColor: colors.faded.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  trendNeutralText: {
-    fontSize: normalize(13),
-    color: colors.tertiaryText,
-    fontWeight: '700',
+  neutralText: {
+    fontSize: fontSize[12],
+    color: colors.text.tertiary,
+    fontWeight: fontWeight.bold,
   },
-  loadingState: {
+  loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: normalize(32),
+    paddingVertical: spacing[12],
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[4],
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
   loadingText: {
-    fontSize: normalize(14),
-    color: colors.secondaryText,
-    marginTop: normalize(8),
-    fontWeight: '500',
+    fontSize: fontSize[14],
+    color: colors.text.secondary,
+    marginTop: spacing[2],
+    fontWeight: fontWeight.medium,
   },
-  emptyState: {
+  emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: normalize(40),
+    paddingVertical: spacing[16],
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[4],
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
-  emptyStateText: {
-    fontSize: normalize(16),
-    fontWeight: '600',
-    color: colors.secondaryText,
-    marginTop: normalize(12),
+  emptyText: {
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    marginTop: spacing[3],
   },
-  saveButtonContainer: {
-    paddingVertical: normalize(16),
-    paddingHorizontal: normalize(4),
+  emptySubtext: {
+    fontSize: fontSize[12],
+    color: colors.text.tertiary,
+    marginTop: spacing[1],
+  },
+  bottomBar: {
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    backgroundColor: colors.background.primary,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.default,
   },
   saveButton: {
-    backgroundColor: colors.primaryOrange,
-    borderRadius: normalize(16),
-    paddingVertical: normalize(18),
-    paddingHorizontal: normalize(32),
+    flexDirection: 'row',
+    backgroundColor: colors.accent.primary,
+    borderRadius: radius[4],
+    paddingVertical: spacing[4],
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
     elevation: 4,
-    shadowColor: colors.primaryOrange,
+    shadowColor: colors.accent.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
   },
   saveButtonDisabled: {
-    backgroundColor: colors.buttonNeutral,
+    backgroundColor: colors.disabled,
     elevation: 0,
     shadowOpacity: 0,
   },
   saveButtonSaving: {
-    backgroundColor: colors.warning,
-  },
-  saveButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: normalize(8),
+    backgroundColor: colors.accent.warning,
   },
   saveButtonText: {
-    color: colors.primaryText,
-    fontSize: normalize(16),
-    fontWeight: '700',
+    color: colors.text.primary,
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.bold,
   },
-});
+}));
 
-export default WeightInInputView;
+export default WeightInputView;

@@ -22,8 +22,7 @@ const WeightTracker = () => {
   const [lastWeekAverage, setLastWeekAverage] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const loadData = useCallback(async () => {
     if (!userId) return;
@@ -57,21 +56,6 @@ const WeightTracker = () => {
       loadData();
     }
   }, [userId, loadData]);
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
 
   const handleWeightChange = (value) => {
     setWeight(value);
@@ -165,7 +149,6 @@ const WeightTracker = () => {
           styles.content,
           {
             opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
           },
         ]}
       >

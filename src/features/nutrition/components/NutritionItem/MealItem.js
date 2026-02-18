@@ -162,10 +162,6 @@ const MealItem = memo(({
     }
   }, [isMealAdded, item.foods, onPlusPress]);
 
-  const handleMealPress = useCallback(() => {
-    navigation.navigate('FoodDetail', { meal: item });
-  }, [navigation, item]);
-
   const handleToggleExpansion = useCallback(() => {
     setIsExpanded(prev => !prev);
   }, []);
@@ -212,7 +208,7 @@ const MealItem = memo(({
           >
             <Text style={[
               styles.addMealButtonText,
-              { color: isMealAdded ? '#000000' : colors.accent.primary }
+              isMealAdded && styles.addMealButtonTextToggled
             ]}>
               {isMealAdded ? '✓ Added' : '+ Add All'}
             </Text>
@@ -312,20 +308,19 @@ const styles = createStyles(() => ({
   headerContent: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginRight: spacing[3],
   },
   mealIconContainer: {
-    marginRight: spacing[4],
-    paddingTop: 2,
+    marginRight: spacing[3],
   },
   mealIcon: {
     width: spacing[11],
     height: spacing[11],
-    borderRadius: radius[4],
-    backgroundColor: colors.faded.primary,
+    borderRadius: radius[3],
+    backgroundColor: colors.faded.surfaceLight,
     borderWidth: 1,
-    borderColor: colors.border.primary,
+    borderColor: colors.border.light,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -335,7 +330,6 @@ const styles = createStyles(() => ({
   headerLeft: {
     flex: 1,
     justifyContent: 'center',
-    paddingVertical: 2,
   },
   mealTitle: {
     fontSize: fontSize[18],
@@ -371,29 +365,27 @@ const styles = createStyles(() => ({
     fontWeight: fontWeight.semibold,
   },
   addMealButton: {
-    paddingVertical: spacing[3],
-    paddingHorizontal: spacing[5],
-    borderRadius: radius[3],
-    backgroundColor: colors.faded.primary,
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3],
+    borderRadius: radius[2],
+    backgroundColor: colors.faded.surfaceMedium,
     borderWidth: 1,
-    borderColor: colors.border.primary,
+    borderColor: colors.border.default,
+    marginBottom: spacing[2],
   },
   addMealButtonToggled: {
-    backgroundColor: colors.accent.primary,
-    borderColor: colors.accent.primary,
-    shadowColor: colors.accent.primary,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 3.84,
-    elevation: 5,
+    backgroundColor: colors.faded.successAlt,
+    borderColor: colors.border.successAlt,
+    shadowColor: colors.accent.success,
   },
   addMealButtonText: {
-    fontSize: fontSize[14],
+    fontSize: fontSize[12],
     fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
+    color: colors.text.tertiary,
+  },
+  addMealButtonTextToggled: {
+    color: colors.accent.success,
   },
   foodItemsContainer: {
     backgroundColor: 'rgba(10, 14, 19, 0.3)',

@@ -1,23 +1,28 @@
-import { useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Animated, StyleSheet } from 'react-native';
+import { useRef, useMemo } from 'react';
+import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { normalize } from '../../../../shared/hooks/useResponsive';
-import WeightChart from './WeightChart';
 import { LinearGradient } from 'expo-linear-gradient';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import { createStyles } from '../../../../shared/theme/createStyles';
+import WeightChart from './WeightChart';
 
-const colors = {
-  primary: '#FF9500',
-  primaryDark: '#E68600',
-  success: '#32D74B',
-  danger: '#FF453A',
-  bg: '#0A0E13',
-  surface: '#151B23',
-  surfaceLight: '#1F2937',
-  white: '#FFFFFF',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textTertiary: '#6B7280',
-  border: 'rgba(255, 255, 255, 0.08)',
+const WEEK_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+const calculateStreak = (weeklyData) => {
+  if (!weeklyData?.days) return 0;
+  const todayIndex = new Date().getDay();
+  let count = 0;
+
+  for (let i = 0; i < 7; i++) {
+    const dayIndex = (todayIndex - i + 7) % 7;
+    const dayKey = WEEK_DAYS[dayIndex];
+    if (weeklyData.days[dayKey] != null) {
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
 };
 
 const WeightSummaryView = ({
@@ -25,89 +30,70 @@ const WeightSummaryView = ({
   weeklyData,
   weeklyAverage,
   trendData,
-  getWeightChange,
   setActiveView,
+  userId,
+  goalWeight = 78.0,
+  startWeight = 87.0,
 }) => {
-  const weeklyChange = getWeightChange() || 0;
-  const weekDaysLogged = weeklyData?.days ? Object.values(weeklyData.days).filter(d => d !== null).length : 0;
-  const goalWeight = 78.0;
-  const startWeight = 87.0;
-  const remaining = currentWeight ? (currentWeight - goalWeight) : 0;
-  const progress = currentWeight ? ((startWeight - currentWeight) / (startWeight - goalWeight)) * 100 : 0;
-  const totalLost = currentWeight ? (startWeight - currentWeight) : 0;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const weightChange = currentWeight - startWeight;
+  const isGain = weightChange > 0;
+  const remaining = Math.max(0, currentWeight - goalWeight);
+  
+  const totalTrip = startWeight - goalWeight;
+  const progressToGoal = startWeight - currentWeight;
+  const progressPercent = totalTrip > 0 ? (progressToGoal / totalTrip) * 100 : 0;
+  const clampedProgress = Math.min(Math.max(progressPercent, 0), 100);
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 8,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
+  const streak = useMemo(() => calculateStreak(weeklyData), [weeklyData]);
 
-  const streak = useMemo(() => {
-    if (!weeklyData?.days) return 0;
-    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    let streakCount = 0;
-    const todayIndex = new Date().getDay();
+  const weeklyChange = useMemo(() => {
+    if (!trendData || trendData.length < 2) return 0;
+    const sorted = [...trendData].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const weekAgo = sorted[Math.max(0, sorted.length - 8)];
+    const latest = sorted[sorted.length - 1];
+    return latest.weight - weekAgo.weight;
+  }, [trendData]);
 
-    for (let i = 0; i < 7; i++) {
-      const dayIndex = (todayIndex - i + 7) % 7;
-      const dayKey = days[dayIndex];
-      if (weeklyData.days[dayKey] !== null && weeklyData.days[dayKey] !== undefined) {
-        streakCount++;
-      } else {
-        break;
-      }
-    }
-    return streakCount;
-  }, [weeklyData]);
+  const dashboardStats = useMemo(() => {
+    if (!trendData || trendData.length < 2) return { canCompare: false };
+
+    const sortedData = [...trendData].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const currentWeek = sortedData.slice(-7);
+    const lastWeek = sortedData.slice(-14, -7);
+
+    if (lastWeek.length === 0) return { canCompare: false, currentAvg: currentWeek.reduce((acc, curr) => acc + curr.weight, 0) / currentWeek.length };
+
+    const currentAvg = currentWeek.reduce((acc, curr) => acc + curr.weight, 0) / currentWeek.length;
+    const lastAvg = lastWeek.reduce((acc, curr) => acc + curr.weight, 0) / lastWeek.length;
+    const diff = currentAvg - lastAvg;
+
+    return {
+      canCompare: true,
+      currentAvg,
+      lastAvg,
+      diff,
+      trend: diff <= 0 ? 'down' : 'up'
+    };
+  }, [trendData]);
 
   return (
     <View style={styles.wrapper}>
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <Animated.View
-          style={[
-            styles.container,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }]
-            }
-          ]}
-        >
+      <View style={styles.scrollView}>
+        <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
           <View style={styles.floatingHeader}>
-            <View>
-              <Text style={styles.headerSubtitle}>UPTRACK</Text>
-              <Text style={styles.headerTitle}>Your Journey</Text>
-            </View>
-            <TouchableOpacity style={styles.streakBadge}>
-              <MaterialCommunityIcons name="fire" size={normalize(14)} color={colors.primary} />
-              <Text style={styles.streakBadgeText}>{streak} day{streak !== 1 ? 's' : ''} streak</Text>
-            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Your Journey</Text>
+            {streak > 0 && (
+              <View style={styles.streakBadge}>
+                <MaterialCommunityIcons name="fire" size={14} color={colors.accent.primary} />
+                <Text style={styles.streakBadgeText}>{streak} day streak</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.heroContainer}>
             <View style={styles.heroGlassCard}>
-              <View style={styles.progressBadge}>
-                <Text style={styles.progressPercent}>
-                  {Math.min(Math.max(progress, 0), 100).toFixed(0)}%
-                </Text>
-              </View>
-
               <View style={styles.weightDisplay}>
                 <Text style={styles.weightLabel}>Current Weight</Text>
                 <View style={styles.weightValueContainer}>
@@ -120,23 +106,23 @@ const WeightSummaryView = ({
 
               <View style={styles.progressContainer}>
                 <View style={styles.progressTrack}>
-                  <Animated.View
-                    style={[
-                      styles.progressBar,
-                      { width: `${Math.min(Math.max(progress, 0), 100)}%` }
-                    ]}
-                  />
+                  <View style={[styles.progressBar, { width: `${clampedProgress}%` }]} />
                 </View>
                 <View style={styles.progressLabels}>
                   <Text style={styles.progressStart}>{startWeight} kg</Text>
+                  <View style={styles.percentBadge}>
+                     <Text style={styles.percentText}>{clampedProgress.toFixed(0)}%</Text>
+                  </View>
                   <Text style={styles.progressGoal}>{goalWeight} kg</Text>
                 </View>
               </View>
 
               <View style={styles.heroStats}>
                 <View style={styles.heroStat}>
-                  <Text style={styles.heroStatValue}>{totalLost.toFixed(1)}</Text>
-                  <Text style={styles.heroStatLabel}>Lost</Text>
+                  <Text style={[styles.heroStatValue, { color: isGain ? colors.accent.error : colors.accent.success }]}>
+                    {isGain ? '+' : ''}{weightChange.toFixed(1)}
+                  </Text>
+                  <Text style={styles.heroStatLabel}>{isGain ? 'Gained' : 'Lost'}</Text>
                 </View>
                 <View style={styles.heroStatDivider} />
                 <View style={styles.heroStat}>
@@ -145,10 +131,8 @@ const WeightSummaryView = ({
                 </View>
                 <View style={styles.heroStatDivider} />
                 <View style={styles.heroStat}>
-                  <Text style={[styles.heroStatValue, {
-                    color: weeklyChange < 0 ? colors.success : weeklyChange > 0 ? colors.danger : colors.textSecondary
-                  }]}>
-                    {weeklyChange < 0 ? '' : '+'}{weeklyChange.toFixed(1)}
+                  <Text style={[styles.heroStatValue, { color: weeklyChange > 0 ? colors.accent.error : colors.accent.success }]}>
+                    {weeklyChange > 0 ? '+' : ''}{weeklyChange.toFixed(1)}
                   </Text>
                   <Text style={styles.heroStatLabel}>Weekly</Text>
                 </View>
@@ -158,78 +142,58 @@ const WeightSummaryView = ({
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>This Week</Text>
-              <Text style={styles.weekCount}>{weekDaysLogged}/7</Text>
+              <Text style={styles.sectionTitle}>Progress Chart</Text>
+              <View style={styles.avgBadge}>
+                <Text style={styles.avgValue}>{weeklyAverage?.toFixed(1)}</Text>
+                <Text style={styles.avgLabel}>Avg</Text>
+              </View>
             </View>
-            <View style={styles.weekGrid}>
-              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => {
-                const dayKey = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][index];
-                const dayWeight = weeklyData?.days?.[dayKey];
-                const isToday = new Date().getDay() === (index + 1) % 7;
-                const hasData = dayWeight !== null && dayWeight !== undefined;
+            
+            <WeightChart data={trendData} />
 
-                return (
-                  <View key={index} style={styles.weekItem}>
+            <View style={styles.dashboardGrid}>
+              <View style={styles.comparisonCard}>
+                <View style={styles.comparisonHeader}>
+                  <Text style={styles.comparisonTitle}>Weekly Trend</Text>
+                  {dashboardStats.canCompare && (
                     <View style={[
-                      styles.weekCircle,
-                      hasData && !isToday && styles.weekCircleActive,
-                      isToday && styles.weekCircleToday,
+                      styles.trendBadge, 
+                      { backgroundColor: dashboardStats.trend === 'down' ? colors.faded.success : colors.faded.error }
                     ]}>
-                      <Text style={[
-                        styles.weekDay,
-                        isToday && styles.weekDayToday,
-                        !hasData && !isToday && styles.weekDayInactive
-                      ]}>{day}</Text>
+                      <MaterialCommunityIcons 
+                        name={dashboardStats.trend === 'down' ? 'trending-down' : 'trending-up'} 
+                        size={16} 
+                        color={dashboardStats.trend === 'down' ? colors.accent.success : colors.accent.error} 
+                      />
+                      <Text style={[styles.trendText, { color: dashboardStats.trend === 'down' ? colors.accent.success : colors.accent.error }]}>
+                        {Math.abs(dashboardStats.diff).toFixed(1)} kg
+                      </Text>
                     </View>
+                  )}
+                </View>
+                
+                <View style={styles.comparisonRow}>
+                  <View>
+                    <Text style={styles.compLabel}>Last Week</Text>
+                    <Text style={styles.compValue}>{dashboardStats.lastAvg?.toFixed(1) || '--.-'}</Text>
                   </View>
-                );
-              })}
+                  <MaterialCommunityIcons name="chevron-right" size={24} color={colors.text.tertiary} />
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.compLabel}>This Week</Text>
+                    <Text style={styles.compValue}>{dashboardStats.currentAvg?.toFixed(1) || '--.-'}</Text>
+                  </View>
+                </View>
+              </View>
             </View>
           </View>
-
-          {trendData && trendData.length > 1 ? (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Progress Chart</Text>
-                <View style={styles.avgBadge}>
-                  <Text style={styles.avgValue}>{weeklyAverage?.toFixed(1)}</Text>
-                  <Text style={styles.avgLabel}>Avg</Text>
-                </View>
-              </View>
-              <WeightChart
-                data={trendData}
-                weeklyAverage={weeklyAverage}
-                getWeightChange={getWeightChange}
-              />
-            </View>
-          ) : (
-            <View style={styles.section}>
-              <View style={styles.emptyState}>
-                <View style={styles.emptyIconWrapper}>
-                  <MaterialCommunityIcons name="chart-timeline-variant" size={normalize(32)} color={colors.textTertiary} />
-                </View>
-                <Text style={styles.emptyTitle}>No data yet</Text>
-                <Text style={styles.emptySubtitle}>Log your weight to see progress</Text>
-              </View>
-            </View>
-          )}
         </Animated.View>
-      </ScrollView>
+      </View>
 
       <View style={styles.fabContainer}>
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setActiveView('input')}
-          activeOpacity={0.9}
-        >
-          <LinearGradient
-            colors={[colors.primary, colors.primaryDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.fabGradient}
-          >
-            <MaterialCommunityIcons name="scale-bathroom" size={normalize(20)} color={colors.white} />
-            <Text style={styles.fabText}>Log</Text>
+        <TouchableOpacity style={styles.fab} onPress={() => setActiveView('input')}>
+          <LinearGradient colors={[colors.accent.primary, colors.accent.primaryDark]} style={styles.fabGradient}>
+            <MaterialCommunityIcons name="scale-bathroom" size={20} color={colors.text.primary} />
+            <Text style={styles.fabText}>Log Weight</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -237,323 +201,66 @@ const WeightSummaryView = ({
   );
 };
 
-const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    paddingTop: normalize(15),
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: normalize(80),
-  },
-  container: {
-    paddingTop: normalize(60),
-  },
+const styles = createStyles(() => ({
+  wrapper: { flex: 1, backgroundColor: colors.background.primary },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingBottom: spacing[24] },
+  container: { paddingTop: spacing[16] },
   floatingHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: normalize(16),
-    paddingTop: normalize(25),
-    zIndex: 10,
+    position: 'absolute', top: 0, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: spacing[4], paddingTop: spacing[10], zIndex: 10,
   },
-  headerSubtitle: {
-    fontSize: normalize(14),
-    color: colors.textTertiary,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: normalize(2),
-  },
-  headerTitle: {
-    fontSize: normalize(20),
-    fontWeight: '800',
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-  },
+  headerTitle: { fontSize: fontSize[24], fontWeight: fontWeight.extrabold, color: colors.text.primary },
   streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: normalize(4),
-    backgroundColor: colors.surface,
-    paddingHorizontal: normalize(8),
-    paddingVertical: normalize(6),
-    borderRadius: normalize(16),
-    borderWidth: 1,
-    borderColor: colors.border,
+    flexDirection: 'row', alignItems: 'center', gap: spacing[1],
+    backgroundColor: colors.background.secondary, paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1], borderRadius: radius[4], borderWidth: 1, borderColor: colors.border.default,
   },
-  streakBadgeText: {
-    fontSize: normalize(12),
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  heroContainer: {
-    paddingHorizontal: normalize(16),
-    paddingTop: normalize(25),
-    paddingBottom: normalize(16),
-  },
+  streakBadgeText: { fontSize: fontSize[12], fontWeight: fontWeight.bold, color: colors.text.primary },
+  heroContainer: { paddingHorizontal: spacing[4], paddingTop: spacing[6], paddingBottom: spacing[4] },
   heroGlassCard: {
-    position: 'relative',
-    backgroundColor: colors.surface,
-    borderRadius: normalize(24),
-    padding: normalize(20),
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
+    backgroundColor: colors.background.secondary, borderRadius: radius[6],
+    padding: spacing[5], borderWidth: 1, borderColor: colors.border.default,
   },
-  progressBadge: {
-    position: 'absolute',
-    top: normalize(12),
-    right: normalize(12),
-    backgroundColor: colors.primary,
-    borderRadius: normalize(12),
-    paddingHorizontal: normalize(8),
-    paddingVertical: normalize(4),
-  },
-  progressPercent: {
-    fontSize: normalize(12),
-    fontWeight: '800',
-    color: colors.white,
-  },
-  weightDisplay: {
-    alignItems: 'center',
-    marginBottom: normalize(16),
-    paddingHorizontal: normalize(24),
-    paddingBottom: normalize(8),
-  },
-  weightLabel: {
-    fontSize: normalize(14),
-    color: colors.textSecondary,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    marginLeft: -5,
-    marginBottom: normalize(8),
-  },
-  weightValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    gap: normalize(4),
-  },
-  weightValue: {
-    fontSize: normalize(50),
-    fontWeight: '900',
-    color: colors.textPrimary,
-    lineHeight: normalize(50),
-  },
-  weightUnit: {
-    backgroundColor: colors.surfaceLight,
-    paddingHorizontal: normalize(6),
-    paddingVertical: normalize(3),
-    borderRadius: normalize(8),
-    marginBottom: normalize(4),
-  },
-  weightUnitText: {
-    fontSize: normalize(12),
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  progressContainer: {
-    marginBottom: normalize(20),
-  },
-  progressTrack: {
-    height: normalize(6),
-    backgroundColor: colors.surfaceLight,
-    borderRadius: normalize(3),
-    overflow: 'hidden',
-    marginBottom: normalize(8),
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: normalize(3),
-  },
-  progressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  progressStart: {
-    fontSize: normalize(11),
-    color: colors.textTertiary,
-    fontWeight: '600',
-  },
-  progressGoal: {
-    fontSize: normalize(11),
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  heroStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingTop: normalize(16),
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  heroStat: {
-    alignItems: 'center',
-  },
-  heroStatValue: {
-    fontSize: normalize(20),
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginBottom: normalize(3),
-  },
-  heroStatLabel: {
-    fontSize: normalize(10),
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  heroStatDivider: {
-    width: 1,
-    height: normalize(28),
-    backgroundColor: colors.border,
-  },
-  section: {
-    paddingHorizontal: normalize(16),
-    marginBottom: normalize(12),
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: normalize(10),
-  },
-  sectionTitle: {
-    fontSize: normalize(18),
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  weekCount: {
-    fontSize: normalize(11),
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  weekGrid: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: normalize(12),
-    padding: normalize(12),
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  weekItem: {
-    alignItems: 'center',
-  },
-  weekCircle: {
-    width: normalize(38),
-    height: normalize(38),
-    borderRadius: normalize(19),
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  weekCircleToday: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  weekCircleActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  weekDay: {
-    fontSize: normalize(14),
-    fontWeight: '600',
-    color: colors.textTertiary,
-  },
-  weekDayToday: {
-    color: colors.bg,
-    fontWeight: '700',
-  },
-  weekDayInactive: {
-    color: colors.textTertiary,
-  },
-  avgBadge: {
-    paddingHorizontal: normalize(10),
-    paddingVertical: normalize(6),
-    borderRadius: normalize(10),
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: normalize(4),
-  },
-  avgValue: {
-    fontSize: normalize(14),
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  avgLabel: {
-    fontSize: normalize(9),
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  emptyState: {
-    backgroundColor: colors.surface,
-    borderRadius: normalize(16),
-    padding: normalize(24),
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  emptyIconWrapper: {
-    width: normalize(60),
-    height: normalize(60),
-    borderRadius: normalize(30),
-    backgroundColor: colors.surfaceLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: normalize(12),
-  },
-  emptyTitle: {
-    fontSize: normalize(14),
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: normalize(4),
-  },
-  emptySubtitle: {
-    fontSize: normalize(12),
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  fabContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: normalize(16),
-    paddingBottom: normalize(12),
-    pointerEvents: 'box-none',
-  },
-  fab: {
-    position: 'relative',
-    borderRadius: normalize(20),
-    overflow: 'hidden',
-  },
-  fabGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: normalize(8),
-    paddingVertical: normalize(18),
-    paddingHorizontal: normalize(24),
-  },
-  fabText: {
-    fontSize: normalize(16),
-    fontWeight: '800',
-    color: colors.white,
-    letterSpacing: 0.5,
-  },
-});
+  weightDisplay: { alignItems: 'center', marginBottom: spacing[4] },
+  weightLabel: { fontSize: fontSize[12], color: colors.text.tertiary, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: 1 },
+  weightValueContainer: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing[1] },
+  weightValue: { fontSize: fontSize[48], fontWeight: fontWeight.black, color: colors.text.primary },
+  weightUnit: { backgroundColor: colors.background.tertiary, padding: 4, borderRadius: radius[2], marginBottom: 8 },
+  weightUnitText: { fontSize: fontSize[12], fontWeight: fontWeight.bold, color: colors.text.secondary },
+  progressContainer: { marginBottom: spacing[5] },
+  progressTrack: { height: 8, backgroundColor: colors.background.tertiary, borderRadius: 4, overflow: 'hidden', marginBottom: spacing[2] },
+  progressBar: { height: '100%', backgroundColor: colors.accent.primary },
+  progressLabels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  progressStart: { fontSize: fontSize[12], color: colors.text.tertiary, fontWeight: fontWeight.bold },
+  percentBadge: { backgroundColor: colors.background.tertiary, paddingHorizontal: spacing[2], borderRadius: radius[2] },
+  percentText: { fontSize: fontSize[10], fontWeight: fontWeight.bold, color: colors.accent.primary },
+  progressGoal: { fontSize: fontSize[12], color: colors.accent.primary, fontWeight: fontWeight.bold },
+  heroStats: { flexDirection: 'row', justifyContent: 'space-around', paddingTop: spacing[4], borderTopWidth: 1, borderTopColor: colors.border.default },
+  heroStat: { alignItems: 'center', flex: 1 },
+  heroStatValue: { fontSize: fontSize[18], fontWeight: fontWeight.extrabold, color: colors.text.primary },
+  heroStatLabel: { fontSize: fontSize[10], color: colors.text.tertiary, fontWeight: fontWeight.bold, textTransform: 'uppercase' },
+  heroStatDivider: { width: 1, height: spacing[6], backgroundColor: colors.border.default },
+  section: { paddingHorizontal: spacing[4] },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[2] },
+  sectionTitle: { fontSize: fontSize[18], fontWeight: fontWeight.bold, color: colors.text.primary },
+  avgBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  avgValue: { fontSize: fontSize[14], fontWeight: fontWeight.extrabold, color: colors.text.primary },
+  avgLabel: { fontSize: fontSize[10], color: colors.text.tertiary, fontWeight: fontWeight.bold },
+  dashboardGrid: { marginTop: spacing[4], gap: spacing[3] },
+  comparisonCard: { backgroundColor: colors.background.secondary, padding: spacing[4], borderRadius: radius[4], borderWidth: 1, borderColor: colors.border.default },
+  comparisonHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[4] },
+  comparisonTitle: { fontSize: fontSize[16], fontWeight: fontWeight.bold, color: colors.text.primary },
+  trendBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[2], paddingVertical: 4, borderRadius: radius[2], gap: 4 },
+  trendText: { fontSize: fontSize[12], fontWeight: fontWeight.bold },
+  comparisonRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  compLabel: { fontSize: fontSize[10], color: colors.text.tertiary, textTransform: 'uppercase', marginBottom: 2 },
+  compValue: { fontSize: fontSize[18], fontWeight: fontWeight.bold, color: colors.text.primary },
+  fabContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing[4] },
+  fab: { borderRadius: radius[5], overflow: 'hidden', elevation: 8, shadowColor: colors.background.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+  fabGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2], paddingVertical: spacing[4] },
+  fabText: { fontSize: fontSize[16], fontWeight: fontWeight.extrabold, color: colors.text.primary },
+}));
 
 export default WeightSummaryView;

@@ -108,7 +108,7 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
                     </View>
                 </View>
                 <TouchableOpacity style={styles.previewButton} onPress={onPreview}>
-                    <Ionicons name="eye-outline" size={18} color={colors.accent.cyan} />
+                    <Ionicons name="eye-outline" size={spacing[3]} color={colors.accent.cyan} />
                 </TouchableOpacity>
             </View>
             <View style={styles.exerciseGrid}>
@@ -130,7 +130,7 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
                     activeOpacity={0.8}
                     disabled={hasActiveWorkout}
                 >
-                    <Ionicons name="play" size={14} style={styles.playIcon} />
+                    <Ionicons name="play" size={16} style={styles.playIcon} />
                     <Text style={styles.startButtonText}>
                         {hasActiveWorkout ? 'WORKOUT IN PROGRESS' : 'START'}
                     </Text>

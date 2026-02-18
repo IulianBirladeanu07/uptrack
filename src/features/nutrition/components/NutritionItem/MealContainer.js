@@ -23,7 +23,7 @@ const MealContainer = ({
   setSelectedMeal,
 }) => {
   const getMealIcon = (meal) => {
-    const iconColor = selectedMeal === meal ? colors.accent.primary : colors.text.secondary;
+    const iconColor = selectedMeal === meal ? colors.accent.primary : colors.text.quaternary;
     const iconSize = spacing[4];
 
     switch (meal) {
@@ -142,7 +142,6 @@ const styles = createStyles(() => ({
   mealButton: {
     paddingVertical: spacing[1],
     borderRadius: radius[3],
-    paddingHorizontal: spacing[3],
     borderWidth: 1,
     borderColor: colors.border.light,
     flex: 1,
@@ -162,7 +161,7 @@ const styles = createStyles(() => ({
   },
   mealButtonText: {
     fontSize: fontSize[10],
-    color: colors.text.secondary,
+    color: colors.text.quaternary,
     fontWeight: fontWeight.semibold,
   },
   selectedMealText: {

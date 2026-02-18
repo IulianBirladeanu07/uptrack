@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useRef, useCallback, useMemo } from 'react';
 import { View, TouchableOpacity, Text, Animated, Easing, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,17 +7,17 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../../../share
 const menuItems = [
   {
     icon: 'food-apple',
-    label: 'Add New Food',
-    sublabel: 'without barcode',
+    label: 'New Food',
+    sublabel: 'create food entry',
     type: 'foodWithoutBarcode',
     color: colors.accent.success,
     bgColor: colors.faded.successAlt,
     borderColor: colors.border.successAlt,
   },
   {
-    icon: 'barcode-scan',
-    label: 'Scan Barcode',
-    sublabel: 'quick food entry',
+    icon: 'barcode',
+    label: 'Barcoded Food',
+    sublabel: 'add to database',
     type: 'foodWithBarcode',
     color: colors.accent.purple,
     bgColor: colors.faded.purple,
@@ -25,7 +25,7 @@ const menuItems = [
   },
   {
     icon: 'silverware-fork-knife',
-    label: 'Create Meal',
+    label: 'New Meal',
     sublabel: 'meal combination',
     type: 'meals',
     color: colors.accent.cyan,
@@ -34,8 +34,8 @@ const menuItems = [
   },
   {
     icon: 'calculator-variant',
-    label: 'Add Calories',
-    sublabel: 'quick calorie entry',
+    label: 'Quick Calories',
+    sublabel: 'calorie-only entry',
     type: 'calories',
     color: colors.accent.primary,
     bgColor: colors.faded.primary,
@@ -43,10 +43,8 @@ const menuItems = [
   }
 ];
 
-const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
-  const [isFabExpanded, setIsFabExpanded] = useState(false);
+const AddFoodMenu = React.memo(({ isExpanded, onClose, navigation, meal }) => {
   const insets = useSafeAreaInsets();
-  
   const animationValue = useRef(new Animated.Value(0)).current;
 
   const animatedStyles = useMemo(() => ({
@@ -62,14 +60,6 @@ const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
         })
       }],
       opacity: animationValue,
-    },
-    fabRotation: {
-      transform: [{
-        rotate: animationValue.interpolate({
-          inputRange: [0, 1],
-          outputRange: ['0deg', '45deg'],
-        })
-      }],
     },
     menuItems: menuItems.map((_, index) => ({
       opacity: animationValue.interpolate({
@@ -102,18 +92,20 @@ const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
     }).start();
   }, [animationValue]);
 
-  const toggleMenu = useCallback(() => {
-    if (isSearching) return;
-    const newExpanded = !isFabExpanded;
-    setIsFabExpanded(newExpanded);
-    animate(newExpanded);
-  }, [isSearching, isFabExpanded, animate]);
+  React.useEffect(() => {
+    animate(isExpanded);
+  }, [isExpanded, animate]);
 
   const handleItemPress = useCallback((type) => {
-    navigation.navigate('CustomFood', { type, meal });
-    setIsFabExpanded(false);
-    animate(false);
-  }, [navigation, meal, animate]);
+    onClose();
+    setTimeout(() => {
+      navigation.navigate('CustomFood', { type, meal });
+    }, 250);
+  }, [navigation, meal, onClose]);
+
+  const handleBackdropPress = useCallback(() => {
+    onClose();
+  }, [onClose]);
 
   const memoizedMenuItems = useMemo(() => 
     menuItems.map((item, index) => (
@@ -152,7 +144,18 @@ const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
     [animatedStyles.menuItems, handleItemPress]
   );
 
-  if (isSearching) return null;
+  const [shouldRender, setShouldRender] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isExpanded) {
+      setShouldRender(true);
+    } else {
+      const timer = setTimeout(() => setShouldRender(false), 250);
+      return () => clearTimeout(timer);
+    }
+  }, [isExpanded]);
+
+  if (!shouldRender) return null;
 
   return (
     <>
@@ -161,36 +164,16 @@ const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
           styles.backdrop,
           animatedStyles.backdrop,
           {
-            pointerEvents: isFabExpanded ? 'auto' : 'none',
+            pointerEvents: isExpanded ? 'auto' : 'none',
           },
         ]}
       >
         <TouchableOpacity
           style={StyleSheet.absoluteFill}
-          onPress={toggleMenu}
+          onPress={handleBackdropPress}
           activeOpacity={1}
         />
       </Animated.View>
-
-      <TouchableOpacity
-        style={[styles.fab, { bottom: spacing[20] + insets.bottom }]}
-        onPress={toggleMenu}
-        activeOpacity={0.9}
-        hitSlop={{ top: spacing[2], bottom: spacing[2], left: spacing[2], right: spacing[2] }}
-      >
-        <Animated.View
-          style={[
-            styles.fabIconContainer,
-            animatedStyles.fabRotation,
-          ]}
-        >
-          <MaterialCommunityIcons 
-            name="plus" 
-            size={spacing.iconLg} 
-            color={colors.text.primary} 
-          />
-        </Animated.View>
-      </TouchableOpacity>
 
       <Animated.View
         style={[
@@ -198,13 +181,13 @@ const FabMenu = React.memo(({ isSearching = false, navigation, meal }) => {
           { paddingBottom: spacing[7] + insets.bottom },
           animatedStyles.menuContainer,
         ]}
-        pointerEvents={isFabExpanded ? 'auto' : 'none'}
+        pointerEvents={isExpanded ? 'auto' : 'none'}
       >
         <View style={styles.menuHandle} />
 
         <View style={styles.menuHeader}>
-          <Text style={styles.menuHeaderTitle}>Quick Actions</Text>
-          <Text style={styles.menuHeaderSubtitle}>Choose an option to continue</Text>
+          <Text style={styles.menuHeaderTitle}>Create Food</Text>
+          <Text style={styles.menuHeaderSubtitle}>Add new entries to your database</Text>
         </View>
 
         {memoizedMenuItems}
@@ -218,32 +201,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.background.overlay,
     zIndex: 999,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: spacing[20],
-    right: spacing[5],
-    width: spacing[14],
-    height: spacing[14],
-    backgroundColor: colors.accent.primary,
-    borderRadius: radius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    zIndex: 1001,
-    shadowColor: colors.accent.primary,
-    shadowOffset: {
-      width: 0,
-      height: spacing[1],
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: spacing[2],
-  },
-  fabIconContainer: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   menuContainer: {
     position: 'absolute',
@@ -329,4 +286,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default FabMenu;
+export default AddFoodMenu;

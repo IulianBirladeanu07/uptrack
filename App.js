@@ -25,9 +25,9 @@ import CreateWorkout from './src/features/workout/screens/CreateWorkoutScreen/Cr
 import FoodSelectionScreen from './src/features/nutrition/screens/FoodSelectionScreen/FoodSelectionScreen';
 import FoodDetailScreen from './src/features/nutrition/screens/FoodDetailScreen/FoodDetailScreen';
 import SplashScreen from './src/shared/components/SplashScreen/SplashScreen';
-import ChangePasswordScreen from './src/features/auth/components/ChangePassword/ChangePasswordScreen';
+import ChangePasswordScreen from './src/features/auth/components/ChangePasswordScreen/ChangePasswordScreen';
 import FitnessProfileSetup from './src/features/profile/components/ProfileSetup/FitnessProfileSetup';
-import ForgotPasswordScreen from './src/features/auth/components/ForgotPassword/ForgotPassword';
+import ForgotPasswordScreen from './src/features/auth/components/ForgotPasswordScreen/ForgotPasswordScreen';
 import CustomFoodScreen from './src/features/nutrition/screens/FoodSelectionScreen/CustomFoodScreen';
 import BarcodeScannerScreen from './src/features/nutrition/screens/BarcodeScannerScreen/BarcodeScannerScreen';
 import CreateSplitScreen from './src/features/workout/screens/CreateSplitScreen/CreateSplitScreen'; 

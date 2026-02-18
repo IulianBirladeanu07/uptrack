@@ -79,7 +79,7 @@ const PlusButton = memo(({ isChecked, onPress, showButton }) => {
         <Ionicons
           name={isChecked ? 'checkmark' : 'add'}
           size={spacing[4]}
-          color={isChecked ? colors.accent.success : colors.accent.primaryAlt}
+          color={isChecked ? colors.accent.success : colors.text.tertiary}
         />
       </TouchableOpacity>
     </View>
@@ -256,8 +256,8 @@ const styles = createStyles(() => ({
     borderRadius: radius[3],
     marginBottom: spacing[2],
     borderWidth: 1,
-    paddingHorizontal: spacing[2] - 2,
-    paddingVertical: spacing[2] - 2,
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[2],
   },
 
   containerCompact: {
@@ -281,7 +281,6 @@ const styles = createStyles(() => ({
     paddingVertical: spacing[1],
     paddingHorizontal: spacing[1],
     overflow: 'visible',
-    minHeight: spacing[12],
     backgroundColor: 'transparent',
   },
 
@@ -302,7 +301,7 @@ const styles = createStyles(() => ({
     width: spacing[9],
     height: spacing[9],
     padding: spacing[1],
-    borderRadius: radius[3],
+    borderRadius: radius[2],
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
@@ -361,7 +360,6 @@ const styles = createStyles(() => ({
     gap: spacing[1],
     position: 'absolute',
     right: 0,
-    top: '10%',
   },
 
   caloriesDisplay: {
@@ -386,11 +384,10 @@ const styles = createStyles(() => ({
   },
 
   caloriesLabel: {
-    fontSize: fontSize[10],
-    fontWeight: fontWeight.medium,
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
     color: colors.text.secondary,
     textAlign: 'center',
-    lineHeight: 12,
   },
 
   plusButton: {
@@ -406,13 +403,9 @@ const styles = createStyles(() => ({
   },
 
   plusButtonAdd: {
-    backgroundColor: colors.faded.primaryExtraLight,
+    backgroundColor: colors.faded.surfaceMedium,
     borderWidth: 1,
-    borderColor: colors.border.primaryAlt,
-    shadowColor: colors.accent.primaryAlt,
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
+    borderColor: colors.border.default,
   },
 
   plusButtonSelected: {

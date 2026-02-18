@@ -1,11 +1,10 @@
-import React from 'react';
 import { View, Text, Image, ScrollView, StyleSheet } from 'react-native';
 
 const mockData = {
   profile: {
     name: 'John Doe',
     bio: '“Stay fit, stay healthy!”',
-    profilePic: 'https:
+    profilePic: 'https://via.placeholder.com/80',
   },
   progressSummary: {
     daysActive: 120,
@@ -25,7 +24,6 @@ const mockData = {
   workouts: [
     { date: '2024-05-01', type: 'Running', duration: '30 mins', calories: 300 },
     { date: '2024-05-02', type: 'Cycling', duration: '45 mins', calories: 450 },
-    
   ],
   nutrition: {
     dailyCaloricIntake: [2000, 2200, 2100, 2300, 2200, 2500, 2400],
@@ -47,7 +45,7 @@ const mockData = {
   achievements: [
     { title: '50 Workouts Completed', date: '2024-04-01' },
     { title: '10k Steps in a Day', date: '2024-05-15' },
-    
+    // Add more achievements as needed
   ],
 };
 
@@ -73,13 +71,30 @@ const ProgressScreen = () => {
       
       <View style={styles.charts}>
         <Text style={styles.chartTitle}>Weight Change Over Time</Text>
-        {}
-        {}
+        {/* <LineChart
+          data={mockData.weightData}
+          width={300}
+          height={220}
+          chartConfig={{
+            backgroundColor: '#e26a00',
+            backgroundGradientFrom: '#fb8c00',
+            backgroundGradientTo: '#ffa726',
+            decimalPlaces: 2,
+            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+            style: {
+              borderRadius: 16,
+            },
+          }}
+          style={{
+            marginVertical: 8,
+            borderRadius: 16,
+          }} */}
+        {/* /> */}
       </View>
 
       <View style={styles.progressBarSection}>
         <Text style={styles.progressBarTitle}>Daily Goal Completion</Text>
-        {}
+        {/* <ProgressBar progress={mockData.progressBar} color={'#6200ea'} /> */}
         <Text style={styles.progressBarText}>{Math.round(mockData.progressBar * 100)}% of daily goal achieved</Text>
       </View>
 
@@ -99,7 +114,43 @@ const ProgressScreen = () => {
           <Text style={styles.progressBarText}key={index}>Day {index + 1}: {calories} calories</Text>
         ))}
         <Text>Macronutrients Distribution:</Text>
-        {}
+        {/* <PieChart
+          data={[
+            {
+              name: 'Carbs',
+              population: mockData.nutrition.macronutrients.carbs,
+              color: '#f39c12',
+              legendFontColor: '#7F7F7F',
+              legendFontSize: 15,
+            },
+            {
+              name: 'Proteins',
+              population: mockData.nutrition.macronutrients.proteins,
+              color: '#2ecc71',
+              legendFontColor: '#7F7F7F',
+              legendFontSize: 15,
+            },
+            {
+              name: 'Fats',
+              population: mockData.nutrition.macronutrients.fats,
+              color: '#e74c3c',
+              legendFontColor: '#7F7F7F',
+              legendFontSize: 15,
+            },
+          ]}
+          width={300}
+          height={220}
+          chartConfig={{
+            backgroundColor: '#1cc910',
+            backgroundGradientFrom: '#eff3ff',
+            backgroundGradientTo: '#efefef',
+            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+          }}
+          accessor="population"
+          backgroundColor="transparent"
+          paddingLeft="15"
+          absolute
+        /> */}
       </View>
       
       <View style={styles.detailsSection}>

@@ -74,7 +74,7 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
   const initializeGoogleFit = async () => {
     const permissionGranted = await requestAndroidPermission();
     if (!permissionGranted) {
-      throw new Error('Permission denied');
+      throw new Error('Activity recognition permission denied');
     }
 
     const options = { 
@@ -86,8 +86,9 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
     };
 
     const authResult = await GoogleFit.authorize(options);
+    
     if (!authResult.success) {
-      throw new Error('Authorization failed');
+      throw new Error('Google Fit authorization failed');
     }
   };
 
@@ -105,7 +106,6 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
           },
           (err, results) => {
             if (err) {
-              console.error('iOS step fetch error:', err);
               resolve(0);
               return;
             }
@@ -119,7 +119,7 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
           startDate: today.toISOString(),
           endDate: now.toISOString(),
         });
-
+        
         if (!result?.length) return 0;
 
         const preferredSources = [
@@ -145,7 +145,7 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
   };
 
   const fetchLast7DaysSteps = async () => {
-  const yesterday = new Date();
+    const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     yesterday.setHours(23, 59, 59, 999);
     
@@ -162,7 +162,6 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
           },
           (err, results) => {
             if (err) {
-              console.error('Error fetching historical iOS steps:', err);
               resolve();
               return;
             }
@@ -235,10 +234,8 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
   };
 
   const initialize = async () => {
-    if (initializingRef.current || initialized) {
-      return;
-    }
-
+    if (initializingRef.current || initialized) return;
+    
     initializingRef.current = true;
 
     try {

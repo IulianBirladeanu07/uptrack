@@ -1,18 +1,12 @@
-import React, { useState, useEffect, useContext } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { useState, useEffect, useContext } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../../context/AuthContext';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import styles from './LoginScreenStyles';
+import { createStyles } from '../../../../shared/theme/createStyles';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import firebaseAuthService from '../../services/firebaseAuthService';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -30,10 +24,6 @@ const LoginScreen = () => {
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     androidClientId: firebaseAuthService.getGoogleClientId(),
   });
-
-  console.log("Google Client ID: ", firebaseAuthService.getGoogleClientId());
-  console.log("Request: ", request);
-  console.log("Response: ", response);
 
   useEffect(() => {
     if (response?.type === 'success') {
@@ -59,24 +49,9 @@ const LoginScreen = () => {
     try {
       await firebaseAuthService.signInWithGoogle(googleResponse, setAuthenticated, setProfileSetupComplete, navigation);
     } catch (error) {
-      console.log(error)
-      Alert.alert('Error', 'Failed to sign in with Google:  ' + error.message);
+      Alert.alert('Error', 'Failed to sign in with Google: ' + error.message);
     } finally {
       setGoogleLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      Alert.alert('Error', 'Please enter your email address.');
-      return;
-    }
-
-    try {
-      await firebaseAuthService.sendPasswordResetEmail(email);
-      Alert.alert('Success', 'Password reset email sent. Please check your inbox.');
-    } catch (error) {
-      Alert.alert('Error', error.message);
     }
   };
 
@@ -89,33 +64,35 @@ const LoginScreen = () => {
       <Text style={styles.title}>Login</Text>
 
       <View style={styles.inputContainer}>
-        <MaterialIcons name="email" size={24} color="gray" style={styles.inputIcon} />
+        <MaterialIcons name="email" size={spacing.iconLg} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={email}
           onChangeText={setEmail}
           placeholder="Email"
+          placeholderTextColor={colors.text.tertiary}
           autoCapitalize="none"
           keyboardType="email-address"
         />
       </View>
 
       <View style={styles.inputContainer}>
-        <MaterialIcons name="lock" size={24} color="gray" style={styles.inputIcon} />
+        <MaterialIcons name="lock" size={spacing.iconLg} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={password}
           onChangeText={setPassword}
           placeholder="Password"
+          placeholderTextColor={colors.text.tertiary}
           secureTextEntry={!showPassword}
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={24} color="gray" />
+          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={spacing.iconLg} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.button} onPress={handleSignIn} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
+        {loading ? <ActivityIndicator color={colors.text.primary} /> : <Text style={styles.buttonText}>Login</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -124,16 +101,16 @@ const LoginScreen = () => {
         disabled={!request || googleLoading}
       >
         {googleLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.text.primary} />
         ) : (
           <>
-            <Ionicons name="logo-google" size={24} color="#fff" style={styles.googleButtonIcon} />
+            <Ionicons name="logo-google" size={spacing.iconMd} color={colors.text.primary} style={styles.googleButtonIcon} />
             <Text style={styles.googleButtonText}>Sign In with Google</Text>
           </>
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => handleForgotPassword()}>
+      <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
         <Text style={styles.linkText}>Forgot Password?</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={() => navigation.navigate('Registration')}>
@@ -142,5 +119,106 @@ const LoginScreen = () => {
     </View>
   );
 };
+
+const styles = createStyles(() => ({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background.primary,
+    padding: spacing[5],
+    justifyContent: 'center',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: spacing[8],
+  },
+  logoText: {
+    fontSize: fontSize[32],
+    fontWeight: fontWeight.black,
+    color: colors.text.primary,
+    letterSpacing: 2,
+  },
+  title: {
+    fontSize: fontSize[24],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginBottom: spacing[8],
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[3],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    marginBottom: spacing[4],
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  input: {
+    flex: 1,
+    color: colors.text.primary,
+    fontSize: fontSize[16],
+    paddingVertical: spacing[2],
+  },
+  inputIcon: {
+    marginRight: spacing[3],
+  },
+  button: {
+    backgroundColor: colors.accent.primary,
+    borderRadius: radius[4],
+    paddingVertical: spacing[5],
+    paddingHorizontal: spacing[4],
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginTop: spacing[5],
+    shadowColor: colors.accent.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  buttonText: {
+    color: colors.accent.buttonText,
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize[18],
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4285F4',
+    borderRadius: radius[4],
+    paddingVertical: spacing[5],
+    paddingHorizontal: spacing[4],
+    justifyContent: 'center',
+    marginTop: spacing[5],
+    width: '100%',
+    shadowColor: '#3367D6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  googleButtonText: {
+    color: colors.text.primary,
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize[16],
+  },
+  googleButtonIcon: {
+    marginRight: spacing[3],
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  linkText: {
+    color: colors.accent.cyan,
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
+    marginTop: spacing[5],
+  },
+}));
 
 export default LoginScreen;

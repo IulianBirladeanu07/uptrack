@@ -1,31 +1,44 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, Dimensions, TouchableOpacity, Animated, StyleSheet } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
-import { Text as SvgText } from 'react-native-svg';
-import { normalize } from '../../../../shared/hooks/useResponsive';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import { createStyles } from '../../../../shared/theme/createStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const colors = {
-  primaryOrange: '#FF9500',
-  primaryDark: '#E68600',
-  success: '#32D74B', 
-  danger: '#FF453A', 
-  surfaceBg: '#243042',
-  primaryText: '#FFFFFF',
-  secondaryText: '#8E8E93',
-  border: '#2A3A4A',
+const CHART_CONFIG = {
+  backgroundGradientFrom: colors.background.secondary,
+  backgroundGradientTo: colors.background.secondary,
+  color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`,
+  labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.8})`,
+  propsForDots: {
+    r: '3',
+    fill: colors.accent.primary,
+  },
+  propsForBackgroundLines: {
+    stroke: colors.border.light,
+    strokeWidth: 1,
+  },
+  propsForLabels: {
+    fontSize: 8,
+    fontWeight: '700',
+  },
+  decimalPlaces: 1,
+  fillShadowGradient: colors.accent.primary,
+  fillShadowGradientOpacity: 0.2,
 };
 
 const WeightChart = ({ data }) => {
-  if (!data || data.length === 0) return null;
+  const [chartPeriod, setChartPeriod] = useState('30');
+  const fadeAnim = useRef(null);
 
-  const [chartPeriod, setChartPeriod] = useState('7');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  if (!fadeAnim.current) {
+    fadeAnim.current = new Animated.Value(1);
+  }
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
+    fadeAnim.current.setValue(0);
+    Animated.timing(fadeAnim.current, {
       toValue: 1,
       duration: 300,
       useNativeDriver: true,
@@ -33,309 +46,176 @@ const WeightChart = ({ data }) => {
   }, [chartPeriod]);
 
   const chartData = useMemo(() => {
-    let dataSet;
-    if (chartPeriod === '7') {
-      const daysToShow = 7;
-      const chartDataSlice = data.slice(-daysToShow);
-      const paddedData = [];
-      const today = new Date();
-      for (let i = 6; i >= 0; i--) {
-        const targetDate = new Date(today);
-        targetDate.setDate(today.getDate() - i);
-        const existingEntry = chartDataSlice.find(item => new Date(item.date).toDateString() === targetDate.toDateString());
-        paddedData.push({ date: targetDate.toISOString(), weight: existingEntry?.weight ?? null });
-      }
-      dataSet = {
-        labels: paddedData.map(item => new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }).substring(0, 1)),
-        datasets: [{ data: paddedData.map(item => item.weight ?? 0), strokeWidth: 2, color: () => colors.primaryOrange }],
-        rawData: paddedData,
-      };
-    } else {
-      const last30Days = [];
-      const today = new Date();
-      for (let i = 29; i >= 0; i--) {
-        const currentDay = new Date(today);
-        currentDay.setDate(today.getDate() - i);
-        const dayWeight = data.find(item => new Date(item.date).toDateString() === currentDay.toDateString())?.weight ?? null;
-        last30Days.push({ date: currentDay.toISOString(), weight: dayWeight });
-      }
-      
-      const weeklyAverages = [];
-      for (let i = 0; i < 4; i++) {
-        const weekStart = i * 7;
-        const weekEnd = Math.min(weekStart + 7, 30);
-        const weekDays = last30Days.slice(weekStart, weekEnd);
-        const validWeights = weekDays.map(d => d.weight).filter(w => w !== null && w !== undefined && w > 0);
-        const weeklyAvg = validWeights.length > 0 ? validWeights.reduce((a, b) => a + b) / validWeights.length : 0;
-        weeklyAverages.push(weeklyAvg);
-      }
-      
-      const weekLabels = ['W1', 'W2', 'W3', 'W4'];
-      dataSet = {
-        labels: weekLabels,
-        datasets: [{ data: weeklyAverages, strokeWidth: 2, color: () => colors.primaryOrange }],
-        rawData: weeklyAverages.map((avg, index) => ({ date: new Date(today.getTime() - (3 - index) * 7 * 24 * 60 * 60 * 1000).toISOString(), weight: avg })),
-      };
+    if (!data || data.length === 0) {
+      return { labels: [], datasets: [{ data: [0] }], rawData: [] };
     }
-    return dataSet;
+
+    const validData = data
+      .filter(item => item.weight && item.weight > 0)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    if (validData.length === 0) {
+      return { labels: [], datasets: [{ data: [0] }], rawData: [] };
+    }
+
+    const periods = {
+      '7': {
+        slice: -7,
+        labelFilter: () => true,
+        dateFormat: { month: 'short', day: 'numeric' }
+      },
+      '30': {
+        slice: -30,
+        labelFilter: (_, index, arr) => index % 5 === 0 || index === arr.length - 1,
+        dateFormat: { month: 'short', day: 'numeric' }
+      },
+      '365': {
+        slice: -365,
+        labelFilter: (_, index) => index % 60 === 0,
+        dateFormat: { month: 'short' }
+      }
+    };
+
+    const period = periods[chartPeriod];
+    const periodData = validData.slice(period.slice);
+
+    return {
+      labels: periodData.map((item, index, arr) => {
+        if (!period.labelFilter(item, index, arr)) return '';
+        const date = new Date(item.date);
+        return date.toLocaleDateString('en-US', period.dateFormat);
+      }),
+      datasets: [{ data: periodData.map(item => item.weight) }],
+      rawData: periodData,
+    };
   }, [data, chartPeriod]);
 
-  const periodStats = useMemo(() => {
-    const validWeights = chartData.rawData
-      .map(item => item.weight)
-      .filter(weight => weight !== null && weight !== undefined && weight > 0);
-    
-    if (validWeights.length === 0) {
-      return { min: 0, max: 0, average: 0, change: 0 };
-    }
-    
-    const change = validWeights.length > 1 ? validWeights[validWeights.length - 1] - validWeights[0] : 0;
-    
-    return {
-      min: Math.min(...validWeights),
-      max: Math.max(...validWeights),
-      average: validWeights.reduce((a, b) => a + b, 0) / validWeights.length,
-      change,
-    };
-  }, [chartData]);
+  if (chartData.rawData.length === 0) {
+    return (
+      <View style={styles.chartCard}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>No weight data</Text>
+          <Text style={styles.emptySubtitle}>Start logging to see your progress</Text>
+        </View>
+      </View>
+    );
+  }
 
-  const getTrendIcon = () => {
-    if (periodStats.change < -0.1) return 'trending-down';
-    if (periodStats.change > 0.1) return 'trending-up';
-    return 'trending-neutral';
-  };
-
-  const getTrendColor = () => {
-    if (periodStats.change < -0.1) return colors.success;
-    if (periodStats.change > 0.1) return colors.danger;
-    return colors.secondaryText;
-  };
-
-  const chartConfig = {
-    backgroundGradientFrom: '#151B23',
-    backgroundGradientTo: '#151B23',
-    color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(156, 163, 175, ${opacity})`,
-    strokeWidth: 2,
-    propsForDots: {
-      r: chartPeriod === '7' ? '4' : '3',
-      strokeWidth: '2',
-      stroke: colors.primaryOrange,
-      fill: '#151B23',
-    },
-    propsForBackgroundLines: {
-      strokeDasharray: '3,3',
-      stroke: 'rgba(255, 255, 255, 0.15)',
-      strokeWidth: 0.5,
-    },
-    propsForLabels: {
-      fontSize: normalize(8),
-      fontWeight: '600',
-    },
-    decimalPlaces: 1,
-    fillShadowGradient: colors.primaryOrange,
-    fillShadowGradientOpacity: 0.01,
-  };
+  const chartWidth = SCREEN_WIDTH - (spacing[4] * 2);
 
   return (
-    <Animated.View style={[styles.chartCard, { opacity: fadeAnim }]}>
+    <Animated.View style={[styles.chartCard, { opacity: fadeAnim.current }]}>
       <View style={styles.chartHeader}>
-        <Text style={styles.chartTitle}>
-          {chartPeriod === '7' ? 'Weekly' : 'Monthly'} Progress
-        </Text>
+        <Text style={styles.chartTitle}>Progress</Text>
         <View style={styles.chartToggle}>
-          <TouchableOpacity
-            style={[styles.toggleButton, chartPeriod === '7' && styles.toggleButtonActive]}
-            onPress={() => setChartPeriod('7')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.toggleButtonText, chartPeriod === '7' && styles.toggleButtonTextActive]}>
-              7D
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleButton, chartPeriod === '30' && styles.toggleButtonActive]}
-            onPress={() => setChartPeriod('30')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.toggleButtonText, chartPeriod === '30' && styles.toggleButtonTextActive]}>
-              30D
-            </Text>
-          </TouchableOpacity>
+          {['7', '30', '365'].map((period, idx) => (
+            <TouchableOpacity
+              key={period}
+              style={[styles.toggleButton, chartPeriod === period && styles.toggleButtonActive]}
+              onPress={() => setChartPeriod(period)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.toggleButtonText, chartPeriod === period && styles.toggleButtonTextActive]}>
+                {['Week', 'Month', 'Year'][idx]}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
-      
+
       <View style={styles.chartWrapper}>
-        <View style={styles.chartContainer}>
-          <LineChart
-            data={chartData}
-            width={SCREEN_WIDTH - normalize(40)}
-            height={normalize(200)}
-            chartConfig={chartConfig}
-            bezier
-            style={styles.chart}
-            withDots={true}
-            withShadow={false}
-            withVerticalLabels={true}
-            withHorizontalLabels={true}
-            withInnerLines={true}
-            withOuterLines={false}
-            withVerticalLines={false}
-            withHorizontalLines={true}
-            segments={3}
-            yAxisSuffix=" kg"
-            formatYLabel={(value) => parseFloat(value).toFixed(1)}
-            fromZero={false}
-            renderDotContent={({ x, y, index }) => {
-              const value = chartData.datasets[0].data[index];
-              if (!value || value === 0) return null;
-              
-              return (
-                <SvgText
-                  key={`label-${index}`}
-                  x={x}
-                  y={y - 8}
-                  fill={colors.primaryOrange}
-                  fontSize="10"
-                  fontWeight="700"
-                  textAnchor="middle"
-                >
-                  {value.toFixed(1)}
-                </SvgText>
-              );
-            }}
-          />
-        </View>
-      </View>
-      
-      <View style={styles.chartFooter}>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Low</Text>
-          <Text style={styles.statValue}>
-            {periodStats.min ? periodStats.min.toFixed(1) : '--'}
-          </Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>High</Text>
-          <Text style={styles.statValue}>
-            {periodStats.max ? periodStats.max.toFixed(1) : '--'}
-          </Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Avg</Text>
-          <Text style={styles.statValue}>
-            {periodStats.average ? periodStats.average.toFixed(1) : '--'}
-          </Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Change</Text>
-          <View style={styles.trendStat}>
-            <MaterialCommunityIcons 
-              name={getTrendIcon()} 
-              size={normalize(10)} 
-              color={getTrendColor()}
-            />
-            <Text style={[styles.statValue, { color: getTrendColor() }]}>
-              {periodStats.change > 0 ? '+' : ''}{periodStats.change.toFixed(1)}
-            </Text>
-          </View>
-        </View>
+        <LineChart
+          data={chartData}
+          width={chartWidth}
+          height={180}
+          chartConfig={CHART_CONFIG}
+          withDots={true}
+          withShadow={true}
+          withInnerLines={true}
+          withOuterLines={false}
+          withVerticalLines={false}
+          withHorizontalLines={true}
+          segments={4}
+          fromZero={false}
+          style={styles.chart}
+          bezier={true}
+          yAxisInterval={1}
+          formatYLabel={(value) => {
+            const num = typeof value === 'string' ? parseFloat(value) : value;
+            return `${num.toFixed(1)}`;
+          }}
+        />
       </View>
     </Animated.View>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles(() => ({
   chartCard: {
-    backgroundColor: 'rgba(21, 27, 35, 0.8)',
-    borderRadius: normalize(12),
-    padding: normalize(12),
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[4],
+    padding: spacing[4],
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: colors.border.default,
   },
   chartHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: normalize(12),
+    marginBottom: spacing[4],
   },
   chartTitle: {
-    fontSize: normalize(18),
-    color: colors.primaryText,
-    fontWeight: '600',
+    fontSize: fontSize[16],
+    color: colors.text.primary,
+    fontWeight: fontWeight.semibold,
   },
   chartToggle: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: normalize(6),
-    padding: normalize(1.5),
+    backgroundColor: colors.background.tertiary,
+    borderRadius: radius[2],
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    padding: spacing[1],
   },
   toggleButton: {
-    paddingHorizontal: normalize(8),
-    paddingVertical: normalize(3),
-    borderRadius: normalize(5),
+    paddingHorizontal: spacing[3],
+    paddingVertical: 6,
   },
   toggleButtonActive: {
-    backgroundColor: colors.primaryOrange,
+    backgroundColor: colors.accent.primary,
+    borderRadius: radius[2],
   },
   toggleButtonText: {
-    fontSize: normalize(9),
-    color: colors.secondaryText,
-    fontWeight: '600',
+    fontSize: fontSize[10],
+    color: colors.text.quaternary,
+    fontWeight: fontWeight.medium,
   },
   toggleButtonTextActive: {
-    color: colors.primaryText,
-    fontWeight: '700',
+    color: colors.accent.buttonText,
+    fontWeight: fontWeight.semibold,
   },
   chartWrapper: {
-    marginBottom: normalize(2),
-  },
-  chartContainer: {
     alignItems: 'center',
-    borderRadius: normalize(8),
-    overflow: 'visible',
+    overflow: 'hidden',
   },
   chart: {
-    marginBottom: normalize(5),
+    borderRadius: radius[2],
   },
-  chartFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  emptyState: {
     alignItems: 'center',
-    paddingTop: normalize(12),
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: spacing[12],
   },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-    paddingHorizontal: normalize(2),
+  emptyTitle: {
+    fontSize: fontSize[16],
+    color: colors.text.primary,
+    fontWeight: fontWeight.bold,
+    marginBottom: spacing[1],
   },
-  statLabel: {
-    fontSize: normalize(8),
-    color: colors.secondaryText,
-    fontWeight: '00',
-    textTransform: 'uppercase',
-    marginBottom: normalize(2),
+  emptySubtitle: {
+    fontSize: fontSize[12],
+    color: colors.text.secondary,
+    fontWeight: fontWeight.medium,
   },
-  statValue: {
-    fontSize: normalize(11),
-    color: colors.primaryText,
-    fontWeight: '700',
-  },
-  trendStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: normalize(2),
-  },
-  statDivider: {
-    width: 1,
-    height: normalize(20),
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-});
+}));
 
 export default WeightChart;
