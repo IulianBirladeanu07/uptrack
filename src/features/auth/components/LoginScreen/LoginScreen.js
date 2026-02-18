@@ -64,7 +64,7 @@ const LoginScreen = () => {
       <Text style={styles.title}>Login</Text>
 
       <View style={styles.inputContainer}>
-        <MaterialIcons name="email" size={spacing.iconLg} color={colors.text.tertiary} style={styles.inputIcon} />
+        <MaterialIcons name="email" size={spacing[6]} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={email}
@@ -77,7 +77,7 @@ const LoginScreen = () => {
       </View>
 
       <View style={styles.inputContainer}>
-        <MaterialIcons name="lock" size={spacing.iconLg} color={colors.text.tertiary} style={styles.inputIcon} />
+        <MaterialIcons name="lock" size={spacing[6]} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={password}
@@ -87,7 +87,7 @@ const LoginScreen = () => {
           secureTextEntry={!showPassword}
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={spacing.iconLg} color={colors.text.tertiary} />
+          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={spacing[6]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
 
@@ -104,7 +104,7 @@ const LoginScreen = () => {
           <ActivityIndicator color={colors.text.primary} />
         ) : (
           <>
-            <Ionicons name="logo-google" size={spacing.iconMd} color={colors.text.primary} style={styles.googleButtonIcon} />
+            <Ionicons name="logo-google" size={spacing[5]} color={colors.text.primary} style={styles.googleButtonIcon} />
             <Text style={styles.googleButtonText}>Sign In with Google</Text>
           </>
         )}

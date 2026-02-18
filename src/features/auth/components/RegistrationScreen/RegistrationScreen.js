@@ -109,7 +109,7 @@ const RegistrationScreen = () => {
       <Text style={styles.title}>Registration</Text>
 
       <View style={styles.inputContainer}>
-        <Ionicons name="mail-outline" size={spacing.iconMd} color={colors.text.tertiary} style={styles.inputIcon} />
+        <Ionicons name="mail-outline" size={spacing[5]} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={email}
@@ -122,7 +122,7 @@ const RegistrationScreen = () => {
       </View>
 
       <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed-outline" size={spacing.iconMd} color={colors.text.tertiary} style={styles.inputIcon} />
+        <Ionicons name="lock-closed-outline" size={spacing[5]} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={password}
@@ -132,7 +132,7 @@ const RegistrationScreen = () => {
           secureTextEntry={!showPassword}
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Ionicons name={showPassword ? "eye-off" : "eye"} size={spacing.iconMd} color={colors.text.tertiary} />
+          <Ionicons name={showPassword ? "eye-off" : "eye"} size={spacing[5]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
       {password.length > 0 && (
@@ -150,7 +150,7 @@ const RegistrationScreen = () => {
       )}
 
       <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed-outline" size={spacing.iconMd} color={colors.text.tertiary} style={styles.inputIcon} />
+        <Ionicons name="lock-closed-outline" size={spacing[5]} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={confirmedPassword}
@@ -160,7 +160,7 @@ const RegistrationScreen = () => {
           secureTextEntry={!showConfirmPassword}
         />
         <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-          <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={spacing.iconMd} color={colors.text.tertiary} />
+          <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={spacing[5]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
 

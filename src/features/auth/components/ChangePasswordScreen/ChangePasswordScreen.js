@@ -83,7 +83,7 @@ const ChangePasswordScreen = ({ navigation }) => {
       <Text style={styles.header}>Change Password</Text>
 
       <View style={styles.card}>
-        <Ionicons name="lock-closed-outline" size={spacing.iconLg} color={colors.text.tertiary} style={styles.inputIcon} />
+        <Ionicons name="lock-closed-outline" size={spacing[6]} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={currentPassword}
@@ -93,12 +93,12 @@ const ChangePasswordScreen = ({ navigation }) => {
           secureTextEntry={!showCurrentPassword}
         />
         <TouchableOpacity onPress={() => setShowCurrentPassword(!showCurrentPassword)}>
-          <Ionicons name={showCurrentPassword ? "eye-off" : "eye"} size={spacing.iconLg} color={colors.text.tertiary} />
+          <Ionicons name={showCurrentPassword ? "eye-off" : "eye"} size={spacing[6]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
-        <Ionicons name="lock-closed-outline" size={spacing.iconLg} color={colors.text.tertiary} style={styles.inputIcon} />
+        <Ionicons name="lock-closed-outline" size={spacing[6]} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={newPassword}
@@ -108,12 +108,12 @@ const ChangePasswordScreen = ({ navigation }) => {
           secureTextEntry={!showNewPassword}
         />
         <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)}>
-          <Ionicons name={showNewPassword ? "eye-off" : "eye"} size={spacing.iconLg} color={colors.text.tertiary} />
+          <Ionicons name={showNewPassword ? "eye-off" : "eye"} size={spacing[6]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
-        <Ionicons name="lock-closed-outline" size={spacing.iconLg} color={colors.text.tertiary} style={styles.inputIcon} />
+        <Ionicons name="lock-closed-outline" size={spacing[6]} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={confirmPassword}
@@ -123,7 +123,7 @@ const ChangePasswordScreen = ({ navigation }) => {
           secureTextEntry={!showConfirmPassword}
         />
         <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-          <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={spacing.iconLg} color={colors.text.tertiary} />
+          <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={spacing[6]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
 

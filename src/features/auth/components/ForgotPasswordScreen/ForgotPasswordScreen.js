@@ -60,7 +60,7 @@ const ForgotPasswordScreen = () => {
       </Text>
 
       <View style={styles.inputContainer}>
-        <Ionicons name="mail-outline" size={spacing.iconLg} color={colors.text.tertiary} style={styles.inputIcon} />
+        <Ionicons name="mail-outline" size={spacing[6]} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={email}
@@ -89,7 +89,7 @@ const ForgotPasswordScreen = () => {
         style={styles.backToLoginButton} 
         onPress={() => navigation.navigate('Login')}
       >
-        <Ionicons name="arrow-back" size={spacing.iconMd} color={colors.accent.cyan} />
+        <Ionicons name="arrow-back" size={spacing[6]} color={colors.accent.cyan} />
         <Text style={styles.backToLoginButtonText}>Back to Login</Text>
       </TouchableOpacity>
     </View>
