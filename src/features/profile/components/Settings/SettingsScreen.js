@@ -1,7 +1,5 @@
 import { useState, useContext, useCallback } from 'react';
-import {
-  View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { doc, setDoc } from 'firebase/firestore';
@@ -13,25 +11,25 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../../../share
 import { createStyles } from '../../../../shared/theme/createStyles';
 
 const ACTIVITY_OPTIONS = [
-  { label: 'Sedentary', value: 'sedentary', desc: 'Desk job, little movement' },
-  { label: 'Lightly Active', value: 'lightly_active', desc: '2–3 workouts/week' },
-  { label: 'Moderately Active', value: 'moderately_active', desc: '3–4 workouts/week' },
-  { label: 'Very Active', value: 'very_active', desc: '4–5 workouts/week' },
-  { label: 'Extremely Active', value: 'extremely_active', desc: '5–7 workouts/week' },
+  { label: 'Sedentary',         value: 'sedentary',          desc: 'Desk job, little movement' },
+  { label: 'Lightly Active',    value: 'lightly_active',     desc: '2–3 workouts/week' },
+  { label: 'Moderately Active', value: 'moderately_active',  desc: '3–4 workouts/week' },
+  { label: 'Very Active',       value: 'very_active',        desc: '4–5 workouts/week' },
+  { label: 'Extremely Active',  value: 'extremely_active',   desc: '5–7 workouts/week' },
 ];
 
 const EXPERIENCE_OPTIONS = [
-  { label: 'Novice', value: 'novice', desc: '<6 months training' },
-  { label: 'Beginner', value: 'beginner', desc: '6mo – 2 years' },
-  { label: 'Intermediate', value: 'intermediate', desc: '2–5 years' },
-  { label: 'Advanced', value: 'advanced', desc: '5–7 years' },
-  { label: 'Elite', value: 'elite', desc: '7+ years' },
+  { label: 'Novice',       value: 'novice',        desc: '<6 months training' },
+  { label: 'Beginner',     value: 'beginner',      desc: '6mo – 2 years' },
+  { label: 'Intermediate', value: 'intermediate',  desc: '2–5 years' },
+  { label: 'Advanced',     value: 'advanced',      desc: '5–7 years' },
+  { label: 'Elite',        value: 'elite',         desc: '7+ years' },
 ];
 
 const STRESS_OPTIONS = [
-  { label: 'Low', value: 'low', desc: 'Relaxed, minimal stress' },
+  { label: 'Low',      value: 'low',      desc: 'Relaxed, minimal stress' },
   { label: 'Moderate', value: 'moderate', desc: 'Occasional work stress' },
-  { label: 'High', value: 'high', desc: 'Constant pressure daily' },
+  { label: 'High',     value: 'high',     desc: 'Constant pressure daily' },
 ];
 
 const OptionRow = ({ option, selected, onPress }) => (
@@ -43,17 +41,11 @@ const OptionRow = ({ option, selected, onPress }) => (
     <View style={styles.optionRowLeft}>
       <View style={[styles.optionDot, selected && styles.optionDotSelected]} />
       <View>
-        <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
-          {option.label}
-        </Text>
-        {option.desc && (
-          <Text style={styles.optionDesc}>{option.desc}</Text>
-        )}
+        <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>{option.label}</Text>
+        {option.desc && <Text style={styles.optionDesc}>{option.desc}</Text>}
       </View>
     </View>
-    {selected && (
-      <Ionicons name="checkmark" size={18} color={colors.accent.primary} />
-    )}
+    {selected && <Ionicons name="checkmark" size={18} color={colors.accent.primary} />}
   </TouchableOpacity>
 );
 
@@ -75,9 +67,7 @@ const NumberStepper = ({ label, value, onDecrement, onIncrement, unit }) => (
   </View>
 );
 
-const SectionTitle = ({ children }) => (
-  <Text style={styles.sectionTitle}>{children}</Text>
-);
+const SectionTitle = ({ children }) => <Text style={styles.sectionTitle}>{children}</Text>;
 
 const SettingsScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -86,14 +76,14 @@ const SettingsScreen = ({ navigation }) => {
   const [hasChanges, setHasChanges] = useState(false);
 
   const [form, setForm] = useState({
-    age: userData?.age || 24,
-    height: userData?.height || 175,
-    gender: userData?.gender || 'male',
-    currentWeight: userData?.currentWeight || 80,
-    targetWeight: userData?.targetWeight || 80,
-    activityLevel: userData?.activityLevel || 'moderately_active',
+    age:            userData?.age            || 24,
+    height:         userData?.height         || 175,
+    gender:         userData?.gender         || 'male',
+    currentWeight:  userData?.currentWeight  || 80,
+    targetWeight:   userData?.targetWeight   || 80,
+    activityLevel:  userData?.activityLevel  || 'moderately_active',
     experienceLevel: userData?.experienceLevel || 'intermediate',
-    stressLevel: userData?.stressLevel || 'moderate',
+    stressLevel:    userData?.stressLevel    || 'moderate',
   });
 
   const [original] = useState({ ...form });
@@ -114,6 +104,7 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleSave = () => {
     if (!hasChanges) return;
+
     Alert.alert(
       'Update Plan',
       'This will recalculate your calorie and macro targets. Continue?',
@@ -126,15 +117,20 @@ const SettingsScreen = ({ navigation }) => {
             try {
               const uid = userData?.uid || getAuth().currentUser?.uid;
               const newPlan = calculateWeightChangePlan(form);
+              const targetWeightChanged = form.targetWeight !== original.targetWeight;
+
               await setDoc(doc(db, 'users', uid), {
                 ...form,
                 weightChangePlan: newPlan,
-                targetCalories: newPlan.goalCalories,
-                targetProtein: newPlan.macros.protein,
-                targetCarbs: newPlan.macros.carbs,
-                targetFats: newPlan.macros.fats,
+                targetCalories:   newPlan.goalCalories,
+                targetProtein:    newPlan.macros.protein,
+                targetCarbs:      newPlan.macros.carbs,
+                targetFats:       newPlan.macros.fats,
+                maintenanceCalories: newPlan.tdee,
                 lastNutritionUpdate: new Date().toISOString(),
+                ...(targetWeightChanged ? { startWeight: form.currentWeight } : {}),
               }, { merge: true });
+
               await refreshUserData();
               setHasChanges(false);
               Alert.alert('Done', 'Your plan has been updated.');
@@ -144,8 +140,8 @@ const SettingsScreen = ({ navigation }) => {
             } finally {
               setSaving(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -172,14 +168,8 @@ const SettingsScreen = ({ navigation }) => {
       >
         <View style={[styles.hero, hasChanges && styles.heroActive]}>
           <View style={styles.heroHeader}>
-            <View style={[
-              styles.goalTag,
-              { backgroundColor: isGaining ? colors.faded.success : colors.faded.primary }
-            ]}>
-              <Text style={[
-                styles.goalTagText,
-                { color: isGaining ? colors.accent.success : colors.accent.primary }
-              ]}>
+            <View style={[styles.goalTag, { backgroundColor: isGaining ? colors.faded.success : colors.faded.primary }]}>
+              <Text style={[styles.goalTagText, { color: isGaining ? colors.accent.success : colors.accent.primary }]}>
                 {isGaining ? 'Muscle Gain' : 'Cut'}
               </Text>
             </View>
@@ -198,14 +188,8 @@ const SettingsScreen = ({ navigation }) => {
 
             <View style={styles.heroArrow}>
               {hasChanges && calDiff !== 0 ? (
-                <View style={[
-                  styles.heroDiffBadge,
-                  { backgroundColor: calDiff > 0 ? colors.faded.success : colors.faded.error }
-                ]}>
-                  <Text style={[
-                    styles.heroDiffText,
-                    { color: calDiff > 0 ? colors.accent.success : colors.accent.error }
-                  ]}>
+                <View style={[styles.heroDiffBadge, { backgroundColor: calDiff > 0 ? colors.faded.success : colors.faded.error }]}>
+                  <Text style={[styles.heroDiffText, { color: calDiff > 0 ? colors.accent.success : colors.accent.error }]}>
                     {calDiff > 0 ? '+' : ''}{calDiff}
                   </Text>
                 </View>
@@ -215,9 +199,7 @@ const SettingsScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.heroKcalCol}>
-              <Text style={[styles.heroColLabel, hasChanges && { color: colors.accent.primary }]}>
-                NEW
-              </Text>
+              <Text style={[styles.heroColLabel, hasChanges && { color: colors.accent.primary }]}>NEW</Text>
               <Text style={[styles.heroKcalNew, hasChanges && { color: colors.text.primary }]}>
                 {previewPlan.goalCalories}
               </Text>
@@ -228,38 +210,18 @@ const SettingsScreen = ({ navigation }) => {
 
           <View style={styles.heroMacros}>
             {[
-              {
-                label: 'P',
-                old: currentPlan.macros.protein,
-                next: previewPlan.macros.protein,
-                color: colors.accent.purple,
-              },
-              {
-                label: 'C',
-                old: currentPlan.macros.carbs,
-                next: previewPlan.macros.carbs,
-                color: colors.accent.success,
-              },
-              {
-                label: 'F',
-                old: currentPlan.macros.fats,
-                next: previewPlan.macros.fats,
-                color: colors.accent.cyan,
-              },
+              { label: 'P', old: currentPlan.macros.protein, next: previewPlan.macros.protein, color: colors.accent.purple },
+              { label: 'C', old: currentPlan.macros.carbs,   next: previewPlan.macros.carbs,   color: colors.accent.success },
+              { label: 'F', old: currentPlan.macros.fats,    next: previewPlan.macros.fats,    color: colors.accent.cyan },
             ].map((m, i, arr) => {
               const diff = m.next - m.old;
               return (
                 <View key={m.label} style={[styles.heroMacroItem, i < arr.length - 1 && styles.heroMacroBorder]}>
                   <View style={[styles.heroMacroDot, { backgroundColor: m.color }]} />
                   <Text style={styles.heroMacroLabel}>{m.label}</Text>
-                  <Text style={[styles.heroMacroVal, hasChanges && { color: colors.text.primary }]}>
-                    {m.next}g
-                  </Text>
+                  <Text style={[styles.heroMacroVal, hasChanges && { color: colors.text.primary }]}>{m.next}g</Text>
                   {hasChanges && diff !== 0 && (
-                    <Text style={[
-                      styles.heroMacroDiff,
-                      { color: diff > 0 ? colors.accent.success : colors.accent.error }
-                    ]}>
+                    <Text style={[styles.heroMacroDiff, { color: diff > 0 ? colors.accent.success : colors.accent.error }]}>
                       {diff > 0 ? '+' : ''}{diff.toFixed(0)}g
                     </Text>
                   )}
@@ -279,21 +241,9 @@ const SettingsScreen = ({ navigation }) => {
 
         <SectionTitle>Personal</SectionTitle>
         <View style={styles.card}>
-          <NumberStepper
-            label="Age"
-            value={form.age}
-            unit="yrs"
-            onDecrement={() => stepValue('age', -1, 16, 80)}
-            onIncrement={() => stepValue('age', 1, 16, 80)}
-          />
+          <NumberStepper label="Age"    value={form.age}    unit="yrs" onDecrement={() => stepValue('age',    -1,   16,  80)} onIncrement={() => stepValue('age',    1,   16,  80)} />
           <View style={styles.divider} />
-          <NumberStepper
-            label="Height"
-            value={form.height}
-            unit="cm"
-            onDecrement={() => stepValue('height', -1, 120, 250)}
-            onIncrement={() => stepValue('height', 1, 120, 250)}
-          />
+          <NumberStepper label="Height" value={form.height} unit="cm"  onDecrement={() => stepValue('height', -1,  120, 250)} onIncrement={() => stepValue('height', 1,  120, 250)} />
           <View style={styles.divider} />
           <View style={styles.stepperRow}>
             <Text style={styles.stepperLabel}>Gender</Text>
@@ -316,32 +266,16 @@ const SettingsScreen = ({ navigation }) => {
 
         <SectionTitle>Weight</SectionTitle>
         <View style={styles.card}>
-          <NumberStepper
-            label="Current"
-            value={form.currentWeight}
-            unit="kg"
-            onDecrement={() => stepValue('currentWeight', -0.1, 30, 300, 1)}
-            onIncrement={() => stepValue('currentWeight', 0.1, 30, 300, 1)}
-          />
+          <NumberStepper label="Current" value={form.currentWeight} unit="kg" onDecrement={() => stepValue('currentWeight', -0.1, 30, 300, 1)} onIncrement={() => stepValue('currentWeight', 0.1, 30, 300, 1)} />
           <View style={styles.divider} />
-          <NumberStepper
-            label="Target"
-            value={form.targetWeight}
-            unit="kg"
-            onDecrement={() => stepValue('targetWeight', -0.1, 30, 300, 1)}
-            onIncrement={() => stepValue('targetWeight', 0.1, 30, 300, 1)}
-          />
+          <NumberStepper label="Target"  value={form.targetWeight}  unit="kg" onDecrement={() => stepValue('targetWeight',  -0.1, 30, 300, 1)} onIncrement={() => stepValue('targetWeight',  0.1, 30, 300, 1)} />
         </View>
 
         <SectionTitle>Activity Level</SectionTitle>
         <View style={styles.card}>
           {ACTIVITY_OPTIONS.map((opt, i) => (
             <View key={opt.value}>
-              <OptionRow
-                option={opt}
-                selected={form.activityLevel === opt.value}
-                onPress={v => update('activityLevel', v)}
-              />
+              <OptionRow option={opt} selected={form.activityLevel === opt.value} onPress={v => update('activityLevel', v)} />
               {i < ACTIVITY_OPTIONS.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
@@ -351,11 +285,7 @@ const SettingsScreen = ({ navigation }) => {
         <View style={styles.card}>
           {EXPERIENCE_OPTIONS.map((opt, i) => (
             <View key={opt.value}>
-              <OptionRow
-                option={opt}
-                selected={form.experienceLevel === opt.value}
-                onPress={v => update('experienceLevel', v)}
-              />
+              <OptionRow option={opt} selected={form.experienceLevel === opt.value} onPress={v => update('experienceLevel', v)} />
               {i < EXPERIENCE_OPTIONS.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
@@ -365,11 +295,7 @@ const SettingsScreen = ({ navigation }) => {
         <View style={styles.card}>
           {STRESS_OPTIONS.map((opt, i) => (
             <View key={opt.value}>
-              <OptionRow
-                option={opt}
-                selected={form.stressLevel === opt.value}
-                onPress={v => update('stressLevel', v)}
-              />
+              <OptionRow option={opt} selected={form.stressLevel === opt.value} onPress={v => update('stressLevel', v)} />
               {i < STRESS_OPTIONS.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
@@ -383,15 +309,12 @@ const SettingsScreen = ({ navigation }) => {
           activeOpacity={0.85}
           disabled={!hasChanges || saving}
         >
-          {saving ? (
-            <ActivityIndicator size="small" color={colors.accent.buttonText} />
-          ) : (
-            <Text style={[styles.saveBtnText, !hasChanges && styles.saveBtnTextDisabled]}>
-              {hasChanges
-                ? `Update Plan · ${changedCount} change${changedCount > 1 ? 's' : ''}`
-                : 'No Changes'}
-            </Text>
-          )}
+          {saving
+            ? <ActivityIndicator size="small" color={colors.accent.buttonText} />
+            : <Text style={[styles.saveBtnText, !hasChanges && styles.saveBtnTextDisabled]}>
+                {hasChanges ? `Update Plan · ${changedCount} change${changedCount > 1 ? 's' : ''}` : 'No Changes'}
+              </Text>
+          }
         </TouchableOpacity>
       </View>
     </View>
@@ -399,321 +322,65 @@ const SettingsScreen = ({ navigation }) => {
 };
 
 const styles = createStyles(() => ({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background.primary,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    gap: spacing[3],
-  },
-  backBtn: {
-    width: spacing[10],
-    height: spacing[10],
-    borderRadius: radius[3],
-    backgroundColor: colors.background.secondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  topBarTitle: {
-    fontSize: fontSize[22],
-    fontWeight: fontWeight.bold,
-    color: colors.text.primary,
-    flex: 1,
-  },
-  topBarRight: {
-    width: spacing[10],
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing[4],
-    paddingTop: spacing[2],
-  },
-  hero: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: radius[4],
-    padding: spacing[5],
-    marginBottom: spacing[5],
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  heroActive: {
-    borderColor: colors.border.primary,
-  },
-  heroHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing[5],
-  },
-  goalTag: {
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1],
-    borderRadius: radius[2],
-  },
-  goalTagText: {
-    fontSize: fontSize[12],
-    fontWeight: fontWeight.bold,
-  },
-  heroChangedHint: {
-    fontSize: fontSize[12],
-    fontWeight: fontWeight.medium,
-    color: colors.text.tertiary,
-  },
-  heroKcalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing[5],
-    marginBottom: spacing[1],
-  },
-  heroKcalCol: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  heroColLabel: {
-    fontSize: fontSize[10],
-    fontWeight: fontWeight.bold,
-    color: colors.text.quaternary,
-    letterSpacing: 1.5,
-    marginBottom: spacing[2],
-  },
-  heroKcalOld: {
-    fontSize: fontSize[36],
-    fontWeight: fontWeight.extrabold,
-    color: colors.text.quaternary,
-  },
-  heroKcalNew: {
-    fontSize: fontSize[36],
-    fontWeight: fontWeight.extrabold,
-    color: colors.text.quaternary,
-  },
-  heroArrow: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: spacing[12],
-  },
-  heroDiffBadge: {
-    paddingHorizontal: spacing[2],
-    paddingVertical: spacing[1],
-    borderRadius: radius[2],
-  },
-  heroDiffText: {
-    fontSize: fontSize[14],
-    fontWeight: fontWeight.extrabold,
-  },
-  heroKcalUnit: {
-    fontSize: fontSize[12],
-    fontWeight: fontWeight.medium,
-    color: colors.text.quaternary,
-    textAlign: 'center',
-    marginBottom: spacing[5],
-  },
-  heroMacros: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: colors.border.default,
-    paddingTop: spacing[4],
-    marginBottom: spacing[4],
-  },
-  heroMacroItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: spacing[1],
-  },
-  heroMacroBorder: {
-    borderRightWidth: 1,
-    borderRightColor: colors.border.default,
-  },
-  heroMacroDot: {
-    width: spacing[2],
-    height: spacing[2],
-    borderRadius: radius[1],
-  },
-  heroMacroLabel: {
-    fontSize: fontSize[10],
-    fontWeight: fontWeight.bold,
-    color: colors.text.quaternary,
-    letterSpacing: 1,
-  },
-  heroMacroVal: {
-    fontSize: fontSize[18],
-    fontWeight: fontWeight.extrabold,
-    color: colors.text.quaternary,
-  },
-  heroMacroDiff: {
-    fontSize: fontSize[10],
-    fontWeight: fontWeight.bold,
-  },
-  heroFooter: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border.default,
-    paddingTop: spacing[3],
-  },
-  heroRate: {
-    fontSize: fontSize[12],
-    color: colors.text.secondary,
-    textAlign: 'center',
-    fontWeight: fontWeight.medium,
-  },
-  sectionTitle: {
-    fontSize: fontSize[20],
-    fontWeight: fontWeight.bold,
-    color: colors.text.primary,
-    marginBottom: spacing[3],
-    marginTop: spacing[2],
-  },
-  card: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: radius[4],
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    overflow: 'hidden',
-    marginBottom: spacing[4],
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border.default,
-    marginHorizontal: spacing[4],
-  },
-  stepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[4],
-  },
-  stepperLabel: {
-    fontSize: fontSize[16],
-    fontWeight: fontWeight.semibold,
-    color: colors.text.primary,
-  },
-  stepperControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-  },
-  stepperBtn: {
-    width: spacing[9],
-    height: spacing[9],
-    borderRadius: radius[2],
-    backgroundColor: colors.background.tertiary,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepperValueWrap: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing[1],
-    minWidth: spacing[18],
-    justifyContent: 'center',
-  },
-  stepperValue: {
-    fontSize: fontSize[20],
-    fontWeight: fontWeight.extrabold,
-    color: colors.text.primary,
-  },
-  stepperUnit: {
-    fontSize: fontSize[14],
-    fontWeight: fontWeight.medium,
-    color: colors.text.tertiary,
-  },
-  genderToggle: {
-    flexDirection: 'row',
-    gap: spacing[2],
-  },
-  genderBtn: {
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    borderRadius: radius[3],
-    backgroundColor: colors.background.tertiary,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  genderBtnSelected: {
-    backgroundColor: colors.accent.primary,
-    borderColor: colors.accent.primary,
-  },
-  genderBtnText: {
-    fontSize: fontSize[14],
-    fontWeight: fontWeight.semibold,
-    color: colors.text.tertiary,
-  },
-  genderBtnTextSelected: {
-    color: colors.accent.buttonText,
-    fontWeight: fontWeight.bold,
-  },
-  optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[4],
-  },
-  optionRowSelected: {
-    backgroundColor: colors.faded.primaryExtraLight,
-  },
-  optionRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-  },
-  optionDot: {
-    width: spacing[2],
-    height: spacing[2],
-    borderRadius: radius[1],
-    backgroundColor: colors.text.quaternary,
-  },
-  optionDotSelected: {
-    backgroundColor: colors.accent.primary,
-  },
-  optionLabel: {
-    fontSize: fontSize[16],
-    fontWeight: fontWeight.semibold,
-    color: colors.text.secondary,
-  },
-  optionLabelSelected: {
-    color: colors.text.primary,
-    fontWeight: fontWeight.bold,
-  },
-  optionDesc: {
-    fontSize: fontSize[12],
-    color: colors.text.quaternary,
-    fontWeight: fontWeight.medium,
-    marginTop: spacing[1],
-  },
-  footer: {
-    paddingHorizontal: spacing[4],
-    paddingTop: spacing[3],
-    backgroundColor: colors.background.primary,
-  },
-  saveBtn: {
-    backgroundColor: colors.accent.primary,
-    borderRadius: radius[4],
-    paddingVertical: spacing[4],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveBtnDisabled: {
-    backgroundColor: colors.background.secondary,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  saveBtnText: {
-    fontSize: fontSize[16],
-    fontWeight: fontWeight.extrabold,
-    color: colors.accent.buttonText,
-  },
-  saveBtnTextDisabled: {
-    color: colors.text.quaternary,
-  },
+  root: { flex: 1, backgroundColor: colors.background.primary },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[4], paddingVertical: spacing[3], gap: spacing[3] },
+  backBtn: { width: spacing[10], height: spacing[10], borderRadius: radius[3], backgroundColor: colors.background.secondary, justifyContent: 'center', alignItems: 'center' },
+  topBarTitle: { fontSize: fontSize[22], fontWeight: fontWeight.bold, color: colors.text.primary, flex: 1 },
+  topBarRight: { width: spacing[10] },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: spacing[4], paddingTop: spacing[2] },
+  hero: { backgroundColor: colors.background.secondary, borderRadius: radius[4], padding: spacing[5], marginBottom: spacing[5], borderWidth: 1, borderColor: colors.border.default },
+  heroActive: { borderColor: colors.border.primary },
+  heroHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[5] },
+  goalTag: { paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius[2] },
+  goalTagText: { fontSize: fontSize[12], fontWeight: fontWeight.bold },
+  heroChangedHint: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.tertiary },
+  heroKcalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[5], marginBottom: spacing[1] },
+  heroKcalCol: { alignItems: 'center', flex: 1 },
+  heroColLabel: { fontSize: fontSize[10], fontWeight: fontWeight.bold, color: colors.text.quaternary, letterSpacing: 1.5, marginBottom: spacing[2] },
+  heroKcalOld: { fontSize: fontSize[36], fontWeight: fontWeight.extrabold, color: colors.text.quaternary },
+  heroKcalNew: { fontSize: fontSize[36], fontWeight: fontWeight.extrabold, color: colors.text.quaternary },
+  heroArrow: { alignItems: 'center', justifyContent: 'center', width: spacing[12] },
+  heroDiffBadge: { paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius[2] },
+  heroDiffText: { fontSize: fontSize[14], fontWeight: fontWeight.extrabold },
+  heroKcalUnit: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary, textAlign: 'center', marginBottom: spacing[5] },
+  heroMacros: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border.default, paddingTop: spacing[4], marginBottom: spacing[4] },
+  heroMacroItem: { flex: 1, alignItems: 'center', gap: spacing[1] },
+  heroMacroBorder: { borderRightWidth: 1, borderRightColor: colors.border.default },
+  heroMacroDot: { width: spacing[2], height: spacing[2], borderRadius: radius[1] },
+  heroMacroLabel: { fontSize: fontSize[10], fontWeight: fontWeight.bold, color: colors.text.quaternary, letterSpacing: 1 },
+  heroMacroVal: { fontSize: fontSize[18], fontWeight: fontWeight.extrabold, color: colors.text.quaternary },
+  heroMacroDiff: { fontSize: fontSize[10], fontWeight: fontWeight.bold },
+  heroFooter: { borderTopWidth: 1, borderTopColor: colors.border.default, paddingTop: spacing[3] },
+  heroRate: { fontSize: fontSize[12], color: colors.text.secondary, textAlign: 'center', fontWeight: fontWeight.medium },
+  sectionTitle: { fontSize: fontSize[20], fontWeight: fontWeight.bold, color: colors.text.primary, marginBottom: spacing[3], marginTop: spacing[2] },
+  card: { backgroundColor: colors.background.secondary, borderRadius: radius[4], borderWidth: 1, borderColor: colors.border.default, overflow: 'hidden', marginBottom: spacing[4] },
+  divider: { height: 1, backgroundColor: colors.border.default, marginHorizontal: spacing[4] },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing[4], paddingVertical: spacing[4] },
+  stepperLabel: { fontSize: fontSize[16], fontWeight: fontWeight.semibold, color: colors.text.primary },
+  stepperControls: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  stepperBtn: { width: spacing[9], height: spacing[9], borderRadius: radius[2], backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.default, justifyContent: 'center', alignItems: 'center' },
+  stepperValueWrap: { flexDirection: 'row', alignItems: 'baseline', gap: spacing[1], minWidth: spacing[18], justifyContent: 'center' },
+  stepperValue: { fontSize: fontSize[20], fontWeight: fontWeight.extrabold, color: colors.text.primary },
+  stepperUnit: { fontSize: fontSize[14], fontWeight: fontWeight.medium, color: colors.text.tertiary },
+  genderToggle: { flexDirection: 'row', gap: spacing[2] },
+  genderBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius[3], backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.default },
+  genderBtnSelected: { backgroundColor: colors.accent.primary, borderColor: colors.accent.primary },
+  genderBtnText: { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.text.tertiary },
+  genderBtnTextSelected: { color: colors.accent.buttonText, fontWeight: fontWeight.bold },
+  optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing[4], paddingVertical: spacing[4] },
+  optionRowSelected: { backgroundColor: colors.faded.primaryExtraLight },
+  optionRowLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  optionDot: { width: spacing[2], height: spacing[2], borderRadius: radius[1], backgroundColor: colors.text.quaternary },
+  optionDotSelected: { backgroundColor: colors.accent.primary },
+  optionLabel: { fontSize: fontSize[16], fontWeight: fontWeight.semibold, color: colors.text.secondary },
+  optionLabelSelected: { color: colors.text.primary, fontWeight: fontWeight.bold },
+  optionDesc: { fontSize: fontSize[12], color: colors.text.quaternary, fontWeight: fontWeight.medium, marginTop: spacing[1] },
+  footer: { paddingHorizontal: spacing[4], paddingTop: spacing[3], backgroundColor: colors.background.primary },
+  saveBtn: { backgroundColor: colors.accent.primary, borderRadius: radius[4], paddingVertical: spacing[4], alignItems: 'center', justifyContent: 'center' },
+  saveBtnDisabled: { backgroundColor: colors.background.secondary, borderWidth: 1, borderColor: colors.border.default },
+  saveBtnText: { fontSize: fontSize[16], fontWeight: fontWeight.extrabold, color: colors.accent.buttonText },
+  saveBtnTextDisabled: { color: colors.text.quaternary },
 }));
 
 export default SettingsScreen;

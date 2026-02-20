@@ -1,62 +1,59 @@
-import { useMemo, useState, useContext, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
+import { View, StatusBar, RefreshControl, TouchableOpacity, Alert, Text, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
+import { AuthContext } from '../../../auth/context/AuthContext';
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import GoogleFitStepDisplay from '../../../../shared/components/GoogleFitStepDisplay/GoogleFitStepDisplay';
 import { colors, spacing } from '../../../../shared/theme';
-import { getAuth } from 'firebase/auth';
-import { WeightService } from '../../../nutrition/services/weightService';
 import { fetchSplitsFromFirestore } from '../../../workout/handlers/WorkoutHandler';
 import { styles } from './DashboardScreenStyles';
 
 const DAYS_MAP = {
-  0: 'sunday',
-  1: 'monday',
-  2: 'tuesday',
-  3: 'wednesday',
-  4: 'thursday',
-  5: 'friday',
-  6: 'saturday'
+  0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday',
+  4: 'thursday', 5: 'friday', 6: 'saturday',
 };
 
 const screens = [
-  { name: 'Dashboard', label: 'Home', icon: 'home', iconType: 'Ionicons' },
-  { name: 'Workout', label: 'Workout', icon: 'dumbbell', iconType: 'MaterialCommunityIcons' },
-  { name: 'Nutrition', label: 'Nutrition', icon: 'restaurant', iconType: 'MaterialIcons' },
-  { name: 'Progress', label: 'Progress', icon: 'insert-chart', iconType: 'MaterialIcons' },
+  { name: 'Dashboard', label: 'Home',      icon: 'home',         iconType: 'Ionicons' },
+  { name: 'Workout',   label: 'Workout',   icon: 'dumbbell',     iconType: 'MaterialCommunityIcons' },
+  { name: 'Nutrition', label: 'Nutrition', icon: 'restaurant',   iconType: 'MaterialIcons' },
+  { name: 'Progress',  label: 'Progress',  icon: 'insert-chart', iconType: 'MaterialIcons' },
 ];
 
-const NavItem = ({ screen, isActive, onPress }) => {
-  const renderIcon = () => {
-    const iconProps = {
-      size: spacing[6],
-      color: isActive ? colors.accent.primary : colors.text.secondary
-    };
+const toLocalDateKey = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
-    switch (screen.iconType) {
-      case 'MaterialIcons':
-        return <MaterialIcons name={screen.icon} {...iconProps} />;
-      case 'MaterialCommunityIcons':
-        return <MaterialCommunityIcons name={screen.icon} {...iconProps} />;
-      default:
-        return <Ionicons name={screen.icon} {...iconProps} />;
-    }
-  };
+const getMonday = (date) => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const NavItem = ({ screen, isActive, onPress }) => {
+  const iconProps = { size: spacing[6], color: isActive ? colors.accent.primary : colors.text.secondary };
+  const Icon = screen.iconType === 'MaterialIcons'
+    ? MaterialIcons
+    : screen.iconType === 'MaterialCommunityIcons'
+    ? MaterialCommunityIcons
+    : Ionicons;
 
   return (
-    <TouchableOpacity 
-      style={styles.navItem}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      {renderIcon()}
-      <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
-        {screen.label}
-      </Text>
+    <TouchableOpacity style={styles.navItem} onPress={onPress} activeOpacity={0.7}>
+      <Icon name={screen.icon} {...iconProps} />
+      <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>{screen.label}</Text>
     </TouchableOpacity>
   );
 };
@@ -83,11 +80,7 @@ const TodayWorkout = ({ workout, onPress }) => {
   }
 
   return (
-    <TouchableOpacity 
-      style={styles.workoutCard}
-      onPress={onPress}
-      activeOpacity={0.85}
-    >
+    <TouchableOpacity style={styles.workoutCard} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.cardHeader}>
         <Ionicons name="calendar-outline" size={spacing[3]} color={colors.text.secondary} />
         <Text style={styles.cardLabel}>TODAY'S WORKOUT</Text>
@@ -115,33 +108,25 @@ const TodayNutrition = ({ calories, targetCalories, macros, onPress }) => {
   const remaining = Math.max(0, targetCalories - calories);
 
   return (
-    <TouchableOpacity 
-      style={styles.nutritionCard}
-      onPress={onPress}
-      activeOpacity={0.85}
-    >
+    <TouchableOpacity style={styles.nutritionCard} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.nutritionHeader}>
         <View style={styles.cardHeader}>
           <MaterialIcons name="restaurant" size={spacing[3]} color={colors.text.secondary} />
           <Text style={styles.cardLabel}>TODAY'S NUTRITION</Text>
-        </View> 
+        </View>
         <View style={styles.percentageBadge}>
-          <Text style={styles.percentageText}>{remaining.toFixed(0) > 0 ? `${remaining.toFixed(0)} left` : 'Complete'}</Text>
+          <Text style={styles.percentageText}>
+            {remaining > 0 ? `${Math.round(remaining)} left` : 'Complete'}
+          </Text>
         </View>
       </View>
 
       <View style={styles.caloriesRow}>
         <View style={styles.caloriesValues}>
-          <Text style={styles.caloriesValue}>
-            {Math.round(calories).toLocaleString()}
-          </Text>
-          <Text style={styles.caloriesTarget}>
-            / {Math.round(targetCalories).toLocaleString()}
-          </Text>
+          <Text style={styles.caloriesValue}>{Math.round(calories).toLocaleString()}</Text>
+          <Text style={styles.caloriesTarget}>/ {Math.round(targetCalories).toLocaleString()}</Text>
         </View>
-        <Text style={styles.remainingText}>
-          {percentage}% of daily goal
-        </Text>
+        <Text style={styles.remainingText}>{percentage}% of daily goal</Text>
       </View>
 
       <View style={styles.nutritionProgress}>
@@ -150,10 +135,10 @@ const TodayNutrition = ({ calories, targetCalories, macros, onPress }) => {
 
       <View style={styles.macroRow}>
         {[
-          { label: 'Carbs', value: macros.carbs, color: colors.accent.success },
-          { label: 'Protein', value: macros.protein, color: colors.accent.purple },
-          { label: 'Fat', value: macros.fat, color: colors.accent.cyan },
-        ].map((macro) => (
+          { label: 'Carbs',   value: macros.carbs,   color: colors.accent.success },
+          { label: 'Protein', value: macros.protein,  color: colors.accent.purple },
+          { label: 'Fat',     value: macros.fat,      color: colors.accent.cyan },
+        ].map(macro => (
           <View key={macro.label} style={styles.macroItem}>
             <View style={styles.macroHeader}>
               <View style={[styles.macroDot, { backgroundColor: macro.color }]} />
@@ -167,20 +152,41 @@ const TodayNutrition = ({ calories, targetCalories, macros, onPress }) => {
   );
 };
 
-const WeeklyOverview = ({ avgCalories, avgWeight, weeklyWorkouts, targetWorkouts, getTrendData, getWeeklyAvgSteps }) => {
-  const trendData = useMemo(() => {
-    const data = getTrendData(7);
-    return data.daily.map(d => ({
-      date: new Date(d.date),
-      calories: d.calories,
-      dayLabel: new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' })
-    }));
-  }, [getTrendData]);
+const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCaloriesForDateRange }) => {
+  const weekDays = useMemo(() => {
+    const today = new Date();
+    const monday = getMonday(today);
+    const todayKey = toLocalDateKey(today);
 
-  const maxCalories = Math.max(...trendData.map(d => d.calories), 2500);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
 
-  const weeklyAvgSteps = getWeeklyAvgSteps();
-  
+    const calMap = {};
+    const range = getCaloriesForDateRange(monday, todayEnd);
+    range.forEach(d => { calMap[d.date] = d.calories; });
+
+    return Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(monday);
+      day.setDate(monday.getDate() + i);
+      const dateKey = toLocalDateKey(day);
+      const isFuture = dateKey > todayKey;
+      const isToday = dateKey === todayKey;
+
+      return {
+        dateKey,
+        dayLabel: day.toLocaleDateString('en-US', { weekday: 'short' }),
+        calories: isFuture ? null : (calMap[dateKey] || 0),
+        isToday,
+        isFuture,
+      };
+    });
+  }, [getCaloriesForDateRange]);
+
+  const maxCalories = Math.max(
+    ...weekDays.filter(d => !d.isFuture).map(d => d.calories || 0),
+    2500
+  );
+
   return (
     <View style={styles.weeklyCard}>
       <View style={styles.weeklyCardHeader}>
@@ -200,90 +206,86 @@ const WeeklyOverview = ({ avgCalories, avgWeight, weeklyWorkouts, targetWorkouts
 
         <View style={styles.chartContent}>
           <View style={styles.barsRow}>
-            {trendData.map((point, index) => {
-              const heightPercent = point.calories > 0 
-                ? (point.calories / maxCalories) * 100 
+            {weekDays.map((point, index) => {
+              const heightPercent = point.calories > 0
+                ? (point.calories / maxCalories) * 100
                 : 0;
-              const isToday = index === trendData.length - 1;
-              
+
               return (
                 <View key={index} style={styles.barContainer}>
-                  {point.calories > 0 && (
-                    <Text style={[styles.barValueText, isToday && styles.barValueTextToday]}>
+                  {!point.isFuture && point.calories > 0 && (
+                    <Text style={[styles.barValueText, point.isToday && styles.barValueTextToday]}>
                       {Math.round(point.calories)}
                     </Text>
                   )}
-                  <View 
-                    style={[
-                      styles.bar,
-                      { height: `${Math.max(heightPercent, 4)}%` },
-                      isToday && styles.barToday
-                    ]} 
-                  />
+                  <View style={[
+                    styles.bar,
+                    { height: point.isFuture ? 4 : `${Math.max(heightPercent, 4)}%` },
+                    point.isToday && styles.barToday,
+                    point.isFuture && { opacity: 0.15 },
+                  ]} />
                 </View>
               );
             })}
           </View>
 
           <View style={styles.daysRow}>
-            {trendData.map((point, index) => {
-              const isToday = index === trendData.length - 1;
-              return (
-                <View key={index} style={styles.dayContainer}>
-                  <Text style={[styles.dayLabel, isToday && styles.dayLabelToday]}>
-                    {point.dayLabel}
-                  </Text>
-                </View>
-              );
-            })}
+            {weekDays.map((point, index) => (
+              <View key={index} style={styles.dayContainer}>
+                <Text style={[styles.dayLabel, point.isToday && styles.dayLabelToday]}>
+                  {point.dayLabel}
+                </Text>
+              </View>
+            ))}
           </View>
         </View>
       </View>
 
       <View style={styles.weeklyGrid}>
-        <View style={styles.weeklyStatItem}>
-          <View style={[styles.weeklyIconContainer, { backgroundColor: colors.faded.primary }]}>
-            <Ionicons name="flame-outline" size={spacing[5]} color={colors.accent.primary} />
+        {[
+          {
+            icon: <Ionicons name="flame-outline" size={spacing[5]} color={colors.accent.primary} />,
+            bg: colors.faded.primary,
+            value: rollingStats.avgCalories > 0
+              ? Math.round(rollingStats.avgCalories).toLocaleString()
+              : '--',
+            label: rollingStats.daysLoggedNutrition > 0
+              ? `Avg Cal (${rollingStats.daysLoggedNutrition}d)`
+              : 'Avg Calories',
+          },
+          {
+            icon: <MaterialCommunityIcons name="scale-bathroom" size={spacing[5]} color={colors.accent.purple} />,
+            bg: colors.faded.purple,
+            value: rollingStats.avgWeight ? `${rollingStats.avgWeight.toFixed(1)} kg` : '--',
+            label: 'Avg Weight',
+          },
+          {
+            icon: <Ionicons name="walk-outline" size={spacing[5]} color={colors.accent.stepsRed} />,
+            bg: colors.faded.error,
+            value: rollingStats.avgSteps > 0
+              ? `${(rollingStats.avgSteps / 1000).toFixed(1)}k`
+              : '--',
+            label: rollingStats.daysLoggedSteps > 0
+              ? `Avg Steps (${rollingStats.daysLoggedSteps}d)`
+              : 'Avg Steps',
+          },
+          {
+            icon: <Ionicons name="barbell-outline" size={spacing[5]} color={colors.accent.cyan} />,
+            bg: colors.faded.cyan,
+            value: `${weeklyWorkouts}/${targetWorkouts}`,
+            label: 'Workouts',
+          },
+        ].map((stat, i) => (
+          <View key={i} style={styles.weeklyStatItem}>
+            <View style={[styles.weeklyIconContainer, { backgroundColor: stat.bg }]}>
+              {stat.icon}
+            </View>
+            <View style={styles.weeklyStatText}>
+              <Text style={styles.weeklyStatValue}>{stat.value}</Text>
+              <Text style={styles.weeklyStatLabel}>{stat.label}</Text>
+            </View>
           </View>
-          <View style={styles.weeklyStatText}>
-            <Text style={styles.weeklyStatValue}>{Math.round(avgCalories).toLocaleString()}</Text>
-            <Text style={styles.weeklyStatLabel}>Avg Calories</Text>
-          </View>
-        </View>
-
-        <View style={styles.weeklyStatItem}>
-          <View style={[styles.weeklyIconContainer, { backgroundColor: colors.faded.purple }]}>
-            <MaterialCommunityIcons name="scale-bathroom" size={spacing[5]} color={colors.accent.purple} />
-          </View>
-          <View style={styles.weeklyStatText}>
-            <Text style={styles.weeklyStatValue}>
-              {avgWeight ? `${avgWeight.toFixed(1)} kg` : '--'}
-            </Text>
-            <Text style={styles.weeklyStatLabel}>Avg Weight</Text>
-          </View>
-        </View>
-
-        <View style={styles.weeklyStatItem}>
-          <View style={[styles.weeklyIconContainer, { backgroundColor: colors.faded.error }]}>
-            <Ionicons name="walk-outline" size={spacing[5]} color={colors.accent.stepsRed} />
-          </View>
-          <View style={styles.weeklyStatText}>
-            <Text style={styles.weeklyStatValue}>
-              {weeklyAvgSteps > 0 ? `${(weeklyAvgSteps / 1000).toFixed(1)}k` : '--'}
-            </Text>
-            <Text style={styles.weeklyStatLabel}>Avg Steps</Text>
-          </View>
-        </View>
-
-        <View style={styles.weeklyStatItem}>
-          <View style={[styles.weeklyIconContainer, { backgroundColor: colors.faded.cyan }]}>
-            <Ionicons name="barbell-outline" size={spacing[5]} color={colors.accent.cyan} />
-          </View>
-          <View style={styles.weeklyStatText}>
-            <Text style={styles.weeklyStatValue}>{weeklyWorkouts}/{targetWorkouts}</Text>
-            <Text style={styles.weeklyStatLabel}>Workouts</Text>
-          </View>
-        </View>
+        ))}
       </View>
     </View>
   );
@@ -292,122 +294,62 @@ const WeeklyOverview = ({ avgCalories, avgWeight, weeklyWorkouts, targetWorkouts
 const DashboardScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const [weeklyWeight, setWeeklyWeight] = useState(null);
-  const [weightLoading, setWeightLoading] = useState(true);
   const [todayScheduledWorkout, setTodayScheduledWorkout] = useState(null);
 
-  const currentRouteName = useNavigationState(state => {
-    const route = state?.routes[state.index];
-    return route?.name || 'Dashboard';
-  });
+  const currentRouteName = useNavigationState(
+    state => state?.routes[state.index]?.name || 'Dashboard'
+  );
 
-  const { dailyNutrition, userMacros, learningData, getTrendData, updateDailySteps, getWeeklyAvgSteps, initialLoadComplete } = useFoodContext();
+  const {
+    dailyNutrition,
+    userMacros,
+    updateDailySteps,
+    rollingWeekStats,
+    getCaloriesForDateRange,
+    initialLoadComplete,
+  } = useFoodContext();
+
   const { workoutHistory } = useContext(WorkoutContext);
+  const { userData } = useContext(AuthContext);
+
+  const targetWorkouts = userData?.targetWorkoutsPerWeek || 5;
 
   useEffect(() => {
-    const loadWeight = async () => {
-      try {
-        const auth = getAuth();
-        const user = auth.currentUser;
-        if (!user) {
-          setWeightLoading(false);
-          return;
-        }
+    if (!initialLoadComplete) return;
 
-        const weekData = await WeightService.getCurrentWeekData(user.uid, new Date());
-        if (weekData?.average) {
-          setWeeklyWeight(weekData.average);
-        }
-      } catch (error) {
-        console.error('Error loading weekly weight:', error);
-      } finally {
-        setWeightLoading(false);
-      }
-    };
-
-    if (initialLoadComplete) {
-      loadWeight();
-    }
-  }, [initialLoadComplete]);
-
-  useEffect(() => {
     const loadTodayWorkout = async () => {
       try {
         const splits = await fetchSplitsFromFirestore();
-        if (splits.length === 0) return;
+        if (!splits.length) return;
 
-        const rawSplit = splits[0];
-        const schedule = rawSplit.schedule || rawSplit.data?.schedule || {};
-        
-        const today = new Date().getDay();
-        const todayKey = DAYS_MAP[today];
+        const schedule = splits[0].schedule || splits[0].data?.schedule || {};
+        const todayKey = DAYS_MAP[new Date().getDay()];
         const workout = schedule[todayKey];
         const exercises = workout?.exercises || [];
-        
-        if (exercises.length > 0) {
-          setTodayScheduledWorkout({
-            name: workout.templateName || 'Workout',
-            duration: workout.duration || 45,
-            exercises: exercises.length,
-          });
-        } else {
-          setTodayScheduledWorkout(null);
-        }
+
+        setTodayScheduledWorkout(exercises.length > 0 ? {
+          name: workout.templateName || 'Workout',
+          duration: workout.duration || 45,
+          exercises: exercises.length,
+        } : null);
       } catch (error) {
-        console.error('Error loading today workout:', error);
+        console.error('loadTodayWorkout error:', error);
       }
     };
 
-    if (initialLoadComplete) {
-      loadTodayWorkout();
-    }
+    loadTodayWorkout();
   }, [initialLoadComplete]);
 
   const weeklyWorkoutsCount = useMemo(() => {
-    if (!workoutHistory || workoutHistory.length === 0) return 0;
-    
-    const now = new Date();
-    const weekStart = new Date(now);
-    const currentDay = now.getDay();
-    const daysToMonday = currentDay === 0 ? 6 : currentDay - 1;
-    weekStart.setDate(now.getDate() - daysToMonday);
-    weekStart.setHours(0, 0, 0, 0);
-
-    return workoutHistory.filter(workout => {
-      const workoutDate = workout.timestamp?.toDate ? workout.timestamp.toDate() : null;
-      return workoutDate && workoutDate >= weekStart;
+    if (!workoutHistory?.length) return 0;
+    const weekStart = getMonday(new Date());
+    return workoutHistory.filter(w => {
+      const d = w.timestamp?.toDate?.();
+      return d && d >= weekStart;
     }).length;
   }, [workoutHistory]);
 
-  const dashboardData = useMemo(() => {
-    const targetCals = userMacros?.targetCalories || learningData?.weeklyAvgCalories || 2000;
-    
-    const weeklyTrend = getTrendData(7);
-    const realAvgCalories = Math.round(weeklyTrend.average) || 0;
-
-    return {
-      calories: dailyNutrition?.calories || 0,
-      targetCalories: targetCals,
-      macros: {
-        carbs: dailyNutrition?.carbs || 0,
-        protein: dailyNutrition?.protein || 0,
-        fat: dailyNutrition?.fat || 0,
-      },
-      avgCalories: realAvgCalories,
-      avgWeight: weeklyWeight,
-      weeklyWorkouts: weeklyWorkoutsCount,
-      targetWorkouts: 5,
-      todayWorkout: todayScheduledWorkout,
-    };
-  }, [dailyNutrition, userMacros, learningData, weeklyWeight, getTrendData, todayScheduledWorkout, weeklyWorkoutsCount]);
-
-  const handleNavigation = (screenName) => {
-    navigation.navigate(screenName);
-  };
-
-  const allDataLoaded = initialLoadComplete && !weightLoading;
-
-  if (!allDataLoaded) {
+  if (!initialLoadComplete) {
     return (
       <ApplicationCustomScreen>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -422,9 +364,9 @@ const DashboardScreen = () => {
       <View style={styles.container}>
         <GoogleFitStepDisplay onStepsUpdate={updateDailySteps} />
 
-        <View 
+        <View
           style={styles.content}
-          contentContainerStyle={{ 
+          contentContainerStyle={{
             paddingTop: spacing[3],
             paddingBottom: insets.bottom + spacing[20],
             paddingHorizontal: spacing[4],
@@ -432,34 +374,36 @@ const DashboardScreen = () => {
           showsVerticalScrollIndicator={false}
         >
           <TodayWorkout
-            workout={dashboardData.todayWorkout}
-            onPress={() => handleNavigation('Workout')}
+            workout={todayScheduledWorkout}
+            onPress={() => navigation.navigate('Workout')}
           />
 
           <TodayNutrition
-            calories={dashboardData.calories}
-            targetCalories={dashboardData.targetCalories}
-            macros={dashboardData.macros}
-            onPress={() => handleNavigation('Nutrition')}
+            calories={dailyNutrition?.calories || 0}
+            targetCalories={userMacros?.targetCalories || 2000}
+            macros={{
+              carbs:   dailyNutrition?.carbs   || 0,
+              protein: dailyNutrition?.protein  || 0,
+              fat:     dailyNutrition?.fat      || 0,
+            }}
+            onPress={() => navigation.navigate('Nutrition')}
           />
 
           <WeeklyOverview
-            avgCalories={dashboardData.avgCalories}
-            avgWeight={dashboardData.avgWeight}
-            weeklyWorkouts={dashboardData.weeklyWorkouts}
-            targetWorkouts={dashboardData.targetWorkouts}
-            getTrendData={getTrendData}
-            getWeeklyAvgSteps={getWeeklyAvgSteps}
+            rollingStats={rollingWeekStats}
+            weeklyWorkouts={weeklyWorkoutsCount}
+            targetWorkouts={targetWorkouts}
+            getCaloriesForDateRange={getCaloriesForDateRange}
           />
         </View>
 
         <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, spacing[1]) }]}>
-          {screens.map((screen) => (
+          {screens.map(screen => (
             <NavItem
               key={screen.name}
               screen={screen}
               isActive={currentRouteName === screen.name}
-              onPress={() => handleNavigation(screen.name)}
+              onPress={() => navigation.navigate(screen.name)}
             />
           ))}
         </View>

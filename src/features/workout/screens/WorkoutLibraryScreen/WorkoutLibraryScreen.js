@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import {
   View,
   StatusBar,
@@ -12,12 +12,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import styles, { COLORS } from './WorkoutLibraryScreenStyle';
-import { 
-  fetchSplitsFromFirestore, 
-  fetchTemplatesFromFirestore, 
-  deleteTemplateFromFirestore, 
-} from '../../handlers/WorkoutHandler';
+import { fetchSplitsFromFirestore, fetchTemplatesFromFirestore, deleteTemplateFromFirestore } from '../../handlers/WorkoutHandler';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../../../auth/services/firebaseConfigService';
+import { AuthContext } from '../../../auth/context/AuthContext';
 import WorkoutTemplateLibrary from './WorkoutTemplateLibrary';
 import WorkoutProgramLibrary from './WorkoutProgramLibrary';
 import SegmentedControl from './components/SegmentedControls';
@@ -30,6 +29,8 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeSegment, setActiveSegment] = useState(route.params?.initialSegment || 'Templates');
+
+  const { refreshUserData } = useContext(AuthContext);
 
   useEffect(() => {
     if (route.params?.initialSegment) {
@@ -96,14 +97,30 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
     }
   }, []);
 
-  const handleActivateSplit = useCallback((split) => {
+  const handleActivateSplit = useCallback(async (split) => {
     if (activeSplitId === split.id) {
       navigation.navigate('SplitSchedule', { split });
-    } else {
-      setActiveSplitId(split.id);
-      Alert.alert('Split Set as Active', `"${split.name || split.templateName}" is now active!`);
+      return;
     }
-  }, [navigation, activeSplitId]);
+
+    try {
+      const schedule = split.schedule || {};
+      const targetWorkouts = Object.values(schedule)
+        .filter(day => day.exercises?.length > 0).length;
+
+      const uid = getAuth().currentUser?.uid;
+      await setDoc(doc(db, 'users', uid), {
+        activeSplitId: split.id,
+        targetWorkoutsPerWeek: targetWorkouts || 5,
+      }, { merge: true });
+
+      setActiveSplitId(split.id);
+      await refreshUserData();
+      Alert.alert('Split Set as Active', `"${split.name || split.templateName}" is now active!`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to activate split.');
+    }
+  }, [navigation, activeSplitId, refreshUserData]);
 
   const activeSplit = useMemo(() => splits.find((split) => split.id === activeSplitId) || null, [splits, activeSplitId]);
 
@@ -132,7 +149,7 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
         <View style={styles.headerContainer}>
           <View style={styles.headerTopRow}>
             <Text style={styles.headerTitle}>Workout Library</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.headerCreateButton}
               onPress={handleCreate}
               activeOpacity={0.7}

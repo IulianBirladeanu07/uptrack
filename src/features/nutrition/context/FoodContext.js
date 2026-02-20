@@ -1,10 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { auth } from '../../auth/services/firebaseConfigService';
 import { onAuthStateChanged } from 'firebase/auth';
+import { AuthContext } from '../../auth/context/AuthContext';
+
 import { fetchFrequentFoods, fetchRecentMeals, fetchFavoriteFoods } from '../handlers/NutritionHandler';
 import { addMeal, deleteMealItem, updateMealItem, fetchLast30DaysMeals } from '../services/mealService';
+import { getCurrentWeekRollingStats } from '../helpers/weightTrackerUtils';
 import useDailyNutrition from '../helpers/useDailyNutrition';
-import { checkAndCompleteLearning, calculateLearningStats } from '../helpers/learningCompletionService';
+import { checkAndCompleteLearning, calculateLearningStats, checkAndRunWeeklyEval, hasEnoughDataForAdjustment } from '../helpers/learningCompletionService';
 import MealCache from './cache/MealCache';
 import { formatDate } from '../utils/dateUtils';
 
@@ -26,14 +29,14 @@ export const FoodProvider = ({ children, initialUserData }) => {
   const [error, setError] = useState(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [dailySteps, setDailySteps] = useState(0);
-  
+
   const [mealState, setMealState] = useState({
     breakfast: [],
     lunch: [],
     dinner: [],
     snacks: []
   });
-  
+
   const [categoryData, setCategoryData] = useState({
     recentMeals: [],
     frequentFoods: [],
@@ -44,11 +47,13 @@ export const FoodProvider = ({ children, initialUserData }) => {
   const mealCache = useRef(new MealCache());
   const mountedRef = useRef(true);
   const pendingOps = useRef(new Set());
-  
+
+  const { userData, refreshUserData } = useContext(AuthContext);
+
   const nutritionHookData = useDailyNutrition(
-    mealState.breakfast, 
-    mealState.lunch, 
-    mealState.dinner, 
+    mealState.breakfast,
+    mealState.lunch,
+    mealState.dinner,
     mealState.snacks,
     selectedDate,
     userProfile
@@ -60,7 +65,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
     }
 
     const learningStats = calculateLearningStats(mealCache.current, selectedDate, nutritionHookData.REQUIRED_LEARNING_DAYS);
-    
+
     return {
       daysLogged: learningStats.daysLogged,
       weeklyAvgCalories: learningStats.averages.calories,
@@ -68,12 +73,25 @@ export const FoodProvider = ({ children, initialUserData }) => {
       averages: learningStats.averages
     };
   }, [nutritionHookData, selectedDate, mealState]);
-  
+
   const remainingCalories = useMemo(() => {
     const target = nutritionHookData.userMacros?.targetCalories || 2000;
     const consumed = nutritionHookData.dailyNutrition?.calories || 0;
     return Math.max(0, target - consumed);
   }, [nutritionHookData.userMacros?.targetCalories, nutritionHookData.dailyNutrition?.calories]);
+
+  const rollingWeekStats = useMemo(() => {
+    return getCurrentWeekRollingStats(mealCache.current, userData?.weightIns);
+  }, [mealState, dailySteps, userData?.weightIns]);
+
+  const getCaloriesForDateRange = useCallback((startDate, endDate) => {
+    return mealCache.current.getDateRange(startDate, endDate).map(({ date, meals }) => ({
+      date,
+      calories: Object.values(meals ?? {})
+        .flat()
+        .reduce((sum, food) => sum + (Number(food?.calories) || 0), 0),
+    }));
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -104,7 +122,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
       console.warn(`Operation ${key} already in progress`);
       return null;
     }
-    
+
     pendingOps.current.add(key);
     try {
       return await operation();
@@ -115,9 +133,9 @@ export const FoodProvider = ({ children, initialUserData }) => {
 
   const updateMealState = useCallback((mealType, foods) => {
     if (!mountedRef.current) return;
-    
+
     const dateKey = formatDate(selectedDate);
-    
+
     setMealState(prev => ({
       ...prev,
       [mealType]: foods
@@ -139,15 +157,15 @@ export const FoodProvider = ({ children, initialUserData }) => {
     const endDate = new Date(selectedDate);
     const startDate = new Date(endDate);
     startDate.setDate(endDate.getDate() - 7);
-    
+
     const data = mealCache.current.getStepsRange(startDate, endDate);
     const todayKey = formatDate(selectedDate);
     const isToday = todayKey === formatDate(new Date());
-    
-    const completedDays = isToday 
+
+    const completedDays = isToday
       ? data.filter(d => d.date !== todayKey)
       : data;
-    
+
     const total = completedDays.reduce((sum, d) => sum + d.steps, 0);
     return completedDays.length > 0 ? Math.round(total / completedDays.length) : 0;
   }, [selectedDate]);
@@ -157,10 +175,10 @@ export const FoodProvider = ({ children, initialUserData }) => {
     recentMeal: newRecentMeal
   }) => {
     if (!mountedRef.current) return;
-    
+
     setCategoryData(prev => {
       const updates = { ...prev };
-      
+
       if (newFrequentFoods?.length) {
         const updatedFrequent = [...prev.frequentFoods];
         newFrequentFoods.forEach(food => {
@@ -178,14 +196,14 @@ export const FoodProvider = ({ children, initialUserData }) => {
           .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
           .slice(0, 50);
       }
-      
+
       if (newRecentMeal) {
-        const filtered = prev.recentMeals.filter(meal => 
+        const filtered = prev.recentMeals.filter(meal =>
           !(meal.date === newRecentMeal.date && meal.mealType === newRecentMeal.mealType)
         );
         updates.recentMeals = [newRecentMeal, ...filtered].slice(0, 30);
       }
-      
+
       return updates;
     });
   }, []);
@@ -201,7 +219,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
     return executeWithLock(operationKey, async () => {
       try {
         const consolidatedFoods = await addMeal(currentUser.uid, mealType, foods, formattedDate);
-        
+
         if (mountedRef.current) {
           updateMealState(mealType, consolidatedFoods);
           updateCaches({
@@ -215,7 +233,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
             }
           });
         }
-        
+
         return consolidatedFoods;
       } catch (error) {
         handleError(error, 'add meal');
@@ -248,7 +266,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
     if (!currentUser || !mealType || !foodId || !updatedFoodDetails) {
       throw new Error('Invalid update parameters');
     }
-  
+
     const formattedDate = formatDate(selectedDate);
     const operationKey = `update-meal-${formattedDate}-${mealType}-${foodId}`;
 
@@ -267,14 +285,14 @@ export const FoodProvider = ({ children, initialUserData }) => {
 
   const loadCategoryData = useCallback(async () => {
     if (!mountedRef.current) return;
-    
+
     try {
       const results = await Promise.allSettled([
         fetchRecentMeals(),
         fetchFrequentFoods(),
         fetchFavoriteFoods()
       ]);
-      
+
       if (mountedRef.current) {
         setCategoryData({
           recentMeals: results[0].status === 'fulfilled' ? results[0].value : [],
@@ -289,18 +307,18 @@ export const FoodProvider = ({ children, initialUserData }) => {
 
   const updateCurrentDayMeals = useCallback((date) => {
     if (!mountedRef.current) return;
-    
+
     const dateKey = formatDate(date);
     const dayMeals = mealCache.current.get(dateKey);
     const daySteps = mealCache.current.getSteps(dateKey);
-    
+
     setMealState({
       breakfast: dayMeals.breakfast || [],
       lunch: dayMeals.lunch || [],
       dinner: dayMeals.dinner || [],
       snacks: dayMeals.snacks || []
     });
-    
+
     setDailySteps(daySteps);
   }, []);
 
@@ -312,10 +330,10 @@ export const FoodProvider = ({ children, initialUserData }) => {
   const initializeAppData = useCallback(async (user) => {
     if (initializationRef.current || !mountedRef.current) return;
     initializationRef.current = true;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const last30DaysMeals = await fetchLast30DaysMeals(user.uid);
 
@@ -324,12 +342,24 @@ export const FoodProvider = ({ children, initialUserData }) => {
         mealCache.current.buildFromMeals(last30DaysMeals);
         updateCurrentDayMeals(new Date());
         setInitialLoadComplete(true);
-        
+
         setTimeout(() => {
           if (mountedRef.current) {
             loadCategoryData();
           }
         }, 100);
+
+        setTimeout(async () => {
+          if (!mountedRef.current) return;
+          const currentUserData = initialUserData;
+          if (currentUserData && hasEnoughDataForAdjustment(currentUserData)) {
+            const adjustment = await checkAndRunWeeklyEval(user.uid, currentUserData, mealCache.current);
+            if (adjustment && mountedRef.current) {
+              setUserProfile(prev => ({ ...prev, ...adjustment }));
+              await refreshUserData();
+            }
+          }
+        }, 1000);
       }
     } catch (err) {
       console.error('Failed to initialize app data:', err);
@@ -342,19 +372,19 @@ export const FoodProvider = ({ children, initialUserData }) => {
         setLoading(false);
       }
     }
-  }, [initialUserData, loadCategoryData, updateCurrentDayMeals, handleError]);
+  }, [initialUserData, loadCategoryData, updateCurrentDayMeals, handleError, refreshUserData]);
 
   useEffect(() => {
     const checkLearningCompletion = async () => {
       if (currentUser && enhancedLearningData.isLearningComplete && !nutritionHookData.hasTargets) {
         try {
           const newTargets = await checkAndCompleteLearning(
-            currentUser.uid, 
-            mealCache.current, 
-            selectedDate, 
+            currentUser.uid,
+            mealCache.current,
+            selectedDate,
             nutritionHookData.hasTargets
           );
-          
+
           if (newTargets) {
             setUserProfile(prev => ({
               ...prev,
@@ -374,7 +404,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!mountedRef.current) return;
-      
+
       setCurrentUser(user);
       if (user && !initializationRef.current) {
         initializeAppData(user);
@@ -448,15 +478,17 @@ export const FoodProvider = ({ children, initialUserData }) => {
     loading,
     error,
     initialLoadComplete,
+    rollingWeekStats,
+    getCaloriesForDateRange
   }), [
     mealState, selectedDate, handleDateChange, categoryData,
     userProfile, nutritionHookData.hasTargets, enhancedLearningData,
     remainingCalories, nutritionHookData.dailyNutrition, nutritionHookData.userMacros,
     handleAddMeal, handleDeleteMeal, updateMealInDatabase, updateMealState,
     getTrendData, dailySteps, updateDailySteps, getWeeklyAvgSteps,
-    loading, error, initialLoadComplete
+    loading, error, initialLoadComplete, rollingWeekStats, getCaloriesForDateRange
   ]);
-  
+
   return (
     <FoodContext.Provider value={contextValue}>
       {children}

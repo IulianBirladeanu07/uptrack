@@ -1,14 +1,13 @@
 const CONSTANTS = {
   HEIGHT_MIN: 120,
   HEIGHT_MAX: 250,
-  MAX_TARGET_WEIGHT_MULTIPLIER: 1.5,
   WEEKS_PER_MONTH: 4.34524,
+  KCAL_PER_KG: 7700,
   STRESS_MULTIPLIERS: {
     low: 1.05,
-    moderate: 1,
+    moderate: 1.0,
     high: 0.9,
   },
-  AGE_ADJUSTMENT_FACTOR: 0.95,
   ACTIVITY_MULTIPLIERS: {
     sedentary: 1.2,
     lightly_active: 1.375,
@@ -16,220 +15,134 @@ const CONSTANTS = {
     very_active: 1.725,
     extremely_active: 1.9,
   },
-  BULKING_RATE_RANGES: {
-    male: { min: 0.75, max: 1.5 },
-    female: { min: 0.5, max: 1.0 },
+  STEPS_TDEE_BONUS: {
+    low:      { threshold: 5000,  bonus: -100 },
+    moderate: { threshold: 8000,  bonus: 0    },
+    high:     { threshold: 12000, bonus: 150  },
+    very_high:{ threshold: 15000, bonus: 250  },
   },
-  CUTTING_RATE_RANGES: {
-    male: { min: 0.5, max: 1.0 },
-    female: { min: 0.5, max: 0.9 },
+  BULKING_RATE_KG_PER_MONTH: {
+    male:   { novice: 1.5, beginner: 1.2, intermediate: 0.9, advanced: 0.6, elite: 0.4 },
+    female: { novice: 1.0, beginner: 0.8, intermediate: 0.6, advanced: 0.4, elite: 0.25 },
   },
-  BULKING_SURPLUS_PERCENTAGE: 0.1,
-  CUTTING_DEFICIT_PERCENTAGE: 0.2,
+  CUTTING_RATE_KG_PER_WEEK: {
+    male:   { novice: 0.6, beginner: 0.75, intermediate: 0.85, advanced: 0.9, elite: 1.0 },
+    female: { novice: 0.5, beginner: 0.6,  intermediate: 0.7,  advanced: 0.8, elite: 0.9 },
+  },
+  SURPLUS_PERCENTAGE: 0.10,
+  DEFICIT_PERCENTAGE: 0.20,
   MACRO_RATIOS: {
-    cutting: { protein: 0.35, carbs: 0.4, fats: 0.25 },
-    bulking: { protein: 0.25, carbs: 0.5, fats: 0.25 },
-    maintenance: { protein: 0.3, carbs: 0.45, fats: 0.25 },
+    muscle_gain: { protein: 0.25, carbs: 0.50, fats: 0.25 },
+    weight_loss:  { protein: 0.35, carbs: 0.40, fats: 0.25 },
+    maintenance:  { protein: 0.30, carbs: 0.45, fats: 0.25 },
   },
   CALORIES_PER_GRAM: {
     protein: 4,
     carbs: 4,
     fats: 9,
   },
+  ADJUSTMENT: {
+    MIN_WEEKS_DATA: 2,
+    MIN_DAYS_LOGGED_PER_WEEK: 4,
+    NOISE_THRESHOLD_KG: 0.1,
+    MAX_KCAL_ADJUSTMENT: 150,
+    MIN_KCAL_ADJUSTMENT: 50,
+  },
 };
 
-const isPositiveNumber = (value) => value && !isNaN(value) && parseFloat(value) > 0;
-
-export const validateInput = (key, value, currentWeight) => {
-  const parsedValue = parseFloat(value);
-
-  switch (key) {
-    case 'currentWeight':
-    case 'targetWeight':
-    case 'height':
-    case 'age':
-      if (!isPositiveNumber(value)) return false;
-      if (key === 'height') {
-        return (
-          parsedValue >= CONSTANTS.HEIGHT_MIN && parsedValue <= CONSTANTS.HEIGHT_MAX
-        );
-      }
-      return true;
-
-    default:
-      return true;
-  }
+export const validateInput = (key, value) => {
+  const parsed = parseFloat(value);
+  if (!value || isNaN(parsed) || parsed <= 0) return false;
+  if (key === 'height') return parsed >= CONSTANTS.HEIGHT_MIN && parsed <= CONSTANTS.HEIGHT_MAX;
+  return true;
 };
 
 export const calculateBMR = (gender, weight, height, age) => {
   const genderConstant = gender === 'male' ? 5 : -161;
-  let bmr = 10 * weight + 6.25 * height - 5 * age + genderConstant;
-
-  if (age > 40) {
-    bmr *= CONSTANTS.AGE_ADJUSTMENT_FACTOR;
-  }
-
-  return bmr;
+  return 10 * weight + 6.25 * height - 5 * age + genderConstant;
 };
-
-export const getActivityMultiplier = (activityLevel) =>
-  CONSTANTS.ACTIVITY_MULTIPLIERS[activityLevel] || 1.0;
 
 export const calculateTDEE = (bmr, activityLevel) => {
-  const activityMultiplier = getActivityMultiplier(activityLevel);
-  return bmr * activityMultiplier;
+  const multiplier = CONSTANTS.ACTIVITY_MULTIPLIERS[activityLevel] || 1.55;
+  return bmr * multiplier;
 };
 
-export const calculateCaloriesForGoal = (goal, tdee) => {
-  let calorieAdjustment = 0;
+export const calculateStepsTDEEBonus = (avgSteps) => {
+  if (!avgSteps || avgSteps <= 0) return 0;
+  if (avgSteps >= 15000) return CONSTANTS.STEPS_TDEE_BONUS.very_high.bonus;
+  if (avgSteps >= 12000) return CONSTANTS.STEPS_TDEE_BONUS.high.bonus;
+  if (avgSteps >= 8000)  return CONSTANTS.STEPS_TDEE_BONUS.moderate.bonus;
+  return CONSTANTS.STEPS_TDEE_BONUS.low.bonus;
+};
 
-  if (goal === 'muscle_gain') {
-    calorieAdjustment = tdee * CONSTANTS.BULKING_SURPLUS_PERCENTAGE;
-  } else if (goal === 'weight_loss') {
-    calorieAdjustment = tdee * -CONSTANTS.CUTTING_DEFICIT_PERCENTAGE;
-  }
-
-  return tdee + calorieAdjustment;
+export const calculateRealTDEE = (avgDailyCalories, weeklyWeightChange, avgSteps = 0) => {
+  if (!avgDailyCalories || avgDailyCalories <= 0) return null;
+  const dailyWeightChangeKcal = (weeklyWeightChange * CONSTANTS.KCAL_PER_KG) / 7;
+  const stepsBonus = calculateStepsTDEEBonus(avgSteps);
+  return Math.round(avgDailyCalories - dailyWeightChangeKcal + stepsBonus);
 };
 
 export const calculateMacros = (goal, calories, weight) => {
-  const macroRatios = CONSTANTS.MACRO_RATIOS[goal] || CONSTANTS.MACRO_RATIOS.maintenance;
-  const { protein, carbs, fats } = macroRatios;
+  const ratios = CONSTANTS.MACRO_RATIOS[goal] || CONSTANTS.MACRO_RATIOS.maintenance;
 
-  let proteinGrams;
-  if (goal === 'weight_loss') {
-    proteinGrams = Math.min(weight * 2.4, 0.35 * calories / CONSTANTS.CALORIES_PER_GRAM.protein);
-  } else if (goal === 'muscle_gain') {
-    proteinGrams = Math.min(weight * 2.2, 0.25 * calories / CONSTANTS.CALORIES_PER_GRAM.protein);
-  } else {
-    proteinGrams = (calories * protein) / CONSTANTS.CALORIES_PER_GRAM.protein;
-  }
+  const proteinPerKg = goal === 'weight_loss' ? 2.4 : goal === 'muscle_gain' ? 2.2 : 1.8;
+  const maxProteinFromRatio = (calories * ratios.protein) / CONSTANTS.CALORIES_PER_GRAM.protein;
+  const proteinGrams = Math.min(weight * proteinPerKg, maxProteinFromRatio);
 
   const proteinCalories = proteinGrams * CONSTANTS.CALORIES_PER_GRAM.protein;
+  const remaining = calories - proteinCalories;
 
-  const remainingCalories = calories - proteinCalories;
-  if (remainingCalories < 0) {
-    console.warn("Remaining calories are negative after protein calculation. Adjusting protein intake.");
-    proteinGrams = Math.max(0, calories / CONSTANTS.CALORIES_PER_GRAM.protein);
-    return calculateMacros(goal, calories, weight);
+  if (remaining < 0) {
+    return {
+      protein: parseFloat((calories / CONSTANTS.CALORIES_PER_GRAM.protein).toFixed(1)),
+      carbs: 0,
+      fats: 0,
+    };
   }
-  const totalMacroRatio = carbs + fats;
-  const carbsCalories = (remainingCalories * carbs) / totalMacroRatio;
-  const fatsCalories = (remainingCalories * fats) / totalMacroRatio;
-  const macros = {
-    protein: parseFloat(proteinGrams.toFixed(1)),
-    carbs: parseFloat((carbsCalories / CONSTANTS.CALORIES_PER_GRAM.carbs).toFixed(1)),
-    fats: parseFloat((fatsCalories / CONSTANTS.CALORIES_PER_GRAM.fats).toFixed(1)),
-  };
 
-  return macros;
+  const carbRatio = ratios.carbs / (ratios.carbs + ratios.fats);
+  return {
+    protein: parseFloat(proteinGrams.toFixed(1)),
+    carbs: parseFloat(((remaining * carbRatio) / CONSTANTS.CALORIES_PER_GRAM.carbs).toFixed(1)),
+    fats: parseFloat(((remaining * (1 - carbRatio)) / CONSTANTS.CALORIES_PER_GRAM.fats).toFixed(1)),
+  };
 };
 
 export const calculateRate = (goal, formData) => {
-  const {
-    currentWeight,
-    targetWeight,
-    experienceLevel,
-    gender,
-    stressLevel,
-    age,
-    activityLevel,
-  } = formData;
-
+  const { currentWeight, targetWeight, experienceLevel, gender, stressLevel } = formData;
   const weight = parseFloat(currentWeight);
-  const weightToLose = weight - parseFloat(targetWeight);
+  const stressMultiplier = CONSTANTS.STRESS_MULTIPLIERS[stressLevel] || 1.0;
 
-  let rate = 0;
   if (goal === 'muscle_gain') {
-    const range = CONSTANTS.BULKING_RATE_RANGES[gender];
-    let experienceFactor = 1;
-
-    if (experienceLevel === 'beginner') experienceFactor = 1.35;
-    if (experienceLevel === 'intermediate') experienceFactor = 1.15;
-    if (experienceLevel === 'advanced') experienceFactor = 0.85;
-
-    const ratePercentage =
-      range.min + (range.max - range.min) * (experienceFactor - 1);
-    rate = (weight * ratePercentage) / 100;
-  } else if (goal === 'weight_loss') {
-    const range = CONSTANTS.CUTTING_RATE_RANGES[gender];
-    let experienceFactor = 1;
-    let activityFactor = 1;
-
-    if (experienceLevel === 'beginner') experienceFactor = 1.35;
-    if (experienceLevel === 'intermediate') experienceFactor = 1.25;
-    if (experienceLevel === 'advanced') experienceFactor = 0.75;
-
-    if (activityLevel === 'very_active') activityFactor = 1.15;
-
-    const ratePercentage =
-      range.min + (range.max - range.min) * (experienceFactor - 1);
-
-    rate = (weight * ratePercentage * activityFactor) / 100;
-
-    if (weightToLose > 6 && weightToLose <= 10) rate *= 0.95;
-    if (weightToLose > 10) rate *= 0.85;
+    const rates = CONSTANTS.BULKING_RATE_KG_PER_MONTH[gender] || CONSTANTS.BULKING_RATE_KG_PER_MONTH.male;
+    const baseRatePerMonth = rates[experienceLevel] || rates.intermediate;
+    return parseFloat((baseRatePerMonth * stressMultiplier).toFixed(2));
   }
 
-  rate *= CONSTANTS.STRESS_MULTIPLIERS[stressLevel] || 1;
-  if (age > 30) rate *= CONSTANTS.AGE_ADJUSTMENT_FACTOR;
+  if (goal === 'weight_loss') {
+    const rates = CONSTANTS.CUTTING_RATE_KG_PER_WEEK[gender] || CONSTANTS.CUTTING_RATE_KG_PER_WEEK.male;
+    const baseRatePerWeek = rates[experienceLevel] || rates.intermediate;
+    const weightToLose = weight - parseFloat(targetWeight);
+    const volumePenalty = weightToLose > 10 ? 0.85 : weightToLose > 6 ? 0.93 : 1.0;
+    return parseFloat((baseRatePerWeek * stressMultiplier * volumePenalty).toFixed(2));
+  }
 
-  return rate;
+  return 0;
 };
-const generateNotes = (goal, stressLevel, experienceLevel, ratePerWeek, ratePerMonth) => {
+
+const generateNotes = (goal, stressLevel, ratePerWeek, ratePerMonth) => {
   const notes = [];
 
-  if (goal === 'weight_loss') {
-    notes.push({
-      type: 'goal',
-      text: `Your goal is to lose ${ratePerWeek} kg/week or ${ratePerMonth} kg/month.`,
-    });
-    notes.push({
-      type: 'instruction',
-      text: 'The app will automatically adjust your calories and workout plan based on your progress. Focus on logging your meals and workouts consistently. The more data you provide, the more accurately the app can fine-tune your plan for optimal results.',
-    });
-
-    if (stressLevel === 'high') {
-      notes.push({
-        type: 'warning',
-        text: "High stress levels may impact your progress. While the app will adjust your plan, make sure you're managing stress and prioritizing recovery.",
-      });
-    }
-
-    if (experienceLevel === 'beginner') {
-      notes.push({
-        type: 'tip',
-        text: "As a beginner, the app will help you avoid overly aggressive cuts and suggest a steady, sustainable pace for weight loss. Log your meals and workouts, and the app will guide you toward your goal.",
-      });
-    }
-  } else if (goal === 'muscle_gain') {
-    notes.push({
-      type: 'goal',
-      text: `Your goal is to gain ${ratePerMonth} kg/month.`,
-    });
-    notes.push({
-      type: 'instruction',
-      text: 'The app will automatically adjust your caloric intake and workout plan as you log your progress. Focus on logging your meals, protein intake, and workouts so the app can optimize your muscle gain plan.',
-    });
-
-    if (stressLevel === 'high') {
-      notes.push({
-        type: 'warning',
-        text: "High stress can slow muscle growth. While the app will adjust your plan, make sure you're managing stress and prioritizing recovery to maximize your gains.",
-      });
-    }
-
-    if (experienceLevel === 'beginner') {
-      notes.push({
-        type: 'tip',
-        text: "As a beginner, the app will guide you to focus on progressive overload and ensure you're getting the proper nutrition. Track your workouts and nutrition, and let the app do the rest.",
-      });
-    }
+  if (goal === 'muscle_gain') {
+    notes.push({ type: 'goal', text: `Target: gain ${ratePerMonth} kg/month. Calorie targets auto-adjust weekly based on your actual progress.` });
+    notes.push({ type: 'instruction', text: 'Log weight daily and meals consistently. Initial targets are estimates — they improve over 2-3 weeks.' });
+    if (stressLevel === 'high') notes.push({ type: 'warning', text: 'High stress slows muscle growth. Prioritize sleep and recovery.' });
+  } else if (goal === 'weight_loss') {
+    notes.push({ type: 'goal', text: `Target: lose ${ratePerWeek} kg/week. Calorie targets auto-adjust weekly based on your actual progress.` });
+    notes.push({ type: 'instruction', text: 'Log weight daily and meals consistently. Initial targets are estimates — they improve over 2-3 weeks of logging.' });
+    if (stressLevel === 'high') notes.push({ type: 'warning', text: 'High stress impacts fat loss. Manage recovery alongside nutrition.' });
   } else {
-    notes.push({
-      type: 'instruction',
-      text: 'To maintain your current weight, simply log your meals and workouts. The app will adjust your nutrition and workout plan as needed to help you stay in maintenance mode.',
-    });
+    notes.push({ type: 'instruction', text: 'Log meals and weight to maintain. The app will fine-tune your targets over time.' });
   }
 
   return notes;
@@ -240,54 +153,113 @@ export const calculateWeightChangePlan = (formData) => {
 
   const currentWeightNum = parseFloat(currentWeight);
   const targetWeightNum = parseFloat(targetWeight);
-  const weightDifference = Math.abs(currentWeightNum - targetWeightNum).toFixed(0);
+  const weightDifference = Math.abs(currentWeightNum - targetWeightNum);
 
-  const deducedGoal =
+  const goal =
     fitnessGoals ||
-    (currentWeightNum > targetWeightNum
-      ? 'weight_loss'
-      : currentWeightNum < targetWeightNum
-      ? 'muscle_gain'
-      : 'maintenance');
+    (currentWeightNum > targetWeightNum ? 'weight_loss' :
+     currentWeightNum < targetWeightNum ? 'muscle_gain' : 'maintenance');
 
   const bmr = calculateBMR(gender, currentWeightNum, height, age);
   const tdee = calculateTDEE(bmr, activityLevel);
-  const adjustedCalories = calculateCaloriesForGoal(deducedGoal, tdee);
+  const surplus = goal === 'muscle_gain' ? tdee * CONSTANTS.SURPLUS_PERCENTAGE : 0;
+  const deficit = goal === 'weight_loss' ? tdee * CONSTANTS.DEFICIT_PERCENTAGE : 0;
+  const goalCalories = Math.round(tdee + surplus - deficit);
 
-  const rawRate = calculateRate(deducedGoal, formData);
-  const macros = calculateMacros(deducedGoal, adjustedCalories, currentWeightNum);
+  const rawRate = calculateRate(goal, formData);
+  const macros = calculateMacros(goal, goalCalories, currentWeightNum);
 
-  let ratePerWeek = 0, ratePerMonth = 0;
+  let ratePerWeek = 0;
+  let ratePerMonth = 0;
 
-  if (deducedGoal === 'muscle_gain') {
+  if (goal === 'muscle_gain') {
     ratePerMonth = rawRate;
-    ratePerWeek = ratePerMonth / CONSTANTS.WEEKS_PER_MONTH;
-  } else if (deducedGoal === 'weight_loss') {
+    ratePerWeek = parseFloat((ratePerMonth / CONSTANTS.WEEKS_PER_MONTH).toFixed(2));
+  } else if (goal === 'weight_loss') {
     ratePerWeek = rawRate;
-    ratePerMonth = ratePerWeek * CONSTANTS.WEEKS_PER_MONTH;
+    ratePerMonth = parseFloat((ratePerWeek * CONSTANTS.WEEKS_PER_MONTH).toFixed(1));
   }
 
-  ratePerWeek = parseFloat(ratePerWeek.toFixed(1));
+  ratePerWeek = parseFloat(ratePerWeek.toFixed(2));
   ratePerMonth = parseFloat(ratePerMonth.toFixed(1));
 
-  const weeksToGoal = Math.ceil(weightDifference / ratePerWeek);
+  const weeksToGoal = ratePerWeek > 0 ? Math.ceil(weightDifference / ratePerWeek) : 0;
   const estimatedDate = new Date();
-  estimatedDate.setDate(estimatedDate.getDate() + weeksToGoal * 7);
+  if (weeksToGoal > 0) estimatedDate.setDate(estimatedDate.getDate() + weeksToGoal * 7);
 
-  const notes = generateNotes(deducedGoal, stressLevel, experienceLevel, ratePerWeek, ratePerMonth);
-
-  const plan = {
-    type: deducedGoal,
+  return {
+    type: goal,
     ratePerWeek,
     ratePerMonth,
-    goalCalories: Math.round(adjustedCalories),
+    goalCalories,
     macros,
     bmr: Math.round(bmr),
     tdee: Math.round(tdee),
     weeksToGoal,
     estimatedDate: estimatedDate.toLocaleDateString(),
-    notes,
+    isEstimate: true,
+    notes: generateNotes(goal, stressLevel, ratePerWeek, ratePerMonth),
   };
+};
 
-  return plan;
+export const calculateWeeklyAdjustment = (userData, weeklyWeightData, weeklyCalorieData) => {
+  const { weightChangePlan, targetCalories, currentWeight } = userData;
+
+  if (!weightChangePlan || !targetCalories) return null;
+
+  const { MIN_WEEKS_DATA, MIN_DAYS_LOGGED_PER_WEEK, NOISE_THRESHOLD_KG, MAX_KCAL_ADJUSTMENT, MIN_KCAL_ADJUSTMENT } = CONSTANTS.ADJUSTMENT;
+
+  if (weeklyWeightData.length < MIN_WEEKS_DATA) return null;
+
+  const recentWeightWeeks = weeklyWeightData.slice(-MIN_WEEKS_DATA);
+  const hasEnoughWeightData = recentWeightWeeks.every(w => w.daysLogged >= 3 && w.average != null);
+  if (!hasEnoughWeightData) return null;
+
+  const hasEnoughCalorieData = weeklyCalorieData.every(w => w.daysLogged >= MIN_DAYS_LOGGED_PER_WEEK);
+  if (!hasEnoughCalorieData) return null;
+
+  const oldestAvg = recentWeightWeeks[0].average;
+  const newestAvg = recentWeightWeeks[recentWeightWeeks.length - 1].average;
+  const actualWeeklyRate = (newestAvg - oldestAvg) / (recentWeightWeeks.length - 1);
+
+  const avgDailyCalories = weeklyCalorieData.reduce((sum, w) => sum + w.avgCalories, 0) / weeklyCalorieData.length;
+  const avgSteps = weeklyCalorieData.reduce((sum, w) => sum + (w.avgSteps || 0), 0) / weeklyCalorieData.length;
+  const realTDEE = calculateRealTDEE(avgDailyCalories, actualWeeklyRate, avgSteps);
+
+  const targetWeeklyRate = weightChangePlan.type === 'muscle_gain'
+    ? weightChangePlan.ratePerMonth / CONSTANTS.WEEKS_PER_MONTH
+    : weightChangePlan.ratePerWeek;
+
+  const rateDelta = targetWeeklyRate - actualWeeklyRate;
+
+  if (Math.abs(rateDelta) < NOISE_THRESHOLD_KG) return null;
+
+  let rawAdjustment;
+  if (realTDEE) {
+    const idealCalories = weightChangePlan.type === 'muscle_gain'
+      ? realTDEE + Math.round(realTDEE * CONSTANTS.SURPLUS_PERCENTAGE)
+      : realTDEE - Math.round(realTDEE * CONSTANTS.DEFICIT_PERCENTAGE);
+    rawAdjustment = Math.round(idealCalories - targetCalories);
+  } else {
+    rawAdjustment = Math.round(rateDelta * CONSTANTS.KCAL_PER_KG / 7);
+  }
+
+  if (Math.abs(rawAdjustment) < MIN_KCAL_ADJUSTMENT) return null;
+
+  const clampedAdjustment = Math.max(-MAX_KCAL_ADJUSTMENT, Math.min(MAX_KCAL_ADJUSTMENT, rawAdjustment));
+  const newTargetCalories = Math.round(targetCalories + clampedAdjustment);
+  const newMacros = calculateMacros(weightChangePlan.type, newTargetCalories, parseFloat(currentWeight));
+
+  return {
+    previousTargetCalories: targetCalories,
+    newTargetCalories,
+    adjustment: clampedAdjustment,
+    actualWeeklyRate: parseFloat(actualWeeklyRate.toFixed(3)),
+    targetWeeklyRate: parseFloat(targetWeeklyRate.toFixed(3)),
+    realTDEE,
+    avgSteps: Math.round(avgSteps),
+    newMacros,
+    adjustedAt: new Date().toISOString(),
+    reason: `Actual rate ${actualWeeklyRate.toFixed(2)}kg/week vs target ${targetWeeklyRate.toFixed(2)}kg/week`,
+  };
 };

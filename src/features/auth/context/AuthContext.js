@@ -1,10 +1,21 @@
 import { createContext, useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebaseConfigService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { deriveStartWeight } from '../../nutrition/helpers/learningCompletionService';
 
 export const AuthContext = createContext();
+
+const deriveAndSaveStartWeight = async (userId, data) => {
+  if (data.startWeight || !data.weightIns?.length) return data;
+
+  const startWeight = deriveStartWeight(data.weightIns);
+  if (!startWeight) return data;
+
+  await setDoc(doc(db, 'users', userId), { startWeight }, { merge: true });
+  return { ...data, startWeight };
+};
 
 export const AuthProvider = ({ children }) => {
   const [authenticated, setAuthenticated] = useState(false);
@@ -16,12 +27,14 @@ export const AuthProvider = ({ children }) => {
   const refreshUserData = async () => {
     try {
       const user = auth.currentUser;
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        setUserData(userDoc.data() || {});
-      }
+      if (!user) return;
+
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const data = await deriveAndSaveStartWeight(user.uid, userDoc.data() || {});
+      setUserData(data);
+      return data;
     } catch (error) {
-      console.error('Error refreshing user data', { error });
+      console.error('refreshUserData error:', error);
     }
   };
 
@@ -33,7 +46,7 @@ export const AuthProvider = ({ children }) => {
       try {
         if (user) {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
-          const data = userDoc.data() || {};
+          const data = await deriveAndSaveStartWeight(user.uid, userDoc.data() || {});
 
           setAuthenticated(true);
           setProfileSetupComplete(!!data.profileSetupComplete);
@@ -46,7 +59,7 @@ export const AuthProvider = ({ children }) => {
           await AsyncStorage.removeItem('auth_token');
         }
       } catch (error) {
-        console.error('Error handling auth state change', { error });
+        console.error('onAuthStateChanged error:', error);
       } finally {
         setLoading(false);
         handledRef.current = false;
@@ -64,23 +77,21 @@ export const AuthProvider = ({ children }) => {
       setUserData(null);
       await AsyncStorage.removeItem('auth_token');
     } catch (error) {
-      console.error('Error during logout', { error });
+      console.error('logout error:', error);
     }
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        authenticated,
-        loading,
-        userData,
-        setAuthenticated,
-        profileSetupComplete,
-        setProfileSetupComplete,
-        logout,
-        refreshUserData,
-      }}
-    >
+    <AuthContext.Provider value={{
+      authenticated,
+      loading,
+      userData,
+      setAuthenticated,
+      profileSetupComplete,
+      setProfileSetupComplete,
+      logout,
+      refreshUserData,
+    }}>
       {children}
     </AuthContext.Provider>
   );

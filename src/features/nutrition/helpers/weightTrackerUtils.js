@@ -2,10 +2,17 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../auth/services/firebaseConfigService';
 import { Animated } from 'react-native';
+import {
+  evaluateWeeklyProgress,
+  snapshotPreviousWeek,
+  deriveStartWeight,
+  getRollingWeekStats,
+  checkAndRunWeeklyEval,
+} from '../helpers/learningCompletionService';
 
 export const validateWeight = (value) => {
-  const numValue = parseFloat(value);
-  return !isNaN(numValue) && numValue > 0 && numValue <= 1000;
+  const num = parseFloat(value);
+  return !isNaN(num) && num > 0 && num <= 1000;
 };
 
 export const getWeekStartDate = (date) => {
@@ -15,26 +22,28 @@ export const getWeekStartDate = (date) => {
   return new Date(d.setDate(diff));
 };
 
+export const getLocalWeekStart = (date) => {
+  const d = getWeekStartDate(date);
+  d.setHours(0, 0, 0, 0);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export const getDayKey = (date) => {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   return days[date.getDay()];
 };
 
 export const calculateWeeklyAverage = (weeklyWeights) => {
-  const weights = Object.values(weeklyWeights).filter(w => w !== null && w !== undefined);
-  if (weights.length === 0) return null;
-  const sum = weights.reduce((acc, curr) => acc + curr, 0);
-  return parseFloat((sum / weights.length).toFixed(2));
+  const weights = Object.values(weeklyWeights).filter(w => w != null && !isNaN(w));
+  if (!weights.length) return null;
+  return parseFloat((weights.reduce((a, b) => a + b, 0) / weights.length).toFixed(2));
 };
 
-export const formatDate = (date) => {
-  const options = {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  };
-  return date.toLocaleDateString('en-US', options);
-};
+export const formatDate = (date) =>
+  date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
 export const loadUserWeightData = async (
   userId,
@@ -47,92 +56,44 @@ export const loadUserWeightData = async (
   setTrendData
 ) => {
   try {
-    const userDocRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
-    
-    if (userDoc.exists()) {
-      const data = userDoc.data();
-      const weightIns = data.weightIns || [];
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (!userDoc.exists()) return;
 
-      setCurrentWeight(data.currentWeight);
-      setWeight(data.currentWeight ? data.currentWeight.toString() : '');
+    const data = userDoc.data();
+    const weightIns = data.weightIns || [];
 
-      const today = new Date(currentDate);
-      const weekStartDate = getWeekStartDate(today).toISOString().split('T')[0];
-      const currentWeek = weightIns.find(entry => entry.weekStart === weekStartDate);
-      setWeeklyData(currentWeek);
-      setWeeklyAverage(currentWeek?.average);
+    setCurrentWeight(data.currentWeight);
+    setWeight(data.currentWeight ? data.currentWeight.toString() : '');
 
-      const lastWeekStart = new Date(today);
-      lastWeekStart.setDate(lastWeekStart.getDate() - 7);
-      const lastWeekStartDate = getWeekStartDate(lastWeekStart).toISOString().split('T')[0];
-      const lastWeek = weightIns.find(entry => entry.weekStart === lastWeekStartDate);
-      setLastWeekAverage(lastWeek?.average);
+    const today = new Date(currentDate);
+    const weekStartDate = getLocalWeekStart(today);
+    const currentWeek = weightIns.find(e => e.weekStart === weekStartDate);
+    setWeeklyData(currentWeek);
+    setWeeklyAverage(currentWeek?.average ?? null);
 
-      const last7Days = [];
-      const startDate = new Date(today);
-      startDate.setDate(today.getDate() - 6);
-      
-      for (let i = 0; i < 7; i++) {
-        const currentDay = new Date(startDate);
-        currentDay.setDate(startDate.getDate() + i);
-        const weekStart = getWeekStartDate(currentDay).toISOString().split('T')[0];
-        const dayKey = getDayKey(currentDay);
-        const weekData = weightIns.find(entry => entry.weekStart === weekStart);
-        const weight = weekData?.days?.[dayKey] || null;
-        
-        last7Days.push({
-          date: currentDay.toISOString(),
-          weight: weight,
-        });
-      }
-      setTrendData(last7Days);
-    }
+    const lastWeekStart = new Date(today);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+    const lastWeekStartDate = getLocalWeekStart(lastWeekStart);
+    const lastWeek = weightIns.find(e => e.weekStart === lastWeekStartDate);
+    setLastWeekAverage(lastWeek?.average ?? null);
+
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - 6);
+
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(startDate);
+      day.setDate(startDate.getDate() + i);
+      const ws = getLocalWeekStart(day);
+      const dk = getDayKey(day);
+      const weekData = weightIns.find(e => e.weekStart === ws);
+      return { date: day.toISOString(), weight: weekData?.days?.[dk] ?? null };
+    });
+
+    setTrendData(last7Days);
   } catch (error) {
-    console.error('Error loading weight data:', error);
+    console.error('loadUserWeightData error:', error);
   }
 };
-
-export const fetchWeeklyAverageWeight = async (userId, weekStartDate) => {
-  try {
-    const userDocRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
-    
-    if (userDoc.exists()) {
-      const data = userDoc.data();
-      const weightIns = data.weightIns || [];
-      const weekData = weightIns.find(entry => entry.weekStart === weekStartDate);
-      
-      if (weekData) {
-        return weekData.average || null;
-      }
-    }
-    return null;
-  } catch (error) {
-     console.error('Error fetching weekly average weight:', error);
-    return null;
-  }
-}
-
-export const fetchWeightInsByDate = async (userId, date) => {
-  try {
-    const userDocRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
-    
-    if (userDoc.exists()) {
-      const data = userDoc.data();
-      const weightIns = data.weightIns || [];
-      const weekStartDate = getWeekStartDate(new Date(date)).toISOString().split('T')[0];
-      const weekData = weightIns.find(entry => entry.weekStart === weekStartDate);
-      
-      return weekData ? weekData.days : {};
-    }
-    return {};
-  } catch (error) {
-    console.error('Error fetching weight ins by date:', error);         
-    return {};
-  }
-};  
 
 export const handleSaveLogic = async (
   userId,
@@ -140,180 +101,194 @@ export const handleSaveLogic = async (
   currentDate,
   setCurrentWeight,
   setWeeklyAverage,
-  loadDataCallback
+  loadDataCallback,
+  mealCache = null
 ) => {
   try {
     const today = new Date(currentDate);
-    const weekStartDate = getWeekStartDate(today).toISOString().split('T')[0];
+    const weekStartDate = getLocalWeekStart(today);
     const dayKey = getDayKey(today);
 
-    const userDocRef = doc(db, 'users', userId);  
+    const userDocRef = doc(db, 'users', userId);
     const userDoc = await getDoc(userDocRef);
     const currentData = userDoc.exists() ? userDoc.data() : {};
 
-    const weightIns = Array.isArray(currentData.weightIns) ? currentData.weightIns : [];
+    const weightIns = Array.isArray(currentData.weightIns) ? [...currentData.weightIns] : [];
 
-    let currentWeekIndex = weightIns.findIndex(entry => entry.weekStart === weekStartDate);
-    let updatedWeightIns = [...weightIns];
+    let currentWeekIndex = weightIns.findIndex(e => e.weekStart === weekStartDate);
 
     if (currentWeekIndex >= 0) {
-      updatedWeightIns[currentWeekIndex] = {
-        ...updatedWeightIns[currentWeekIndex],
-        days: {
-          ...updatedWeightIns[currentWeekIndex].days,
-          [dayKey]: weightValue
-        }
+      weightIns[currentWeekIndex] = {
+        ...weightIns[currentWeekIndex],
+        days: { ...weightIns[currentWeekIndex].days, [dayKey]: weightValue },
       };
     } else {
-      updatedWeightIns.push({
+      weightIns.push({
         weekStart: weekStartDate,
         days: { [dayKey]: weightValue },
         createdAt: new Date().toISOString(),
       });
-      currentWeekIndex = updatedWeightIns.length - 1;
+      currentWeekIndex = weightIns.length - 1;
     }
 
-    const currentWeekEntry = updatedWeightIns[currentWeekIndex];
-    const currentWeekAverage = calculateWeeklyAverage(currentWeekEntry.days);
-    currentWeekEntry.average = currentWeekAverage;
+    const currentWeekEntry = weightIns[currentWeekIndex];
+    currentWeekEntry.average = calculateWeeklyAverage(currentWeekEntry.days);
 
-    updatedWeightIns.sort((a, b) => new Date(a.weekStart) - new Date(b.weekStart));
+    weightIns.sort((a, b) => new Date(a.weekStart) - new Date(b.weekStart));
 
+    const sortedIndex = weightIns.findIndex(e => e.weekStart === weekStartDate);
     let weeklyTrend = null;
-    if (updatedWeightIns.length >= 2) {
-      const currentWeekAvg = currentWeekAverage;
-      const lastWeekEntry = updatedWeightIns[updatedWeightIns.length - 2];
-      if (lastWeekEntry && lastWeekEntry.average !== null && lastWeekEntry.average !== undefined && currentWeekAvg !== null && currentWeekAvg !== undefined) {
-        weeklyTrend = parseFloat((currentWeekAvg - lastWeekEntry.average).toFixed(2));
+    let lastWeekAverage = null;
+
+    if (sortedIndex > 0) {
+      const prev = weightIns[sortedIndex - 1];
+      if (prev?.average != null && currentWeekEntry.average != null) {
+        lastWeekAverage = prev.average;
+        weeklyTrend = parseFloat((currentWeekEntry.average - prev.average).toFixed(2));
       }
     }
 
-    await setDoc(userDocRef, {
-      currentWeight: weightValue,
-      weightIns: updatedWeightIns,
-      lastWeightUpdate: new Date().toISOString(),
-      weeklyTrend: weeklyTrend,
-    }, { merge: true });
+    const startWeight = currentData.startWeight ?? deriveStartWeight(weightIns);
+    const isNewWeek = sortedIndex > 0 && weightIns[sortedIndex - 1]?.weekStart !== currentData.lastSnapshotWeek;
 
-    const cacheData = {
-      ...currentData,
+    const updateData = {
       currentWeight: weightValue,
-      weightIns: updatedWeightIns,
-      weeklyTrend: weeklyTrend,
+      weightIns,
+      lastWeightUpdate: new Date().toISOString(),
+      weeklyTrend,
+      ...(startWeight && !currentData.startWeight ? { startWeight } : {}),
     };
-    await AsyncStorage.setItem(`user_${userId}`, JSON.stringify(cacheData));
+
+    await setDoc(userDocRef, updateData, { merge: true });
+
+    let updatedUserData = { ...currentData, ...updateData };
+
+    if (mealCache && isNewWeek) {
+      const prevWeekEntry = weightIns[sortedIndex - 1];
+      const snapshot = await snapshotPreviousWeek(userId, prevWeekEntry, mealCache);
+
+      if (snapshot) {
+        updatedUserData = {
+          ...updatedUserData,
+          weeklyNutrition: [
+            ...(updatedUserData.weeklyNutrition || []).filter(w => w.weekStart !== snapshot.weekStart),
+            snapshot,
+          ].sort((a, b) => new Date(a.weekStart) - new Date(b.weekStart)),
+          lastSnapshotWeek: prevWeekEntry.weekStart,
+        };
+
+        await setDoc(userDocRef, { lastSnapshotWeek: prevWeekEntry.weekStart }, { merge: true });
+      }
+
+      const adjustment = await evaluateWeeklyProgress(userId, updatedUserData, mealCache, today);
+      if (adjustment) {
+        updatedUserData = { ...updatedUserData, ...adjustment };
+      }
+    }
+
+    await AsyncStorage.setItem(`user_${userId}`, JSON.stringify(updatedUserData));
 
     setCurrentWeight(weightValue);
-    setWeeklyAverage(currentWeekAverage);
+    setWeeklyAverage(currentWeekEntry.average);
 
     await loadDataCallback();
   } catch (error) {
-    console.error('Error saving weight: ', error);
+    console.error('handleSaveLogic error:', error);
     throw error;
   }
 };
 
-export const processWeightInsForDisplay = (weightIns, limit = 20) => {
-  if (!weightIns || !Array.isArray(weightIns) || weightIns.length === 0) {
-    return [];
-  }
+export const getCurrentWeekRollingStats = (mealCache, weightIns) => {
+  if (!mealCache) return { avgCalories: 0, avgSteps: 0, avgWeight: null };
 
+  const today = new Date();
+  const weekStart = getLocalWeekStart(today);
+  const todayKey = mealCache.formatDate(today);
+
+  const nutritionStats = getRollingWeekStats(mealCache, weekStart, todayKey);
+
+  const weekEntry = weightIns?.find(w => w.weekStart === weekStart);
+  const avgWeight = weekEntry?.average ?? null;
+
+  return {
+    avgCalories: nutritionStats.avgCalories,
+    avgProtein:  nutritionStats.avgProtein,
+    avgCarbs:    nutritionStats.avgCarbs,
+    avgFats:     nutritionStats.avgFats,
+    avgSteps:    nutritionStats.avgSteps,
+    avgWeight,
+    daysLoggedNutrition: nutritionStats.daysLoggedNutrition,
+    daysLoggedSteps: nutritionStats.daysLoggedSteps,
+  };
+};
+
+export { checkAndRunWeeklyEval };
+
+export const processWeightInsForDisplay = (weightIns, limit = 20) => {
+  if (!weightIns?.length) return [];
+
+  const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
   const entries = [];
-  
+
   weightIns.forEach(week => {
     if (!week.days || !week.weekStart) return;
-    
-    const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    
     dayKeys.forEach((dayKey, dayIndex) => {
       const weight = week.days[dayKey];
-      if (weight !== null && weight !== undefined && !isNaN(weight)) {
-        const weekStartDate = new Date(week.weekStart);
-        const entryDate = new Date(weekStartDate);
-        entryDate.setDate(weekStartDate.getDate() + dayIndex);
-        
-        entries.push({
-          date: entryDate,
-          weight: parseFloat(weight),
-          weekStart: week.weekStart,
-          dayKey: dayKey,
-          weekAverage: week.average,
-          formattedDate: formatDisplayDate(entryDate)
-        });
-      }
+      if (weight == null || isNaN(weight)) return;
+      const weekStartDate = new Date(week.weekStart);
+      const entryDate = new Date(weekStartDate);
+      entryDate.setDate(weekStartDate.getDate() + dayIndex);
+      entries.push({
+        date: entryDate,
+        weight: parseFloat(weight),
+        weekStart: week.weekStart,
+        dayKey,
+        weekAverage: week.average,
+        formattedDate: formatDisplayDate(entryDate),
+      });
     });
   });
 
-  entries.sort((a, b) => b.date - a.date);
-  return entries.slice(0, limit);
+  return entries.sort((a, b) => b.date - a.date).slice(0, limit);
 };
 
 const formatDisplayDate = (date) => {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  
-  const entryDateStr = date.toDateString();
-  const todayStr = today.toDateString();
-  const yesterdayStr = yesterday.toDateString();
-  
-  if (entryDateStr === todayStr) {
-    return "Today";
-  } else if (entryDateStr === yesterdayStr) {
-    return "Yesterday";
-  } else {
-    const daysAgo = Math.floor((today - date) / (1000 * 60 * 60 * 24));
-    if (daysAgo <= 7) {
-      return `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
-    }
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    });
-  }
+
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+
+  const daysAgo = Math.floor((today - date) / 86400000);
+  if (daysAgo <= 7) return `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
+
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-export const adjustWeight = (currentWeight, increment) => {
-  const currentVal = parseFloat(currentWeight) || 0;
-  return Math.max(0, Math.min(1000, currentVal + increment)).toFixed(1);
-};
+export const adjustWeight = (currentWeight, increment) =>
+  Math.max(0, Math.min(1000, (parseFloat(currentWeight) || 0) + increment)).toFixed(1);
 
 export const showSuccessNotification = (setShowSuccess, successAnim) => {
   setShowSuccess(true);
   Animated.sequence([
-    Animated.spring(successAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 8,
-    }),
+    Animated.spring(successAnim, { toValue: 1, duration: 300, useNativeDriver: true, tension: 100, friction: 8 }),
     Animated.delay(2000),
-    Animated.timing(successAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }),
-  ]).start(() => {
-    setShowSuccess(false);
-  });
+    Animated.timing(successAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+  ]).start(() => setShowSuccess(false));
 };
 
 export const handleTabPress = (tab, setActiveTab, tabIndicatorAnim) => {
   setActiveTab(tab);
-  const tabIndex = ['input', 'week', 'trend'].indexOf(tab);
   Animated.timing(tabIndicatorAnim, {
-    toValue: tabIndex,
+    toValue: ['input', 'week', 'trend'].indexOf(tab),
     duration: 200,
     useNativeDriver: true,
   }).start();
 };
 
 export const getWeightChangeColor = (weight, average) => {
-  if (weight === null || weight === undefined || average === null || average === undefined) {
-    return '#64748B';
-  }
+  if (weight == null || average == null) return '#64748B';
   const diff = weight - average;
   if (diff > 0.2) return '#EF4444';
   if (diff < -0.2) return '#22C55E';
@@ -326,66 +301,27 @@ export const getWeekDays = () => ({
 });
 
 export const calculateTrendStats = (trendData) => {
-  if (!trendData || trendData.length === 0) {
-    return {
-      totalChange: 0,
-      avgWeight: 0,
-      minWeight: 0,
-      maxWeight: 0,
-      weightRange: 0,
-      trendDirection: 'stable',
-    };
-  }
+  if (!trendData?.length) return { totalChange: 0, avgWeight: 0, minWeight: 0, maxWeight: 0, weightRange: 0, trendDirection: 'stable' };
 
-  const weights = trendData.map(d => d.weight).filter(w => w !== null && w !== undefined);
-  if (weights.length === 0) {
-     return {
-      totalChange: 0,
-      avgWeight: 0,
-      minWeight: 0,
-      maxWeight: 0,
-      weightRange: 0,
-      trendDirection: 'stable',
-    };
-  }
+  const weights = trendData.map(d => d.weight).filter(w => w != null);
+  if (!weights.length) return { totalChange: 0, avgWeight: 0, minWeight: 0, maxWeight: 0, weightRange: 0, trendDirection: 'stable' };
 
-  const firstWeight = weights[0];
-  const lastWeight = weights[weights.length - 1];
-
-  const totalChange = parseFloat((lastWeight - firstWeight).toFixed(2));
+  const totalChange = parseFloat((weights[weights.length - 1] - weights[0]).toFixed(2));
   const avgWeight = parseFloat((weights.reduce((a, b) => a + b, 0) / weights.length).toFixed(2));
   const minWeight = Math.min(...weights);
   const maxWeight = Math.max(...weights);
   const weightRange = parseFloat((maxWeight - minWeight).toFixed(2));
 
   let trendDirection = 'stable';
-  if (totalChange > 0.1) {
-    trendDirection = 'up';
-  } else if (totalChange < -0.1) {
-    trendDirection = 'down';
-  }
-
   if (weights.length >= 5) {
-      const windowSize = Math.floor(weights.length * 0.3);
-      const firstWindowAvg = weights.slice(0, Math.max(1, windowSize)).reduce((a, b) => a + b, 0) / Math.max(1, windowSize);
-      const lastWindowAvg = weights.slice(-Math.max(1, windowSize)).reduce((a, b) => a + b, 0) / Math.max(1, windowSize);
-
-      const windowDiff = parseFloat((lastWindowAvg - firstWindowAvg).toFixed(2));
-      if (windowDiff > 0.1) {
-          trendDirection = 'up';
-      } else if (windowDiff < -0.1) {
-          trendDirection = 'down';
-      } else {
-          trendDirection = 'stable';
-      }
+    const windowSize = Math.max(1, Math.floor(weights.length * 0.3));
+    const firstAvg = weights.slice(0, windowSize).reduce((a, b) => a + b, 0) / windowSize;
+    const lastAvg = weights.slice(-windowSize).reduce((a, b) => a + b, 0) / windowSize;
+    const diff = parseFloat((lastAvg - firstAvg).toFixed(2));
+    trendDirection = diff > 0.1 ? 'up' : diff < -0.1 ? 'down' : 'stable';
+  } else {
+    trendDirection = totalChange > 0.1 ? 'up' : totalChange < -0.1 ? 'down' : 'stable';
   }
 
-  return {
-    totalChange,
-    avgWeight,
-    minWeight,
-    maxWeight,
-    weightRange,
-    trendDirection,
-  };
+  return { totalChange, avgWeight, minWeight, maxWeight, weightRange, trendDirection };
 };
