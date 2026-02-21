@@ -8,24 +8,14 @@ export default {
     icon: "./assets/uptrack-icon.png",
     userInterfaceStyle: "light",
     plugins: [
-      "expo-secure-store",
       "expo-font",
-      [
-        "react-native-permissions",
-        {
-          iosPermissions: {
-            camera: "This app uses the camera to scan barcodes.",
-            microphone: "This app requires microphone access.",
-            location: "This app uses your location to provide location-based features.",
-          },
-        },
-      ],
+      "expo-web-browser",
       [
         "expo-build-properties",
         {
-          "android": {
-            "newArchEnabled": true,
-            "minSdkVersion": 26
+          android: {
+            newArchEnabled: true,
+            minSdkVersion: 26
           },
           ios: {
             useFrameworks: "static",
@@ -33,7 +23,7 @@ export default {
         },
       ],
     ],
-    "sdkVersion": "54.0.0",
+    sdkVersion: "54.0.0",
     splash: {
       image: "./assets/uptrack-icon.png",
       resizeMode: "contain",
@@ -41,12 +31,11 @@ export default {
     },
     assetBundlePatterns: ["**/*"],
     ios: {
+      jsEngine: "hermes",
       supportsTablet: true,
       infoPlist: {
         CFBundleDisplayName: "UpTrack",
         NSCameraUsageDescription: "This app uses the camera to scan barcodes.",
-        NSMicrophoneUsageDescription: "This app requires microphone access.",
-        NSLocationWhenInUseUsageDescription: "This app uses your location to provide location-based features.",
         NSHealthUpdateUsageDescription: "This app reads your health data to track activity and steps.",
         NSHealthShareUsageDescription: "This app requires access to your health data to display your activity progress.",
       },
@@ -54,7 +43,8 @@ export default {
       googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST,
     },
     android: {
-      permissions: ["CAMERA", "ACCESS_FINE_LOCATION", "ACTIVITY_RECOGNITION"],
+      jsEngine: "hermes",
+      permissions: ["CAMERA", "ACTIVITY_RECOGNITION"],
       adaptiveIcon: {
         foregroundImage: "./assets/uptrack-icon.png",
         backgroundColor: "#ffffff",
@@ -69,7 +59,7 @@ export default {
     scheme: "com.iulianbirladeanu.uptrack",
     extra: {
       eas: {
-        "projectId": "2512a7a0-ae42-4736-9b5a-03ce8ad42d13",
+        projectId: "2512a7a0-ae42-4736-9b5a-03ce8ad42d13",
       },
       googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID,
       googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID,

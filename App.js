@@ -17,7 +17,6 @@ import SettingsScreen from './src/features/profile/components/Settings/SettingsS
 import ProfileScreen from './src/features/profile/components/Profile/ProfileScreen';
 import WorkoutHistory from './src/features/workout/screens/WorkoutHistoryScreen/WorkoutHistory';
 import WorkoutDetails from './src/features/workout/screens/WorkoutDetailsScreen/WorkoutDetails';
-import MeasurementScreen from './src/features/profile/screens/MeasurementsScreen/MeasurementsScreen';
 import StartWorkout from './src/features/workout/screens/StartWorkoutScreen/StartWorkout';
 import ExerciseSelectionScreen from './src/features/workout/screens/ExerciseSelectionScreen/ExerciseSelectionScreen';
 import WorkoutLibraryScreen from './src/features/workout/screens/WorkoutLibraryScreen/WorkoutLibraryScreen';
@@ -51,7 +50,6 @@ const AuthenticatedScreens = React.memo(() => (
         <Stack.Screen name="CustomFood" component={CustomFoodScreen} options={{ headerShown: false }} />
         <Stack.Screen name="WorkoutHistory" component={WorkoutHistory} options={{ headerShown: false }} />
         <Stack.Screen name="WorkoutDetails" component={WorkoutDetails} options={{ headerShown: false }} />
-        <Stack.Screen name="Measurements" component={MeasurementScreen} options={{ headerShown: false }} />
         <Stack.Screen name="StartWorkout" component={StartWorkout} options={{ headerShown: false }} />
         <Stack.Screen name="ExerciseSelection" component={ExerciseSelectionScreen} options={{ headerShown: false }} />
         <Stack.Screen name="WorkoutLibrary" component={WorkoutLibraryScreen} options={{ headerShown: false }} />
