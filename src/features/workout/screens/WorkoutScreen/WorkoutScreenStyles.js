@@ -18,7 +18,6 @@ const styles = createStyles(() => ({
     color: colors.text.primary,
     letterSpacing: -0.5,
     marginBottom: spacing[4],
-    marginTop: spacing[1],
     textAlign: 'center',
   },
 
@@ -182,8 +181,8 @@ const styles = createStyles(() => ({
   progressCard: {
     backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
-    paddingVertical: spacing[4],
-    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[5],
+    paddingHorizontal: spacing[5],
     marginBottom: spacing[4],
     borderWidth: 1,
     borderColor: colors.border.default,
@@ -245,8 +244,8 @@ const styles = createStyles(() => ({
   mergedCard: {
     backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
-    paddingVertical: spacing[4],
-    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[5],
+    paddingHorizontal: spacing[5],
     marginBottom: spacing[4],
     borderWidth: 1,
     borderColor: colors.border.default,
@@ -261,7 +260,7 @@ const styles = createStyles(() => ({
   upcomingGridItem: {
     flex: 1,
     borderRadius: radius[3],
-    padding: spacing[3],
+    padding: spacing[4],
     borderWidth: 1,
     minHeight: spacing[20],
   },
