@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
+import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
 import { useFoodContext } from '../../context/FoodContext';
 import MealContainer from '../../components/NutritionItem/MealContainer';
 import WeightService from '../../services/weightService';
@@ -21,29 +22,29 @@ const useWeightData = (userId, selectedDate) => {
     weeklyTrend: null,
     weighInCount: 0,
   });
-  
+
   const isFetchingRef = useRef(false);
   const loadedDatesRef = useRef(new Set());
   const dateString = selectedDate.toISOString().split('T')[0];
 
   const loadWeightData = useCallback(async (forceRefresh = false) => {
     if (!userId || isFetchingRef.current) return;
-    
+
     const cacheKey = `${userId}-${dateString}`;
     if (!forceRefresh && loadedDatesRef.current.has(cacheKey)) return;
-    
+
     isFetchingRef.current = true;
     try {
       const data = await WeightService.getWeightDisplayData(userId, selectedDate);
       loadedDatesRef.current.add(cacheKey);
-      
+
       setWeightData(prev => {
-        const isIdentical = 
+        const isIdentical =
           prev.currentWeight === data.currentWeight &&
           prev.weeklyAverage === data.weeklyAverage &&
           prev.weighInCount === data.weighInCount &&
           prev.weeklyTrend === data.weeklyTrend;
-        
+
         return isIdentical ? prev : data;
       });
     } catch (error) {
@@ -133,17 +134,17 @@ const NutritionScreen = () => {
   }, [setSelectedDate]);
 
   const handleFoodSelect = useCallback((item) => {
-    const foodDetails = { 
-      ...item, 
-      date: selectedDate.toISOString(), 
-      imageSource: item.image 
+    const foodDetails = {
+      ...item,
+      date: selectedDate.toISOString(),
+      imageSource: item.image
     };
-    
-    navigation.navigate('FoodDetail', { 
-      food: foodDetails, 
-      meal: selectedMeal, 
-      date: selectedDate.toISOString(), 
-      update: true, 
+
+    navigation.navigate('FoodDetail', {
+      food: foodDetails,
+      meal: selectedMeal,
+      date: selectedDate.toISOString(),
+      update: true,
       foodId: item.id,
       imageSource: item.image
     });
@@ -177,10 +178,10 @@ const NutritionScreen = () => {
   }, [navigation, weightData, selectedDate]);
 
   const handleAddFood = useCallback(() => {
-    navigation.navigate('FoodSelection', { 
-      meal: selectedMeal, 
-      selectedDate: selectedDate.toISOString(), 
-      remainingCalories: remainingCalories 
+    navigation.navigate('FoodSelection', {
+      meal: selectedMeal,
+      selectedDate: selectedDate.toISOString(),
+      remainingCalories: remainingCalories
     });
   }, [navigation, selectedMeal, selectedDate, remainingCalories]);
 
@@ -188,10 +189,6 @@ const NutritionScreen = () => {
     const mealFoods = { breakfast: breakfastFoods, lunch: lunchFoods, dinner: dinnerFoods, snacks: snacksFoods };
     return mealFoods[selectedMeal] || [];
   }, [selectedMeal, breakfastFoods, lunchFoods, dinnerFoods, snacksFoods]);
-
-  const totalCaloriesText = useMemo(() => {
-    return `Total: ${Math.round(dailyNutrition.calories || 0)} Calories`;
-  }, [dailyNutrition.calories]);
 
   const statsComponent = useMemo(() => (
     <NutritionStats
@@ -218,6 +215,7 @@ const NutritionScreen = () => {
       </ApplicationCustomScreen>
     );
   }
+
   return (
     <ApplicationCustomScreen
       headerLeft={<Ionicons name="person-circle-outline" size={28} color="#fdf5ec" />}
@@ -236,11 +234,6 @@ const NutritionScreen = () => {
 
           <MealContainer
             foods={combinedFoods}
-            foodName={styles.foodName}
-            foodCalories={styles.foodCalories}
-            foodNutrient={styles.foodNutrient}
-            foodImage={styles.foodImage}
-            foodContainer={styles.foodContainer}
             onSwipeableOpen={handleSwipeableOpen}
             onPress={handleFoodSelect}
             mealScrollView={styles.mealScrollView}
@@ -248,17 +241,12 @@ const NutritionScreen = () => {
             selectedMeal={selectedMeal}
             setSelectedMeal={setSelectedMeal}
             selectedDate={selectedDate}
-            navigation={navigation}   
+            navigation={navigation}
             remainingCalories={remainingCalories}
+            onAddFood={handleAddFood}
           />
-
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.addButton} onPress={handleAddFood}>
-              <Text style={styles.addButtonText}>Add Food</Text>
-            </TouchableOpacity>
-            <Text style={styles.totalCaloriesText}>{totalCaloriesText}</Text>
-          </View>
         </View>
+        <BottomNav />
       </View>
     </ApplicationCustomScreen>
   );

@@ -21,6 +21,7 @@ const MealContainer = ({
   isFoodDeletable,
   selectedMeal,
   setSelectedMeal,
+  onAddFood,
 }) => {
   const getMealIcon = (meal) => {
     const iconColor = selectedMeal === meal ? colors.accent.primary : colors.text.quaternary;
@@ -113,6 +114,10 @@ const MealContainer = ({
             </Text>
           </View>
         )}
+
+        <TouchableOpacity style={styles.addButton} onPress={onAddFood}>
+          <Text style={styles.addButtonText}>+ Add Food</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -125,7 +130,7 @@ const styles = createStyles(() => ({
     borderRadius: radius[5],
     padding: spacing[5],
     marginVertical: spacing[2],
-    minHeight: spacing[80],
+    minHeight: spacing[90],
     borderWidth: 1,
     borderColor: colors.border.default,
   },
@@ -140,7 +145,7 @@ const styles = createStyles(() => ({
     gap: spacing[2],
   },
   mealButton: {
-    paddingVertical: spacing[1],
+    paddingVertical: (spacing[2] / 2) + 2,
     borderRadius: radius[3],
     borderWidth: 1,
     borderColor: colors.border.light,
@@ -170,7 +175,7 @@ const styles = createStyles(() => ({
   },
   listContainer: {
     flex: 1,
-    marginTop: spacing[4],
+    marginTop: spacing[3],
   },
   scrollView: {
     flex: 1,
@@ -240,17 +245,16 @@ const styles = createStyles(() => ({
     position: 'relative',
   },
   foodName: {
-    fontSize: fontSize[12],
+    fontSize: fontSize[14],
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
     lineHeight: 14,
-    marginBottom: spacing[1],
   },
   foodCaloriesValue: {
     fontSize: fontSize[14],
     fontWeight: fontWeight.extrabold,
     color: colors.accent.primaryLight,
-    lineHeight: 16,
+    lineHeight: 14,
   },
   foodImage: {
     width: spacing[9],
@@ -263,22 +267,31 @@ const styles = createStyles(() => ({
   },
   quantityLabel: {
     paddingHorizontal: spacing[1],
-    paddingVertical: 2,
     backgroundColor: colors.faded.surfaceMedium,
     borderRadius: radius[1],
   },
   quantityLabelText: {
-    fontSize: fontSize[8],
+    fontSize: fontSize[10],
     fontWeight: fontWeight.semibold,
     color: colors.text.tertiary,
   },
   macroLabel: {
     paddingHorizontal: spacing[1],
-    paddingVertical: 2,
     borderRadius: radius[1],
-    fontSize: fontSize[8],
+    fontSize: fontSize[10],
     fontWeight: fontWeight.black,
-    lineHeight: 10,
+  },
+  addButton: {
+    borderRadius: radius[3],
+    paddingVertical: spacing[2],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing[2],
+  },
+  addButtonText: {
+    color: colors.accent.primary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.extrabold,
   },
 }));
 

@@ -369,7 +369,7 @@ const styles = createStyles(() => ({
   },
 
   foodName: {
-    fontSize: fontSize[12],
+    fontSize: fontSize[14],
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
     lineHeight: 15,
@@ -436,7 +436,7 @@ const styles = createStyles(() => ({
 
   quantityLabel: {
     paddingHorizontal: spacing[1],
-    paddingVertical: 2,
+    paddingVertical: 3,
     backgroundColor: colors.faded.surfaceMedium,
     borderRadius: radius[1],
   },

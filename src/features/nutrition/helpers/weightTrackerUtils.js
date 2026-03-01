@@ -209,6 +209,9 @@ export const getCurrentWeekRollingStats = (mealCache, weightIns) => {
 
   const weekEntry = weightIns?.find(w => w.weekStart === weekStart);
   const avgWeight = weekEntry?.average ?? null;
+  const daysLoggedWeight = weekEntry?.days
+    ? Object.values(weekEntry.days).filter(w => w != null && !isNaN(w)).length
+    : 0;
 
   return {
     avgCalories: nutritionStats.avgCalories,
@@ -219,6 +222,7 @@ export const getCurrentWeekRollingStats = (mealCache, weightIns) => {
     avgWeight,
     daysLoggedNutrition: nutritionStats.daysLoggedNutrition,
     daysLoggedSteps: nutritionStats.daysLoggedSteps,
+    daysLoggedWeight,
   };
 };
 

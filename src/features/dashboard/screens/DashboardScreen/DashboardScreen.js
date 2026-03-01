@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
-import { View, StatusBar, RefreshControl, TouchableOpacity, Alert, Text, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
-import { MaterialCommunityIcons, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
+import { View, TouchableOpacity, Text, ActivityIndicator, ScrollView } from 'react-native';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useNavigationState } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
+import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
 import GoogleFitStepDisplay from '../../../../shared/components/GoogleFitStepDisplay/GoogleFitStepDisplay';
 import { colors, spacing } from '../../../../shared/theme';
 import { fetchSplitsFromFirestore } from '../../../workout/handlers/WorkoutHandler';
@@ -18,13 +17,6 @@ const DAYS_MAP = {
   0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday',
   4: 'thursday', 5: 'friday', 6: 'saturday',
 };
-
-const screens = [
-  { name: 'Dashboard', label: 'Home',      icon: 'home',         iconType: 'Ionicons' },
-  { name: 'Workout',   label: 'Workout',   icon: 'dumbbell',     iconType: 'MaterialCommunityIcons' },
-  { name: 'Nutrition', label: 'Nutrition', icon: 'restaurant',   iconType: 'MaterialIcons' },
-  { name: 'Progress',  label: 'Progress',  icon: 'insert-chart', iconType: 'MaterialIcons' },
-];
 
 const toLocalDateKey = (date) => {
   const y = date.getFullYear();
@@ -42,30 +34,10 @@ const getMonday = (date) => {
   return d;
 };
 
-const NavItem = ({ screen, isActive, onPress }) => {
-  const iconProps = { size: spacing[6], color: isActive ? colors.accent.primary : colors.text.secondary };
-  const Icon = screen.iconType === 'MaterialIcons'
-    ? MaterialIcons
-    : screen.iconType === 'MaterialCommunityIcons'
-    ? MaterialCommunityIcons
-    : Ionicons;
-
-  return (
-    <TouchableOpacity style={styles.navItem} onPress={onPress} activeOpacity={0.7}>
-      <Icon name={screen.icon} {...iconProps} />
-      <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>{screen.label}</Text>
-    </TouchableOpacity>
-  );
-};
-
 const TodayWorkout = ({ workout, onPress }) => {
   if (!workout) {
     return (
       <View style={styles.workoutCard}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="calendar-outline" size={spacing[3]} color={colors.text.secondary} />
-          <Text style={styles.cardLabel}>TODAY'S WORKOUT</Text>
-        </View>
         <View style={styles.workoutContent}>
           <View style={styles.restIconContainer}>
             <Ionicons name="moon" size={spacing[6]} color={colors.accent.cyan} />
@@ -81,10 +53,6 @@ const TodayWorkout = ({ workout, onPress }) => {
 
   return (
     <TouchableOpacity style={styles.workoutCard} onPress={onPress} activeOpacity={0.85}>
-      <View style={styles.cardHeader}>
-        <Ionicons name="calendar-outline" size={spacing[3]} color={colors.text.secondary} />
-        <Text style={styles.cardLabel}>TODAY'S WORKOUT</Text>
-      </View>
       <View style={styles.workoutContent}>
         <View style={styles.workoutInfo}>
           <Text style={styles.workoutTitle}>{workout.name}</Text>
@@ -105,34 +73,28 @@ const TodayWorkout = ({ workout, onPress }) => {
 
 const TodayNutrition = ({ calories, targetCalories, macros, onPress }) => {
   const percentage = targetCalories > 0 ? Math.round((calories / targetCalories) * 100) : 0;
-  const remaining = Math.max(0, targetCalories - calories);
+  const remaining = targetCalories - calories;
+  const isComplete = calories >= targetCalories;
 
   return (
     <TouchableOpacity style={styles.nutritionCard} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.nutritionHeader}>
-        <View style={styles.cardHeader}>
-          <MaterialIcons name="restaurant" size={spacing[3]} color={colors.text.secondary} />
-          <Text style={styles.cardLabel}>TODAY'S NUTRITION</Text>
-        </View>
-        <View style={styles.percentageBadge}>
-          <Text style={styles.percentageText}>
-            {remaining > 0 ? `${Math.round(remaining)} left` : 'Complete'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.caloriesRow}>
         <View style={styles.caloriesValues}>
           <Text style={styles.caloriesValue}>{Math.round(calories).toLocaleString()}</Text>
           <Text style={styles.caloriesTarget}>/ {Math.round(targetCalories).toLocaleString()}</Text>
         </View>
-        <Text style={styles.remainingText}>{percentage}% of daily goal</Text>
+        <View style={styles.percentageBadge}>
+          <Text style={styles.percentageText}>
+            {isComplete ? 'Complete' : `${Math.round(remaining)} left`}
+          </Text>
+        </View>
       </View>
-
+      <Text style={styles.remainingText}>
+        {isComplete ? '100% of daily goal' : `${percentage}% of daily goal`}
+      </Text>
       <View style={styles.nutritionProgress}>
         <View style={[styles.nutritionProgressFill, { width: `${Math.min(percentage, 100)}%` }]} />
       </View>
-
       <View style={styles.macroRow}>
         {[
           { label: 'Carbs',   value: macros.carbs,   color: colors.accent.success },
@@ -157,7 +119,6 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
     const today = new Date();
     const monday = getMonday(today);
     const todayKey = toLocalDateKey(today);
-
     const todayEnd = new Date(today);
     todayEnd.setHours(23, 59, 59, 999);
 
@@ -171,7 +132,6 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
       const dateKey = toLocalDateKey(day);
       const isFuture = dateKey > todayKey;
       const isToday = dateKey === todayKey;
-
       return {
         dateKey,
         dayLabel: day.toLocaleDateString('en-US', { weekday: 'short' }),
@@ -182,10 +142,7 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
     });
   }, [getCaloriesForDateRange]);
 
-  const maxCalories = Math.max(
-    ...weekDays.filter(d => !d.isFuture).map(d => d.calories || 0),
-    2500
-  );
+  const maxCalories = Math.max(...weekDays.filter(d => !d.isFuture).map(d => d.calories || 0), 2500);
 
   return (
     <View style={styles.weeklyCard}>
@@ -196,21 +153,11 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
         </View>
         <Text style={styles.chartTitle}>Daily Calories</Text>
       </View>
-
       <View style={styles.chartContainer}>
-        <View style={styles.yAxisContainer}>
-          <Text style={styles.yAxisText}>{Math.round(maxCalories)}</Text>
-          <Text style={styles.yAxisText}>{Math.round(maxCalories / 2)}</Text>
-          <Text style={styles.yAxisText}>0</Text>
-        </View>
-
         <View style={styles.chartContent}>
           <View style={styles.barsRow}>
             {weekDays.map((point, index) => {
-              const heightPercent = point.calories > 0
-                ? (point.calories / maxCalories) * 100
-                : 0;
-
+              const heightPercent = point.calories > 0 ? (point.calories / maxCalories) * 100 : 0;
               return (
                 <View key={index} style={styles.barContainer}>
                   {!point.isFuture && point.calories > 0 && (
@@ -228,7 +175,6 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
               );
             })}
           </View>
-
           <View style={styles.daysRow}>
             {weekDays.map((point, index) => (
               <View key={index} style={styles.dayContainer}>
@@ -240,34 +186,24 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
           </View>
         </View>
       </View>
-
       <View style={styles.weeklyGrid}>
         {[
           {
             icon: <Ionicons name="flame-outline" size={spacing[5]} color={colors.accent.primary} />,
             bg: colors.faded.primary,
-            value: rollingStats.avgCalories > 0
-              ? Math.round(rollingStats.avgCalories).toLocaleString()
-              : '--',
-            label: rollingStats.daysLoggedNutrition > 0
-              ? `Avg Cal (${rollingStats.daysLoggedNutrition}d)`
-              : 'Avg Calories',
+            value: rollingStats.avgCalories > 0 ? Math.round(rollingStats.avgCalories).toLocaleString() : '--',
+            label: rollingStats.daysLoggedNutrition > 0 ? `Avg Cal (${rollingStats.daysLoggedNutrition}d)` : 'Avg Calories',
           },
           {
             icon: <MaterialCommunityIcons name="scale-bathroom" size={spacing[5]} color={colors.accent.purple} />,
             bg: colors.faded.purple,
             value: rollingStats.avgWeight ? `${rollingStats.avgWeight.toFixed(1)} kg` : '--',
-            label: 'Avg Weight',
-          },
+            label: rollingStats.daysLoggedWeight > 0 ? `Avg Weight (${rollingStats.daysLoggedWeight}d)` : 'Avg Weight',          },
           {
             icon: <Ionicons name="walk-outline" size={spacing[5]} color={colors.accent.stepsRed} />,
             bg: colors.faded.error,
-            value: rollingStats.avgSteps > 0
-              ? `${(rollingStats.avgSteps / 1000).toFixed(1)}k`
-              : '--',
-            label: rollingStats.daysLoggedSteps > 0
-              ? `Avg Steps (${rollingStats.daysLoggedSteps}d)`
-              : 'Avg Steps',
+            value: rollingStats.avgSteps > 0 ? `${(rollingStats.avgSteps / 1000).toFixed(1)}k` : '--',
+            label: rollingStats.daysLoggedSteps > 0 ? `Avg Steps (${rollingStats.daysLoggedSteps}d)` : 'Avg Steps',
           },
           {
             icon: <Ionicons name="barbell-outline" size={spacing[5]} color={colors.accent.cyan} />,
@@ -277,9 +213,7 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
           },
         ].map((stat, i) => (
           <View key={i} style={styles.weeklyStatItem}>
-            <View style={[styles.weeklyIconContainer, { backgroundColor: stat.bg }]}>
-              {stat.icon}
-            </View>
+            <View style={[styles.weeklyIconContainer, { backgroundColor: stat.bg }]}>{stat.icon}</View>
             <View style={styles.weeklyStatText}>
               <Text style={styles.weeklyStatValue}>{stat.value}</Text>
               <Text style={styles.weeklyStatLabel}>{stat.label}</Text>
@@ -296,19 +230,7 @@ const DashboardScreen = () => {
   const navigation = useNavigation();
   const [todayScheduledWorkout, setTodayScheduledWorkout] = useState(null);
 
-  const currentRouteName = useNavigationState(
-    state => state?.routes[state.index]?.name || 'Dashboard'
-  );
-
-  const {
-    dailyNutrition,
-    userMacros,
-    updateDailySteps,
-    rollingWeekStats,
-    getCaloriesForDateRange,
-    initialLoadComplete,
-  } = useFoodContext();
-
+  const { dailyNutrition, userMacros, updateDailySteps, rollingWeekStats, getCaloriesForDateRange, initialLoadComplete } = useFoodContext();
   const { workoutHistory } = useContext(WorkoutContext);
   const { userData } = useContext(AuthContext);
 
@@ -316,17 +238,14 @@ const DashboardScreen = () => {
 
   useEffect(() => {
     if (!initialLoadComplete) return;
-
     const loadTodayWorkout = async () => {
       try {
         const splits = await fetchSplitsFromFirestore();
         if (!splits.length) return;
-
         const schedule = splits[0].schedule || splits[0].data?.schedule || {};
         const todayKey = DAYS_MAP[new Date().getDay()];
         const workout = schedule[todayKey];
         const exercises = workout?.exercises || [];
-
         setTodayScheduledWorkout(exercises.length > 0 ? {
           name: workout.templateName || 'Workout',
           duration: workout.duration || 45,
@@ -336,7 +255,6 @@ const DashboardScreen = () => {
         console.error('loadTodayWorkout error:', error);
       }
     };
-
     loadTodayWorkout();
   }, [initialLoadComplete]);
 
@@ -359,57 +277,38 @@ const DashboardScreen = () => {
     );
   }
 
-  return (
-    <ApplicationCustomScreen>
-      <View style={styles.container}>
-        <GoogleFitStepDisplay onStepsUpdate={updateDailySteps} />
-
-        <View
-          style={styles.content}
-          contentContainerStyle={{
-            paddingTop: spacing[3],
-            paddingBottom: insets.bottom + spacing[20],
-            paddingHorizontal: spacing[4],
-          }}
-          showsVerticalScrollIndicator={false}
-        >
-          <TodayWorkout
-            workout={todayScheduledWorkout}
-            onPress={() => navigation.navigate('Workout')}
-          />
-
-          <TodayNutrition
-            calories={dailyNutrition?.calories || 0}
-            targetCalories={userMacros?.targetCalories || 2000}
-            macros={{
-              carbs:   dailyNutrition?.carbs   || 0,
-              protein: dailyNutrition?.protein  || 0,
-              fat:     dailyNutrition?.fat      || 0,
-            }}
-            onPress={() => navigation.navigate('Nutrition')}
-          />
-
-          <WeeklyOverview
-            rollingStats={rollingWeekStats}
-            weeklyWorkouts={weeklyWorkoutsCount}
-            targetWorkouts={targetWorkouts}
-            getCaloriesForDateRange={getCaloriesForDateRange}
-          />
-        </View>
-
-        <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, spacing[1]) }]}>
-          {screens.map(screen => (
-            <NavItem
-              key={screen.name}
-              screen={screen}
-              isActive={currentRouteName === screen.name}
-              onPress={() => navigation.navigate(screen.name)}
-            />
-          ))}
-        </View>
-      </View>
-    </ApplicationCustomScreen>
-  );
+return (
+  <ApplicationCustomScreen>
+    <View style={styles.container}>
+      <GoogleFitStepDisplay onStepsUpdate={updateDailySteps} />
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 65 + spacing[3],
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        <TodayWorkout
+          workout={todayScheduledWorkout}
+          onPress={() => navigation.navigate('Workout')}
+        />
+        <TodayNutrition
+          calories={dailyNutrition?.calories || 0}
+          targetCalories={userMacros?.targetCalories || 2000}
+          macros={{ carbs: dailyNutrition?.carbs || 0, protein: dailyNutrition?.protein || 0, fat: dailyNutrition?.fat || 0 }}
+          onPress={() => navigation.navigate('Nutrition')}
+        />
+        <WeeklyOverview
+          rollingStats={rollingWeekStats}
+          weeklyWorkouts={weeklyWorkoutsCount}
+          targetWorkouts={targetWorkouts}
+          getCaloriesForDateRange={getCaloriesForDateRange}
+        />
+      </ScrollView>
+    </View>
+    <BottomNav />
+  </ApplicationCustomScreen>
+);
 };
 
 export default DashboardScreen;

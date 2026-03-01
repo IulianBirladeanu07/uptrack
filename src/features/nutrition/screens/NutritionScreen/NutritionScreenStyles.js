@@ -18,7 +18,7 @@ const styles = createStyles(() => ({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing[5],
+    marginBottom: spacing[4],
   },
   learningStatusContainer: {
     marginTop: spacing[3],
@@ -185,24 +185,6 @@ const styles = createStyles(() => ({
     color: colors.text.secondary,
     fontWeight: fontWeight.semibold,
     textAlign: 'center',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginTop: spacing[5],
-    paddingHorizontal: spacing[2],
-  },
-  addButton: {
-    flex: 1,
-  },
-  addButtonText: {
-    color: colors.text.primary,
-    fontSize: fontSize[20],
-    fontWeight: fontWeight.extrabold,
-    textAlign: 'left',
-    letterSpacing: -0.3,
   },
   learningStatus: {
     color: colors.text.secondary,

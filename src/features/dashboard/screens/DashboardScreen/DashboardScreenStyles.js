@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
@@ -8,24 +7,26 @@ export const styles = createStyles(() => ({
     padding: spacing[4],
     backgroundColor: colors.background.primary,
   },
-  
+
   content: {
+    marginTop: spacing[5],
     flex: 1,
   },
-  
+
   cardLabel: {
     fontSize: fontSize[10],
     fontWeight: fontWeight.bold,
     color: colors.text.secondary,
     letterSpacing: 0.8,
   },
-  
+
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
+    marginBottom: spacing[3],
   },
-  
+
   workoutCard: {
     backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
@@ -34,14 +35,13 @@ export const styles = createStyles(() => ({
     borderWidth: 1,
     borderColor: colors.border.default,
   },
-  
+
   workoutContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing[3],
     gap: spacing[4],
   },
-  
+
   restIconContainer: {
     width: spacing[12],
     height: spacing[12],
@@ -52,37 +52,38 @@ export const styles = createStyles(() => ({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
+
   workoutInfo: {
     flex: 1,
   },
-  
+
   workoutTitle: {
-    fontSize: fontSize[20],
+    fontSize: fontSize[24],
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
     marginBottom: spacing[1],
     letterSpacing: -0.3,
   },
-  
+
   workoutSubtitle: {
     fontSize: fontSize[12],
     color: colors.text.secondary,
     fontWeight: fontWeight.medium,
   },
-  
+
   workoutMeta: {
     flexDirection: 'row',
     gap: spacing[3],
     alignItems: 'center',
+    marginTop: spacing[1],
   },
-  
+
   metaText: {
     fontSize: fontSize[12],
     color: colors.text.secondary,
     fontWeight: fontWeight.medium,
   },
-  
+
   playButton: {
     width: spacing[10],
     height: spacing[10],
@@ -91,7 +92,7 @@ export const styles = createStyles(() => ({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
+
   nutritionCard: {
     backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
@@ -100,76 +101,78 @@ export const styles = createStyles(() => ({
     borderWidth: 1,
     borderColor: colors.border.default,
   },
-  
+
   nutritionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing[4],
+    marginBottom: spacing[1],
   },
-  
-  percentageBadge: {
-    backgroundColor: colors.accent.primary,
-    paddingHorizontal: spacing[2],
-    paddingVertical: spacing[1],
-    borderRadius: radius[2],
-  },
-  
-  percentageText: {
-    fontSize: fontSize[10],
-    fontWeight: fontWeight.bold,
-    color: colors.background.primary,
-  },
-  
-  caloriesRow: {
-    marginBottom: spacing[3],
-  },
-  
+
   caloriesValues: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: spacing[2],
   },
-  
+
   caloriesValue: {
     fontSize: fontSize[32],
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
     letterSpacing: -1,
   },
-  
+
   caloriesTarget: {
     fontSize: fontSize[18],
     color: colors.text.secondary,
     fontWeight: fontWeight.semibold,
     marginLeft: spacing[1],
   },
-  
+
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing[3],
+  },
+
   remainingText: {
     fontSize: fontSize[12],
     color: colors.text.secondary,
     fontWeight: fontWeight.semibold,
+    marginBottom: spacing[3],
   },
-  
+  percentageBadge: {
+    backgroundColor: colors.accent.primary,
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    borderRadius: radius[2],
+  },
+
+  percentageText: {
+    fontSize: fontSize[10],
+    fontWeight: fontWeight.bold,
+    color: colors.background.primary,
+  },
+
   nutritionProgress: {
-    height: 8,
+    height: spacing[2],
     backgroundColor: colors.border.default,
     borderRadius: radius[3],
     overflow: 'hidden',
     marginBottom: spacing[4],
   },
-  
+
   nutritionProgressFill: {
     height: '100%',
     backgroundColor: colors.accent.primary,
     borderRadius: radius[3],
   },
-  
+
   macroRow: {
     flexDirection: 'row',
     gap: spacing[2],
   },
-  
+
   macroItem: {
     flex: 1,
     backgroundColor: colors.faded.surfaceLight,
@@ -178,34 +181,34 @@ export const styles = createStyles(() => ({
     borderWidth: 1,
     borderColor: colors.border.default,
   },
-  
+
   macroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[1],
     marginBottom: spacing[2],
   },
-  
+
   macroDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
   },
-  
+
   macroLabel: {
     fontSize: fontSize[8],
     color: colors.text.secondary,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
   },
-  
+
   macroValue: {
     fontSize: fontSize[16],
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
     letterSpacing: -0.3,
   },
-  
+
   weeklyCard: {
     backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
@@ -214,46 +217,31 @@ export const styles = createStyles(() => ({
     borderWidth: 1,
     borderColor: colors.border.default,
   },
-  
+
   weeklyCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing[1], 
+    marginBottom: spacing[1],
   },
-  
+
   chartTitle: {
     fontSize: fontSize[10],
     fontWeight: fontWeight.semibold,
     color: colors.text.quaternary,
+    marginBottom: spacing[3],
   },
-  
+
   chartContainer: {
-    flexDirection: 'row',
     marginBottom: spacing[6],
     marginTop: spacing[5],
-    gap: spacing[3],
-  },
-    
-  yAxisContainer: {
-    width: spacing[9],
-    justifyContent: 'space-between',
-    height: spacing[24],
+    paddingHorizontal: spacing[3],
   },
 
-  yAxisText: {
-    fontSize: fontSize[8],
-    color: colors.text.quaternary,
-    fontWeight: fontWeight.semibold,
-    textAlign: 'right',
-    lineHeight: fontSize[8],
+  chartContent: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
-
-chartContent: {
-  flex: 1,
-  justifyContent: 'flex-end',
-  paddingRight: spacing[4],
-},
 
   barsRow: {
     height: spacing[24],
@@ -315,21 +303,21 @@ chartContent: {
   },
 
   weeklyGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing[3],
-      justifyContent: 'flex-start',
-      paddingLeft: spacing[12],
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingLeft: spacing[3],
   },
-  
+
   weeklyStatItem: {
-    width: '48%',
+    width: '50%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
-    paddingVertical: spacing[1],
+    paddingVertical: spacing[2],
+    paddingRight: spacing[3],
   },
-  
+
   weeklyIconContainer: {
     width: spacing[9],
     height: spacing[9],
@@ -339,11 +327,11 @@ chartContent: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
+
   weeklyStatText: {
     flex: 1,
   },
-  
+
   weeklyStatValue: {
     fontSize: fontSize[16],
     fontWeight: fontWeight.bold,
@@ -351,41 +339,10 @@ chartContent: {
     letterSpacing: -0.3,
     marginBottom: spacing[1],
   },
-  
+
   weeklyStatLabel: {
     fontSize: fontSize[10],
     color: colors.text.secondary,
     fontWeight: fontWeight.medium,
-  },
-  
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.background.secondary,
-    flexDirection: 'row',
-    paddingHorizontal: spacing[2],
-    paddingTop: spacing[2],
-    borderTopWidth: 1,
-    borderTopColor: colors.border.default,
-  },
-  
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing[1],
-    gap: spacing[1],
-  },
-  
-  navLabel: {
-    fontSize: fontSize[10],
-    color: colors.text.quaternary,
-    fontWeight: fontWeight.medium,
-  },
-  
-  navLabelActive: {
-    color: colors.accent.primary,
-    fontWeight: fontWeight.semibold,
   },
 }));
