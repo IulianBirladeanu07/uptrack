@@ -110,7 +110,7 @@ const styles = createStyles(() => ({
   startButton: {
     backgroundColor: colors.accent.primary,
     borderRadius: radius[3],
-    paddingVertical: spacing[4],
+    paddingVertical: spacing[3],
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
