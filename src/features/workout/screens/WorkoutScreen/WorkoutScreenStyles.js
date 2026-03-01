@@ -12,38 +12,21 @@ const styles = createStyles(() => ({
     alignItems: 'center',
   },
 
-  headerStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: colors.background.secondary,
-    borderRadius: radius[4],
-    paddingVertical: spacing[3],
-    marginBottom: spacing[4],
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  headerStatItem: {
-    alignItems: 'center',
-  },
-  headerStatIcon: {
-    marginBottom: spacing[1],
-  },
-  headerStatValue: {
-    fontSize: fontSize[16],
-    fontWeight: fontWeight.bold,
+  screenTitle: {
+    fontSize: fontSize[28],
+    fontWeight: fontWeight.extrabold,
     color: colors.text.primary,
-  },
-  headerStatLabel: {
-    fontSize: fontSize[10],
-    color: colors.text.secondary,
-    fontWeight: fontWeight.medium,
+    letterSpacing: -0.5,
+    marginBottom: spacing[4],
+    marginTop: spacing[1],
+    textAlign: 'center',
   },
 
   workoutCard: {
     backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
     marginBottom: spacing[4],
-    padding: spacing[4],
+    padding: spacing[5],
     borderWidth: 1,
     borderColor: colors.border.default,
   },
@@ -64,7 +47,7 @@ const styles = createStyles(() => ({
     marginBottom: spacing[2],
   },
   workoutCardTitle: {
-    fontSize: fontSize[20],
+    fontSize: fontSize[24],
     fontWeight: fontWeight.extrabold,
     color: colors.text.primary,
     lineHeight: 24,
@@ -116,18 +99,18 @@ const styles = createStyles(() => ({
     fontWeight: fontWeight.semibold,
   },
   exerciseGridMore: {
-    color: colors.accent.cyan,
+    color: colors.accent.primary,
     fontSize: fontSize[12],
     fontWeight: fontWeight.semibold,
   },
 
   startButtonContainer: {
-    marginTop: spacing[1],
+    marginTop: spacing[3],
   },
   startButton: {
     backgroundColor: colors.accent.primary,
     borderRadius: radius[3],
-    paddingVertical: spacing[3],
+    paddingVertical: spacing[4],
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -147,7 +130,7 @@ const styles = createStyles(() => ({
   },
   startButtonText: {
     color: colors.background.primary,
-    fontSize: fontSize[14],
+    fontSize: fontSize[18],
     fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
   },
@@ -219,7 +202,7 @@ const styles = createStyles(() => ({
   },
   progressSubtitle: {
     fontSize: fontSize[14],
-    color: colors.text.secondary,
+    color: colors.accent.primary,
     fontWeight: fontWeight.semibold,
   },
   daysContainer: {
@@ -237,6 +220,11 @@ const styles = createStyles(() => ({
   activeDayCircle: {
     backgroundColor: colors.accent.primary,
   },
+  todayDayCircle: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: colors.accent.primary,
+  },
   inactiveDayCircle: {
     backgroundColor: colors.faded.surfaceMedium,
     borderWidth: 1,
@@ -246,6 +234,9 @@ const styles = createStyles(() => ({
     fontSize: fontSize[14],
     fontWeight: fontWeight.semibold,
     color: colors.background.primary,
+  },
+  todayDayText: {
+    color: colors.accent.primary,
   },
   inactiveDayText: {
     color: colors.text.tertiary,
@@ -265,23 +256,22 @@ const styles = createStyles(() => ({
   },
   upcomingGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing[2],
   },
   upcomingGridItem: {
     flex: 1,
-    minWidth: '48%',
-    maxWidth: '48%',
-    backgroundColor: colors.faded.surfaceLight,
     borderRadius: radius[3],
     padding: spacing[3],
     borderWidth: 1,
-    borderColor: colors.border.light,
     minHeight: spacing[20],
   },
+  upcomingGridItemWorkout: {
+    backgroundColor: colors.background.secondary,
+    borderColor: colors.border.default,
+  },
   upcomingGridItemRest: {
-    backgroundColor: colors.faded.cyanDark,
-    borderColor: colors.border.cyanDark,
+    backgroundColor: colors.faded.surfaceLight,
+    borderColor: colors.border.light,
   },
   upcomingGridHeader: {
     flexDirection: 'row',
@@ -292,25 +282,48 @@ const styles = createStyles(() => ({
   upcomingGridDay: {
     fontSize: fontSize[10],
     fontWeight: fontWeight.bold,
-    color: colors.text.secondary,
+    color: colors.accent.primary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+  },
+  upcomingGridDayRest: {
+    color: colors.text.quaternary,
   },
   upcomingGridName: {
     fontSize: fontSize[16],
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.extrabold,
     color: colors.text.primary,
-    marginBottom: spacing[1],
-    lineHeight: 19,
+    marginBottom: spacing[2],
+    lineHeight: 20,
+    letterSpacing: -0.3,
   },
   upcomingGridNameRest: {
-    color: colors.accent.cyan,
+    color: colors.text.tertiary,
+    fontWeight: fontWeight.semibold,
   },
-  upcomingGridInfo: {
-    fontSize: fontSize[12],
-    color: colors.text.secondary,
+  upcomingGridInfoRest: {
+    fontSize: fontSize[11],
+    color: colors.text.quaternary,
     fontWeight: fontWeight.medium,
-    lineHeight: 16,
+  },
+
+  muscleChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[1],
+    marginTop: spacing[1],
+  },
+  muscleChip: {
+    backgroundColor: colors.faded.surfaceLight,
+    borderRadius: radius[1],
+    paddingVertical: 3,
+    paddingHorizontal: spacing[2],
+  },
+  muscleChipText: {
+    fontSize: fontSize[10],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.tertiary,
+    letterSpacing: 0.2,
   },
 
   quickActionsContainer: {

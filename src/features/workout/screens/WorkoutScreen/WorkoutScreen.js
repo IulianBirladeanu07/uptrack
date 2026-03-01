@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
+import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
 import { fetchSplitsFromFirestore } from '../../handlers/WorkoutHandler';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { colors, spacing } from '../../../../shared/theme';
@@ -17,57 +18,29 @@ const DAYS_MAP = {
     3: 'wednesday',
     4: 'thursday',
     5: 'friday',
-    6: 'saturday'
+    6: 'saturday',
 };
 
 const LiveTimer = ({ startTime }) => {
     const [elapsed, setElapsed] = useState(0);
 
     React.useEffect(() => {
-        const updateElapsed = () => {
-            const now = Date.now();
-            const seconds = Math.floor((now - startTime) / 1000);
-            setElapsed(seconds);
-        };
-
+        const updateElapsed = () => setElapsed(Math.floor((Date.now() - startTime) / 1000));
         updateElapsed();
         const interval = setInterval(updateElapsed, 1000);
         return () => clearInterval(interval);
     }, [startTime]);
 
-    const formatTime = (timeInSeconds) => {
-        const hours = Math.floor(timeInSeconds / 3600);
-        const minutes = Math.floor((timeInSeconds % 3600) / 60);
-        const seconds = timeInSeconds % 60;
-
-        if (hours > 0) {
-            return `${hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
-        }
-        return `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+    const formatTime = (s) => {
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        if (h > 0) return `${h}:${m < 10 ? '0' + m : m}:${sec < 10 ? '0' + sec : sec}`;
+        return `${m}:${sec < 10 ? '0' + sec : sec}`;
     };
 
     return <Text style={styles.compactTimerText}>{formatTime(elapsed)}</Text>;
 };
-
-const HeaderSection = React.memo(({ stats }) => (
-    <View style={styles.headerStatsRow}>
-        <View style={styles.headerStatItem}>
-            <Ionicons name="flame-outline" size={14} color="#ff8535" style={styles.headerStatIcon} />
-            <Text style={styles.headerStatValue}>{stats.streak}</Text>
-            <Text style={styles.headerStatLabel}>Day Streak</Text>
-        </View>
-        <View style={styles.headerStatItem}>
-            <Ionicons name="time-outline" size={14} color="#00d4ff" style={styles.headerStatIcon} />
-            <Text style={styles.headerStatValue}>{stats.weeklyTime}</Text>
-            <Text style={styles.headerStatLabel}>This Week</Text>
-        </View>
-        <View style={styles.headerStatItem}>
-            <Ionicons name="barbell-outline" size={14} color="#a855f7" style={styles.headerStatIcon} />
-            <Text style={styles.headerStatValue}>{stats.workoutCount}</Text>
-            <Text style={styles.headerStatLabel}>Workouts</Text>
-        </View>
-    </View>
-));
 
 const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExercises, isRestDay, hasActiveWorkout, isToday }) => {
     const visibleExercises = allExercises.slice(0, 3);
@@ -78,11 +51,11 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
             <View style={styles.restDayCard}>
                 <View style={styles.restDayContent}>
                     <View style={styles.restDayIconContainer}>
-                        <Ionicons name="moon" size={28} color={colors.accent.cyan} />
+                        <Ionicons name="moon" size={28} color={colors.text.secondary} />
                     </View>
                     <View style={styles.restDayText}>
                         <Text style={styles.restDayTitle}>Rest Day</Text>
-                        <Text style={styles.restDaySubtitle}>Recovery & regeneration</Text>
+                        <Text style={styles.restDaySubtitle}>Recovery &amp; regeneration</Text>
                     </View>
                 </View>
             </View>
@@ -98,19 +71,20 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
                     </View>
                     <View style={styles.workoutMetrics}>
                         <View style={styles.metricItem}>
-                            <Ionicons name="time-outline" size={14} color="#d1d5db" />
+                            <Ionicons name="time-outline" size={14} color={colors.text.secondary} />
                             <Text style={styles.metricText}>{workoutData.duration}</Text>
                         </View>
                         <View style={styles.metricItem}>
-                            <Ionicons name="barbell-outline" size={14} color="#d1d5db" />
+                            <Ionicons name="barbell-outline" size={14} color={colors.text.secondary} />
                             <Text style={styles.metricText}>{allExercises.length} exercises</Text>
                         </View>
                     </View>
                 </View>
                 <TouchableOpacity style={styles.previewButton} onPress={onPreview}>
-                    <Ionicons name="eye-outline" size={spacing[3]} color={colors.accent.cyan} />
+                    <Ionicons name="eye-outline" size={spacing[4]} color={colors.text.secondary} />
                 </TouchableOpacity>
             </View>
+
             <View style={styles.exerciseGrid}>
                 {visibleExercises.map((exercise, index) => (
                     <View key={index} style={styles.exerciseGridItem}>
@@ -123,6 +97,7 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
                     </View>
                 )}
             </View>
+
             <View style={styles.startButtonContainer}>
                 <TouchableOpacity
                     style={[styles.startButton, hasActiveWorkout && styles.startButtonDisabled]}
@@ -130,7 +105,7 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
                     activeOpacity={0.8}
                     disabled={hasActiveWorkout}
                 >
-                    <Ionicons name="play" size={16} style={styles.playIcon} />
+                    <Ionicons name="play" size={18} style={styles.playIcon} />
                     <Text style={styles.startButtonText}>
                         {hasActiveWorkout ? 'WORKOUT IN PROGRESS' : 'START'}
                     </Text>
@@ -141,6 +116,7 @@ const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExerci
 });
 
 const WeeklyProgressSection = React.memo(({ completedDays }) => {
+    const today = new Date().getDay();
     const daysOfWeek = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     return (
@@ -153,12 +129,23 @@ const WeeklyProgressSection = React.memo(({ completedDays }) => {
                 {daysOfWeek.map((day, index) => {
                     const dayIndex = index === 6 ? 0 : index + 1;
                     const isCompleted = completedDays.includes(dayIndex);
+                    const isToday = dayIndex === today;
                     return (
                         <View
                             key={index}
-                            style={[styles.dayCircle, isCompleted ? styles.activeDayCircle : styles.inactiveDayCircle]}
+                            style={[
+                                styles.dayCircle,
+                                isCompleted ? styles.activeDayCircle
+                                    : isToday ? styles.todayDayCircle
+                                    : styles.inactiveDayCircle,
+                            ]}
                         >
-                            <Text style={[styles.dayText, !isCompleted && styles.inactiveDayText]}>
+                            <Text style={[
+                                styles.dayText,
+                                isCompleted ? null
+                                    : isToday ? styles.todayDayText
+                                    : styles.inactiveDayText,
+                            ]}>
                                 {day}
                             </Text>
                         </View>
@@ -169,7 +156,23 @@ const WeeklyProgressSection = React.memo(({ completedDays }) => {
     );
 });
 
-const WorkoutActionsSection = React.memo(({ upcomingWorkouts, onPreview }) => {
+const MuscleChips = ({ details }) => {
+    if (!details) return null;
+    const muscles = details.split(' · ').filter(Boolean);
+    return (
+        <View style={styles.muscleChipsRow}>
+            {muscles.map((m, i) => (
+                <View key={i} style={styles.muscleChip}>
+                    <Text style={styles.muscleChipText}>{m}</Text>
+                </View>
+            ))}
+        </View>
+    );
+};
+
+const ComingUpSection = React.memo(({ upcomingWorkouts, onPreview }) => {
+    if (!upcomingWorkouts.length) return null;
+
     return (
         <View style={styles.mergedCard}>
             <View style={styles.sectionHeader}>
@@ -179,21 +182,41 @@ const WorkoutActionsSection = React.memo(({ upcomingWorkouts, onPreview }) => {
                 {upcomingWorkouts.map((workout, index) => (
                     <TouchableOpacity
                         key={index}
-                        style={[styles.upcomingGridItem, workout.isRest && styles.upcomingGridItemRest]}
+                        style={[
+                            styles.upcomingGridItem,
+                            workout.isRest ? styles.upcomingGridItemRest : styles.upcomingGridItemWorkout,
+                        ]}
                         onPress={() => !workout.isRest && onPreview(workout)}
                         disabled={workout.isRest}
                         activeOpacity={workout.isRest ? 1 : 0.7}
                     >
                         <View style={styles.upcomingGridHeader}>
-                            <Text style={styles.upcomingGridDay}>{workout.day}</Text>
+                            <Text style={[
+                                styles.upcomingGridDay,
+                                workout.isRest && styles.upcomingGridDayRest,
+                            ]}>
+                                {workout.day}
+                            </Text>
                             {!workout.isRest && (
-                                <Ionicons name="arrow-forward" size={12} color={colors.accent.cyan} />
+                                <Ionicons name="arrow-forward" size={12} color={colors.accent.primary} />
+                            )}
+                            {workout.isRest && (
+                                <Ionicons name="moon-outline" size={12} color={colors.text.quaternary} />
                             )}
                         </View>
-                        <Text style={[styles.upcomingGridName, workout.isRest && styles.upcomingGridNameRest]}>
+
+                        <Text style={[
+                            styles.upcomingGridName,
+                            workout.isRest && styles.upcomingGridNameRest,
+                        ]}>
                             {workout.name}
                         </Text>
-                        <Text style={styles.upcomingGridInfo}>{workout.details}</Text>
+
+                        {workout.isRest ? (
+                            <Text style={styles.upcomingGridInfoRest}>Recovery day</Text>
+                        ) : (
+                            <MuscleChips details={workout.details} />
+                        )}
                     </TouchableOpacity>
                 ))}
             </View>
@@ -216,7 +239,6 @@ const WorkoutScreen = () => {
     const userStats = useMemo(() => {
         const completedDaysThisWeek = [];
         const now = new Date();
-        
         const weekStart = new Date(now);
         const currentDay = now.getDay();
         const daysToMonday = currentDay === 0 ? 6 : currentDay - 1;
@@ -236,33 +258,22 @@ const WorkoutScreen = () => {
             sortedHistory.forEach(workout => {
                 const workoutDate = workout.timestamp?.toDate ? workout.timestamp.toDate() : null;
                 if (!workoutDate) return;
-
                 if (workoutDate >= weekStart) {
                     const dayOfWeek = workoutDate.getUTCDay();
-                    if (!completedDaysThisWeek.includes(dayOfWeek)) {
-                        completedDaysThisWeek.push(dayOfWeek);
-                    }
-
+                    if (!completedDaysThisWeek.includes(dayOfWeek)) completedDaysThisWeek.push(dayOfWeek);
                     const duration = workout.duration || '0:00';
                     const parts = duration.split(':');
-                    if (parts.length === 2) {
-                        totalMinutes += parseInt(parts[0]) * 60 + parseInt(parts[1]);
-                    } else if (parts.length === 3) {
-                        totalMinutes += parseInt(parts[0]) * 60 + parseInt(parts[1]);
-                    }
+                    if (parts.length >= 2) totalMinutes += parseInt(parts[0]) * 60 + parseInt(parts[1]);
                 }
             });
 
             let currentDate = new Date(now);
             currentDate.setHours(0, 0, 0, 0);
-
             for (let i = 0; i < sortedHistory.length; i++) {
                 const workoutDate = sortedHistory[i].timestamp?.toDate();
                 if (!workoutDate) break;
-
                 const wDate = new Date(workoutDate);
                 wDate.setHours(0, 0, 0, 0);
-
                 if (wDate.getTime() === currentDate.getTime()) {
                     streak++;
                     currentDate.setDate(currentDate.getDate() - 1);
@@ -274,13 +285,12 @@ const WorkoutScreen = () => {
 
         const hours = Math.floor(totalMinutes / 60);
         const mins = totalMinutes % 60;
-        const weeklyTime = `${hours}h ${mins}m`;
 
         return {
             streak,
-            weeklyTime,
+            weeklyTime: `${hours}h ${mins}m`,
             workoutCount: workoutHistory?.length || 0,
-            completedDaysThisWeek
+            completedDaysThisWeek,
         };
     }, [workoutHistory]);
 
@@ -288,11 +298,7 @@ const WorkoutScreen = () => {
         try {
             setLoading(true);
             const splits = await fetchSplitsFromFirestore();
-
-            if (splits.length === 0) {
-                setLoading(false);
-                return;
-            }
+            if (splits.length === 0) { setLoading(false); return; }
 
             const rawSplit = splits[0];
             const active = {
@@ -300,26 +306,19 @@ const WorkoutScreen = () => {
                 name: rawSplit.name || rawSplit.data?.name,
                 schedule: rawSplit.schedule || rawSplit.data?.schedule || {},
             };
-            
             setActiveSplit(active);
 
             const today = new Date().getDay();
             const todayKey = DAYS_MAP[today];
             const schedule = active.schedule;
 
-            if (schedule && schedule[todayKey]) {
+            if (schedule?.[todayKey]?.exercises?.length > 0) {
                 const workout = schedule[todayKey];
-                const exercises = workout.exercises || [];
-                
-                if (exercises.length > 0) {
-                    setTodayWorkout({
-                        name: workout.templateName || 'Workout',
-                        duration: workout.duration ? `${workout.duration} mins` : '45 mins',
-                        exercises: exercises
-                    });
-                } else {
-                    setTodayWorkout(null);
-                }
+                setTodayWorkout({
+                    name: workout.templateName || 'Workout',
+                    duration: workout.duration ? `${workout.duration} mins` : '45 mins',
+                    exercises: workout.exercises,
+                });
             } else {
                 setTodayWorkout(null);
             }
@@ -334,23 +333,25 @@ const WorkoutScreen = () => {
                 const exercises = workout?.exercises || [];
 
                 if (exercises.length > 0) {
-                    const muscleGroups = [...new Set(exercises.map(e => e.muscleGroup))].join(', ');
+                    const muscleGroups = [...new Set(exercises.map(e => e.muscleGroup))].filter(Boolean);
                     upcoming.push({
                         name: workout.templateName,
                         day: dayNames[futureDay],
-                        details: muscleGroups,
-                        exercises: exercises,
+                        details: muscleGroups.join(' · '),
+                        muscleGroups,
+                        exercises,
                         duration: workout.duration ? `${workout.duration} mins` : '45 mins',
-                        isRest: false
+                        isRest: false,
                     });
                 } else {
                     upcoming.push({
                         name: 'Rest',
                         day: dayNames[futureDay],
-                        details: 'Recovery day',
+                        details: '',
+                        muscleGroups: [],
                         exercises: [],
                         duration: '0 mins',
-                        isRest: true
+                        isRest: true,
                     });
                 }
                 if (upcoming.length >= 3) break;
@@ -365,58 +366,58 @@ const WorkoutScreen = () => {
 
     useFocusEffect(useCallback(() => { loadActiveSplit(); }, [loadActiveSplit]));
 
-    const isRestDay = useMemo(() => !todayWorkout || !todayWorkout.exercises || todayWorkout.exercises.length === 0, [todayWorkout]);
+    const isRestDay = useMemo(() => !todayWorkout?.exercises?.length, [todayWorkout]);
 
     const primaryWorkout = useMemo(() => {
         if (!isRestDay && todayWorkout) {
             return { workout: todayWorkout, isRestDay: false, isToday: true };
         }
-        
         if (upcomingWorkouts.length > 0 && !upcomingWorkouts[0].isRest) {
             return {
                 workout: {
                     name: upcomingWorkouts[0].name,
                     duration: upcomingWorkouts[0].duration,
                     exercises: upcomingWorkouts[0].exercises,
-                    day: upcomingWorkouts[0].day
+                    day: upcomingWorkouts[0].day,
                 },
                 isRestDay: false,
-                isToday: false
+                isToday: false,
             };
         }
-        
         return { workout: null, isRestDay: true, isToday: false };
     }, [isRestDay, todayWorkout, upcomingWorkouts]);
 
+    const remainingUpcoming = useMemo(() => {
+        if (!primaryWorkout.isToday && upcomingWorkouts.length > 0) {
+            return upcomingWorkouts.slice(1, 3);
+        }
+        return upcomingWorkouts.slice(0, 2);
+    }, [primaryWorkout.isToday, upcomingWorkouts]);
+
+    const allExercises = useMemo(() =>
+        primaryWorkout?.workout?.exercises?.map(e => e.exerciseName) ?? [],
+        [primaryWorkout]
+    );
+
     const handleStartWorkout = useCallback(() => {
-        if (primaryWorkout && primaryWorkout.workout && primaryWorkout.workout.exercises && primaryWorkout.workout.exercises.length > 0 && !primaryWorkout.isRestDay) {
+        if (primaryWorkout?.workout?.exercises?.length && !primaryWorkout.isRestDay) {
             navigation.navigate('StartWorkout', {
                 selectedWorkout: {
                     note: '',
                     templateName: primaryWorkout.workout.name,
-                    exercises: primaryWorkout.workout.exercises
-                }
+                    exercises: primaryWorkout.workout.exercises,
+                },
             });
         } else {
             navigation.navigate('StartWorkout');
         }
     }, [navigation, primaryWorkout]);
 
-    const handleResumeWorkout = useCallback(() => { navigation.navigate('StartWorkout'); }, [navigation]);
+    const handleResumeWorkout = useCallback(() => navigation.navigate('StartWorkout'), [navigation]);
     const handlePreviewWorkout = useCallback((workout) => { setPreviewWorkout(workout); setIsModalVisible(true); }, []);
     const handleCloseModal = useCallback(() => { setIsModalVisible(false); setPreviewWorkout(null); }, []);
-    const handleTemplatesPress = useCallback(() => { navigation.navigate('WorkoutLibrary', { initialSegment: 'Templates' }); }, [navigation]);
-    const handleHistoryPress = useCallback(() => { navigation.navigate('WorkoutHistory'); }, [navigation]);
-    const handleSplitsPress = useCallback(() => { navigation.navigate('WorkoutLibrary', { initialSegment: 'Splits' }); }, [navigation]);
-
-    const remainingUpcoming = useMemo(() => {
-    if (!primaryWorkout.isToday && upcomingWorkouts.length > 0) {
-        return upcomingWorkouts.slice(1, 3);
-    }
-    return upcomingWorkouts.slice(0, 2);
-    }, [primaryWorkout.isToday, upcomingWorkouts]);
-
-    const allExercises = useMemo(() => !primaryWorkout || !primaryWorkout.workout || !primaryWorkout.workout.exercises ? [] : primaryWorkout.workout.exercises.map(e => e.exerciseName), [primaryWorkout]);
+    const handleLibraryPress = useCallback(() => navigation.navigate('WorkoutLibrary'), [navigation]);
+    const handleHistoryPress = useCallback(() => navigation.navigate('WorkoutHistory'), [navigation]);
 
     if (loading || !primaryWorkout) {
         return (
@@ -424,19 +425,22 @@ const WorkoutScreen = () => {
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={colors.accent.primary} />
                 </View>
+                <BottomNav />
             </ApplicationCustomScreen>
         );
     }
 
     return (
         <ApplicationCustomScreen>
-            <View style={[styles.container, { paddingBottom: 70 + insets.bottom, paddingHorizontal: spacing[4] }]}>
+            <ScrollView
+                style={styles.container}
+                contentContainerStyle={{ paddingBottom: 70 + insets.bottom, paddingHorizontal: spacing[4], paddingTop: spacing[2] }}
+                showsVerticalScrollIndicator={false}
+            >
+                <Text style={styles.screenTitle}>Workout Dashboard</Text>
+
                 {activeWorkout && (
-                    <TouchableOpacity
-                        style={styles.compactBanner}
-                        onPress={handleResumeWorkout}
-                        activeOpacity={0.8}
-                    >
+                    <TouchableOpacity style={styles.compactBanner} onPress={handleResumeWorkout} activeOpacity={0.8}>
                         <View style={styles.bannerLeft}>
                             <View style={styles.pulseDot} />
                             <Text style={styles.bannerText}>Workout Active</Text>
@@ -444,12 +448,10 @@ const WorkoutScreen = () => {
                         </View>
                         <View style={styles.bannerRight}>
                             <LiveTimer startTime={activeWorkout.startTime} />
-                            <Ionicons name="chevron-forward" size={14} color="#666" />
+                            <Ionicons name="chevron-forward" size={14} color={colors.text.secondary} />
                         </View>
                     </TouchableOpacity>
                 )}
-
-                <HeaderSection stats={userStats} />
 
                 <MainWorkoutCard
                     workoutData={primaryWorkout.workout}
@@ -464,35 +466,33 @@ const WorkoutScreen = () => {
                 <WeeklyProgressSection completedDays={userStats.completedDaysThisWeek} />
 
                 {remainingUpcoming.length > 0 && (
-                    <WorkoutActionsSection
+                    <ComingUpSection
                         upcomingWorkouts={remainingUpcoming}
                         onPreview={handlePreviewWorkout}
                     />
                 )}
 
                 <View style={styles.quickActionsContainer}>
-                    <TouchableOpacity style={styles.quickActionButton} onPress={handleTemplatesPress}>
+                    <TouchableOpacity style={styles.quickActionButton} onPress={handleLibraryPress}>
                         <Ionicons name="albums-outline" size={20} color={colors.accent.primary} />
-                        <Text style={styles.quickActionButtonText}>Templates</Text>
+                        <Text style={styles.quickActionButtonText}>Library</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.quickActionButton} onPress={handleHistoryPress}>
-                        <Ionicons name="stats-chart-outline" size={20} color={colors.accent.cyan} />
+                        <Ionicons name="stats-chart-outline" size={20} color={colors.accent.primary} />
                         <Text style={styles.quickActionButtonText}>History</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.quickActionButton} onPress={handleSplitsPress}>
-                        <Ionicons name="calendar-outline" size={20} color={colors.accent.purple} />
-                        <Text style={styles.quickActionButtonText}>Programs</Text>
-                    </TouchableOpacity>
                 </View>
-            </View>
+            </ScrollView>
 
-            <Modal animationType="fade" transparent={true} visible={isModalVisible} onRequestClose={handleCloseModal}>
+            <BottomNav />
+
+            <Modal animationType="fade" transparent visible={isModalVisible} onRequestClose={handleCloseModal}>
                 <Pressable style={styles.modalOverlay} onPress={handleCloseModal}>
                     <View style={[styles.modalContent, { marginTop: insets.top, marginBottom: insets.bottom }]}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>{previewWorkout?.name || 'Workout'}</Text>
                             <TouchableOpacity onPress={handleCloseModal} style={styles.modalCloseButton}>
-                                <Ionicons name="close" size={18} color="#FFFFFF" />
+                                <Ionicons name="close" size={18} color={colors.text.primary} />
                             </TouchableOpacity>
                         </View>
 
@@ -526,9 +526,7 @@ const WorkoutScreen = () => {
                                                 </Text>
                                             </View>
                                             <View style={styles.modalBestSetContainer}>
-                                                <Text style={styles.modalBestSetValue}>
-                                                    {exercise.repRange} reps
-                                                </Text>
+                                                <Text style={styles.modalBestSetValue}>{exercise.repRange} reps</Text>
                                             </View>
                                         </View>
                                     );
@@ -537,10 +535,7 @@ const WorkoutScreen = () => {
                         </ScrollView>
 
                         <TouchableOpacity
-                            style={[
-                                styles.modalStartButton,
-                                activeWorkout && styles.modalStartButtonDisabled
-                            ]}
+                            style={[styles.modalStartButton, activeWorkout && styles.modalStartButtonDisabled]}
                             onPress={() => {
                                 if (activeWorkout) return;
                                 setIsModalVisible(false);
@@ -548,8 +543,8 @@ const WorkoutScreen = () => {
                                     selectedWorkout: {
                                         note: '',
                                         templateName: previewWorkout?.name,
-                                        exercises: previewWorkout?.exercises || []
-                                    }
+                                        exercises: previewWorkout?.exercises || [],
+                                    },
                                 });
                             }}
                             disabled={!!activeWorkout}
@@ -565,4 +560,5 @@ const WorkoutScreen = () => {
         </ApplicationCustomScreen>
     );
 };
+
 export default React.memo(WorkoutScreen);
