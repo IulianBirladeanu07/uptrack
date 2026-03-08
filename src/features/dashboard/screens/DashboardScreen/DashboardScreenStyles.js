@@ -4,13 +4,31 @@ import { createStyles } from '../../../../shared/theme/createStyles';
 export const styles = createStyles(() => ({
   container: {
     flex: 1,
-    padding: spacing[4],
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[3],
     backgroundColor: colors.background.primary,
   },
 
   content: {
-    marginTop: spacing[5],
     flex: 1,
+  },
+
+  greetingBlock: {
+    marginBottom: spacing[4],
+  },
+
+  greetingTitle: {
+    fontSize: fontSize[28],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    letterSpacing: -0.5,
+  },
+
+  greetingDate: {
+    fontSize: fontSize[14],
+    color: colors.text.secondary,
+    fontWeight: fontWeight.medium,
+    marginTop: spacing[1],
   },
 
   cardLabel: {
@@ -31,7 +49,7 @@ export const styles = createStyles(() => ({
     backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
     padding: spacing[4],
-    marginBottom: spacing[5],
+    marginBottom: spacing[4],
     borderWidth: 1,
     borderColor: colors.border.default,
   },
@@ -61,8 +79,8 @@ export const styles = createStyles(() => ({
     fontSize: fontSize[24],
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
-    marginBottom: spacing[1],
     letterSpacing: -0.3,
+    marginBottom: spacing[1],
   },
 
   workoutSubtitle: {
@@ -97,9 +115,10 @@ export const styles = createStyles(() => ({
     backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
     padding: spacing[4],
-    marginBottom: spacing[5],
+    marginBottom: spacing[4],
     borderWidth: 1,
     borderColor: colors.border.default,
+    zIndex: 1,
   },
 
   nutritionHeader: {
@@ -141,6 +160,7 @@ export const styles = createStyles(() => ({
     fontWeight: fontWeight.semibold,
     marginBottom: spacing[3],
   },
+
   percentageBadge: {
     backgroundColor: colors.accent.primary,
     paddingHorizontal: spacing[2],
@@ -213,7 +233,6 @@ export const styles = createStyles(() => ({
     backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
     padding: spacing[4],
-    marginBottom: spacing[5],
     borderWidth: 1,
     borderColor: colors.border.default,
   },
@@ -239,7 +258,6 @@ export const styles = createStyles(() => ({
   },
 
   chartContent: {
-    flex: 1,
     justifyContent: 'flex-end',
   },
 

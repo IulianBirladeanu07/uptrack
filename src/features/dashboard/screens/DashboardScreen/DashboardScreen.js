@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { View, TouchableOpacity, Text, ActivityIndicator, ScrollView } from 'react-native';
+import { View, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
@@ -44,7 +43,7 @@ const TodayWorkout = ({ workout, onPress }) => {
           </View>
           <View style={styles.workoutInfo}>
             <Text style={styles.workoutTitle}>Rest Day</Text>
-            <Text style={styles.workoutSubtitle}>Focus on getting those steps in</Text>
+            <Text style={styles.workoutSubtitle}>Let your muscles recover today.</Text>
           </View>
         </View>
       </View>
@@ -198,7 +197,8 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
             icon: <MaterialCommunityIcons name="scale-bathroom" size={spacing[5]} color={colors.accent.purple} />,
             bg: colors.faded.purple,
             value: rollingStats.avgWeight ? `${rollingStats.avgWeight.toFixed(1)} kg` : '--',
-            label: rollingStats.daysLoggedWeight > 0 ? `Avg Weight (${rollingStats.daysLoggedWeight}d)` : 'Avg Weight',          },
+            label: rollingStats.daysLoggedWeight > 0 ? `Avg Weight (${rollingStats.daysLoggedWeight}d)` : 'Avg Weight',
+          },
           {
             icon: <Ionicons name="walk-outline" size={spacing[5]} color={colors.accent.stepsRed} />,
             bg: colors.faded.error,
@@ -226,7 +226,6 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
 };
 
 const DashboardScreen = () => {
-  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [todayScheduledWorkout, setTodayScheduledWorkout] = useState(null);
 
@@ -277,38 +276,41 @@ const DashboardScreen = () => {
     );
   }
 
-return (
-  <ApplicationCustomScreen>
-    <View style={styles.container}>
-      <GoogleFitStepDisplay onStepsUpdate={updateDailySteps} />
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + 65 + spacing[3],
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        <TodayWorkout
-          workout={todayScheduledWorkout}
-          onPress={() => navigation.navigate('Workout')}
-        />
-        <TodayNutrition
-          calories={dailyNutrition?.calories || 0}
-          targetCalories={userMacros?.targetCalories || 2000}
-          macros={{ carbs: dailyNutrition?.carbs || 0, protein: dailyNutrition?.protein || 0, fat: dailyNutrition?.fat || 0 }}
-          onPress={() => navigation.navigate('Nutrition')}
-        />
-        <WeeklyOverview
-          rollingStats={rollingWeekStats}
-          weeklyWorkouts={weeklyWorkoutsCount}
-          targetWorkouts={targetWorkouts}
-          getCaloriesForDateRange={getCaloriesForDateRange}
-        />
-      </ScrollView>
-    </View>
-    <BottomNav />
-  </ApplicationCustomScreen>
-);
+  return (
+    <ApplicationCustomScreen>
+      <View style={styles.container}>
+        <GoogleFitStepDisplay onStepsUpdate={updateDailySteps} />
+        <View style={styles.greetingBlock}>
+          <Text style={styles.greetingTitle}>{(() => {
+            const h = new Date().getHours();
+            if (h < 12) return 'Good morning';
+            if (h < 17) return 'Good afternoon';
+            return 'Good evening';
+          })()}</Text>
+          <Text style={styles.greetingDate}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+        </View>
+        <View style={styles.content}>
+          <TodayWorkout
+            workout={todayScheduledWorkout}
+            onPress={() => navigation.navigate('Workout')}
+          />
+          <TodayNutrition
+            calories={dailyNutrition?.calories || 0}
+            targetCalories={userMacros?.targetCalories || 2000}
+            macros={{ carbs: dailyNutrition?.carbs || 0, protein: dailyNutrition?.protein || 0, fat: dailyNutrition?.fat || 0 }}
+            onPress={() => navigation.navigate('Nutrition')}
+          />
+          <WeeklyOverview
+            rollingStats={rollingWeekStats}
+            weeklyWorkouts={weeklyWorkoutsCount}
+            targetWorkouts={targetWorkouts}
+            getCaloriesForDateRange={getCaloriesForDateRange}
+          />
+        </View>
+        <BottomNav />
+      </View>
+    </ApplicationCustomScreen>
+  );
 };
 
 export default DashboardScreen;

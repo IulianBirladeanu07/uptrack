@@ -3,50 +3,32 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { normalize } from '../../hooks/useResponsive';
-
-const COLORS = {
-  background: '#0A0E13',
-  textPrimary: '#FFFFFF',
-  iconColor: '#d1d5db',
-  iconActive: '#ff8535',
-};
+import { colors, spacing } from '../../theme';
 
 const ApplicationCustomScreen = ({ children, showHeader = true }) => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
 
-  const handleProfilePress = () => {
-    navigation.navigate('Profile');
-  };
-
-  const handleSettingsPress = () => {
-    navigation.navigate('Settings');
-  };
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {}
       {showHeader && (
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.headerButton} 
-            onPress={handleProfilePress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Profile')}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name="person-circle-outline" size={normalize(32)} color={COLORS.iconColor} />
+            <Ionicons name="person-circle-outline" size={normalize(32)} color={colors.accent.primary} />
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.headerButton} 
-            onPress={handleSettingsPress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Settings')}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name="settings-outline" size={normalize(28)} color={COLORS.iconColor} />
+            <Ionicons name="settings-outline" size={normalize(26)} color={colors.text.quaternary} />
           </TouchableOpacity>
         </View>
       )}
-      
-      {}
+
       <View style={styles.content}>
         {children}
       </View>
@@ -57,17 +39,16 @@ const ApplicationCustomScreen = ({ children, showHeader = true }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background.primary,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: normalize(16),
-    paddingVertical: normalize(12),
-  },
-  headerButton: {
-    padding: normalize(4),
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
   },
   content: {
     flex: 1,
