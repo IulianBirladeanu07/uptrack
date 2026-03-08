@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState, useContext } from 'react';
-import { View, Text, TouchableOpacity, Modal, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Pressable, ScrollView, ActivityIndicator, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -21,134 +21,256 @@ const DAYS_MAP = {
     6: 'saturday',
 };
 
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 const LiveTimer = ({ startTime }) => {
     const [elapsed, setElapsed] = useState(0);
 
     React.useEffect(() => {
-        const updateElapsed = () => setElapsed(Math.floor((Date.now() - startTime) / 1000));
-        updateElapsed();
-        const interval = setInterval(updateElapsed, 1000);
-        return () => clearInterval(interval);
+        const update = () => setElapsed(Math.floor((Date.now() - startTime) / 1000));
+        update();
+        const id = setInterval(update, 1000);
+        return () => clearInterval(id);
     }, [startTime]);
 
-    const formatTime = (s) => {
-        const h = Math.floor(s / 3600);
-        const m = Math.floor((s % 3600) / 60);
-        const sec = s % 60;
-        if (h > 0) return `${h}:${m < 10 ? '0' + m : m}:${sec < 10 ? '0' + sec : sec}`;
-        return `${m}:${sec < 10 ? '0' + sec : sec}`;
-    };
+    const h = Math.floor(elapsed / 3600);
+    const m = Math.floor((elapsed % 3600) / 60);
+    const s = elapsed % 60;
+    const fmt = h > 0
+        ? `${h}:${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`
+        : `${m}:${s < 10 ? '0' + s : s}`;
 
-    return <Text style={styles.compactTimerText}>{formatTime(elapsed)}</Text>;
+    return <Text style={styles.resumeTimer}>{fmt}</Text>;
 };
 
-const MainWorkoutCard = React.memo(({ workoutData, onPreview, onStart, allExercises, isRestDay, hasActiveWorkout, isToday }) => {
-    const visibleExercises = allExercises.slice(0, 3);
-    const hasMoreExercises = allExercises.length > 3;
+const PulseDot = () => {
+    const scale = React.useRef(new Animated.Value(1)).current;
 
+    React.useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(scale, { toValue: 1.4, duration: 600, useNativeDriver: true }),
+                Animated.timing(scale, { toValue: 1, duration: 600, useNativeDriver: true }),
+            ])
+        ).start();
+    }, [scale]);
+
+    return <Animated.View style={[styles.pulseDot, { transform: [{ scale }] }]} />;
+};
+
+const MainWorkoutCard = React.memo(({ workoutData, onStart, onResume, onPreview, allExercises, isRestDay, activeWorkout, isToday, lastWorkoutStats }) => {
     if (isRestDay) {
+        const extraCount = (lastWorkoutStats?.exercises?.length ?? 0) - 3;
         return (
-            <View style={styles.restDayCard}>
-                <View style={styles.restDayContent}>
-                    <View style={styles.restDayIconContainer}>
-                        <Ionicons name="moon" size={28} color={colors.text.secondary} />
-                    </View>
-                    <View style={styles.restDayText}>
-                        <Text style={styles.restDayTitle}>Rest Day</Text>
-                        <Text style={styles.restDaySubtitle}>Recovery &amp; regeneration</Text>
-                    </View>
+            <View style={styles.workoutCard}>
+                <View style={styles.workoutCardTop}>
+                    <Text style={styles.cardEyebrow}>Rest Day</Text>
                 </View>
+
+                {lastWorkoutStats ? (
+                    <>
+                        <View style={styles.workoutTitleRow}>
+                            <Text style={styles.workoutCardTitle}>{lastWorkoutStats.name ?? 'Last Workout'}</Text>
+                        </View>
+
+                        <View style={styles.workoutMeta}>
+                            <Text style={styles.metaText}>{lastWorkoutStats.duration}</Text>
+                            <Text style={styles.metaSep}>·</Text>
+                            <Text style={styles.metaText}>{lastWorkoutStats.exerciseCount} exercises</Text>
+                            <Text style={styles.metaSep}>·</Text>
+                            <Text style={styles.metaText}>{lastWorkoutStats.totalSets} sets</Text>
+                        </View>
+
+                        <View style={styles.divider} />
+
+                        <View style={styles.exerciseList}>
+                            {lastWorkoutStats.exercises.slice(0, 3).map((ex, i) => (
+                                <View
+                                    key={i}
+                                    style={[
+                                        styles.exerciseRow,
+                                        i === Math.min(lastWorkoutStats.exercises.length, 3) - 1 && lastWorkoutStats.exercises.length <= 3 && styles.exerciseRowLast,
+                                    ]}
+                                >
+                                    <Text style={styles.exerciseSetsInline}>{ex.sets}x</Text>
+                                    <Text style={styles.exerciseName}>{ex.name}</Text>
+                                    <Text style={styles.exerciseReps}>{ex.bestSet}</Text>
+                                </View>
+                            ))}
+                            {extraCount > 0 && (
+                                <TouchableOpacity
+                                    onPress={() => onPreview({
+                                        name: lastWorkoutStats.name ?? 'Last Workout',
+                                        duration: lastWorkoutStats.duration,
+                                        exercises: lastWorkoutStats.exercises.map(ex => ({
+                                            exerciseName: ex.name,
+                                            numSets: ex.sets,
+                                            repRange: ex.bestSet ?? '',
+                                        })),
+                                    })}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={styles.exerciseMore}>+{extraCount} more exercises</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </>
+                ) : (
+                    <>
+                        <Text style={styles.workoutCardTitle}>Rest Day</Text>
+                        <Text style={styles.metaText}>Let your muscles recover today.</Text>
+                    </>
+                )}
             </View>
         );
     }
 
+    const today = new Date();
+    const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
+    const totalSets = workoutData.exercises?.reduce((acc, ex) => acc + (parseInt(ex.numSets) || 0), 0) ?? 0;
+    const extraCount = allExercises.length - 3;
+
     return (
         <View style={styles.workoutCard}>
-            <View style={styles.workoutCardHeader}>
-                <View style={styles.workoutInfo}>
-                    <View style={styles.workoutTitleRow}>
-                        <Text style={styles.workoutCardTitle}>{workoutData.name}</Text>
-                    </View>
-                    <View style={styles.workoutMetrics}>
-                        <View style={styles.metricItem}>
-                            <Ionicons name="time-outline" size={14} color={colors.text.secondary} />
-                            <Text style={styles.metricText}>{workoutData.duration}</Text>
-                        </View>
-                        <View style={styles.metricItem}>
-                            <Ionicons name="barbell-outline" size={14} color={colors.text.secondary} />
-                            <Text style={styles.metricText}>{allExercises.length} exercises</Text>
-                        </View>
-                    </View>
+            {isToday && (
+                <View style={styles.workoutCardTop}>
+                    <Text style={styles.cardEyebrow}>{`Today · ${dayName}`}</Text>
                 </View>
-                <TouchableOpacity style={styles.previewButton} onPress={onPreview}>
-                    <Ionicons name="eye-outline" size={spacing[4]} color={colors.text.secondary} />
-                </TouchableOpacity>
-            </View>
+            )}
 
-            <View style={styles.exerciseGrid}>
-                {visibleExercises.map((exercise, index) => (
-                    <View key={index} style={styles.exerciseGridItem}>
-                        <Text style={styles.exerciseGridText}>{exercise}</Text>
-                    </View>
-                ))}
-                {hasMoreExercises && (
-                    <View style={styles.exerciseGridItem}>
-                        <Text style={styles.exerciseGridMore}>+{allExercises.length - 3} more</Text>
+            <View style={styles.workoutTitleRow}>
+                <Text style={styles.workoutCardTitle}>{workoutData.name}</Text>
+                {!isToday && workoutData.day && (
+                    <View style={styles.dayBadge}>
+                        <Text style={styles.dayBadgeText}>{workoutData.day}</Text>
                     </View>
                 )}
             </View>
 
-            <View style={styles.startButtonContainer}>
-                <TouchableOpacity
-                    style={[styles.startButton, hasActiveWorkout && styles.startButtonDisabled]}
-                    onPress={onStart}
-                    activeOpacity={0.8}
-                    disabled={hasActiveWorkout}
-                >
-                    <Ionicons name="play" size={18} style={styles.playIcon} />
-                    <Text style={styles.startButtonText}>
-                        {hasActiveWorkout ? 'WORKOUT IN PROGRESS' : 'START'}
-                    </Text>
-                </TouchableOpacity>
+            <View style={styles.workoutMeta}>
+                <Text style={styles.metaText}>{workoutData.duration}</Text>
+                <Text style={styles.metaSep}>·</Text>
+                <Text style={styles.metaText}>{allExercises.length} exercises</Text>
+                <Text style={styles.metaSep}>·</Text>
+                <Text style={styles.metaText}>{totalSets} sets</Text>
             </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.exerciseList}>
+                {allExercises.slice(0, 3).map((name, i) => (
+                    <View
+                        key={i}
+                        style={[
+                            styles.exerciseRow,
+                            i === Math.min(allExercises.length, 3) - 1 && allExercises.length <= 3 && styles.exerciseRowLast,
+                        ]}
+                    >
+                        <Text style={styles.exerciseSetsInline}>
+                            {workoutData.exercises?.[i]?.numSets}x
+                        </Text>
+                        <Text style={styles.exerciseName}>{name}</Text>
+                        <Text style={styles.exerciseReps}>
+                            {workoutData.exercises?.[i]?.repRange} reps
+                        </Text>
+                    </View>
+                ))}
+                {extraCount > 0 && (
+                    <TouchableOpacity onPress={onPreview} activeOpacity={0.7}>
+                        <Text style={styles.exerciseMore}>+{extraCount} more exercises</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+
+            {activeWorkout ? (
+                <TouchableOpacity style={styles.resumeButton} onPress={onResume} activeOpacity={0.8}>
+                    <View style={styles.resumeButtonLeft}>
+                        <PulseDot />
+                        <Text style={styles.resumeButtonText}>Resume Workout</Text>
+                    </View>
+                    <LiveTimer startTime={activeWorkout.startTime} />
+                </TouchableOpacity>
+            ) : (
+                <TouchableOpacity style={styles.startButton} onPress={onStart} activeOpacity={0.8}>
+                    <Ionicons name="play" size={16} color={colors.accent.buttonText} />
+                    <Text style={styles.startButtonText}>Start Workout</Text>
+                </TouchableOpacity>
+            )}
         </View>
     );
 });
 
-const WeeklyProgressSection = React.memo(({ completedDays }) => {
+const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }) => {
     const today = new Date().getDay();
-    const daysOfWeek = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+    const weekDays = [
+        { key: 'monday',    jsDay: 1 },
+        { key: 'tuesday',   jsDay: 2 },
+        { key: 'wednesday', jsDay: 3 },
+        { key: 'thursday',  jsDay: 4 },
+        { key: 'friday',    jsDay: 5 },
+        { key: 'saturday',  jsDay: 6 },
+        { key: 'sunday',    jsDay: 0 },
+    ];
+
+    const days = weekDays.map(d => ({
+        ...d,
+        short: DAY_LABELS[d.jsDay],
+        hasWorkout: (schedule?.[d.key]?.exercises?.length ?? 0) > 0,
+        workoutData: schedule?.[d.key] ?? null,
+        done: completedDays.includes(d.jsDay),
+        isToday: d.jsDay === today,
+    }));
+
+    const doneCount = days.filter(d => d.done && d.hasWorkout).length;
+    const totalCount = days.filter(d => d.hasWorkout).length;
 
     return (
-        <View style={styles.progressCard}>
-            <View style={styles.progressHeader}>
-                <Text style={styles.sectionTitle}>Weekly Progress</Text>
-                <Text style={styles.progressSubtitle}>{completedDays.length}/7 Days</Text>
+        <View style={styles.card}>
+            <View style={styles.cardRow}>
+                <Text style={styles.cardTitle}>This Week</Text>
+                <Text style={styles.cardTitleRight}>{doneCount} / {totalCount}</Text>
             </View>
-            <View style={styles.daysContainer}>
-                {daysOfWeek.map((day, index) => {
-                    const dayIndex = index === 6 ? 0 : index + 1;
-                    const isCompleted = completedDays.includes(dayIndex);
-                    const isToday = dayIndex === today;
+            <View style={styles.weekRow}>
+                {days.map((d, i) => {
+                    const circleStyle = d.done
+                        ? styles.dayCircleDone
+                        : d.isToday
+                            ? styles.dayCircleToday
+                            : d.hasWorkout
+                                ? styles.dayCircleWorkout
+                                : styles.dayCircleRest;
+
                     return (
-                        <View
-                            key={index}
-                            style={[
-                                styles.dayCircle,
-                                isCompleted ? styles.activeDayCircle
-                                    : isToday ? styles.todayDayCircle
-                                    : styles.inactiveDayCircle,
-                            ]}
+                        <TouchableOpacity
+                            key={i}
+                            style={styles.weekCol}
+                            activeOpacity={d.hasWorkout ? 0.7 : 1}
+                            onPress={() => {
+                                if (!d.hasWorkout || !d.workoutData) return;
+                                onDayPress({
+                                    name: d.workoutData.templateName ?? 'Workout',
+                                    duration: d.workoutData.duration ? `${d.workoutData.duration} min` : '45 min',
+                                    exercises: d.workoutData.exercises ?? [],
+                                    day: d.short,
+                                });
+                            }}
                         >
-                            <Text style={[
-                                styles.dayText,
-                                isCompleted ? null
-                                    : isToday ? styles.todayDayText
-                                    : styles.inactiveDayText,
-                            ]}>
-                                {day}
+                            <View style={[styles.dayCircle, circleStyle]}>
+                                {d.done ? (
+                                    <Ionicons name="checkmark" size={14} color={colors.accent.buttonText} />
+                                ) : d.isToday ? (
+                                    <Ionicons name="play" size={9} color={colors.accent.primary} />
+                                ) : (
+                                    <Text style={[styles.dayCircleText, !d.hasWorkout && styles.dayCircleTextRest]}>
+                                        {d.short[0]}
+                                    </Text>
+                                )}
+                            </View>
+                            <Text style={[styles.weekDayLabel, d.isToday && styles.weekDayLabelToday]}>
+                                {d.short}
                             </Text>
-                        </View>
+                        </TouchableOpacity>
                     );
                 })}
             </View>
@@ -156,70 +278,39 @@ const WeeklyProgressSection = React.memo(({ completedDays }) => {
     );
 });
 
-const MuscleChips = ({ details }) => {
-    if (!details) return null;
-    const muscles = details.split(' · ').filter(Boolean);
-    return (
-        <View style={styles.muscleChipsRow}>
-            {muscles.map((m, i) => (
-                <View key={i} style={styles.muscleChip}>
-                    <Text style={styles.muscleChipText}>{m}</Text>
-                </View>
-            ))}
-        </View>
-    );
-};
-
-const ComingUpSection = React.memo(({ upcomingWorkouts, onPreview }) => {
+const ComingUpCard = React.memo(({ upcomingWorkouts, onPreview }) => {
     if (!upcomingWorkouts.length) return null;
-
     return (
-        <View style={styles.mergedCard}>
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Coming Up</Text>
+        <View style={styles.card}>
+            <View style={styles.cardRow}>
+                <Text style={styles.cardTitle}>Up Next</Text>
             </View>
-            <View style={styles.upcomingGrid}>
-                {upcomingWorkouts.map((workout, index) => (
-                    <TouchableOpacity
-                        key={index}
-                        style={[
-                            styles.upcomingGridItem,
-                            workout.isRest ? styles.upcomingGridItemRest : styles.upcomingGridItemWorkout,
-                        ]}
-                        onPress={() => !workout.isRest && onPreview(workout)}
-                        disabled={workout.isRest}
-                        activeOpacity={workout.isRest ? 1 : 0.7}
-                    >
-                        <View style={styles.upcomingGridHeader}>
-                            <Text style={[
-                                styles.upcomingGridDay,
-                                workout.isRest && styles.upcomingGridDayRest,
-                            ]}>
-                                {workout.day}
-                            </Text>
-                            {!workout.isRest && (
-                                <Ionicons name="arrow-forward" size={12} color={colors.accent.primary} />
-                            )}
-                            {workout.isRest && (
-                                <Ionicons name="moon-outline" size={12} color={colors.text.quaternary} />
-                            )}
-                        </View>
-
-                        <Text style={[
-                            styles.upcomingGridName,
-                            workout.isRest && styles.upcomingGridNameRest,
-                        ]}>
-                            {workout.name}
+            {upcomingWorkouts.map((workout, i) => (
+                <TouchableOpacity
+                    key={i}
+                    style={[styles.upcomingRow, i === upcomingWorkouts.length - 1 && styles.upcomingRowLast]}
+                    onPress={() => !workout.isRest && onPreview(workout)}
+                    disabled={workout.isRest}
+                    activeOpacity={0.7}
+                >
+                    <View style={[styles.upcomingDayBadge, workout.isRest && styles.upcomingDayBadgeRest]}>
+                        <Text style={[styles.upcomingDayText, workout.isRest && styles.upcomingDayTextRest]}>
+                            {workout.day}
                         </Text>
-
-                        {workout.isRest ? (
-                            <Text style={styles.upcomingGridInfoRest}>Recovery day</Text>
-                        ) : (
-                            <MuscleChips details={workout.details} />
-                        )}
-                    </TouchableOpacity>
-                ))}
-            </View>
+                    </View>
+                    <View style={styles.upcomingInfo}>
+                        <Text style={[styles.upcomingName, workout.isRest && styles.upcomingNameRest]}>
+                            {workout.isRest ? 'Rest Day' : workout.name}
+                        </Text>
+                        <Text style={styles.upcomingDetail}>
+                            {workout.isRest ? 'Recovery' : workout.details}
+                        </Text>
+                    </View>
+                    {!workout.isRest && (
+                        <Text style={styles.upcomingDuration}>{workout.duration}</Text>
+                    )}
+                </TouchableOpacity>
+            ))}
         </View>
     );
 });
@@ -240,126 +331,114 @@ const WorkoutScreen = () => {
         const completedDaysThisWeek = [];
         const now = new Date();
         const weekStart = new Date(now);
-        const currentDay = now.getDay();
-        const daysToMonday = currentDay === 0 ? 6 : currentDay - 1;
+        const daysToMonday = now.getDay() === 0 ? 6 : now.getDay() - 1;
         weekStart.setDate(now.getDate() - daysToMonday);
         weekStart.setHours(0, 0, 0, 0);
 
-        let totalMinutes = 0;
-        let streak = 0;
+        let lastWorkoutStats = null;
 
-        if (workoutHistory && workoutHistory.length > 0) {
-            const sortedHistory = [...workoutHistory].sort((a, b) => {
-                const aTime = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0;
-                const bTime = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0;
-                return bTime - aTime;
+        if (workoutHistory?.length > 0) {
+            const sorted = [...workoutHistory].sort((a, b) => {
+                const at = a.timestamp?.toDate?.()?.getTime() ?? 0;
+                const bt = b.timestamp?.toDate?.()?.getTime() ?? 0;
+                return bt - at;
             });
 
-            sortedHistory.forEach(workout => {
-                const workoutDate = workout.timestamp?.toDate ? workout.timestamp.toDate() : null;
-                if (!workoutDate) return;
-                if (workoutDate >= weekStart) {
-                    const dayOfWeek = workoutDate.getUTCDay();
-                    if (!completedDaysThisWeek.includes(dayOfWeek)) completedDaysThisWeek.push(dayOfWeek);
-                    const duration = workout.duration || '0:00';
-                    const parts = duration.split(':');
-                    if (parts.length >= 2) totalMinutes += parseInt(parts[0]) * 60 + parseInt(parts[1]);
-                }
-            });
-
-            let currentDate = new Date(now);
-            currentDate.setHours(0, 0, 0, 0);
-            for (let i = 0; i < sortedHistory.length; i++) {
-                const workoutDate = sortedHistory[i].timestamp?.toDate();
-                if (!workoutDate) break;
-                const wDate = new Date(workoutDate);
-                wDate.setHours(0, 0, 0, 0);
-                if (wDate.getTime() === currentDate.getTime()) {
-                    streak++;
-                    currentDate.setDate(currentDate.getDate() - 1);
-                } else if (wDate.getTime() < currentDate.getTime()) {
-                    break;
-                }
+            if (sorted[0]) {
+                const last = sorted[0];
+                const exercises = last.exercises ?? [];
+                lastWorkoutStats = {
+                    name: last.templateName ?? null,
+                    duration: last.duration ?? '0:00',
+                    totalSets: exercises.reduce((acc, ex) => acc + (ex.sets?.length ?? 0), 0),
+                    exerciseCount: exercises.length,
+                    exercises: exercises.map(ex => {
+                        const sets = ex.sets ?? [];
+                        const bestSet = sets.reduce((best, s) => {
+                            const w = parseFloat(s.weight) || 0;
+                            return w > (parseFloat(best.weight) || 0) ? s : best;
+                        }, sets[0] ?? {});
+                        const weight = parseFloat(bestSet?.weight);
+                        const reps = parseInt(bestSet?.reps);
+                        const bestLabel = weight && reps
+                            ? `${weight}kg × ${reps}`
+                            : reps
+                                ? `${reps} reps`
+                                : null;
+                        return {
+                            name: ex.exerciseName ?? ex.name ?? '',
+                            sets: sets.length,
+                            bestSet: bestLabel,
+                        };
+                    }),
+                };
             }
+
+            sorted.forEach(w => {
+                const d = w.timestamp?.toDate?.();
+                if (!d || d < weekStart) return;
+                const day = d.getDay();
+                if (!completedDaysThisWeek.includes(day)) completedDaysThisWeek.push(day);
+            });
         }
 
-        const hours = Math.floor(totalMinutes / 60);
-        const mins = totalMinutes % 60;
-
-        return {
-            streak,
-            weeklyTime: `${hours}h ${mins}m`,
-            workoutCount: workoutHistory?.length || 0,
-            completedDaysThisWeek,
-        };
+        return { completedDaysThisWeek, lastWorkoutStats };
     }, [workoutHistory]);
 
     const loadActiveSplit = useCallback(async () => {
         try {
             setLoading(true);
             const splits = await fetchSplitsFromFirestore();
-            if (splits.length === 0) { setLoading(false); return; }
+            if (!splits.length) { setLoading(false); return; }
 
-            const rawSplit = splits[0];
+            const raw = splits[0];
             const active = {
-                id: rawSplit.id || rawSplit.data?.id,
-                name: rawSplit.name || rawSplit.data?.name,
-                schedule: rawSplit.schedule || rawSplit.data?.schedule || {},
+                id: raw.id ?? raw.data?.id,
+                name: raw.name ?? raw.data?.name,
+                schedule: raw.schedule ?? raw.data?.schedule ?? {},
             };
             setActiveSplit(active);
 
-            const today = new Date().getDay();
-            const todayKey = DAYS_MAP[today];
+            const todayIdx = new Date().getDay();
+            const todayKey = DAYS_MAP[todayIdx];
             const schedule = active.schedule;
+            const todayData = schedule?.[todayKey];
 
-            if (schedule?.[todayKey]?.exercises?.length > 0) {
-                const workout = schedule[todayKey];
-                setTodayWorkout({
-                    name: workout.templateName || 'Workout',
-                    duration: workout.duration ? `${workout.duration} mins` : '45 mins',
-                    exercises: workout.exercises,
-                });
-            } else {
-                setTodayWorkout(null);
-            }
+            setTodayWorkout(todayData?.exercises?.length > 0 ? {
+                name: todayData.templateName ?? 'Workout',
+                duration: todayData.duration ? `${todayData.duration} min` : '45 min',
+                exercises: todayData.exercises,
+            } : null);
 
             const upcoming = [];
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            for (let i = 1; i <= 6 && upcoming.length < 2; i++) {
+                const futureDay = (todayIdx + i) % 7;
+                const futureKey = DAYS_MAP[futureDay];
+                const w = schedule?.[futureKey];
+                const exercises = w?.exercises ?? [];
+                const muscleGroups = [...new Set(exercises.map(e => e.muscleGroup))].filter(Boolean);
 
-            for (let i = 1; i <= 6; i++) {
-                const futureDay = (today + i) % 7;
-                const futureDayKey = DAYS_MAP[futureDay];
-                const workout = schedule?.[futureDayKey];
-                const exercises = workout?.exercises || [];
-
-                if (exercises.length > 0) {
-                    const muscleGroups = [...new Set(exercises.map(e => e.muscleGroup))].filter(Boolean);
-                    upcoming.push({
-                        name: workout.templateName,
-                        day: dayNames[futureDay],
-                        details: muscleGroups.join(' · '),
-                        muscleGroups,
-                        exercises,
-                        duration: workout.duration ? `${workout.duration} mins` : '45 mins',
-                        isRest: false,
-                    });
-                } else {
-                    upcoming.push({
-                        name: 'Rest',
-                        day: dayNames[futureDay],
-                        details: '',
-                        muscleGroups: [],
-                        exercises: [],
-                        duration: '0 mins',
-                        isRest: true,
-                    });
-                }
-                if (upcoming.length >= 3) break;
+                upcoming.push(exercises.length > 0 ? {
+                    name: w.templateName,
+                    day: DAY_LABELS[futureDay],
+                    details: muscleGroups.join(' · '),
+                    exercises,
+                    duration: w.duration ? `${w.duration} min` : '45 min',
+                    isRest: false,
+                } : {
+                    name: 'Rest',
+                    day: DAY_LABELS[futureDay],
+                    details: '',
+                    exercises: [],
+                    duration: '',
+                    isRest: true,
+                });
             }
+
             setUpcomingWorkouts(upcoming);
             setLoading(false);
-        } catch (error) {
-            console.error('Error loading split:', error);
+        } catch (e) {
+            console.error('Error loading split:', e);
             setLoading(false);
         }
     }, []);
@@ -372,14 +451,10 @@ const WorkoutScreen = () => {
         if (!isRestDay && todayWorkout) {
             return { workout: todayWorkout, isRestDay: false, isToday: true };
         }
-        if (upcomingWorkouts.length > 0 && !upcomingWorkouts[0].isRest) {
+        const next = upcomingWorkouts.find(w => !w.isRest);
+        if (next) {
             return {
-                workout: {
-                    name: upcomingWorkouts[0].name,
-                    duration: upcomingWorkouts[0].duration,
-                    exercises: upcomingWorkouts[0].exercises,
-                    day: upcomingWorkouts[0].day,
-                },
+                workout: { name: next.name, duration: next.duration, exercises: next.exercises, day: next.day },
                 isRestDay: false,
                 isToday: false,
             };
@@ -387,15 +462,8 @@ const WorkoutScreen = () => {
         return { workout: null, isRestDay: true, isToday: false };
     }, [isRestDay, todayWorkout, upcomingWorkouts]);
 
-    const remainingUpcoming = useMemo(() => {
-        if (!primaryWorkout.isToday && upcomingWorkouts.length > 0) {
-            return upcomingWorkouts.slice(1, 3);
-        }
-        return upcomingWorkouts.slice(0, 2);
-    }, [primaryWorkout.isToday, upcomingWorkouts]);
-
-    const allExercises = useMemo(() =>
-        primaryWorkout?.workout?.exercises?.map(e => e.exerciseName) ?? [],
+    const allExercises = useMemo(
+        () => primaryWorkout?.workout?.exercises?.map(e => e.exerciseName) ?? [],
         [primaryWorkout]
     );
 
@@ -434,100 +502,97 @@ const WorkoutScreen = () => {
         <ApplicationCustomScreen>
             <ScrollView
                 style={styles.container}
-                contentContainerStyle={{ paddingBottom: 70 + insets.bottom, paddingHorizontal: spacing[4], paddingTop: spacing[2] }}
+                contentContainerStyle={{
+                    paddingBottom: 70 + insets.bottom,
+                    paddingHorizontal: spacing[4],
+                    paddingTop: spacing[5],
+                }}
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.screenTitle}>Workout Dashboard</Text>
-
-                {activeWorkout && (
-                    <TouchableOpacity style={styles.compactBanner} onPress={handleResumeWorkout} activeOpacity={0.8}>
-                        <View style={styles.bannerLeft}>
-                            <View style={styles.pulseDot} />
-                            <Text style={styles.bannerText}>Workout Active</Text>
-                            <Text style={styles.bannerExercises}>{activeWorkout.exercises.length} exercises</Text>
-                        </View>
-                        <View style={styles.bannerRight}>
-                            <LiveTimer startTime={activeWorkout.startTime} />
-                            <Ionicons name="chevron-forward" size={14} color={colors.text.secondary} />
-                        </View>
-                    </TouchableOpacity>
-                )}
-
                 <MainWorkoutCard
                     workoutData={primaryWorkout.workout}
-                    onPreview={() => primaryWorkout.workout && handlePreviewWorkout(primaryWorkout.workout)}
                     onStart={handleStartWorkout}
+                    onResume={handleResumeWorkout}
+                    onPreview={handlePreviewWorkout}
                     allExercises={allExercises}
                     isRestDay={primaryWorkout.isRestDay}
-                    hasActiveWorkout={!!activeWorkout}
+                    activeWorkout={activeWorkout}
                     isToday={primaryWorkout.isToday}
+                    lastWorkoutStats={userStats.lastWorkoutStats}
                 />
 
-                <WeeklyProgressSection completedDays={userStats.completedDaysThisWeek} />
+                <ThisWeekCard
+                    completedDays={userStats.completedDaysThisWeek}
+                    schedule={activeSplit?.schedule}
+                    onDayPress={handlePreviewWorkout}
+                />
 
-                {remainingUpcoming.length > 0 && (
-                    <ComingUpSection
-                        upcomingWorkouts={remainingUpcoming}
-                        onPreview={handlePreviewWorkout}
-                    />
-                )}
+                <ComingUpCard
+                    upcomingWorkouts={upcomingWorkouts.slice(0, 2)}
+                    onPreview={handlePreviewWorkout}
+                />
 
-                <View style={styles.quickActionsContainer}>
-                    <TouchableOpacity style={styles.quickActionButton} onPress={handleLibraryPress}>
-                        <Ionicons name="albums-outline" size={20} color={colors.accent.primary} />
-                        <Text style={styles.quickActionButtonText}>Library</Text>
+                <View style={styles.quickActionsRow}>
+                    <TouchableOpacity style={styles.quickActionButton} onPress={handleLibraryPress} activeOpacity={0.7}>
+                        <Ionicons name="albums-outline" size={spacing.icon} color={colors.accent.primary} />
+                        <Text style={styles.quickActionText}>Library</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.quickActionButton} onPress={handleHistoryPress}>
-                        <Ionicons name="stats-chart-outline" size={20} color={colors.accent.primary} />
-                        <Text style={styles.quickActionButtonText}>History</Text>
+                    <TouchableOpacity style={styles.quickActionButton} onPress={handleHistoryPress} activeOpacity={0.7}>
+                        <Ionicons name="stats-chart-outline" size={spacing.icon} color={colors.accent.primary} />
+                        <Text style={styles.quickActionText}>History</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
 
             <BottomNav />
 
-            <Modal animationType="fade" transparent visible={isModalVisible} onRequestClose={handleCloseModal}>
+            <Modal animationType="slide" transparent visible={isModalVisible} onRequestClose={handleCloseModal}>
                 <Pressable style={styles.modalOverlay} onPress={handleCloseModal}>
-                    <View style={[styles.modalContent, { marginTop: insets.top, marginBottom: insets.bottom }]}>
+                    <View style={[styles.modalContent, { paddingBottom: insets.bottom + spacing[4] }]}>
+                        <View style={styles.modalHandle} />
+
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>{previewWorkout?.name || 'Workout'}</Text>
+                            <View style={styles.modalHeaderLeft}>
+                                {previewWorkout?.day && (
+                                    <Text style={styles.modalDayLabel}>{previewWorkout.day}</Text>
+                                )}
+                                <Text style={styles.modalTitle}>{previewWorkout?.name ?? 'Workout'}</Text>
+                            </View>
                             <TouchableOpacity onPress={handleCloseModal} style={styles.modalCloseButton}>
-                                <Ionicons name="close" size={18} color={colors.text.primary} />
+                                <Ionicons name="close" size={16} color={colors.text.primary} />
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
-                            <View style={styles.modalStatsRow}>
-                                <View style={styles.modalStatItem}>
-                                    <Text style={styles.modalStatValue}>{previewWorkout?.duration?.replace(' mins', 'm') || '0m'}</Text>
-                                    <Text style={styles.modalStatLabel}>Time</Text>
-                                </View>
-                                <View style={styles.modalStatDivider} />
-                                <View style={styles.modalStatItem}>
-                                    <Text style={styles.modalStatValue}>{previewWorkout?.exercises?.reduce((acc, ex) => acc + (parseInt(ex.numSets) || 0), 0) || 0}</Text>
-                                    <Text style={styles.modalStatLabel}>Sets</Text>
-                                </View>
-                                <View style={styles.modalStatDivider} />
-                                <View style={styles.modalStatItem}>
-                                    <Text style={styles.modalStatValue}>{previewWorkout?.exercises?.length || 0}</Text>
-                                    <Text style={styles.modalStatLabel}>Exercises</Text>
-                                </View>
+                        <View style={styles.modalStatsRow}>
+                            <View style={styles.modalStatItem}>
+                                <Text style={styles.modalStatValue}>
+                                    {previewWorkout?.duration?.replace(' min', 'm') ?? '0m'}
+                                </Text>
+                                <Text style={styles.modalStatLabel}>Time</Text>
                             </View>
+                            <View style={styles.modalStatDivider} />
+                            <View style={styles.modalStatItem}>
+                                <Text style={styles.modalStatValue}>
+                                    {previewWorkout?.exercises?.reduce((a, e) => a + (parseInt(e.numSets) || 0), 0) ?? 0}
+                                </Text>
+                                <Text style={styles.modalStatLabel}>Sets</Text>
+                            </View>
+                            <View style={styles.modalStatDivider} />
+                            <View style={styles.modalStatItem}>
+                                <Text style={styles.modalStatValue}>{previewWorkout?.exercises?.length ?? 0}</Text>
+                                <Text style={styles.modalStatLabel}>Exercises</Text>
+                            </View>
+                        </View>
 
+                        <ScrollView style={styles.modalExList} showsVerticalScrollIndicator={false}>
                             <View style={styles.modalExercisesList}>
-                                {previewWorkout?.exercises?.map((exercise, index) => {
-                                    const isLast = index === previewWorkout.exercises.length - 1;
+                                {previewWorkout?.exercises?.map((ex, i) => {
+                                    const isLast = i === (previewWorkout.exercises.length - 1);
                                     return (
-                                        <View key={index} style={[styles.modalExerciseRow, isLast && styles.modalExerciseRowLast]}>
-                                            <View style={styles.modalExerciseLeft}>
-                                                <Text style={styles.modalExerciseSets}>{exercise.numSets}x</Text>
-                                                <Text style={styles.modalExerciseName} numberOfLines={1}>
-                                                    {exercise.exerciseName}
-                                                </Text>
-                                            </View>
-                                            <View style={styles.modalBestSetContainer}>
-                                                <Text style={styles.modalBestSetValue}>{exercise.repRange} reps</Text>
-                                            </View>
+                                        <View key={i} style={[styles.modalExRow, isLast && styles.modalExRowLast]}>
+                                            <Text style={styles.modalExSets}>{ex.numSets}x</Text>
+                                            <Text style={styles.modalExName} numberOfLines={1}>{ex.exerciseName}</Text>
+                                            <Text style={styles.modalExReps}>{ex.repRange}</Text>
                                         </View>
                                     );
                                 })}
@@ -535,7 +600,7 @@ const WorkoutScreen = () => {
                         </ScrollView>
 
                         <TouchableOpacity
-                            style={[styles.modalStartButton, activeWorkout && styles.modalStartButtonDisabled]}
+                            style={[styles.startButton, activeWorkout && styles.startButtonDisabled]}
                             onPress={() => {
                                 if (activeWorkout) return;
                                 setIsModalVisible(false);
@@ -543,14 +608,14 @@ const WorkoutScreen = () => {
                                     selectedWorkout: {
                                         note: '',
                                         templateName: previewWorkout?.name,
-                                        exercises: previewWorkout?.exercises || [],
+                                        exercises: previewWorkout?.exercises ?? [],
                                     },
                                 });
                             }}
                             disabled={!!activeWorkout}
                         >
-                            <Ionicons name="play" size={14} color={colors.background.primary} style={{ marginRight: spacing[2] }} />
-                            <Text style={styles.modalStartButtonText}>
+                            {!activeWorkout && <Ionicons name="play" size={16} color={colors.accent.buttonText} />}
+                            <Text style={[styles.startButtonText, activeWorkout && styles.startButtonTextDisabled]}>
                                 {activeWorkout ? 'Workout in Progress' : 'Start Workout'}
                             </Text>
                         </TouchableOpacity>

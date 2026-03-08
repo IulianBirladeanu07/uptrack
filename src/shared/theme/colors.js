@@ -67,6 +67,7 @@ export const colors = {
     green: 'rgba(76, 175, 80, 0.15)',
     error: 'rgba(255, 87, 34, 0.15)',
     errorAlt: 'rgba(220, 38, 38, 0.1)',
+    successAlt: 'rgba(16, 185, 129, 0.12)',
     surface: 'rgba(255, 255, 255, 0.05)',
     surfaceLight: 'rgba(255, 255, 255, 0.06)',
     surfaceMedium: 'rgba(255, 255, 255, 0.1)',
