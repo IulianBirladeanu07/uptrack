@@ -113,7 +113,7 @@ const TodayNutrition = ({ calories, targetCalories, macros, onPress }) => {
   );
 };
 
-const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCaloriesForDateRange }) => {
+const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCaloriesForDateRange, onWeightPress }) => {
   const weekDays = useMemo(() => {
     const today = new Date();
     const monday = getMonday(today);
@@ -198,6 +198,7 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
             bg: colors.faded.purple,
             value: rollingStats.avgWeight ? `${rollingStats.avgWeight.toFixed(1)} kg` : '--',
             label: rollingStats.daysLoggedWeight > 0 ? `Avg Weight (${rollingStats.daysLoggedWeight}d)` : 'Avg Weight',
+            onPress: onWeightPress,
           },
           {
             icon: <Ionicons name="walk-outline" size={spacing[5]} color={colors.accent.stepsRed} />,
@@ -211,15 +212,23 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
             value: `${weeklyWorkouts}/${targetWorkouts}`,
             label: 'Workouts',
           },
-        ].map((stat, i) => (
-          <View key={i} style={styles.weeklyStatItem}>
-            <View style={[styles.weeklyIconContainer, { backgroundColor: stat.bg }]}>{stat.icon}</View>
-            <View style={styles.weeklyStatText}>
-              <Text style={styles.weeklyStatValue}>{stat.value}</Text>
-              <Text style={styles.weeklyStatLabel}>{stat.label}</Text>
-            </View>
-          </View>
-        ))}
+        ].map((stat, i) => {
+          const CardComponent = stat.onPress ? TouchableOpacity : View;
+          return (
+            <CardComponent 
+              key={i} 
+              style={styles.weeklyStatItem}
+              onPress={stat.onPress}
+              activeOpacity={stat.onPress ? 0.7 : 1}
+            >
+              <View style={[styles.weeklyIconContainer, { backgroundColor: stat.bg }]}>{stat.icon}</View>
+              <View style={styles.weeklyStatText}>
+                <Text style={styles.weeklyStatValue}>{stat.value}</Text>
+                <Text style={styles.weeklyStatLabel}>{stat.label}</Text>
+              </View>
+            </CardComponent>
+          );
+        })}
       </View>
     </View>
   );
@@ -305,6 +314,7 @@ const DashboardScreen = () => {
             weeklyWorkouts={weeklyWorkoutsCount}
             targetWorkouts={targetWorkouts}
             getCaloriesForDateRange={getCaloriesForDateRange}
+            onWeightPress={() => navigation.navigate('WeightTracker')}
           />
         </View>
         <BottomNav />
