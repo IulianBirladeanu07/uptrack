@@ -33,7 +33,7 @@ import CreateSplitScreen from './src/features/workout/screens/CreateSplitScreen/
 import WeightTracker from './src/features/nutrition/components/WeightTracker/WeightTracker';
 import ViewSplitScreen from './src/features/workout/screens/CreateSplitScreen/components/ViewSplitScreen';
 import CreateExerciseScreen from './src/features/workout/screens/CreateExerciseScreen/CreateExerciseScreen';
-import WeightHistoryScreen from './src/features/nutrition/components/WeightTracker/WeightHistoryScreen';4
+import WeightHistoryScreen from './src/features/nutrition/components/WeightTracker/WeightHistoryScreen';
 
 const Stack = createNativeStackNavigator();
 
