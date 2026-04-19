@@ -1,5 +1,8 @@
 import React, { useCallback, useMemo, useState, useContext } from 'react';
-import { View, Text, TouchableOpacity, Modal, Pressable, ScrollView, ActivityIndicator, Animated } from 'react-native';
+import {
+    View, Text, TouchableOpacity, Modal, Pressable,
+    ScrollView, ActivityIndicator, Animated,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -12,33 +15,34 @@ import { colors, spacing } from '../../../../shared/theme';
 import styles from './WorkoutScreenStyles';
 
 const DAYS_MAP = {
-    0: 'sunday',
-    1: 'monday',
-    2: 'tuesday',
-    3: 'wednesday',
-    4: 'thursday',
-    5: 'friday',
-    6: 'saturday',
+    0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday',
+    4: 'thursday', 5: 'friday', 6: 'saturday',
 };
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const WEEK_DAYS = [
+    { key: 'monday', jsDay: 1 }, { key: 'tuesday', jsDay: 2 },
+    { key: 'wednesday', jsDay: 3 }, { key: 'thursday', jsDay: 4 },
+    { key: 'friday', jsDay: 5 }, { key: 'saturday', jsDay: 6 },
+    { key: 'sunday', jsDay: 0 },
+];
 
 const LiveTimer = ({ startTime }) => {
     const [elapsed, setElapsed] = useState(0);
 
     React.useEffect(() => {
-        const update = () => setElapsed(Math.floor((Date.now() - startTime) / 1000));
-        update();
-        const id = setInterval(update, 1000);
+        const tick = () => setElapsed(Math.floor((Date.now() - startTime) / 1000));
+        tick();
+        const id = setInterval(tick, 1000);
         return () => clearInterval(id);
     }, [startTime]);
 
     const h = Math.floor(elapsed / 3600);
     const m = Math.floor((elapsed % 3600) / 60);
     const s = elapsed % 60;
-    const fmt = h > 0
-        ? `${h}:${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`
-        : `${m}:${s < 10 ? '0' + s : s}`;
+    const pad = n => (n < 10 ? '0' + n : n);
+    const fmt = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 
     return <Text style={styles.resumeTimer}>{fmt}</Text>;
 };
@@ -58,51 +62,69 @@ const PulseDot = () => {
     return <Animated.View style={[styles.pulseDot, { transform: [{ scale }] }]} />;
 };
 
-const MainWorkoutCard = React.memo(({ workoutData, onStart, onResume, onPreview, allExercises, isRestDay, activeWorkout, isToday, lastWorkoutStats }) => {
+const ExerciseRow = ({ sets, name, reps }) => (
+    <View style={styles.exerciseRow}>
+        <Text style={styles.exerciseSetsInline}>{sets}x</Text>
+        <Text style={styles.exerciseName}>{name}</Text>
+        <Text style={styles.exerciseReps}>{reps}</Text>
+    </View>
+);
+
+const WorkoutStatsMeta = ({ duration, exerciseCount, totalSets }) => (
+    <View style={styles.workoutStatsMeta}>
+        {!!duration && (
+            <View style={styles.workoutMetaItem}>
+                <Ionicons name="time-outline" size={12} color={colors.text.quaternary} />
+                <Text style={styles.workoutMetaText}>{duration}</Text>
+            </View>
+        )}
+        {!!exerciseCount && (
+            <View style={styles.workoutMetaItem}>
+                <Ionicons name="barbell-outline" size={12} color={colors.text.quaternary} />
+                <Text style={styles.workoutMetaText}>{exerciseCount} exercises</Text>
+            </View>
+        )}
+        {!!totalSets && (
+            <View style={styles.workoutMetaItem}>
+                <Ionicons name="layers-outline" size={12} color={colors.text.quaternary} />
+                <Text style={styles.workoutMetaText}>{totalSets} sets</Text>
+            </View>
+        )}
+    </View>
+);
+
+const MainWorkoutCard = React.memo(({
+    workoutData, onStart, onResume, onPreview,
+    allExercises, isRestDay, activeWorkout, isToday, lastWorkoutStats,
+    splitName, weekNumber,
+}) => {
     if (isRestDay) {
-        const extraCount = (lastWorkoutStats?.exercises?.length ?? 0) - 3;
+        const stats = lastWorkoutStats;
+        const extraCount = (stats?.exercises?.length ?? 0) - 3;
+
         return (
             <View style={styles.workoutCard}>
-                <View style={styles.workoutCardTop}>
-                    <Text style={styles.cardEyebrow}>Rest Day</Text>
-                </View>
-
-                {lastWorkoutStats ? (
+                <Text style={styles.cardEyebrow}>Rest Day</Text>
+                {stats ? (
                     <>
-                        <View style={styles.workoutTitleRow}>
-                            <Text style={styles.workoutCardTitle}>{lastWorkoutStats.name ?? 'Last Workout'}</Text>
-                        </View>
-
+                        <Text style={styles.workoutCardTitle}>{stats.name ?? 'Last Workout'}</Text>
                         <View style={styles.workoutMeta}>
-                            <Text style={styles.metaText}>{lastWorkoutStats.duration}</Text>
+                            <Text style={styles.metaText}>{stats.duration}</Text>
                             <Text style={styles.metaSep}>·</Text>
-                            <Text style={styles.metaText}>{lastWorkoutStats.exerciseCount} exercises</Text>
+                            <Text style={styles.metaText}>{stats.exerciseCount} exercises</Text>
                             <Text style={styles.metaSep}>·</Text>
-                            <Text style={styles.metaText}>{lastWorkoutStats.totalSets} sets</Text>
+                            <Text style={styles.metaText}>{stats.totalSets} sets</Text>
                         </View>
-
-                        <View style={styles.divider} />
-
                         <View style={styles.exerciseList}>
-                            {lastWorkoutStats.exercises.slice(0, 3).map((ex, i) => (
-                                <View
-                                    key={i}
-                                    style={[
-                                        styles.exerciseRow,
-                                        i === Math.min(lastWorkoutStats.exercises.length, 3) - 1 && lastWorkoutStats.exercises.length <= 3 && styles.exerciseRowLast,
-                                    ]}
-                                >
-                                    <Text style={styles.exerciseSetsInline}>{ex.sets}x</Text>
-                                    <Text style={styles.exerciseName}>{ex.name}</Text>
-                                    <Text style={styles.exerciseReps}>{ex.bestSet}</Text>
-                                </View>
+                            {stats.exercises.slice(0, 3).map((ex, i) => (
+                                <ExerciseRow key={i} sets={ex.sets} name={ex.name} reps={ex.bestSet} />
                             ))}
                             {extraCount > 0 && (
                                 <TouchableOpacity
                                     onPress={() => onPreview({
-                                        name: lastWorkoutStats.name ?? 'Last Workout',
-                                        duration: lastWorkoutStats.duration,
-                                        exercises: lastWorkoutStats.exercises.map(ex => ({
+                                        name: stats.name ?? 'Last Workout',
+                                        duration: stats.duration,
+                                        exercises: stats.exercises.map(ex => ({
                                             exerciseName: ex.name,
                                             numSets: ex.sets,
                                             repRange: ex.bestSet ?? '',
@@ -116,27 +138,28 @@ const MainWorkoutCard = React.memo(({ workoutData, onStart, onResume, onPreview,
                         </View>
                     </>
                 ) : (
-                    <>
-                        <Text style={styles.workoutCardTitle}>Rest Day</Text>
-                        <Text style={styles.metaText}>Let your muscles recover today.</Text>
-                    </>
+                    <Text style={styles.metaText}>Let your muscles recover today.</Text>
                 )}
             </View>
         );
     }
 
-    const today = new Date();
-    const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
+    const dayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
     const totalSets = workoutData.exercises?.reduce((acc, ex) => acc + (parseInt(ex.numSets) || 0), 0) ?? 0;
     const extraCount = allExercises.length - 3;
 
+    const eyebrowParts = ['Today', dayName];
+    if (splitName) eyebrowParts.push(splitName);
+    if (weekNumber) eyebrowParts.push(`Week ${weekNumber}`);
+    const eyebrow = eyebrowParts.join(' · ');
+
+    const muscleGroups = useMemo(() => {
+        return [...new Set((workoutData.exercises ?? []).map(e => e.muscleGroup).filter(Boolean))];
+    }, [workoutData]);
+
     return (
         <View style={styles.workoutCard}>
-            {isToday && (
-                <View style={styles.workoutCardTop}>
-                    <Text style={styles.cardEyebrow}>{`Today · ${dayName}`}</Text>
-                </View>
-            )}
+            {isToday && <Text style={styles.cardEyebrow}>{eyebrow}</Text>}
 
             <View style={styles.workoutTitleRow}>
                 <Text style={styles.workoutCardTitle}>{workoutData.name}</Text>
@@ -147,39 +170,37 @@ const MainWorkoutCard = React.memo(({ workoutData, onStart, onResume, onPreview,
                 )}
             </View>
 
-            <View style={styles.workoutMeta}>
-                <Text style={styles.metaText}>{workoutData.duration}</Text>
-                <Text style={styles.metaSep}>·</Text>
-                <Text style={styles.metaText}>{allExercises.length} exercises</Text>
-                <Text style={styles.metaSep}>·</Text>
-                <Text style={styles.metaText}>{totalSets} sets</Text>
-            </View>
+            <WorkoutStatsMeta
+                duration={workoutData.duration}
+                exerciseCount={allExercises.length}
+                totalSets={totalSets}
+            />
 
-            <View style={styles.divider} />
+            <View style={styles.exerciseListHeader}>
+                <Text style={styles.exerciseListLabel}>EXERCISES</Text>
+                {extraCount > 0 && (
+                    <TouchableOpacity
+                        onPress={() => onPreview({
+                            name: workoutData.name,
+                            duration: workoutData.duration,
+                            exercises: workoutData.exercises,
+                        })}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={styles.exerciseMore}>+{extraCount} more</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
 
             <View style={styles.exerciseList}>
                 {allExercises.slice(0, 3).map((name, i) => (
-                    <View
+                    <ExerciseRow
                         key={i}
-                        style={[
-                            styles.exerciseRow,
-                            i === Math.min(allExercises.length, 3) - 1 && allExercises.length <= 3 && styles.exerciseRowLast,
-                        ]}
-                    >
-                        <Text style={styles.exerciseSetsInline}>
-                            {workoutData.exercises?.[i]?.numSets}x
-                        </Text>
-                        <Text style={styles.exerciseName}>{name}</Text>
-                        <Text style={styles.exerciseReps}>
-                            {workoutData.exercises?.[i]?.repRange} reps
-                        </Text>
-                    </View>
+                        sets={workoutData.exercises?.[i]?.numSets}
+                        name={name}
+                        reps={workoutData.exercises?.[i]?.repRange}
+                    />
                 ))}
-                {extraCount > 0 && (
-                    <TouchableOpacity onPress={onPreview} activeOpacity={0.7}>
-                        <Text style={styles.exerciseMore}>+{extraCount} more exercises</Text>
-                    </TouchableOpacity>
-                )}
             </View>
 
             {activeWorkout ? (
@@ -192,7 +213,7 @@ const MainWorkoutCard = React.memo(({ workoutData, onStart, onResume, onPreview,
                 </TouchableOpacity>
             ) : (
                 <TouchableOpacity style={styles.startButton} onPress={onStart} activeOpacity={0.8}>
-                    <Ionicons name="play" size={16} color={colors.accent.buttonText} />
+                    <Ionicons name="play" size={14} color={colors.accent.buttonText} />
                     <Text style={styles.startButtonText}>Start Workout</Text>
                 </TouchableOpacity>
             )}
@@ -203,17 +224,7 @@ const MainWorkoutCard = React.memo(({ workoutData, onStart, onResume, onPreview,
 const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }) => {
     const today = new Date().getDay();
 
-    const weekDays = [
-        { key: 'monday',    jsDay: 1 },
-        { key: 'tuesday',   jsDay: 2 },
-        { key: 'wednesday', jsDay: 3 },
-        { key: 'thursday',  jsDay: 4 },
-        { key: 'friday',    jsDay: 5 },
-        { key: 'saturday',  jsDay: 6 },
-        { key: 'sunday',    jsDay: 0 },
-    ];
-
-    const days = weekDays.map(d => ({
+    const days = WEEK_DAYS.map(d => ({
         ...d,
         short: DAY_LABELS[d.jsDay],
         hasWorkout: (schedule?.[d.key]?.exercises?.length ?? 0) > 0,
@@ -236,10 +247,10 @@ const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }) => {
                     const circleStyle = d.done
                         ? styles.dayCircleDone
                         : d.isToday
-                            ? styles.dayCircleToday
-                            : d.hasWorkout
-                                ? styles.dayCircleWorkout
-                                : styles.dayCircleRest;
+                        ? styles.dayCircleToday
+                        : d.hasWorkout
+                        ? styles.dayCircleWorkout
+                        : styles.dayCircleRest;
 
                     return (
                         <TouchableOpacity
@@ -259,6 +270,8 @@ const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }) => {
                             <View style={[styles.dayCircle, circleStyle]}>
                                 {d.done ? (
                                     <Ionicons name="checkmark" size={14} color={colors.accent.buttonText} />
+                                ) : d.isToday && d.hasWorkout ? (
+                                    <Text style={styles.dayCirclePlusText}>+</Text>
                                 ) : d.isToday ? (
                                     <Ionicons name="play" size={9} color={colors.accent.primary} />
                                 ) : (
@@ -278,38 +291,51 @@ const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }) => {
     );
 });
 
-const ComingUpCard = React.memo(({ upcomingWorkouts, onPreview }) => {
+const UpcomingWorkoutRow = React.memo(({ workout, isLast, onPreview }) => {
+    const muscleGroups = useMemo(() => {
+        return [...new Set((workout.exercises ?? []).map(e => e.muscleGroup).filter(Boolean))].join(' · ');
+    }, [workout]);
+
+    return (
+        <TouchableOpacity
+            style={[styles.upcomingRow, isLast && styles.upcomingRowLast]}
+            onPress={() => onPreview(workout)}
+            activeOpacity={0.7}
+        >
+            <View style={styles.upcomingDayChip}>
+                <Text style={styles.upcomingDayChipLabel}>{workout.day}</Text>
+            </View>
+            <View style={styles.upcomingInfo}>
+                <View style={styles.upcomingNameRow}>
+                    <Text style={styles.upcomingName} numberOfLines={1}>{workout.name}</Text>
+                    <Text style={styles.upcomingDuration}>{workout.duration}</Text>
+                </View>
+                {muscleGroups.length > 0 && (
+                    <Text style={styles.upcomingMuscles} numberOfLines={1}>{muscleGroups}</Text>
+                )}
+            </View>
+        </TouchableOpacity>
+    );
+});
+
+const ComingUpCard = React.memo(({ upcomingWorkouts, onPreview, onViewAll }) => {
     if (!upcomingWorkouts.length) return null;
+
     return (
         <View style={styles.card}>
             <View style={styles.cardRow}>
                 <Text style={styles.cardTitle}>Up Next</Text>
+                <TouchableOpacity onPress={onViewAll} activeOpacity={0.7}>
+                    <Text style={styles.cardTitleRight}>View all</Text>
+                </TouchableOpacity>
             </View>
             {upcomingWorkouts.map((workout, i) => (
-                <TouchableOpacity
+                <UpcomingWorkoutRow
                     key={i}
-                    style={[styles.upcomingRow, i === upcomingWorkouts.length - 1 && styles.upcomingRowLast]}
-                    onPress={() => !workout.isRest && onPreview(workout)}
-                    disabled={workout.isRest}
-                    activeOpacity={0.7}
-                >
-                    <View style={[styles.upcomingDayBadge, workout.isRest && styles.upcomingDayBadgeRest]}>
-                        <Text style={[styles.upcomingDayText, workout.isRest && styles.upcomingDayTextRest]}>
-                            {workout.day}
-                        </Text>
-                    </View>
-                    <View style={styles.upcomingInfo}>
-                        <Text style={[styles.upcomingName, workout.isRest && styles.upcomingNameRest]}>
-                            {workout.isRest ? 'Rest Day' : workout.name}
-                        </Text>
-                        <Text style={styles.upcomingDetail}>
-                            {workout.isRest ? 'Recovery' : workout.details}
-                        </Text>
-                    </View>
-                    {!workout.isRest && (
-                        <Text style={styles.upcomingDuration}>{workout.duration}</Text>
-                    )}
-                </TouchableOpacity>
+                    workout={workout}
+                    isLast={i === upcomingWorkouts.length - 1}
+                    onPreview={onPreview}
+                />
             ))}
         </View>
     );
@@ -344,31 +370,25 @@ const WorkoutScreen = () => {
                 return bt - at;
             });
 
-            if (sorted[0]) {
-                const last = sorted[0];
+            const last = sorted[0];
+            if (last) {
                 const exercises = last.exercises ?? [];
                 lastWorkoutStats = {
-                    name: last.templateName ?? null,
+                    name: last.workoutName ?? last.templateName ?? null,
                     duration: last.duration ?? '0:00',
                     totalSets: exercises.reduce((acc, ex) => acc + (ex.sets?.length ?? 0), 0),
                     exerciseCount: exercises.length,
                     exercises: exercises.map(ex => {
                         const sets = ex.sets ?? [];
                         const bestSet = sets.reduce((best, s) => {
-                            const w = parseFloat(s.weight) || 0;
-                            return w > (parseFloat(best.weight) || 0) ? s : best;
+                            return (parseFloat(s.weight) || 0) > (parseFloat(best.weight) || 0) ? s : best;
                         }, sets[0] ?? {});
                         const weight = parseFloat(bestSet?.weight);
                         const reps = parseInt(bestSet?.reps);
-                        const bestLabel = weight && reps
-                            ? `${weight}kg × ${reps}`
-                            : reps
-                                ? `${reps} reps`
-                                : null;
                         return {
                             name: ex.exerciseName ?? ex.name ?? '',
                             sets: sets.length,
-                            bestSet: bestLabel,
+                            bestSet: weight && reps ? `${weight}kg × ${reps}` : reps ? `${reps} reps` : null,
                         };
                     }),
                 };
@@ -411,34 +431,27 @@ const WorkoutScreen = () => {
             } : null);
 
             const upcoming = [];
-            for (let i = 1; i <= 6 && upcoming.length < 2; i++) {
+            for (let i = 1; i <= 13 && upcoming.length < 2; i++) {
                 const futureDay = (todayIdx + i) % 7;
                 const futureKey = DAYS_MAP[futureDay];
                 const w = schedule?.[futureKey];
                 const exercises = w?.exercises ?? [];
-                const muscleGroups = [...new Set(exercises.map(e => e.muscleGroup))].filter(Boolean);
 
-                upcoming.push(exercises.length > 0 ? {
-                    name: w.templateName,
-                    day: DAY_LABELS[futureDay],
-                    details: muscleGroups.join(' · '),
-                    exercises,
-                    duration: w.duration ? `${w.duration} min` : '45 min',
-                    isRest: false,
-                } : {
-                    name: 'Rest',
-                    day: DAY_LABELS[futureDay],
-                    details: '',
-                    exercises: [],
-                    duration: '',
-                    isRest: true,
-                });
+                if (exercises.length > 0) {
+                    upcoming.push({
+                        name: w.templateName,
+                        day: DAY_LABELS[futureDay],
+                        exercises,
+                        duration: w.duration ? `${w.duration} min` : '45 min',
+                        isRest: false,
+                    });
+                }
             }
 
             setUpcomingWorkouts(upcoming);
-            setLoading(false);
         } catch (e) {
             console.error('Error loading split:', e);
+        } finally {
             setLoading(false);
         }
     }, []);
@@ -468,22 +481,27 @@ const WorkoutScreen = () => {
     );
 
     const handleStartWorkout = useCallback(() => {
-        if (primaryWorkout?.workout?.exercises?.length && !primaryWorkout.isRestDay) {
-            navigation.navigate('StartWorkout', {
-                selectedWorkout: {
-                    note: '',
-                    templateName: primaryWorkout.workout.name,
-                    exercises: primaryWorkout.workout.exercises,
-                },
-            });
-        } else {
-            navigation.navigate('StartWorkout');
-        }
+        navigation.navigate('StartWorkout', primaryWorkout?.workout?.exercises?.length && !primaryWorkout.isRestDay ? {
+            selectedWorkout: {
+                note: '',
+                templateName: primaryWorkout.workout.name,
+                exercises: primaryWorkout.workout.exercises,
+            },
+        } : undefined);
     }, [navigation, primaryWorkout]);
 
     const handleResumeWorkout = useCallback(() => navigation.navigate('StartWorkout'), [navigation]);
-    const handlePreviewWorkout = useCallback((workout) => { setPreviewWorkout(workout); setIsModalVisible(true); }, []);
-    const handleCloseModal = useCallback(() => { setIsModalVisible(false); setPreviewWorkout(null); }, []);
+
+    const handlePreviewWorkout = useCallback((workout) => {
+        setPreviewWorkout(workout);
+        setIsModalVisible(true);
+    }, []);
+
+    const handleCloseModal = useCallback(() => {
+        setIsModalVisible(false);
+        setPreviewWorkout(null);
+    }, []);
+
     const handleLibraryPress = useCallback(() => navigation.navigate('WorkoutLibrary'), [navigation]);
     const handleHistoryPress = useCallback(() => navigation.navigate('WorkoutHistory'), [navigation]);
 
@@ -505,7 +523,7 @@ const WorkoutScreen = () => {
                 contentContainerStyle={{
                     paddingBottom: 70 + insets.bottom,
                     paddingHorizontal: spacing[4],
-                    paddingTop: spacing[5],
+                    paddingTop: spacing[3],
                 }}
                 showsVerticalScrollIndicator={false}
             >
@@ -519,6 +537,8 @@ const WorkoutScreen = () => {
                     activeWorkout={activeWorkout}
                     isToday={primaryWorkout.isToday}
                     lastWorkoutStats={userStats.lastWorkoutStats}
+                    splitName={activeSplit?.name}
+                    weekNumber={null}
                 />
 
                 <ThisWeekCard
@@ -530,6 +550,7 @@ const WorkoutScreen = () => {
                 <ComingUpCard
                     upcomingWorkouts={upcomingWorkouts.slice(0, 2)}
                     onPreview={handlePreviewWorkout}
+                    onViewAll={handleLibraryPress}
                 />
 
                 <View style={styles.quickActionsRow}>
@@ -586,16 +607,16 @@ const WorkoutScreen = () => {
 
                         <ScrollView style={styles.modalExList} showsVerticalScrollIndicator={false}>
                             <View style={styles.modalExercisesList}>
-                                {previewWorkout?.exercises?.map((ex, i) => {
-                                    const isLast = i === (previewWorkout.exercises.length - 1);
-                                    return (
-                                        <View key={i} style={[styles.modalExRow, isLast && styles.modalExRowLast]}>
-                                            <Text style={styles.modalExSets}>{ex.numSets}x</Text>
-                                            <Text style={styles.modalExName} numberOfLines={1}>{ex.exerciseName}</Text>
-                                            <Text style={styles.modalExReps}>{ex.repRange}</Text>
-                                        </View>
-                                    );
-                                })}
+                                {previewWorkout?.exercises?.map((ex, i) => (
+                                    <View
+                                        key={i}
+                                        style={[styles.modalExRow, i === (previewWorkout.exercises.length - 1) && styles.modalExRowLast]}
+                                    >
+                                        <Text style={styles.modalExSets}>{ex.numSets}x</Text>
+                                        <Text style={styles.modalExName} numberOfLines={1}>{ex.exerciseName}</Text>
+                                        <Text style={styles.modalExReps}>{ex.repRange}</Text>
+                                    </View>
+                                ))}
                             </View>
                         </ScrollView>
 
@@ -614,7 +635,7 @@ const WorkoutScreen = () => {
                             }}
                             disabled={!!activeWorkout}
                         >
-                            {!activeWorkout && <Ionicons name="play" size={16} color={colors.accent.buttonText} />}
+                            {!activeWorkout && <Ionicons name="play" size={14} color={colors.accent.buttonText} />}
                             <Text style={[styles.startButtonText, activeWorkout && styles.startButtonTextDisabled]}>
                                 {activeWorkout ? 'Workout in Progress' : 'Start Workout'}
                             </Text>

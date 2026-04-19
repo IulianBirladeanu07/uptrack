@@ -25,8 +25,7 @@ export const getRollingWeekStats = (mealCache, weekStart, today) => {
   const start = new Date(weekStart);
   const end = new Date(today);
   end.setHours(23, 59, 59, 999);
-  const todayKey = mealCache.formatDate(new Date());
-
+  
   const days = mealCache.getDateRange(start, end);
 
   const nutritionDays = days
@@ -34,7 +33,10 @@ export const getRollingWeekStats = (mealCache, weekStart, today) => {
     .filter(d => d.calories > 0);
 
   const stepDays = mealCache.getStepsRange(start, end).filter(d => d.steps > 0);
-  const completedStepDays = stepDays.filter(d => d.date !== todayKey);
+
+  const avg = (arr, key) => arr.length > 0 
+    ? Math.round(arr.reduce((s, d) => s + (d[key] || 0), 0) / arr.length) 
+    : 0;
 
   return {
     daysLoggedNutrition: nutritionDays.length,
@@ -42,12 +44,11 @@ export const getRollingWeekStats = (mealCache, weekStart, today) => {
     avgProtein:  avg(nutritionDays, 'protein'),
     avgCarbs:    avg(nutritionDays, 'carbs'),
     avgFats:     avg(nutritionDays, 'fat'),
-    daysLoggedSteps: completedStepDays.length,
-    avgSteps: avg(completedStepDays, 'steps'),
-    totalSteps: completedStepDays.reduce((s, d) => s + d.steps, 0),
+    daysLoggedSteps: stepDays.length,
+    avgSteps: avg(stepDays, 'steps'),
+    totalSteps: stepDays.reduce((s, d) => s + d.steps, 0),
   };
 };
-
 export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache) => {
   if (!previousWeekEntry?.weekStart) return null;
 

@@ -18,6 +18,20 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   };
 
+  const getLocalISOString = (date) => {
+    const tzo = -date.getTimezoneOffset();
+    const dif = tzo >= 0 ? '+' : '-';
+    const pad = (num) => (num < 10 ? '0' : '') + num;
+    return date.getFullYear() +
+      '-' + pad(date.getMonth() + 1) +
+      '-' + pad(date.getDate()) +
+      'T' + pad(date.getHours()) +
+      ':' + pad(date.getMinutes()) +
+      ':' + pad(date.getSeconds()) +
+      dif + pad(Math.floor(Math.abs(tzo) / 60)) +
+      ':' + pad(Math.abs(tzo) % 60);
+  };
+
   const initializeHealthKit = () => {
     return new Promise((resolve, reject) => {
       const permissions = {
@@ -25,7 +39,6 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
           read: [AppleHealthKit.Constants.Permissions.Steps],
         },
       };
-
       AppleHealthKit.initHealthKit(permissions, (error) => {
         if (error) {
           reject(error);
@@ -43,28 +56,19 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
           const checkResult = await PermissionsAndroid.check(
             PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
           );
-          
-          if (checkResult) {
-            return true;
-          }
-
+          if (checkResult) return true;
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
             {
               title: 'Step Counter Permission',
-              message: 'This app needs access to your physical activity to count steps and track your daily progress.',
+              message: 'This app needs access to your physical activity to count steps.',
               buttonPositive: 'Allow',
-              buttonNegative: 'Deny',
-              buttonNeutral: 'Ask Me Later',
             }
           );
-
           return granted === PermissionsAndroid.RESULTS.GRANTED;
         }
-        
         return true;
       } catch (err) {
-        console.error('Permission request failed:', err);
         return false;
       }
     }
@@ -73,23 +77,17 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
 
   const initializeGoogleFit = async () => {
     const permissionGranted = await requestAndroidPermission();
-    if (!permissionGranted) {
-      throw new Error('Activity recognition permission denied');
-    }
+    if (!permissionGranted) throw new Error('Permission denied');
 
-    const options = { 
+    const options = {
       scopes: [
         Scopes.FITNESS_ACTIVITY_READ,
         Scopes.FITNESS_BODY_READ,
-        Scopes.FITNESS_LOCATION_READ
-      ] 
+      ],
     };
 
     const authResult = await GoogleFit.authorize(options);
-    
-    if (!authResult.success) {
-      throw new Error('Google Fit authorization failed');
-    }
+    if (!authResult.success) throw new Error('Authorization failed');
   };
 
   const fetchTodaySteps = async () => {
@@ -100,26 +98,19 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
     if (Platform.OS === 'ios') {
       return new Promise((resolve) => {
         AppleHealthKit.getStepCount(
-          {
-            startDate: today.toISOString(),
-            endDate: now.toISOString(),
-          },
+          { startDate: today.toISOString() },
           (err, results) => {
-            if (err) {
-              resolve(0);
-              return;
-            }
-            resolve(results.value || 0);
+            if (err) resolve(0);
+            else resolve(results.value || 0);
           }
         );
       });
     } else {
       try {
         const result = await GoogleFit.getDailyStepCountSamples({
-          startDate: today.toISOString(),
-          endDate: now.toISOString(),
+          startDate: getLocalISOString(today),
+          endDate: getLocalISOString(now),
         });
-        
         if (!result?.length) return 0;
 
         const preferredSources = [
@@ -134,23 +125,18 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
             return source.steps.reduce((sum, s) => sum + s.value, 0);
           }
         }
-
         const fallback = result.find(d => d.steps?.length > 0);
         return fallback?.steps.reduce((sum, s) => sum + s.value, 0) || 0;
       } catch (err) {
-        console.error('Android step fetch error:', err);
         return 0;
       }
     }
   };
 
   const fetchLast7DaysSteps = async () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setHours(23, 59, 59, 999);
-    
-    const startDate = new Date(yesterday);
-    startDate.setDate(yesterday.getDate() - 6);
+    const now = new Date();
+    const startDate = new Date();
+    startDate.setDate(now.getDate() - 7); // Go back 7 full days
     startDate.setHours(0, 0, 0, 0);
 
     if (Platform.OS === 'ios') {
@@ -158,19 +144,12 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
         AppleHealthKit.getDailyStepCountSamples(
           {
             startDate: startDate.toISOString(),
-            endDate: yesterday.toISOString(),
+            endDate: now.toISOString(),
           },
           (err, results) => {
-            if (err) {
-              resolve();
-              return;
-            }
-
-            if (results && results.length > 0 && onStepsUpdate) {
+            if (!err && results && onStepsUpdate) {
               results.forEach(day => {
-                const dateKey = formatDate(new Date(day.startDate));
-                const daySteps = day.value || 0;
-                onStepsUpdate(daySteps, dateKey);
+                onStepsUpdate(day.value || 0, formatDate(new Date(day.startDate)));
               });
             }
             resolve();
@@ -180,77 +159,37 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
     } else {
       try {
         const stepsData = await GoogleFit.getDailyStepCountSamples({
-          startDate: startDate.toISOString(),
-          endDate: yesterday.toISOString(),
+          startDate: getLocalISOString(startDate),
+          endDate: getLocalISOString(now),
         });
-
-        if (stepsData && stepsData.length > 0 && onStepsUpdate) {
-          const preferredSources = [
-            'com.google.android.gms:estimated_steps',
-            'com.google.android.gms:merge_step_deltas',
-            'derived:com.google.step_count.delta'
-          ];
-
-          let sourceData = null;
-          for (const source of preferredSources) {
-            sourceData = stepsData.find(data => data.source === source);
-            if (sourceData && sourceData.steps && sourceData.steps.length > 0) {
-              break;
-            }
-          }
-
-          if (!sourceData && stepsData.length > 0) {
-            for (const data of stepsData) {
-              if (data.steps && data.steps.length > 0) {
-                sourceData = data;
-                break;
-              }
-            }
-          }
-
-          if (sourceData && sourceData.steps) {
-            sourceData.steps.forEach(step => {
-              const dateKey = formatDate(new Date(step.date));
-              const daySteps = step.value || 0;
-              onStepsUpdate(daySteps, dateKey);
+        if (stepsData && onStepsUpdate) {
+          const source = stepsData.find(d => d.source === 'com.google.android.gms:estimated_steps') || stepsData[0];
+          if (source?.steps) {
+            source.steps.forEach(step => {
+              onStepsUpdate(step.value || 0, formatDate(new Date(step.date)));
             });
           }
         }
-      } catch (err) {
-        console.error('Error fetching historical Android steps:', err);
-      }
+      } catch (err) {}
     }
   };
 
   const updateTodaySteps = async () => {
-    if (!initialized && !initializingRef.current) return;
-    
     const steps = await fetchTodaySteps();
     const todayKey = formatDate(new Date());
-    
-    if (onStepsUpdate) {
-      onStepsUpdate(steps, todayKey);
-    }
+    if (onStepsUpdate) onStepsUpdate(steps, todayKey);
   };
 
   const initialize = async () => {
     if (initializingRef.current || initialized) return;
-    
     initializingRef.current = true;
-
     try {
-      if (Platform.OS === 'ios') {
-        await initializeHealthKit();
-      } else {
-        await initializeGoogleFit();
-      }
-      
+      if (Platform.OS === 'ios') await initializeHealthKit();
+      else await initializeGoogleFit();
       await fetchLast7DaysSteps();
       await updateTodaySteps();
-      
       setInitialized(true);
     } catch (err) {
-      console.error('Initialization error:', err);
     } finally {
       initializingRef.current = false;
     }
@@ -262,9 +201,7 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
 
   useEffect(() => {
     if (!initialized) return;
-    
     const interval = setInterval(updateTodaySteps, 60000);
-    
     return () => clearInterval(interval);
   }, [initialized]);
 

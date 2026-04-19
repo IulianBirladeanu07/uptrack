@@ -11,7 +11,6 @@ const styles = createStyles(() => ({
         justifyContent: 'center',
         alignItems: 'center',
     },
-
     workoutCard: {
         backgroundColor: colors.background.secondary,
         borderRadius: radius[4],
@@ -19,34 +18,30 @@ const styles = createStyles(() => ({
         borderColor: colors.border.default,
         padding: spacing[4],
         marginBottom: spacing[3],
-    },
-    workoutCardTop: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing[2],
-        marginBottom: spacing[2],
+        marginTop: spacing[5],
     },
     cardEyebrow: {
         fontSize: fontSize[12],
-        fontWeight: fontWeight.medium,
+        fontWeight: fontWeight.semibold,
         color: colors.text.quaternary,
+        letterSpacing: 0.2,
+        marginBottom: spacing[1],
     },
     workoutTitleRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: spacing[2],
+        marginBottom: spacing[1],
     },
     workoutCardTitle: {
-        fontSize: fontSize[24],
+        fontSize: fontSize[32],
         fontWeight: fontWeight.extrabold,
         color: colors.text.primary,
-        letterSpacing: -0.5,
-        lineHeight: 30,
+        letterSpacing: -0.8,
+        lineHeight: 38,
         flex: 1,
     },
     dayBadge: {
-        backgroundColor: 'transparent',
         borderRadius: radius[2],
         borderWidth: 1,
         borderColor: colors.border.default,
@@ -59,39 +54,48 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.semibold,
         color: colors.text.secondary,
     },
-    workoutMeta: {
+    muscleGroupsLine: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.quaternary,
+        marginBottom: spacing[2],
+    },
+    workoutStatsMeta: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing[2],
-        marginBottom: spacing[3],
+        gap: spacing[3],
+        marginBottom: spacing[4],
     },
-    metaText: {
-        fontSize: fontSize[14],
+    workoutMetaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[1],
+    },
+    workoutMetaText: {
+        fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
-        color: colors.text.secondary,
-    },
-    metaSep: {
-        fontSize: fontSize[14],
         color: colors.text.quaternary,
     },
-    divider: {
-        height: 1,
-        backgroundColor: colors.border.default,
-        marginBottom: spacing[3],
+    exerciseListHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: spacing[2],
+    },
+    exerciseListLabel: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.quaternary,
+        letterSpacing: 0.8,
     },
     exerciseList: {
-        marginBottom: spacing[3],
+        marginBottom: spacing[4],
     },
     exerciseRow: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: spacing[2],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
         gap: spacing[2],
-    },
-    exerciseRowLast: {
-        borderBottomWidth: 0,
     },
     exerciseSetsInline: {
         fontSize: fontSize[14],
@@ -108,20 +112,33 @@ const styles = createStyles(() => ({
     exerciseReps: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
-        color: colors.text.secondary,
+        color: colors.text.quaternary,
     },
     exerciseMore: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
         color: colors.accent.primary,
-        paddingTop: spacing[2],
-        textAlign: 'center',
     },
-
+    workoutMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: spacing[1],
+        marginBottom: spacing[3],
+    },
+    metaText: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.secondary,
+    },
+    metaSep: {
+        fontSize: fontSize[12],
+        color: colors.text.quaternary,
+    },
     startButton: {
         backgroundColor: colors.accent.primary,
         borderRadius: radius[3],
-        paddingVertical: spacing[3],
+        paddingVertical: spacing[4],
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -185,7 +202,6 @@ const styles = createStyles(() => ({
         borderRadius: radius[5],
         backgroundColor: colors.accent.buttonText,
     },
-
     card: {
         backgroundColor: colors.background.secondary,
         borderRadius: radius[4],
@@ -201,17 +217,15 @@ const styles = createStyles(() => ({
         marginBottom: spacing[3],
     },
     cardTitle: {
-        fontSize: fontSize[18],
+        fontSize: fontSize[16],
         fontWeight: fontWeight.bold,
         color: colors.text.primary,
-        letterSpacing: 0.2,
     },
     cardTitleRight: {
-        fontSize: fontSize[14],
+        fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
         color: colors.accent.primary,
     },
-
     weekRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -231,100 +245,100 @@ const styles = createStyles(() => ({
         backgroundColor: colors.accent.primary,
     },
     dayCircleToday: {
-        backgroundColor: 'transparent',
         borderWidth: 1.5,
         borderColor: colors.accent.primary,
     },
     dayCircleWorkout: {
-        backgroundColor: colors.faded.surfaceMedium,
+        backgroundColor: colors.faded.primaryExtraLight,
         borderWidth: 1,
-        borderColor: colors.border.default,
+        borderColor: colors.border.primaryAlt,
     },
     dayCircleRest: {
-        backgroundColor: 'transparent',
         borderWidth: 1,
-        borderColor: colors.border.default,
+        borderColor: colors.border.light,
     },
     dayCircleText: {
-        fontSize: fontSize[14],
+        fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
         color: colors.text.secondary,
     },
     dayCircleTextRest: {
         color: colors.text.quaternary,
+        fontWeight: fontWeight.medium,
+    },
+    dayCirclePlusText: {
+        fontSize: fontSize[16],
+        fontWeight: fontWeight.bold,
+        color: colors.accent.primary,
+        lineHeight: 20,
     },
     weekDayLabel: {
         fontSize: fontSize[10],
-        fontWeight: fontWeight.semibold,
+        fontWeight: fontWeight.medium,
         color: colors.text.quaternary,
     },
     weekDayLabelToday: {
         color: colors.accent.primary,
+        fontWeight: fontWeight.semibold,
     },
-
     upcomingRow: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
-        paddingVertical: spacing[4],
+        alignItems: 'center',
+        paddingVertical: spacing[2],
         borderBottomWidth: 1,
-        borderBottomColor: colors.border.default,
+        borderBottomColor: colors.border.light,
         gap: spacing[3],
     },
     upcomingRowLast: {
         borderBottomWidth: 0,
         paddingBottom: 0,
     },
-    upcomingDayBadge: {
-        width: spacing[10],
-        height: spacing[10],
-        borderRadius: radius[2],
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderColor: colors.border.default,
+    upcomingDayChip: {
         alignItems: 'center',
         justifyContent: 'center',
         alignSelf: 'flex-start',
+        marginTop: 2,
+        backgroundColor: colors.background.tertiary,
+        borderRadius: radius[2],
+        paddingHorizontal: spacing[2],
+        paddingVertical: spacing[1],
+        minWidth: 44,
     },
-    upcomingDayBadgeRest: {
-        borderColor: colors.border.light,
-    },
-    upcomingDayText: {
+    upcomingDayChipLabel: {
         fontSize: fontSize[10],
         fontWeight: fontWeight.bold,
         color: colors.text.secondary,
+        letterSpacing: 0.8,
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    upcomingDayTextRest: {
-        color: colors.text.quaternary,
     },
     upcomingInfo: {
         flex: 1,
+        justifyContent: 'center',
+        gap: spacing[1],
+    },
+    upcomingNameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: spacing[2],
     },
     upcomingName: {
+        flex: 1,
         fontSize: fontSize[14],
         fontWeight: fontWeight.bold,
         color: colors.text.primary,
-        marginBottom: 1,
         letterSpacing: -0.1,
-    },
-    upcomingNameRest: {
-        color: colors.text.secondary,
-        fontWeight: fontWeight.semibold,
-    },
-    upcomingDetail: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.medium,
-        color: colors.text.quaternary,
-        marginTop: 2,
     },
     upcomingDuration: {
         fontSize: fontSize[12],
-        fontWeight: fontWeight.medium,
-        color: colors.text.secondary,
-        marginTop: 2,
+        fontWeight: fontWeight.semibold,
+        color: colors.text.quaternary,
     },
-
+    upcomingMuscles: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.quaternary,
+    },
     quickActionsRow: {
         flexDirection: 'row',
         gap: spacing[3],
@@ -346,7 +360,6 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.semibold,
         color: colors.text.primary,
     },
-
     modalOverlay: {
         flex: 1,
         backgroundColor: colors.background.overlay,
@@ -356,9 +369,6 @@ const styles = createStyles(() => ({
         backgroundColor: colors.background.secondary,
         borderTopLeftRadius: radius[5],
         borderTopRightRadius: radius[5],
-        borderWidth: 1,
-        borderColor: colors.border.default,
-        borderBottomWidth: 0,
         paddingHorizontal: spacing[5],
         maxHeight: '80%',
     },
@@ -384,7 +394,7 @@ const styles = createStyles(() => ({
         gap: 2,
     },
     modalDayLabel: {
-        fontSize: fontSize[11],
+        fontSize: fontSize[10],
         fontWeight: fontWeight.semibold,
         color: colors.text.quaternary,
         textTransform: 'uppercase',
@@ -440,7 +450,7 @@ const styles = createStyles(() => ({
         marginBottom: spacing[4],
     },
     modalExercisesList: {
-        backgroundColor: colors.faded.surfaceLight,
+        backgroundColor: 'rgba(0, 0, 0, 0.2)',
         borderRadius: radius[3],
         borderWidth: 1,
         borderColor: colors.border.light,

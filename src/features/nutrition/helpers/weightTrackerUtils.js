@@ -77,19 +77,27 @@ export const loadUserWeightData = async (
     const lastWeek = weightIns.find(e => e.weekStart === lastWeekStartDate);
     setLastWeekAverage(lastWeek?.average ?? null);
 
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() - 6);
+    // Build flat list of all logged entries across all weeks
+    // Chart filters by period internally, so we send everything
+    const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const allEntries = [];
 
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const day = new Date(startDate);
-      day.setDate(startDate.getDate() + i);
-      const ws = getLocalWeekStart(day);
-      const dk = getDayKey(day);
-      const weekData = weightIns.find(e => e.weekStart === ws);
-      return { date: day.toISOString(), weight: weekData?.days?.[dk] ?? null };
+    weightIns.forEach(week => {
+      if (!week.days || !week.weekStart) return;
+      dayKeys.forEach((dayKey, dayIndex) => {
+        const weight = week.days[dayKey];
+        if (weight == null || isNaN(weight)) return;
+        const weekStartDate = new Date(week.weekStart);
+        const entryDate = new Date(weekStartDate);
+        entryDate.setDate(weekStartDate.getDate() + dayIndex);
+        allEntries.push({
+          date: entryDate.toISOString(),
+          weight: parseFloat(weight),
+        });
+      });
     });
 
-    setTrendData(last7Days);
+    setTrendData(allEntries);
   } catch (error) {
     console.error('loadUserWeightData error:', error);
   }
@@ -247,6 +255,7 @@ export const processWeightInsForDisplay = (weightIns, limit = 20) => {
         weight: parseFloat(weight),
         weekStart: week.weekStart,
         dayKey,
+        dateKey: entryDate.toISOString().split('T')[0],
         weekAverage: week.average,
         formattedDate: formatDisplayDate(entryDate),
       });

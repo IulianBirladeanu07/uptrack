@@ -18,102 +18,102 @@ import { Alert, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const sendWorkoutDataToFirestore = async (
-  exerciseData,
-  inputText,
-  isValidationPressed,
-  navigation,
-  openAnimatedMessage,
-  formatTime,
-  elapsedTime,
+    exerciseData,
+    inputText,
+    isValidationPressed,
+    navigation,
+    openAnimatedMessage,
+    formatTime,
+    elapsedTime,
+    templateName = '',
 ) => {
-  try {
-    const hasEmptyOrInvalidInputs = exerciseData.some(exercise =>
-      exercise.sets.some(set => {
-        const weightIsValid = set.weight !== undefined && set.weight !== null && 
-          (typeof set.weight === 'string' || typeof set.weight === 'number');
-        const repsIsValid = set.reps !== undefined && set.reps !== null && 
-          (typeof set.reps === 'string' || typeof set.reps === 'number');
-        const weightString = typeof set.weight === 'number' ? String(set.weight) : set.weight;
-        const repsString = typeof set.reps === 'number' ? String(set.reps) : set.reps;
+    try {
+        const hasEmptyOrInvalidInputs = exerciseData.some(exercise =>
+            exercise.sets.some(set => {
+                const weightIsValid = set.weight !== undefined && set.weight !== null &&
+                    (typeof set.weight === 'string' || typeof set.weight === 'number');
+                const repsIsValid = set.reps !== undefined && set.reps !== null &&
+                    (typeof set.reps === 'string' || typeof set.reps === 'number');
+                const weightString = typeof set.weight === 'number' ? String(set.weight) : set.weight;
+                const repsString = typeof set.reps === 'number' ? String(set.reps) : set.reps;
 
-        return (
-          !weightIsValid || !repsIsValid || 
-          (weightString.trim() === '') || 
-          (repsString.trim() === '') || 
-          !/^\d*\.?\d{0,2}$/.test(weightString) || 
-          !/^\d*\.?\d{0,2}$/.test(repsString)
+                return (
+                    !weightIsValid || !repsIsValid ||
+                    weightString.trim() === '' ||
+                    repsString.trim() === '' ||
+                    !/^\d*\.?\d{0,2}$/.test(weightString) ||
+                    !/^\d*\.?\d{0,2}$/.test(repsString)
+                );
+            })
         );
-      })
-    );
 
-    if (hasEmptyOrInvalidInputs) {
-      openAnimatedMessage('Note: Some sets have empty or invalid weight/reps.');
-      return;
-    }
+        if (hasEmptyOrInvalidInputs) {
+            openAnimatedMessage('Note: Some sets have empty or invalid weight/reps.');
+            return;
+        }
 
-    if (!isValidationPressed) {
-      Alert.alert(
-        "Unvalidated Sets",
-        "Some sets are not validated. Do you wish to proceed anyway?",
-        [
-          { text: "Cancel", style: "cancel" },
-          { 
-            text: "Proceed", 
-            onPress: async () => await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime) 
-          }
-        ]
-      );
-    } else {
-      await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime);
+        if (!isValidationPressed) {
+            Alert.alert(
+                'Unvalidated Sets',
+                'Some sets are not validated. Do you wish to proceed anyway?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Proceed',
+                        onPress: async () => await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName),
+                    },
+                ]
+            );
+        } else {
+            await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName);
+        }
+    } catch (error) {
+        console.error('Error adding workout data:', error.message);
+        openAnimatedMessage(`Error: ${error.message}`);
     }
-  } catch (error) {
-    console.error('Error adding workout data:', error.message);
-    openAnimatedMessage(`Error: ${error.message}`);
-  }
 };
 
-async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime) {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
+async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName = '') {
+    try {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) throw new Error('User not authenticated.');
+
+        const uid = user.uid;
+        const timestamp = new Date();
+        const formattedTimestamp = `${timestamp.getFullYear()}_${timestamp.getMonth() + 1}_${timestamp.getDate()}_${timestamp.getHours()}_${timestamp.getMinutes()}_${uid}`;
+
+        const workoutDataToSend = {
+            uid,
+            timestamp: serverTimestamp(),
+            note: inputText,
+            duration: formatTime(elapsedTime),
+            workoutName: templateName,
+            exercises: exerciseData.map(exercise => ({
+                ...exercise,
+                sets: exercise.sets.map(set => ({
+                    weight: parseFloat(set.weight || 0),
+                    reps: parseInt(set.reps || 0, 10),
+                    isValidated: set.isValidated,
+                    estimated1RM: set.reps > 0 ? calculate1RM(parseFloat(set.weight), parseInt(set.reps, 10)).toFixed(2) : 'N/A',
+                })),
+            })),
+        };
+
+        const workoutDocRef = doc(collection(db, 'workoutHistory'), formattedTimestamp);
+        await setDoc(workoutDocRef, workoutDataToSend);
+
+        navigation.navigate('WorkoutDetails', {
+            duration: formatTime(elapsedTime),
+            notes: inputText,
+            exercises: exerciseData,
+            timestamp: timestamp.toDateString() + ' ' + timestamp.toLocaleTimeString(),
+            workoutName: templateName,
+        });
+    } catch (error) {
+        console.error('Error finishing workout:', error.message);
+        openAnimatedMessage(`Error: ${error.message}`);
     }
-
-    const uid = user.uid;
-    const timestamp = new Date();
-    const formattedTimestamp = `${timestamp.getFullYear()}_${(timestamp.getMonth() + 1)}_${timestamp.getDate()}_${timestamp.getHours()}_${timestamp.getMinutes()}_${uid}`;
-    
-    const workoutDataToSend = {
-      uid,
-      timestamp: serverTimestamp(),
-      note: inputText,
-      duration: formatTime(elapsedTime),
-      exercises: exerciseData.map(exercise => ({
-        ...exercise,
-        sets: exercise.sets.map(set => ({
-          weight: parseFloat(set.weight || 0),
-          reps: parseInt(set.reps || 0, 10),
-          isValidated: set.isValidated,
-          estimated1RM: set.reps > 0 ? calculate1RM(parseFloat(set.weight), parseInt(set.reps, 10)).toFixed(2) : 'N/A',
-        }))
-      })),
-    };
-
-    const workoutDocRef = doc(collection(db, 'workoutHistory'), formattedTimestamp);
-
-    await setDoc(workoutDocRef, workoutDataToSend);
-    
-    navigation.navigate('WorkoutDetails', { 
-      duration: formatTime(elapsedTime), 
-      notes: inputText, 
-      exercises: exerciseData,
-      timestamp: timestamp.toDateString() + " " + timestamp.toLocaleTimeString(),
-    });
-  } catch (error) {
-    console.error('Error finishing workout:', error.message);
-    openAnimatedMessage(`Error: ${error.message}`);
-  }
 }
 
 export const calculate1RM = (weight, reps) => {

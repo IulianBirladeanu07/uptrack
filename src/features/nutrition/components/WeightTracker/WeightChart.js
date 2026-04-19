@@ -1,221 +1,178 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Animated, Dimensions } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
-import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import React, { useMemo } from 'react';
+import { View, Text, Dimensions } from 'react-native';
+import Svg, { Path, Circle, Text as SvgText } from 'react-native-svg';
+import { colors, spacing, fontSize, fontWeight } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const CHART_CONFIG = {
-  backgroundGradientFrom: colors.background.secondary,
-  backgroundGradientTo: colors.background.secondary,
-  color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`,
-  labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.8})`,
-  propsForDots: {
-    r: '3',
-    fill: colors.accent.primary,
-  },
-  propsForBackgroundLines: {
-    stroke: colors.border.light,
-    strokeWidth: 1,
-  },
-  propsForLabels: {
-    fontSize: 8,
-    fontWeight: '700',
-  },
-  decimalPlaces: 1,
-  fillShadowGradient: colors.accent.primary,
-  fillShadowGradientOpacity: 0.2,
+const CHART_H = 150;
+const CHART_PADDING = { top: 36, bottom: 32, left: 8, right: 8 };
+
+export const PERIODS = [
+    { key: '7', label: 'Week', days: 7 },
+    { key: '30', label: 'Month', days: 30 },
+    { key: '365', label: 'Year', days: 365 },
+];
+
+const buildPath = (points) => {
+    if (points.length < 2) return '';
+    return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
 };
 
-const WeightChart = ({ data }) => {
-  const [chartPeriod, setChartPeriod] = useState('30');
-  const fadeAnim = useRef(null);
+const DRAW_BOTTOM = CHART_H - CHART_PADDING.bottom;
 
-  if (!fadeAnim.current) {
-    fadeAnim.current = new Animated.Value(1);
-  }
+const buildAreaPath = (linePath, points) => {
+    if (!linePath) return '';
+    return `${linePath} L ${points[points.length - 1].x} ${DRAW_BOTTOM} L ${points[0].x} ${DRAW_BOTTOM} Z`;
+};
 
-  useEffect(() => {
-    fadeAnim.current.setValue(0);
-    Animated.timing(fadeAnim.current, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [chartPeriod]);
+const formatLabel = (dateStr, period) => {
+    const d = new Date(dateStr);
+    if (period === '7') return d.toLocaleDateString('en-US', { weekday: 'short' });
+    if (period === '365') return d.toLocaleDateString('en-US', { month: 'short' });
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
 
-  const chartData = useMemo(() => {
-    if (!data || data.length === 0) {
-      return { labels: [], datasets: [{ data: [0] }], rawData: [] };
+const WeightChart = ({ data, period }) => {
+    const chartWidth = SCREEN_WIDTH - (spacing[4] * 4) - CHART_PADDING.left - CHART_PADDING.right;
+
+    const { points, xLabels } = useMemo(() => {
+        if (!data?.length) return { points: [], xLabels: [] };
+
+        const days = PERIODS.find(p => p.key === period)?.days ?? 30;
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - (days - 1));
+        cutoff.setHours(0, 0, 0, 0);
+
+        let valid = data
+            .filter(d => d.weight > 0 && new Date(d.date) >= cutoff)
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        if (valid.length < 2) return { points: [], xLabels: [] };
+
+        if (period === '30') {
+            const thisMonth = new Date();
+            const thisMonthYear = `${thisMonth.getFullYear()}-${String(thisMonth.getMonth() + 1).padStart(2, '0')}`;
+
+            const weeks = {};
+            valid.forEach(item => {
+                const weekStart = item.weekStart || (() => {
+                    const itemDate = new Date(item.date);
+                    const start = new Date(itemDate);
+                    const day = itemDate.getDay();
+                    start.setDate(itemDate.getDate() - (day === 0 ? 6 : day - 1));
+                    start.setHours(0, 0, 0, 0);
+                    return start.toISOString().split('T')[0];
+                })();
+
+                if (!weeks[weekStart]) weeks[weekStart] = [];
+                weeks[weekStart].push(item.weight);
+            });
+
+            valid = Object.entries(weeks)
+                .filter(([dateStr]) => dateStr.startsWith(thisMonthYear))
+                .map(([dateStr, weights]) => ({
+                    date: dateStr,
+                    weight: weights.reduce((a, b) => a + b, 0) / weights.length,
+                }))
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+        }
+
+        const weights = valid.map(d => d.weight);
+        const minW = Math.min(...weights);
+        const maxW = Math.max(...weights);
+        const range = maxW - minW || 1;
+        const drawH = CHART_H - CHART_PADDING.top - CHART_PADDING.bottom;
+
+        const pts = valid.map((item, i) => ({
+            x: CHART_PADDING.left + (i / (valid.length - 1)) * chartWidth,
+            y: CHART_PADDING.top + (1 - (item.weight - minW) / range) * drawH,
+            weight: item.weight,
+            date: item.date,
+        }));
+
+        const maxLabels = period === '7' ? 7 : period === '30' ? 4 : 6;
+        const step = Math.max(1, Math.floor(valid.length / maxLabels));
+        const labels = valid
+            .filter((_, i) => i === 0 || i === valid.length - 1 || i % step === 0)
+            .map(d => ({
+                label: formatLabel(d.date, period),
+                x: pts[valid.indexOf(d)].x,
+                key: d.date,
+            }));
+
+        return { points: pts, xLabels: labels };
+    }, [data, period, chartWidth]);
+
+    const linePath = useMemo(() => buildPath(points), [points]);
+    const areaPath = useMemo(() => buildAreaPath(linePath, points), [linePath, points]);
+
+    if (!points.length) {
+        return (
+            <View style={styles.empty}>
+                <Text style={styles.emptyTitle}>No data yet</Text>
+                <Text style={styles.emptySub}>Start logging to see progress</Text>
+            </View>
+        );
     }
 
-    const validData = data
-      .filter(item => item.weight && item.weight > 0)
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    if (validData.length === 0) {
-      return { labels: [], datasets: [{ data: [0] }], rawData: [] };
-    }
-
-    const periods = {
-      '7': {
-        slice: -7,
-        labelFilter: () => true,
-        dateFormat: { month: 'short', day: 'numeric' }
-      },
-      '30': {
-        slice: -30,
-        labelFilter: (_, index, arr) => index % 5 === 0 || index === arr.length - 1,
-        dateFormat: { month: 'short', day: 'numeric' }
-      },
-      '365': {
-        slice: -365,
-        labelFilter: (_, index) => index % 60 === 0,
-        dateFormat: { month: 'short' }
-      }
-    };
-
-    const period = periods[chartPeriod];
-    const periodData = validData.slice(period.slice);
-
-    return {
-      labels: periodData.map((item, index, arr) => {
-        if (!period.labelFilter(item, index, arr)) return '';
-        const date = new Date(item.date);
-        return date.toLocaleDateString('en-US', period.dateFormat);
-      }),
-      datasets: [{ data: periodData.map(item => item.weight) }],
-      rawData: periodData,
-    };
-  }, [data, chartPeriod]);
-
-  if (chartData.rawData.length === 0) {
     return (
-      <View style={styles.chartCard}>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No weight data</Text>
-          <Text style={styles.emptySubtitle}>Start logging to see your progress</Text>
+        <View>
+            <Svg width={chartWidth + CHART_PADDING.left + CHART_PADDING.right} height={CHART_H}>
+                <Path d={areaPath} fill={colors.accent.primary} fillOpacity={0.08} />
+                <Path
+                    d={linePath}
+                    stroke={colors.accent.primary}
+                    strokeWidth="2"
+                    fill="none"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                />
+
+                {points.map((p, i) => (
+                    <React.Fragment key={p.date}>
+                        <Circle
+                            cx={p.x}
+                            cy={p.y}
+                            r={3}
+                            fill={colors.accent.primary}
+                        />
+                        <SvgText
+                            x={p.x}
+                            y={p.y - 12}
+                            fontSize={8}
+                            fontWeight="700"
+                            fill={colors.accent.primary}
+                            textAnchor={i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle'}
+                        >
+                            {p.weight.toFixed(1)}
+                        </SvgText>
+                    </React.Fragment>
+                ))}
+
+                {xLabels.map((l, i) => (
+                    <SvgText
+                        key={l.key}
+                        x={l.x}
+                        y={CHART_H - 6}
+                        fontSize={8}
+                        fontWeight="500"
+                        fill={colors.text.quaternary}
+                        textAnchor={i === 0 ? 'start' : i === xLabels.length - 1 ? 'end' : 'middle'}
+                    >
+                        {l.label}
+                    </SvgText>
+                ))}
+            </Svg>
         </View>
-      </View>
     );
-  }
-
-  const chartWidth = SCREEN_WIDTH - (spacing[4] * 2);
-
-  return (
-    <Animated.View style={[styles.chartCard, { opacity: fadeAnim.current }]}>
-      <View style={styles.chartHeader}>
-        <Text style={styles.chartTitle}>Progress</Text>
-        <View style={styles.chartToggle}>
-          {['7', '30', '365'].map((period, idx) => (
-            <TouchableOpacity
-              key={period}
-              style={[styles.toggleButton, chartPeriod === period && styles.toggleButtonActive]}
-              onPress={() => setChartPeriod(period)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.toggleButtonText, chartPeriod === period && styles.toggleButtonTextActive]}>
-                {['Week', 'Month', 'Year'][idx]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.chartWrapper}>
-        <LineChart
-          data={chartData}
-          width={chartWidth}
-          height={180}
-          chartConfig={CHART_CONFIG}
-          withDots={true}
-          withShadow={true}
-          withInnerLines={true}
-          withOuterLines={false}
-          withVerticalLines={false}
-          withHorizontalLines={true}
-          segments={4}
-          fromZero={false}
-          style={styles.chart}
-          bezier={true}
-          yAxisInterval={1}
-          formatYLabel={(value) => {
-            const num = typeof value === 'string' ? parseFloat(value) : value;
-            return `${num.toFixed(1)}`;
-          }}
-        />
-      </View>
-    </Animated.View>
-  );
 };
 
 const styles = createStyles(() => ({
-  chartCard: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: radius[4],
-    padding: spacing[4],
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing[4],
-  },
-  chartTitle: {
-    fontSize: fontSize[16],
-    color: colors.text.primary,
-    fontWeight: fontWeight.semibold,
-  },
-  chartToggle: {
-    flexDirection: 'row',
-    backgroundColor: colors.background.tertiary,
-    borderRadius: radius[2],
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    padding: spacing[1],
-  },
-  toggleButton: {
-    paddingHorizontal: spacing[3],
-    paddingVertical: 6,
-  },
-  toggleButtonActive: {
-    backgroundColor: colors.accent.primary,
-    borderRadius: radius[2],
-  },
-  toggleButtonText: {
-    fontSize: fontSize[10],
-    color: colors.text.quaternary,
-    fontWeight: fontWeight.medium,
-  },
-  toggleButtonTextActive: {
-    color: colors.accent.buttonText,
-    fontWeight: fontWeight.semibold,
-  },
-  chartWrapper: {
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  chart: {
-    borderRadius: radius[2],
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing[12],
-  },
-  emptyTitle: {
-    fontSize: fontSize[16],
-    color: colors.text.primary,
-    fontWeight: fontWeight.bold,
-    marginBottom: spacing[1],
-  },
-  emptySubtitle: {
-    fontSize: fontSize[12],
-    color: colors.text.secondary,
-    fontWeight: fontWeight.medium,
-  },
+    empty: { alignItems: 'center', paddingVertical: spacing[6], gap: spacing[1] },
+    emptyTitle: { fontSize: fontSize[14], fontWeight: fontWeight.bold, color: colors.text.primary },
+    emptySub: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary },
 }));
 
 export default WeightChart;

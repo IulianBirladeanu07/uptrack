@@ -33,6 +33,7 @@ import CreateSplitScreen from './src/features/workout/screens/CreateSplitScreen/
 import WeightTracker from './src/features/nutrition/components/WeightTracker/WeightTracker';
 import ViewSplitScreen from './src/features/workout/screens/CreateSplitScreen/components/ViewSplitScreen';
 import CreateExerciseScreen from './src/features/workout/screens/CreateExerciseScreen/CreateExerciseScreen';
+import WeightHistoryScreen from './src/features/nutrition/components/WeightTracker/WeightHistoryScreen';4
 
 const Stack = createNativeStackNavigator();
 
@@ -61,6 +62,7 @@ const AuthenticatedScreens = React.memo(() => (
         <Stack.Screen name="WeightTracker" component={WeightTracker} options={{ headerShown: false }} />
         <Stack.Screen name="ViewSplit" component={ViewSplitScreen} options={{ headerShown: false }} />
         <Stack.Screen name="CreateExercise" component={CreateExerciseScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="WeightHistory" component={WeightHistoryScreen} options= {{ headerShown: false}} />
       </Stack.Navigator>
     </WorkoutProvider>
   </FoodProvider>

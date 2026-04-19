@@ -170,6 +170,23 @@ export const FoodProvider = ({ children, initialUserData }) => {
     return completedDays.length > 0 ? Math.round(total / completedDays.length) : 0;
   }, [selectedDate]);
 
+  const getNutritionForDateRange = useCallback((startDate, endDate) => {
+      return mealCache.current.getDateRange(startDate, endDate).map(({ date, meals }) => {
+          const foods = Object.values(meals ?? {}).flat();
+          return {
+              date,
+              calories: foods.reduce((s, f) => s + (Number(f?.calories) || 0), 0),
+              protein:  foods.reduce((s, f) => s + (Number(f?.protein)  || 0), 0),
+              carbs:    foods.reduce((s, f) => s + (Number(f?.carbs)    || 0), 0),
+              fat:      foods.reduce((s, f) => s + (Number(f?.fat)      || 0), 0),
+          };
+      });
+  }, []);
+  
+  const getStepsForDateRange = useCallback((startDate, endDate) => {
+      return mealCache.current.getStepsRange(startDate, endDate);
+  }, []);
+
   const updateCaches = useCallback(({
     frequentFoods: newFrequentFoods,
     recentMeal: newRecentMeal
@@ -479,14 +496,16 @@ export const FoodProvider = ({ children, initialUserData }) => {
     error,
     initialLoadComplete,
     rollingWeekStats,
-    getCaloriesForDateRange
+    getCaloriesForDateRange,
+    getNutritionForDateRange,
+    getStepsForDateRange,
   }), [
     mealState, selectedDate, handleDateChange, categoryData,
     userProfile, nutritionHookData.hasTargets, enhancedLearningData,
     remainingCalories, nutritionHookData.dailyNutrition, nutritionHookData.userMacros,
     handleAddMeal, handleDeleteMeal, updateMealInDatabase, updateMealState,
     getTrendData, dailySteps, updateDailySteps, getWeeklyAvgSteps,
-    loading, error, initialLoadComplete, rollingWeekStats, getCaloriesForDateRange
+    loading, error, initialLoadComplete, rollingWeekStats, getCaloriesForDateRange, getNutritionForDateRange, getStepsForDateRange
   ]);
 
   return (
