@@ -83,18 +83,46 @@ async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMe
         const timestamp = new Date();
         const formattedTimestamp = `${timestamp.getFullYear()}_${timestamp.getMonth() + 1}_${timestamp.getDate()}_${timestamp.getHours()}_${timestamp.getMinutes()}_${uid}`;
 
+        const exercisesWithPR = exerciseData.map(exercise => {
+            const validSets = exercise.sets.filter(s => s.weight && s.reps);
+            if (!validSets.length) return { ...exercise };
+
+            const best = findBestSet(validSets);
+            const lastBest = exercise.lastWorkoutSets?.length
+                ? findBestSet(exercise.lastWorkoutSets.map(s => ({
+                    ...s,
+                    weight: parseFloat(s.weight) || 0,
+                    reps: parseInt(s.reps) || 0,
+                })))
+                : { estimated1RM: 0 };
+
+            const isExercisePR = best.estimated1RM > lastBest.estimated1RM;
+
+            return {
+                ...exercise,
+                sets: exercise.sets.map(set => {
+                    const set1RM = calculate1RM(parseFloat(set.weight || 0), parseInt(set.reps || 0));
+                    return {
+                        ...set,
+                        isPR: isExercisePR && Math.abs(set1RM - best.estimated1RM) < 0.01,
+                    };
+                }),
+            };
+        });
+
         const workoutDataToSend = {
             uid,
             timestamp: serverTimestamp(),
             note: inputText,
             duration: formatTime(elapsedTime),
-            workoutName: templateName,
-            exercises: exerciseData.map(exercise => ({
+            workoutName: templateName || 'Workout',
+            exercises: exercisesWithPR.map(exercise => ({
                 ...exercise,
                 sets: exercise.sets.map(set => ({
                     weight: parseFloat(set.weight || 0),
                     reps: parseInt(set.reps || 0, 10),
                     isValidated: set.isValidated,
+                    isPR: set.isPR || false,
                     estimated1RM: set.reps > 0 ? calculate1RM(parseFloat(set.weight), parseInt(set.reps, 10)).toFixed(2) : 'N/A',
                 })),
             })),
@@ -106,9 +134,9 @@ async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMe
         navigation.navigate('WorkoutDetails', {
             duration: formatTime(elapsedTime),
             notes: inputText,
-            exercises: exerciseData,
+            exercises: exercisesWithPR,
             timestamp: timestamp.toDateString() + ' ' + timestamp.toLocaleTimeString(),
-            workoutName: templateName,
+            workoutName: templateName || 'Workout',
         });
     } catch (error) {
         console.error('Error finishing workout:', error.message);

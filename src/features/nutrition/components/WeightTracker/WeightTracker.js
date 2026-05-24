@@ -311,9 +311,9 @@ const WeightTracker = () => {
                         <Text style={styles.cardTitle}>Progress</Text>
                         <View style={styles.periodPills}>
                             {[
-                                { key: '7',   label: 'Week'  },
-                                { key: '90',  label: 'Month' },
-                                { key: '365', label: 'Year'  },
+                                { key: '7',  label: 'Week' },
+                                { key: '4W', label: '4W'   },
+                                { key: '8W', label: '8W'   },
                             ].map(p => (
                                 <TouchableOpacity
                                     key={p.key}

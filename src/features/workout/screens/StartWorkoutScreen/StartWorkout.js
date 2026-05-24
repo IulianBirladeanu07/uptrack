@@ -267,7 +267,7 @@ const StartWorkout = ({ route, navigation }) => {
             const allValidated = workoutService.areAllSetsValidated();
             const workoutData = [...exerciseData];
             const workoutNote = inputText;
-            const templateName = route.params?.selectedWorkout?.templateName || '';
+            const templateName = route.params?.selectedWorkout?.templateName || 'Workout';
             
             await sendWorkoutDataToFirestore(
                 workoutData,

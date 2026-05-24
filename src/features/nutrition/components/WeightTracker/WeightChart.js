@@ -1,112 +1,169 @@
 import React, { useMemo } from 'react';
 import { View, Text, Dimensions } from 'react-native';
-import Svg, { Path, Circle, Text as SvgText } from 'react-native-svg';
+import Svg, { Path, Circle, Text as SvgText, G } from 'react-native-svg';
 import { colors, spacing, fontSize, fontWeight } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const CHART_H = 150;
-const CHART_PADDING = { top: 36, bottom: 32, left: 8, right: 8 };
-
 export const PERIODS = [
-    { key: '7', label: 'Week', days: 7 },
-    { key: '30', label: 'Month', days: 30 },
-    { key: '365', label: 'Year', days: 365 },
+    { key: '7',  label: 'Week' },
+    { key: '4W', label: '4W'   },
+    { key: '8W', label: '8W'   },
 ];
 
-const buildPath = (points) => {
-    if (points.length < 2) return '';
-    return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+const CHART_H    = 160;
+const PAD_TOP    = 10;
+const PAD_BOTTOM = 40;
+const PAD_SIDE   = 12;
+
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const toDateKey = (d) => d.toISOString().split('T')[0];
+
+const getLast7Days = () => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        d.setHours(0, 0, 0, 0);
+        days.push(d);
+    }
+    return days;
 };
 
-const DRAW_BOTTOM = CHART_H - CHART_PADDING.bottom;
-
-const buildAreaPath = (linePath, points) => {
-    if (!linePath) return '';
-    return `${linePath} L ${points[points.length - 1].x} ${DRAW_BOTTOM} L ${points[0].x} ${DRAW_BOTTOM} Z`;
+const getMonday = (weekOffset = 0) => {
+    const now  = new Date();
+    const day  = now.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const d    = new Date(now);
+    d.setDate(now.getDate() + diff + weekOffset * 7);
+    d.setHours(0, 0, 0, 0);
+    return d;
 };
 
-const formatLabel = (dateStr, period) => {
-    const d = new Date(dateStr);
-    if (period === '7') return d.toLocaleDateString('en-US', { weekday: 'short' });
-    if (period === '365') return d.toLocaleDateString('en-US', { month: 'short' });
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const buildLinePath = (pts) => {
+    if (pts.length < 2) return '';
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
 };
+
+const buildAreaPath = (linePath, pts, drawBot) => {
+    if (!linePath || pts.length < 2) return '';
+    return `${linePath} L ${pts[pts.length - 1].x.toFixed(1)} ${drawBot} L ${pts[0].x.toFixed(1)} ${drawBot} Z`;
+};
+
+const getYScale = (weights) => {
+    const min = Math.min(...weights);
+    const max = Math.max(...weights);
+    const pad = Math.max((max - min) * 0.4, 0.8);
+    return { yMin: min - pad, yMax: max + pad };
+};
+
+const toY = (w, yMin, yMax, top, bottom) =>
+    top + (1 - (w - yMin) / (yMax - yMin || 1)) * (bottom - top);
+
+const labelAnchor = (i, total) =>
+    i === 0 ? 'start' : i === total - 1 ? 'end' : 'middle';
 
 const WeightChart = ({ data, period }) => {
-    const chartWidth = SCREEN_WIDTH - (spacing[4] * 4) - CHART_PADDING.left - CHART_PADDING.right;
+    const outerW  = SCREEN_WIDTH - spacing[4] * 4 + spacing[3];
+    const drawW   = outerW - PAD_SIDE * 2;
+    const drawTop = PAD_TOP;
+    const drawBot = CHART_H - PAD_BOTTOM;
 
     const { points, xLabels } = useMemo(() => {
         if (!data?.length) return { points: [], xLabels: [] };
 
-        const days = PERIODS.find(p => p.key === period)?.days ?? 30;
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - (days - 1));
-        cutoff.setHours(0, 0, 0, 0);
-
-        let valid = data
-            .filter(d => d.weight > 0 && new Date(d.date) >= cutoff)
-            .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-        if (valid.length < 2) return { points: [], xLabels: [] };
-
-        if (period === '30') {
-            const thisMonth = new Date();
-            const thisMonthYear = `${thisMonth.getFullYear()}-${String(thisMonth.getMonth() + 1).padStart(2, '0')}`;
-
-            const weeks = {};
-            valid.forEach(item => {
-                const weekStart = item.weekStart || (() => {
-                    const itemDate = new Date(item.date);
-                    const start = new Date(itemDate);
-                    const day = itemDate.getDay();
-                    start.setDate(itemDate.getDate() - (day === 0 ? 6 : day - 1));
-                    start.setHours(0, 0, 0, 0);
-                    return start.toISOString().split('T')[0];
-                })();
-
-                if (!weeks[weekStart]) weeks[weekStart] = [];
-                weeks[weekStart].push(item.weight);
+        if (period === '7') {
+            const days   = getLast7Days();
+            const byDate = {};
+            data.forEach(e => {
+                const key = typeof e.date === 'string' ? e.date.split('T')[0] : toDateKey(new Date(e.date));
+                if (e.weight > 0) byDate[key] = e.weight;
             });
 
-            valid = Object.entries(weeks)
-                .filter(([dateStr]) => dateStr.startsWith(thisMonthYear))
-                .map(([dateStr, weights]) => ({
-                    date: dateStr,
-                    weight: weights.reduce((a, b) => a + b, 0) / weights.length,
-                }))
-                .sort((a, b) => new Date(a.date) - new Date(b.date));
-        }
-
-        const weights = valid.map(d => d.weight);
-        const minW = Math.min(...weights);
-        const maxW = Math.max(...weights);
-        const range = maxW - minW || 1;
-        const drawH = CHART_H - CHART_PADDING.top - CHART_PADDING.bottom;
-
-        const pts = valid.map((item, i) => ({
-            x: CHART_PADDING.left + (i / (valid.length - 1)) * chartWidth,
-            y: CHART_PADDING.top + (1 - (item.weight - minW) / range) * drawH,
-            weight: item.weight,
-            date: item.date,
-        }));
-
-        const maxLabels = period === '7' ? 7 : period === '30' ? 4 : 6;
-        const step = Math.max(1, Math.floor(valid.length / maxLabels));
-        const labels = valid
-            .filter((_, i) => i === 0 || i === valid.length - 1 || i % step === 0)
-            .map(d => ({
-                label: formatLabel(d.date, period),
-                x: pts[valid.indexOf(d)].x,
-                key: d.date,
+            const slots = days.map((d, i) => ({
+                key:    toDateKey(d),
+                i,
+                label:  DAY_LABELS[d.getDay() === 0 ? 6 : d.getDay() - 1],
+                weight: byDate[toDateKey(d)] ?? null,
             }));
 
-        return { points: pts, xLabels: labels };
-    }, [data, period, chartWidth]);
+            const present = slots.filter(s => s.weight != null);
+            if (!present.length) return { points: [], xLabels: [] };
 
-    const linePath = useMemo(() => buildPath(points), [points]);
-    const areaPath = useMemo(() => buildAreaPath(linePath, points), [linePath, points]);
+            const { yMin, yMax } = getYScale(present.map(s => s.weight));
+            const n = slots.length - 1;
+
+            const pts = present.map((s, idx) => ({
+                x:      (s.i / n) * drawW,
+                y:      toY(s.weight, yMin, yMax, drawTop, drawBot),
+                key:    s.key,
+                weight: s.weight,
+                above:  idx % 2 === 0,
+                idx,
+                total:  present.length,
+            }));
+
+            const labels = slots.map((s, i) => ({
+                x: (s.i / n) * drawW, label: s.label, key: s.key, index: i, total: slots.length,
+            }));
+
+            return { points: pts, xLabels: labels };
+        }
+
+        const weekCount = period === '4W' ? 4 : 8;
+        const allSlots  = [];
+
+        for (let i = weekCount - 1; i >= 0; i--) {
+            const monday = getMonday(-i);
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            sunday.setHours(23, 59, 59, 999);
+
+            const entries = data.filter(e => {
+                if (!e.weight || e.weight <= 0) return false;
+                const d = new Date(e.date);
+                return d >= monday && d <= sunday;
+            });
+
+            const avg = entries.length
+                ? entries.reduce((s, e) => s + e.weight, 0) / entries.length
+                : null;
+
+            allSlots.push({
+                avg,
+                slot:  weekCount - 1 - i,
+                label: monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                key:   toDateKey(monday),
+            });
+        }
+
+        const present = allSlots.filter(w => w.avg != null);
+        if (!present.length) return { points: [], xLabels: [] };
+
+        const { yMin, yMax } = getYScale(present.map(w => w.avg));
+        const n = weekCount - 1;
+
+        const pts = present.map((w, idx) => ({
+            x:      (w.slot / n) * drawW,
+            y:      toY(w.avg, yMin, yMax, drawTop, drawBot),
+            key:    w.key,
+            weight: w.avg,
+            above:  idx % 2 === 0,
+            idx,
+            total:  present.length,
+        }));
+
+        const labels = allSlots.map((w, i) => ({
+            x: (w.slot / n) * drawW, label: w.label, key: w.key, index: i, total: allSlots.length,
+        }));
+
+        return { points: pts, xLabels: labels };
+    }, [data, period, drawW, drawTop, drawBot]);
+
+    const linePath = useMemo(() => buildLinePath(points), [points]);
+    const areaPath = useMemo(() => buildAreaPath(linePath, points, drawBot), [linePath, points, drawBot]);
 
     if (!points.length) {
         return (
@@ -119,60 +176,59 @@ const WeightChart = ({ data, period }) => {
 
     return (
         <View>
-            <Svg width={chartWidth + CHART_PADDING.left + CHART_PADDING.right} height={CHART_H}>
-                <Path d={areaPath} fill={colors.accent.primary} fillOpacity={0.08} />
-                <Path
-                    d={linePath}
-                    stroke={colors.accent.primary}
-                    strokeWidth="2"
-                    fill="none"
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                />
+            <Svg width={outerW} height={CHART_H}>
+                <G x={PAD_SIDE}>
+                    <Path d={areaPath} fill={colors.accent.primary} fillOpacity={0.07} />
+                    <Path
+                        d={linePath}
+                        stroke={colors.accent.primary}
+                        strokeWidth="2"
+                        fill="none"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                    />
 
-                {points.map((p, i) => (
-                    <React.Fragment key={p.date}>
-                        <Circle
-                            cx={p.x}
-                            cy={p.y}
-                            r={3}
-                            fill={colors.accent.primary}
-                        />
-                        <SvgText
-                            x={p.x}
-                            y={p.y - 12}
-                            fontSize={8}
-                            fontWeight="700"
-                            fill={colors.accent.primary}
-                            textAnchor={i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle'}
-                        >
-                            {p.weight.toFixed(1)}
-                        </SvgText>
-                    </React.Fragment>
-                ))}
+                    {points.map(p => (
+                        <React.Fragment key={p.key}>
+                            <Circle cx={p.x} cy={p.y} r={3.5} fill={colors.accent.primary} />
+                            <SvgText
+                                x={p.x}
+                                y={p.above ? p.y - 13 : p.y + 20}
+                                fontSize={9}
+                                fontWeight="700"
+                                fill={colors.accent.primary}
+                                textAnchor={labelAnchor(p.idx, p.total)}
+                            >
+                                {p.weight.toFixed(1)}
+                            </SvgText>
+                        </React.Fragment>
+                    ))}
 
-                {xLabels.map((l, i) => (
-                    <SvgText
-                        key={l.key}
-                        x={l.x}
-                        y={CHART_H - 6}
-                        fontSize={8}
-                        fontWeight="500"
-                        fill={colors.text.quaternary}
-                        textAnchor={i === 0 ? 'start' : i === xLabels.length - 1 ? 'end' : 'middle'}
-                    >
-                        {l.label}
-                    </SvgText>
-                ))}
+                    {xLabels
+                        .filter((_, i) => period !== '8W' || i % 2 === 0)
+                        .map(l => (
+                            <SvgText
+                                key={l.key}
+                                x={l.x}
+                                y={CHART_H - 10}
+                                fontSize={9}
+                                fontWeight="500"
+                                fill={colors.text.quaternary}
+                                textAnchor={labelAnchor(l.index, l.total)}
+                            >
+                                {l.label}
+                            </SvgText>
+                        ))}
+                </G>
             </Svg>
         </View>
     );
 };
 
 const styles = createStyles(() => ({
-    empty: { alignItems: 'center', paddingVertical: spacing[6], gap: spacing[1] },
+    empty:      { alignItems: 'center', paddingVertical: spacing[6], gap: spacing[1] },
     emptyTitle: { fontSize: fontSize[14], fontWeight: fontWeight.bold, color: colors.text.primary },
-    emptySub: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary },
+    emptySub:   { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary },
 }));
 
 export default WeightChart;

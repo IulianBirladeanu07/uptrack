@@ -56,6 +56,7 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
           const checkResult = await PermissionsAndroid.check(
             PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
           );
+          console.log('[Steps] permission check:', checkResult);
           if (checkResult) return true;
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
@@ -65,10 +66,12 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
               buttonPositive: 'Allow',
             }
           );
+          console.log('[Steps] permission request result:', granted);
           return granted === PermissionsAndroid.RESULTS.GRANTED;
         }
         return true;
       } catch (err) {
+        console.log('[Steps] permission error:', err);
         return false;
       }
     }
@@ -77,6 +80,7 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
 
   const initializeGoogleFit = async () => {
     const permissionGranted = await requestAndroidPermission();
+    console.log('[Steps] permission:', permissionGranted);
     if (!permissionGranted) throw new Error('Permission denied');
 
     const options = {
@@ -87,6 +91,7 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
     };
 
     const authResult = await GoogleFit.authorize(options);
+    console.log('[Steps] auth:', JSON.stringify(authResult));
     if (!authResult.success) throw new Error('Authorization failed');
   };
 
@@ -111,7 +116,11 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
           startDate: getLocalISOString(today),
           endDate: getLocalISOString(now),
         });
-        if (!result?.length) return 0;
+
+        if (!result?.length) {
+          console.log('[Steps] fetchToday: no results');
+          return 0;
+        }
 
         const preferredSources = [
           'com.google.android.gms:estimated_steps',
@@ -122,12 +131,18 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
         for (const sourceName of preferredSources) {
           const source = result.find(d => d.source === sourceName);
           if (source?.steps?.length > 0) {
-            return source.steps.reduce((sum, s) => sum + s.value, 0);
+            const total = source.steps.reduce((sum, s) => sum + s.value, 0);
+            console.log('[Steps] fetchToday source:', sourceName, 'steps:', total);
+            return total;
           }
         }
+
         const fallback = result.find(d => d.steps?.length > 0);
-        return fallback?.steps.reduce((sum, s) => sum + s.value, 0) || 0;
+        const total = fallback?.steps.reduce((sum, s) => sum + s.value, 0) || 0;
+        console.log('[Steps] fetchToday fallback:', fallback?.source, 'steps:', total);
+        return total;
       } catch (err) {
+        console.log('[Steps] fetchToday error:', err);
         return 0;
       }
     }
@@ -136,7 +151,7 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
   const fetchLast7DaysSteps = async () => {
     const now = new Date();
     const startDate = new Date();
-    startDate.setDate(now.getDate() - 7); // Go back 7 full days
+    startDate.setDate(now.getDate() - 7);
     startDate.setHours(0, 0, 0, 0);
 
     if (Platform.OS === 'ios') {
@@ -162,34 +177,46 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
           startDate: getLocalISOString(startDate),
           endDate: getLocalISOString(now),
         });
+
+        console.log('[Steps] fetchLast7Days sources:', stepsData?.map(d => d.source));
+
         if (stepsData && onStepsUpdate) {
           const source = stepsData.find(d => d.source === 'com.google.android.gms:estimated_steps') || stepsData[0];
+          console.log('[Steps] using source:', source?.source, 'days:', source?.steps?.length);
+
           if (source?.steps) {
             source.steps.forEach(step => {
+              console.log('[Steps] day:', step.date, 'value:', step.value);
               onStepsUpdate(step.value || 0, formatDate(new Date(step.date)));
             });
           }
         }
-      } catch (err) {}
+      } catch (err) {
+        console.log('[Steps] fetchLast7Days error:', err);
+      }
     }
   };
 
   const updateTodaySteps = async () => {
     const steps = await fetchTodaySteps();
     const todayKey = formatDate(new Date());
+    console.log('[Steps] updateToday:', todayKey, 'steps:', steps);
     if (onStepsUpdate) onStepsUpdate(steps, todayKey);
   };
 
   const initialize = async () => {
     if (initializingRef.current || initialized) return;
     initializingRef.current = true;
+    console.log('[Steps] initialize start, platform:', Platform.OS);
     try {
       if (Platform.OS === 'ios') await initializeHealthKit();
       else await initializeGoogleFit();
       await fetchLast7DaysSteps();
       await updateTodaySteps();
       setInitialized(true);
+      console.log('[Steps] initialize complete');
     } catch (err) {
+      console.log('[Steps] initialize failed:', err?.message || err);
     } finally {
       initializingRef.current = false;
     }

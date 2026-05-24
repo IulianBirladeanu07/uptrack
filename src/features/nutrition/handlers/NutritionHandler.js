@@ -6,74 +6,111 @@ import { supabase } from '../../../shared/services/supabaseClient'
 import { Timestamp } from 'firebase/firestore';
 
 export const fetchFrequentFoods = async (limitCount = 50) => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
+    try {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) throw new Error('User not authenticated.');
 
-    if (!user) {
-      throw new Error('User not authenticated.');
+        const cacheKey = `frequentFoods_${user.uid}`;
+        const cached = await handleCache.get(cacheKey);
+        if (cached) return cached;
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+        const q = query(
+            collection(db, 'meals'),
+            where('uid', '==', user.uid),
+            where('date', '>=', dateStr),
+            orderBy('date', 'desc')
+        );
+
+        const snap = await getDocs(q);
+        const foodUsageMap = new Map();
+        const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snacks'];
+
+        snap.docs.forEach(d => {
+            const data = d.data();
+            const ts = data.timestamp
+                ? new Timestamp(data.timestamp.seconds, data.timestamp.nanoseconds).toDate().getTime()
+                : Date.now();
+
+            MEAL_TYPES.forEach(mealType => {
+                (data[mealType] || []).forEach(food => {
+                    const key = `${food.id}_${mealType}`;
+                    if (!foodUsageMap.has(key)) {
+                        foodUsageMap.set(key, { ...food, mealType, usageCount: 0, lastUsed: ts });
+                    }
+                    const entry = foodUsageMap.get(key);
+                    entry.usageCount += 1;
+                    if (ts > entry.lastUsed) entry.lastUsed = ts;
+                });
+            });
+        });
+
+        const result = Array.from(foodUsageMap.values())
+            .sort((a, b) => {
+                const recency   = (b.lastUsed - a.lastUsed) / (1000 * 60 * 60 * 24);
+                const frequency = b.usageCount - a.usageCount;
+                return frequency * 0.7 + recency * 0.3;
+            })
+            .slice(0, limitCount);
+
+        await handleCache.set(cacheKey, result);
+        return result;
+    } catch (e) {
+        console.error('fetchFrequentFoods:', e);
+        throw e;
     }
+};
 
-    const cacheKey = `frequentFoods_${user.uid}`;
-    const cachedFoods = await handleCache.get(cacheKey);
-    if (cachedFoods) {
-      return cachedFoods;
+export const fetchRecentMeals = async () => {
+    try {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) throw new Error('User not authenticated.');
+
+        const cacheKey = `recentMeals_${user.uid}`;
+        const cached = await handleCache.get(cacheKey);
+        if (cached) return cached;
+
+        const q = query(
+            collection(db, 'meals'),
+            where('uid', '==', user.uid),
+            orderBy('date', 'desc'),
+            limit(10)
+        );
+
+        const snap = await getDocs(q);
+        const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snacks'];
+
+        const result = snap.docs.flatMap(d => {
+            const data = d.data();
+            return MEAL_TYPES
+                .filter(mealType => (data[mealType] || []).length > 0)
+                .map(mealType => {
+                    const foods = data[mealType];
+                    return {
+                        id:            `${data.date}_${mealType}`,
+                        date:          data.date,
+                        mealType,
+                        foods,
+                        totalCalories: foods.reduce((s, f) => s + (Number(f.calories) || 0), 0),
+                    };
+                });
+        });
+
+        await handleCache.set(cacheKey, result);
+        return result;
+    } catch (e) {
+        console.error('fetchRecentMeals:', e);
+        throw e;
     }
+};
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const thirtyDaysAgoString = thirtyDaysAgo.toISOString().split('T')[0];
-    
-    const mealQuery = query(
-      collection(db, 'meals'),
-      where('uid', '==', user.uid),
-      where('date', '>=', thirtyDaysAgoString),
-      orderBy('date', 'desc'),
-      limit(50)
-    );
-
-    const querySnapshot = await getDocs(mealQuery);
-    const foodUsageMap = new Map();
-
-    querySnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const foods = data.foods || [];
-      const mealType = doc.id.split('_')[1];
-      const firestoreTimestamp = new Timestamp(data.timestamp.seconds, data.timestamp.nanoseconds);
-      const mealDate = firestoreTimestamp.toDate().getTime();
-
-      foods.forEach(food => {
-        const foodKey = `${food.id}_${mealType}`;
-        if (!foodUsageMap.has(foodKey)) {
-          foodUsageMap.set(foodKey, {
-            ...food,
-            mealType,
-            usageCount: 0,
-            lastUsed: mealDate
-          });
-        }
-        const existingFood = foodUsageMap.get(foodKey);
-        existingFood.usageCount += 1;
-        if (mealDate > existingFood.lastUsed) {
-          existingFood.lastUsed = mealDate;
-        }
-      });
-    });
-
-    const frequentFoods = Array.from(foodUsageMap.values())
-      .sort((a, b) => {
-        const recencyScore = (b.lastUsed - a.lastUsed) / (1000 * 60 * 60 * 24);
-        const frequencyScore = b.usageCount - a.usageCount;
-        return (frequencyScore * 0.7) + (recencyScore * 0.3);
-      })
-      .slice(0, limitCount);
-
-    await handleCache.set(cacheKey, frequentFoods);
-    return frequentFoods;
-  } catch (error) {
-    console.error("Error fetching frequent foods:", error);
-    throw error;
-  }
+export const fetchFavoriteFoods = async () => {
+    return [];
 };
 
 const handleCache = {
@@ -102,51 +139,6 @@ const handleCache = {
     } catch (error) {
       console.warn('Cache write error:', error);
     }
-  }
-};
-
-export const fetchRecentMeals = async () => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-
-    const cacheKey = `recentMeals_${user.uid}`;
-    const cachedMeals = await handleCache.get(cacheKey);
-    if (cachedMeals) {
-      return cachedMeals;
-    }
-
-    const mealQuery = query(
-      collection(db, 'meals'),
-      where('uid', '==', user.uid),
-      orderBy('date', 'desc'),
-      limit(10)
-    );
-
-    const mealQuerySnapshot = await getDocs(mealQuery);
-
-    const meals = mealQuerySnapshot.docs.map(doc => {
-      const mealData = { id: doc.id, ...doc.data() };
-      const foods = mealData.foods || [];
-      const totalCalories = foods.reduce((total, food) => 
-        total + (Number(food.calories) || 0), 0);
-
-      return {
-        ...mealData,
-        foods,
-        totalCalories
-      };
-    });
-
-    await handleCache.set(cacheKey, meals);
-    return meals;
-  } catch (error) {
-    console.error("Error fetching recent meals:", error);
-    throw error;
   }
 };
 
@@ -383,41 +375,6 @@ export const fetchUsuallyUsedFoods = async () => {
     return frequentFoods;
   } catch (error) {
     console.error("Error fetching usually used foods:", error.message);
-    throw error;
-  }
-};
-
-export const fetchFavoriteFoods = async (limitCount = 10) => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-    const uid = user.uid;
-    
-    const mealQuery = query(
-      collection(db, 'meals'),
-      where('uid', '==', uid),
-    );
-
-    const querySnapshot = await getDocs(mealQuery);
-    const favoriteFoods = [];
-
-    querySnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const foods = data.foods || [];
-      foods.forEach(food => {
-        if (food.isFavorite) {
-          favoriteFoods.push({ ...food, mealId: doc.id });
-        }
-      });
-    });
-
-    return favoriteFoods;
-  } catch (error) {
-    console.error("Error fetching favorite foods:", error.message);
     throw error;
   }
 };

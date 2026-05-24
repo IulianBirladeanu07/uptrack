@@ -206,34 +206,6 @@ export const handleSaveLogic = async (
   }
 };
 
-export const getCurrentWeekRollingStats = (mealCache, weightIns) => {
-  if (!mealCache) return { avgCalories: 0, avgSteps: 0, avgWeight: null };
-
-  const today = new Date();
-  const weekStart = getLocalWeekStart(today);
-  const todayKey = mealCache.formatDate(today);
-
-  const nutritionStats = getRollingWeekStats(mealCache, weekStart, todayKey);
-
-  const weekEntry = weightIns?.find(w => w.weekStart === weekStart);
-  const avgWeight = weekEntry?.average ?? null;
-  const daysLoggedWeight = weekEntry?.days
-    ? Object.values(weekEntry.days).filter(w => w != null && !isNaN(w)).length
-    : 0;
-
-  return {
-    avgCalories: nutritionStats.avgCalories,
-    avgProtein:  nutritionStats.avgProtein,
-    avgCarbs:    nutritionStats.avgCarbs,
-    avgFats:     nutritionStats.avgFats,
-    avgSteps:    nutritionStats.avgSteps,
-    avgWeight,
-    daysLoggedNutrition: nutritionStats.daysLoggedNutrition,
-    daysLoggedSteps: nutritionStats.daysLoggedSteps,
-    daysLoggedWeight,
-  };
-};
-
 export { checkAndRunWeeklyEval };
 
 export const processWeightInsForDisplay = (weightIns, limit = 20) => {

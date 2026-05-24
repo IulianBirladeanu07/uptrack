@@ -14,18 +14,10 @@ const styles = createStyles(() => ({
     workoutCard: {
         backgroundColor: colors.background.secondary,
         borderRadius: radius[4],
-        borderWidth: 1,
-        borderColor: colors.border.default,
         padding: spacing[4],
         marginBottom: spacing[3],
-        marginTop: spacing[5],
-    },
-    cardEyebrow: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.quaternary,
-        letterSpacing: 0.2,
-        marginBottom: spacing[1],
+        borderWidth: 1,
+        borderColor: colors.border.default,
     },
     workoutTitleRow: {
         flexDirection: 'row',
@@ -34,11 +26,11 @@ const styles = createStyles(() => ({
         marginBottom: spacing[1],
     },
     workoutCardTitle: {
-        fontSize: fontSize[32],
-        fontWeight: fontWeight.extrabold,
+        fontSize: fontSize[24],
+        fontWeight: fontWeight.bold,
         color: colors.text.primary,
-        letterSpacing: -0.8,
-        lineHeight: 38,
+        letterSpacing: -0.5,
+        lineHeight: 30,
         flex: 1,
     },
     dayBadge: {
@@ -76,26 +68,19 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.medium,
         color: colors.text.quaternary,
     },
-    exerciseListHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: spacing[2],
-    },
-    exerciseListLabel: {
-        fontSize: fontSize[10],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.quaternary,
-        letterSpacing: 0.8,
-    },
     exerciseList: {
-        marginBottom: spacing[4],
+        marginBottom: spacing[2],
     },
     exerciseRow: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: spacing[2],
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border.light,
         gap: spacing[2],
+    },
+    exerciseRowLast: {
+        borderBottomWidth: 0,
     },
     exerciseSetsInline: {
         fontSize: fontSize[14],
@@ -113,6 +98,18 @@ const styles = createStyles(() => ({
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
         color: colors.text.quaternary,
+    },
+    exerciseMoreRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[2],
+        marginTop: spacing[2],
+        marginBottom: spacing[4],
+    },
+    exerciseMoreLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: colors.border.light,
     },
     exerciseMore: {
         fontSize: fontSize[12],
@@ -205,10 +202,10 @@ const styles = createStyles(() => ({
     card: {
         backgroundColor: colors.background.secondary,
         borderRadius: radius[4],
-        borderWidth: 1,
-        borderColor: colors.border.default,
         padding: spacing[4],
         marginBottom: spacing[3],
+        borderWidth: 1,
+        borderColor: colors.border.default,
     },
     cardRow: {
         flexDirection: 'row',
@@ -349,9 +346,9 @@ const styles = createStyles(() => ({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: colors.background.secondary,
-        borderRadius: radius[3],
         borderWidth: 1,
         borderColor: colors.border.default,
+        borderRadius: radius[3],
         paddingVertical: spacing[3],
         gap: spacing[2],
     },
@@ -450,10 +447,6 @@ const styles = createStyles(() => ({
         marginBottom: spacing[4],
     },
     modalExercisesList: {
-        backgroundColor: 'rgba(0, 0, 0, 0.2)',
-        borderRadius: radius[3],
-        borderWidth: 1,
-        borderColor: colors.border.light,
         paddingVertical: spacing[1],
     },
     modalExRow: {

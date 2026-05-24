@@ -84,3 +84,5 @@ yarn-error.*
 
 # @end expo-cli
 .qodo
+
+service-account-key.json

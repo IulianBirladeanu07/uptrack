@@ -62,8 +62,8 @@ const PulseDot = () => {
     return <Animated.View style={[styles.pulseDot, { transform: [{ scale }] }]} />;
 };
 
-const ExerciseRow = ({ sets, name, reps }) => (
-    <View style={styles.exerciseRow}>
+const ExerciseRow = ({ sets, name, reps, isLast }) => (
+    <View style={[styles.exerciseRow, isLast && styles.exerciseRowLast]}>
         <Text style={styles.exerciseSetsInline}>{sets}x</Text>
         <Text style={styles.exerciseName}>{name}</Text>
         <Text style={styles.exerciseReps}>{reps}</Text>
@@ -104,10 +104,9 @@ const MainWorkoutCard = React.memo(({
 
         return (
             <View style={styles.workoutCard}>
-                <Text style={styles.cardEyebrow}>Rest Day</Text>
+                <Text style={styles.workoutCardTitle}>{stats ? (stats.name ?? 'Last Workout') : 'Rest Day'}</Text>
                 {stats ? (
                     <>
-                        <Text style={styles.workoutCardTitle}>{stats.name ?? 'Last Workout'}</Text>
                         <View style={styles.workoutMeta}>
                             <Text style={styles.metaText}>{stats.duration}</Text>
                             <Text style={styles.metaSep}>·</Text>
@@ -117,25 +116,34 @@ const MainWorkoutCard = React.memo(({
                         </View>
                         <View style={styles.exerciseList}>
                             {stats.exercises.slice(0, 3).map((ex, i) => (
-                                <ExerciseRow key={i} sets={ex.sets} name={ex.name} reps={ex.bestSet} />
+                                <ExerciseRow
+                                    key={i}
+                                    sets={ex.sets}
+                                    name={ex.name}
+                                    reps={ex.bestSet}
+                                    isLast={i === Math.min(2, stats.exercises.length - 1)}
+                                />
                             ))}
-                            {extraCount > 0 && (
-                                <TouchableOpacity
-                                    onPress={() => onPreview({
-                                        name: stats.name ?? 'Last Workout',
-                                        duration: stats.duration,
-                                        exercises: stats.exercises.map(ex => ({
-                                            exerciseName: ex.name,
-                                            numSets: ex.sets,
-                                            repRange: ex.bestSet ?? '',
-                                        })),
-                                    })}
-                                    activeOpacity={0.7}
-                                >
-                                    <Text style={styles.exerciseMore}>+{extraCount} more exercises</Text>
-                                </TouchableOpacity>
-                            )}
                         </View>
+                        {extraCount > 0 && (
+                            <TouchableOpacity
+                                onPress={() => onPreview({
+                                    name: stats.name ?? 'Last Workout',
+                                    duration: stats.duration,
+                                    exercises: stats.exercises.map(ex => ({
+                                        exerciseName: ex.name,
+                                        numSets: ex.sets,
+                                        repRange: ex.bestSet ?? '',
+                                    })),
+                                })}
+                                activeOpacity={0.7}
+                                style={styles.exerciseMoreRow}
+                            >
+                                <View style={styles.exerciseMoreLine} />
+                                <Text style={styles.exerciseMore}>+{extraCount} more exercises</Text>
+                                <View style={styles.exerciseMoreLine} />
+                            </TouchableOpacity>
+                        )}
                     </>
                 ) : (
                     <Text style={styles.metaText}>Let your muscles recover today.</Text>
@@ -144,23 +152,12 @@ const MainWorkoutCard = React.memo(({
         );
     }
 
-    const dayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
     const totalSets = workoutData.exercises?.reduce((acc, ex) => acc + (parseInt(ex.numSets) || 0), 0) ?? 0;
-    const extraCount = allExercises.length - 3;
-
-    const eyebrowParts = ['Today', dayName];
-    if (splitName) eyebrowParts.push(splitName);
-    if (weekNumber) eyebrowParts.push(`Week ${weekNumber}`);
-    const eyebrow = eyebrowParts.join(' · ');
-
-    const muscleGroups = useMemo(() => {
-        return [...new Set((workoutData.exercises ?? []).map(e => e.muscleGroup).filter(Boolean))];
-    }, [workoutData]);
+    const visibleExercises = allExercises.slice(0, 4);
+    const extraCount = allExercises.length - 4;
 
     return (
         <View style={styles.workoutCard}>
-            {isToday && <Text style={styles.cardEyebrow}>{eyebrow}</Text>}
-
             <View style={styles.workoutTitleRow}>
                 <Text style={styles.workoutCardTitle}>{workoutData.name}</Text>
                 {!isToday && workoutData.day && (
@@ -176,32 +173,33 @@ const MainWorkoutCard = React.memo(({
                 totalSets={totalSets}
             />
 
-            <View style={styles.exerciseListHeader}>
-                <Text style={styles.exerciseListLabel}>EXERCISES</Text>
-                {extraCount > 0 && (
-                    <TouchableOpacity
-                        onPress={() => onPreview({
-                            name: workoutData.name,
-                            duration: workoutData.duration,
-                            exercises: workoutData.exercises,
-                        })}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={styles.exerciseMore}>+{extraCount} more</Text>
-                    </TouchableOpacity>
-                )}
-            </View>
-
             <View style={styles.exerciseList}>
-                {allExercises.slice(0, 3).map((name, i) => (
+                {visibleExercises.map((name, i) => (
                     <ExerciseRow
                         key={i}
                         sets={workoutData.exercises?.[i]?.numSets}
                         name={name}
                         reps={workoutData.exercises?.[i]?.repRange}
+                        isLast={i === visibleExercises.length - 1}
                     />
                 ))}
             </View>
+
+            {extraCount > 0 && (
+                <TouchableOpacity
+                    onPress={() => onPreview({
+                        name: workoutData.name,
+                        duration: workoutData.duration,
+                        exercises: workoutData.exercises,
+                    })}
+                    activeOpacity={0.7}
+                    style={styles.exerciseMoreRow}
+                >
+                    <View style={styles.exerciseMoreLine} />
+                    <Text style={styles.exerciseMore}>+{extraCount} more exercises</Text>
+                    <View style={styles.exerciseMoreLine} />
+                </TouchableOpacity>
+            )}
 
             {activeWorkout ? (
                 <TouchableOpacity style={styles.resumeButton} onPress={onResume} activeOpacity={0.8}>
