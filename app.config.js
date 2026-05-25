@@ -15,7 +15,8 @@ export default {
         {
           android: {
             newArchEnabled: true,
-            minSdkVersion: 26
+            minSdkVersion: 26,
+            hermesVersion: "0.12.0"
           },
           ios: {
             useFrameworks: "static",
@@ -88,9 +89,6 @@ export default {
     owner: "iulian_birladeanu",
     runtimeVersion: {
       policy: "appVersion",
-    },
-    cli: {
-      appVersionSource: "remote",
     },
     updates: {
       url: "https://u.expo.dev/2512a7a0-ae42-4736-9b5a-03ce8ad42d13",
