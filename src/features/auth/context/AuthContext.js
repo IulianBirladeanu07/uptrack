@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useRef } from 'react';
+import { createContext, useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebaseConfigService';
@@ -22,7 +22,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [profileSetupComplete, setProfileSetupComplete] = useState(false);
   const [userData, setUserData] = useState(null);
-  const handledRef = useRef(false);
 
   const refreshUserData = async () => {
     try {
@@ -40,9 +39,6 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (handledRef.current) return;
-      handledRef.current = true;
-
       try {
         if (user) {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -62,7 +58,6 @@ export const AuthProvider = ({ children }) => {
         console.error('onAuthStateChanged error:', error);
       } finally {
         setLoading(false);
-        handledRef.current = false;
       }
     });
 
