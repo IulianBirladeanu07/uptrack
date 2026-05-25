@@ -16,7 +16,7 @@ module.exports = {
           android: {
             newArchEnabled: true,
             minSdkVersion: 26,
-            hermesVersion: "0.12.0"
+
           },
           ios: {
             useFrameworks: "static",
