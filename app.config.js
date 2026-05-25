@@ -1,7 +1,7 @@
 module.exports = {
   expo: {
     name: "uptrack",
-    slug: "uptrack",
+    slug: "uptrack-i9snih",
     platforms: ["ios", "android"],
     version: "2.0.4",
     orientation: "portrait",
@@ -60,7 +60,7 @@ module.exports = {
     scheme: "com.iulianbirladeanu.uptrack",
     extra: {
       eas: {
-        projectId: "2512a7a0-ae42-4736-9b5a-03ce8ad42d13",
+        projectId: "936fad3a-3a88-464b-8418-09ab64d0e308",
       },
       googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID,
       googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID,
@@ -86,12 +86,12 @@ module.exports = {
         },
       },
     },
-    owner: "iulian_birladeanu",
+    owner: "iulianbirladeanu07s-organization",
     runtimeVersion: {
       policy: "appVersion",
     },
     updates: {
-      url: "https://u.expo.dev/2512a7a0-ae42-4736-9b5a-03ce8ad42d13",
+      url: "https://u.expo.dev/936fad3a-3a88-464b-8418-09ab64d0e308",
     },
     newArchEnabled: true,
   },
