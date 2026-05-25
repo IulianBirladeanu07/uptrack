@@ -10,4 +10,8 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform);
 };
 
+config.resolver.blockList = [
+  /node_modules\/@supabase\/supabase-js\/dist\/umd\/.*/,
+];
+
 module.exports = config;
