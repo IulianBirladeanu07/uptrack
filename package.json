@@ -14,13 +14,13 @@
   "dependencies": {
     "@babel/runtime": "^7.26.10",
     "@expo/vector-icons": "^15.0.2",
-    "@react-native-async-storage/async-storage": "^1.24.0",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-picker/picker": "2.11.1",
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/native-stack": "^6.9.26",
     "@supabase/supabase-js": "^2.48.1",
-    "expo": "^54.0.13",
+    "expo": "^54.0.34",
     "expo-auth-session": "~7.0.10",
     "expo-build-properties": "^1.0.10",
     "expo-camera": "~17.0.10",
@@ -65,7 +65,7 @@
     "@babel/plugin-transform-private-methods": "^7.28.6",
     "@babel/plugin-transform-private-property-in-object": "^7.28.6",
     "@babel/preset-env": "^7.28.3",
-    "babel-preset-expo": "^56.0.12",
+    "babel-preset-expo": "~54.0.10",
     "baseline-browser-mapping": "^2.9.15",
     "dotenv-cli": "^10.0.0"
   }
