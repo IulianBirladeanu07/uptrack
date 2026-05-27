@@ -14,14 +14,13 @@
   "dependencies": {
     "@babel/runtime": "^7.26.10",
     "@expo/vector-icons": "^15.0.2",
-    "@react-native-async-storage/async-storage": "^1.24.0",
+    "@react-native-async-storage/async-storage": "1.24.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-picker/picker": "2.11.1",
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/native-stack": "^6.9.26",
     "@supabase/supabase-js": "^2.48.1",
-    "abort-controller": "^3.0.0",
-    "expo": "~54.0.34",
+    "expo": "54.0.13",
     "expo-auth-session": "~7.0.10",
     "expo-build-properties": "^1.0.10",
     "expo-camera": "~17.0.10",
@@ -54,14 +53,18 @@
     "react-native-worklets": "0.5.1"
   },
   "expo": {
-    "sdkVersion": "54.0.0"
-  },
-  "private": true,
-  "expo.doctor": {
-    "reactNativeDirectoryCheck": {
-      "listUnknownPackages": false
+    "sdkVersion": "54.0.0",
+    "install": {
+      "exclude": ["@react-native-async-storage/async-storage", "expo"]
+    },
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": ["lucide-react-native", "react-native-google-fit", "react-native-health", "react-native-vector-icons"],
+        "listUnknownPackages": false
+      }
     }
   },
+  "private": true,
   "devDependencies": {
     "@babel/plugin-transform-class-properties": "^7.28.6",
     "@babel/plugin-transform-private-methods": "^7.28.6",
@@ -70,5 +73,8 @@
     "babel-preset-expo": "~54.0.10",
     "baseline-browser-mapping": "^2.9.15",
     "dotenv-cli": "^10.0.0"
+  },
+  "overrides": {
+    "@expo/fingerprint": "0.15.5"
   }
 }
