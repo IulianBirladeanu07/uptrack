@@ -20,6 +20,7 @@
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/native-stack": "^6.9.26",
     "@supabase/supabase-js": "^2.48.1",
+    "event-target-shim": "^5.0.1",
     "expo": "54.0.13",
     "expo-auth-session": "~7.0.10",
     "expo-build-properties": "^1.0.10",
@@ -34,7 +35,7 @@
     "expo-sharing": "~14.0.8",
     "expo-updates": "~29.0.16",
     "expo-web-browser": "~15.0.10",
-    "firebase": "^10.14.0",
+    "firebase": "^12.13.0",
     "lucide-react-native": "^0.546.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -55,11 +56,19 @@
   "expo": {
     "sdkVersion": "54.0.0",
     "install": {
-      "exclude": ["@react-native-async-storage/async-storage", "expo"]
+      "exclude": [
+        "@react-native-async-storage/async-storage",
+        "expo"
+      ]
     },
     "doctor": {
       "reactNativeDirectoryCheck": {
-        "exclude": ["lucide-react-native", "react-native-google-fit", "react-native-health", "react-native-vector-icons"],
+        "exclude": [
+          "lucide-react-native",
+          "react-native-google-fit",
+          "react-native-health",
+          "react-native-vector-icons"
+        ],
         "listUnknownPackages": false
       }
     }
