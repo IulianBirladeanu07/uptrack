@@ -14,7 +14,7 @@ module.exports = {
         "expo-build-properties",
         {
           android: {
-            newArchEnabled: false,
+            newArchEnabled: true,
             minSdkVersion: 26,
 
           },
@@ -93,6 +93,6 @@ module.exports = {
     updates: {
       url: "https://u.expo.dev/936fad3a-3a88-464b-8418-09ab64d0e308",
     },
-    newArchEnabled: false,
+    newArchEnabled: true,
   },
 };
