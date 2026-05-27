@@ -35,7 +35,7 @@
     "expo-sharing": "~14.0.8",
     "expo-updates": "~29.0.16",
     "expo-web-browser": "~15.0.10",
-    "firebase": "^12.13.0",
+    "firebase": "^10.14.1",
     "lucide-react-native": "^0.546.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
