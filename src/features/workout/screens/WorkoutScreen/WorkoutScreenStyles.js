@@ -165,21 +165,16 @@ const styles = createStyles(() => ({
     resumeButton: {
         backgroundColor: colors.accent.primary,
         borderRadius: radius[3],
-        paddingVertical: spacing[3],
-        paddingHorizontal: spacing[4],
+        paddingVertical: spacing[4],
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
+        gap: spacing[2],
         shadowColor: colors.accent.primary,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.3,
         shadowRadius: 4,
         elevation: 6,
-    },
-    resumeButtonLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing[2],
     },
     resumeButtonText: {
         fontSize: fontSize[16],
@@ -242,7 +237,8 @@ const styles = createStyles(() => ({
         backgroundColor: colors.accent.primary,
     },
     dayCircleToday: {
-        borderWidth: 1.5,
+        backgroundColor: colors.faded.primaryLight,
+        borderWidth: 1,
         borderColor: colors.accent.primary,
     },
     dayCircleWorkout: {
@@ -252,7 +248,7 @@ const styles = createStyles(() => ({
     },
     dayCircleRest: {
         borderWidth: 1,
-        borderColor: colors.border.light,
+        borderColor: colors.border.default,
     },
     dayCircleText: {
         fontSize: fontSize[12],
@@ -262,12 +258,6 @@ const styles = createStyles(() => ({
     dayCircleTextRest: {
         color: colors.text.quaternary,
         fontWeight: fontWeight.medium,
-    },
-    dayCirclePlusText: {
-        fontSize: fontSize[16],
-        fontWeight: fontWeight.bold,
-        color: colors.accent.primary,
-        lineHeight: 20,
     },
     weekDayLabel: {
         fontSize: fontSize[10],

@@ -203,11 +203,9 @@ const MainWorkoutCard = React.memo(({
 
             {activeWorkout ? (
                 <TouchableOpacity style={styles.resumeButton} onPress={onResume} activeOpacity={0.8}>
-                    <View style={styles.resumeButtonLeft}>
-                        <PulseDot />
-                        <Text style={styles.resumeButtonText}>Resume Workout</Text>
-                    </View>
-                    <LiveTimer startTime={activeWorkout.startTime} />
+                    <PulseDot />
+                    <Text style={styles.resumeButtonText}>Resume Workout</Text>
+                    <Text style={styles.resumeTimer}>· <LiveTimer startTime={activeWorkout.startTime} /></Text>
                 </TouchableOpacity>
             ) : (
                 <TouchableOpacity style={styles.startButton} onPress={onStart} activeOpacity={0.8}>
@@ -268,8 +266,6 @@ const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }) => {
                             <View style={[styles.dayCircle, circleStyle]}>
                                 {d.done ? (
                                     <Ionicons name="checkmark" size={14} color={colors.accent.buttonText} />
-                                ) : d.isToday && d.hasWorkout ? (
-                                    <Text style={styles.dayCirclePlusText}>+</Text>
                                 ) : d.isToday ? (
                                     <Ionicons name="play" size={9} color={colors.accent.primary} />
                                 ) : (
