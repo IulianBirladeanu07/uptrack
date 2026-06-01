@@ -294,5 +294,5 @@ const styles = createStyles(() => ({
     fontWeight: fontWeight.extrabold,
   },
 }));
-
+MealContainer.whyDidYouRender = true;
 export default MealContainer;

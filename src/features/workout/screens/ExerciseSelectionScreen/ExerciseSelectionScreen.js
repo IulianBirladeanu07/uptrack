@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { fetchExercises, prefetchExercises, clearExercisesCache } from '../../handlers/WorkoutHandler';
-import { normalize } from '../../../../shared/hooks/useResponsive';
+import { spacing } from '../../../../shared/theme';
 import { styles, COLORS } from './ExerciseSelectionScreenStyle.js';
 
 const useDebounce = (value, delay) => {
@@ -117,7 +117,7 @@ const ExerciseItem = memo(({ exercise, isSelected, onToggle }) => {
               ) : (
                 <Ionicons
                   name="barbell-outline"
-                  size={normalize(24)}
+                  size={spacing.iconLg}
                   color={COLORS.textMuted}
                 />
               )}
@@ -141,8 +141,8 @@ const ExerciseItem = memo(({ exercise, isSelected, onToggle }) => {
           >
             <Ionicons
               name={isSelected ? 'checkmark' : 'add'}
-              size={normalize(18)}
-              color={isSelected ? COLORS.success : COLORS.primaryOrange}
+              size={spacing.icon}
+              color={isSelected ? COLORS.success : COLORS.textMuted}
             />
           </View>
         </View>
@@ -168,7 +168,7 @@ const FilterBar = memo(({ activeFilter, onFilterChange, muscleGroups, counts }) 
   const scrollToActiveFilter = useCallback(() => {
     const activeIndex = filters.indexOf(activeFilter);
     if (activeIndex >= 0 && scrollRef.current) {
-      const pillWidth = normalize(90);
+      const pillWidth = 90;
       const scrollX = pillWidth * Math.max(0, activeIndex - 1);
 
       scrollRef.current.scrollTo({
@@ -210,7 +210,7 @@ const FilterBar = memo(({ activeFilter, onFilterChange, muscleGroups, counts }) 
         keyboardShouldPersistTaps="handled"
         decelerationRate="fast"
         snapToAlignment="start"
-        snapToInterval={normalize(90)}
+        snapToInterval={90}
         scrollEventThrottle={16}
       >
         {filters.map((filter) => {
@@ -290,7 +290,7 @@ const SearchHeader = memo(({ searchTerm, onSearchChange, onBack, onCreateExercis
           accessibilityLabel="Go back"
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Ionicons name="arrow-back" size={normalize(20)} color={COLORS.textSecondary} />
+          <Ionicons name="arrow-back" size={spacing.iconMd} color={COLORS.textSecondary} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>Choose Exercises</Text>
@@ -304,7 +304,7 @@ const SearchHeader = memo(({ searchTerm, onSearchChange, onBack, onCreateExercis
           >
             <Ionicons
               name="add"
-              size={normalize(18)}
+              size={spacing.icon}
               color={COLORS.background}
             />
             <Text style={styles.createButtonText}>Create</Text>
@@ -313,7 +313,7 @@ const SearchHeader = memo(({ searchTerm, onSearchChange, onBack, onCreateExercis
       </View>
 
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={normalize(18)} color={COLORS.textMuted} style={styles.searchIcon} />
+        <Ionicons name="search" size={spacing.icon} color={COLORS.textMuted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search exercises..."
@@ -333,7 +333,7 @@ const SearchHeader = memo(({ searchTerm, onSearchChange, onBack, onCreateExercis
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityLabel="Clear search"
           >
-            <Ionicons name="close-circle" size={normalize(16)} color={COLORS.textMuted} />
+            <Ionicons name="close-circle" size={spacing.iconSm} color={COLORS.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -389,8 +389,8 @@ const ExerciseSelectionScreen = ({ route }) => {
   }, [allGroupedExercises.length]);
 
   useEffect(() => {
-     clearExercisesCache(true); 
- fetchExercises(true); 
+    clearExercisesCache(true);
+    fetchExercises(true);
     prefetchExercises().catch(() => {});
     loadExercises();
   }, [loadExercises]);
@@ -441,16 +441,16 @@ const ExerciseSelectionScreen = ({ route }) => {
   const flatListData = useMemo(() => {
     const result = [];
     filteredAndGroupedExercises.forEach((section, sectionIndex) => {
-      result.push({ 
-        type: 'header', 
-        title: section.title, 
-        id: `header-${section.title}-${sectionIndex}` 
+      result.push({
+        type: 'header',
+        title: section.title,
+        id: `header-${section.title}-${sectionIndex}`
       });
-      section.data.forEach((item, itemIndex) => 
-        result.push({ 
-          type: 'item', 
-          ...item, 
-          listId: `${item.id}-${sectionIndex}-${itemIndex}` 
+      section.data.forEach((item, itemIndex) =>
+        result.push({
+          type: 'item',
+          ...item,
+          listId: `${item.id}-${sectionIndex}-${itemIndex}`
         })
       );
     });
@@ -523,7 +523,7 @@ const ExerciseSelectionScreen = ({ route }) => {
 
   const renderListEmptyComponent = useCallback(() => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="barbell-outline" size={60} color={COLORS.textMuted} />
+      <Ionicons name="barbell-outline" size={spacing[15]} color={COLORS.textMuted} />
       <Text style={styles.emptyText}>
         {debouncedSearchTerm || activeFilter !== 'All'
           ? 'No exercises match your search criteria.'
@@ -541,7 +541,7 @@ const ExerciseSelectionScreen = ({ route }) => {
         </TouchableOpacity>
       )}
       <TouchableOpacity
-        style={[styles.clearButton, { marginTop: normalize(12) }]}
+        style={[styles.clearButton, { marginTop: spacing[3] }]}
         onPress={handleCreateExercise}
       >
         <Text style={styles.clearButtonText}>Create New Exercise</Text>
@@ -555,7 +555,7 @@ const ExerciseSelectionScreen = ({ route }) => {
         <ActivityIndicator size="large" color={COLORS.primaryOrange} />
         <Text style={styles.loadingText}>Loading exercises...</Text>
         {isSearching && (
-          <Text style={[styles.loadingText, { fontSize: normalize(12), marginTop: normalize(8) }]}>
+          <Text style={[styles.loadingText, { fontSize: 12, marginTop: spacing[2] }]}>
             Searching...
           </Text>
         )}
@@ -566,7 +566,7 @@ const ExerciseSelectionScreen = ({ route }) => {
   if (error && !filteredAndGroupedExercises.length) {
     return (
       <SafeAreaView style={[styles.container, styles.centerContent]} edges={['bottom']}>
-        <Ionicons name="cloud-offline-outline" size={60} color={COLORS.error} />
+        <Ionicons name="cloud-offline-outline" size={spacing[15]} color={COLORS.error} />
         <Text style={styles.errorText}>{error}</Text>
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.retryButton} onPress={() => loadExercises(true)}>
@@ -610,8 +610,8 @@ const ExerciseSelectionScreen = ({ route }) => {
         windowSize={21}
         removeClippedSubviews={Platform.OS === 'android'}
         getItemLayout={(data, index) => ({
-          length: normalize(70),
-          offset: normalize(70) * index,
+          length: spacing[15],
+          offset: spacing[15] * index,
           index,
         })}
       />
@@ -647,4 +647,5 @@ const ExerciseSelectionScreen = ({ route }) => {
   );
 };
 
+ExerciseSelectionScreen.whyDidYouRender = true;
 export default memo(ExerciseSelectionScreen);

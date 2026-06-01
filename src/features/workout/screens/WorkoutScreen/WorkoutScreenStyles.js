@@ -242,7 +242,7 @@ const styles = createStyles(() => ({
         borderColor: colors.accent.primary,
     },
     dayCircleWorkout: {
-        backgroundColor: colors.faded.primaryExtraLight,
+        backgroundColor: colors.faded.primary,
         borderWidth: 1,
         borderColor: colors.border.primaryAlt,
     },

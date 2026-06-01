@@ -35,6 +35,8 @@ import ViewSplitScreen from './src/features/workout/screens/CreateSplitScreen/co
 import CreateExerciseScreen from './src/features/workout/screens/CreateExerciseScreen/CreateExerciseScreen';
 import WeightHistoryScreen from './src/features/nutrition/components/WeightTracker/WeightHistoryScreen';
 
+
+import wdyr from './wdyr';
 const Stack = createNativeStackNavigator();
 
 const AuthenticatedScreens = React.memo(() => (

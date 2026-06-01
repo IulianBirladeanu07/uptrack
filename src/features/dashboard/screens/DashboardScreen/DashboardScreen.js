@@ -50,20 +50,7 @@ const resolveWorkoutFromSplits = (splits) => {
     } : null;
 };
 
-const TodayWorkout = ({ workout, loading, onPress }) => {
-    if (loading) {
-        return (
-            <View style={styles.workoutCard}>
-                <View style={styles.workoutContent}>
-                    <View style={styles.workoutInfo}>
-                        <View style={{ width: 120, height: 16, backgroundColor: colors.background.secondary, borderRadius: 4 }} />
-                        <View style={{ width: 80, height: 12, backgroundColor: colors.background.secondary, borderRadius: 4, marginTop: 8 }} />
-                    </View>
-                </View>
-            </View>
-        );
-    }
-
+const TodayWorkout = ({ workout, onPress }) => {
     if (!workout) {
         return (
             <View style={styles.workoutCard}>
@@ -143,7 +130,7 @@ const TodayNutrition = ({ calories, targetCalories, macros, onPress }) => {
     );
 };
 
-const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCaloriesForDateRange, onWeightPress }) => {
+const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCaloriesForDateRange, onWeightPress, dataReady }) => {
     const weekDays = useMemo(() => {
         const today = new Date();
         const monday = getMonday(today);
@@ -169,7 +156,7 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
                 isFuture,
             };
         });
-    }, [getCaloriesForDateRange]);
+    }, [getCaloriesForDateRange, dataReady]);
 
     const maxCalories = Math.max(...weekDays.filter(d => !d.isFuture).map(d => d.calories || 0), 2500);
 
@@ -266,7 +253,7 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
 
 const DashboardScreen = () => {
     const navigation = useNavigation();
-    const [todayScheduledWorkout, setTodayScheduledWorkout] = useState(undefined);
+    const [todayScheduledWorkout, setTodayScheduledWorkout] = useState(null);
 
     const { dailyNutrition, userMacros, rollingWeekStats, getCaloriesForDateRange, initialLoadComplete } = useFoodContext();
     const { workoutHistory } = useContext(WorkoutContext);
@@ -276,43 +263,29 @@ const DashboardScreen = () => {
 
     useEffect(() => {
         let cancelled = false;
-        const t0 = Date.now();
 
         const loadWorkout = async () => {
             try {
                 const cached = await AsyncStorage.getItem(SPLITS_CACHE_KEY);
-                console.log(`[Workout] cache read: ${Date.now() - t0}ms`);
                 if (cached) {
                     const { splits, ts } = JSON.parse(cached);
                     if (Date.now() - ts < SPLITS_CACHE_TTL) {
                         if (!cancelled) {
                             setTodayScheduledWorkout(resolveWorkoutFromSplits(splits));
-                            console.log(`[Workout] resolved from cache: ${Date.now() - t0}ms`);
                             return;
                         }
-                    } else {
-                        console.log(`[Workout] cache expired, fetching firestore`);
                     }
-                } else {
-                    console.log(`[Workout] no cache, fetching firestore`);
                 }
-            } catch (e) {
-                console.log(`[Workout] cache read error: ${e.message}`);
-            }
+            } catch {}
 
             try {
                 const splits = await fetchSplitsFromFirestore();
-                console.log(`[Workout] firestore fetch: ${Date.now() - t0}ms`);
                 if (!cancelled) {
                     setTodayScheduledWorkout(resolveWorkoutFromSplits(splits));
-                    console.log(`[Workout] resolved from firestore: ${Date.now() - t0}ms`);
                     AsyncStorage.setItem(SPLITS_CACHE_KEY, JSON.stringify({ splits, ts: Date.now() })).catch(() => {});
                 }
             } catch {
-                if (!cancelled) {
-                    setTodayScheduledWorkout(null);
-                    console.log(`[Workout] firestore failed, set null: ${Date.now() - t0}ms`);
-                }
+                if (!cancelled) setTodayScheduledWorkout(null);
             }
         };
 
@@ -343,16 +316,6 @@ const DashboardScreen = () => {
         }
     }, [navigation, todayScheduledWorkout]);
 
-    if (!initialLoadComplete) {
-        return (
-            <ApplicationCustomScreen>
-                <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                    <ActivityIndicator size="large" color={colors.accent.primary} />
-                </View>
-            </ApplicationCustomScreen>
-        );
-    }
-
     return (
         <ApplicationCustomScreen>
             <View style={styles.container}>
@@ -367,8 +330,7 @@ const DashboardScreen = () => {
                 </View>
                 <View style={styles.content}>
                     <TodayWorkout
-                        workout={todayScheduledWorkout ?? null}
-                        loading={todayScheduledWorkout === undefined}
+                        workout={todayScheduledWorkout}
                         onPress={handleWorkoutPress}
                     />
                     <TodayNutrition
@@ -383,6 +345,7 @@ const DashboardScreen = () => {
                         targetWorkouts={targetWorkouts}
                         getCaloriesForDateRange={getCaloriesForDateRange}
                         onWeightPress={() => navigation.navigate('WeightTracker')}
+                        dataReady={initialLoadComplete}
                     />
                 </View>
                 <BottomNav />

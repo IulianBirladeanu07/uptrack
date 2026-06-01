@@ -34,7 +34,7 @@ const styles = createStyles(() => ({
         borderWidth: 1,
         borderColor: colors.border.default,
         padding: spacing[4],
-        marginBottom: spacing[3],
+        marginBottom: spacing[5],
     },
     workoutCardDisabled: {
         opacity: 0.5,

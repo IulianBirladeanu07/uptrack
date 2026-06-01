@@ -335,6 +335,7 @@ export default memo(FoodListItem, (prev, next) => {
   );
 });
 
+FoodListItem.whyDidYouRender = true;
 const styles = createStyles(() => ({
   mealHeaderContainer: {
     flexDirection: 'row',

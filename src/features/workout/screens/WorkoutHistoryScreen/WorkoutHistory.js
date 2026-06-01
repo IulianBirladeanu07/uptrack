@@ -153,7 +153,7 @@ const WorkoutHistoryScreen = ({ navigation }) => {
     }, [workoutHistory]);
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]} edges={['top']}>
             <SectionList
                 sections={sections}
                 renderItem={({ item }) => (
@@ -195,4 +195,5 @@ const WorkoutHistoryScreen = ({ navigation }) => {
     );
 };
 
+WorkoutHistoryScreen.whyDidYouRender = true;
 export default WorkoutHistoryScreen;

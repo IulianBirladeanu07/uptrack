@@ -37,4 +37,5 @@ const SegmentedControl = React.memo(({ activeSegment, onTemplatesPress, onSplits
     </View>
 ));
 
+SegmentedControl.whyDidYouRender = true;
 export default SegmentedControl;

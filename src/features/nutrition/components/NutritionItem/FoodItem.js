@@ -473,4 +473,5 @@ const styles = createStyles(() => ({
   },
 }));
 
+FoodItem.whyDidYouRender = true;
 export default memo(FoodItem);

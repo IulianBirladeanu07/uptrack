@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
 import {
     View,
     StatusBar,
@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import styles from './WorkoutLibraryScreenStyle';
 import { fetchSplitsFromFirestore, fetchTemplatesFromFirestore, deleteTemplateFromFirestore } from '../../handlers/WorkoutHandler';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebaseConfigService';
 import { colors } from '../../../../shared/theme';
@@ -32,6 +32,7 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
     const [activeSegment, setActiveSegment] = useState(route.params?.initialSegment || 'Templates');
 
     const { refreshUserData } = useContext(AuthContext);
+    const hasFetchedRef = useRef(false);
 
     useEffect(() => {
         if (route.params?.initialSegment) {
@@ -39,7 +40,8 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
         }
     }, [route.params?.initialSegment]);
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (force = false) => {
+        if (!force && hasFetchedRef.current) return;
         setLoading(true);
         try {
             const [splitsData, templatesData] = await Promise.all([
@@ -58,20 +60,20 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
                     durationWeeks: split.durationWeeks || split.data?.durationWeeks || 8,
                 }));
                 setSplits(normalizedSplits);
-                if (normalizedSplits.length > 0 && !activeSplitId) {
-                    setActiveSplitId(normalizedSplits[0].id);
-                }
+                setActiveSplitId(prev => prev ?? normalizedSplits[0]?.id ?? null);
             }
 
             if (templatesData) {
                 setTemplates(templatesData);
             }
+
+            hasFetchedRef.current = true;
         } catch (error) {
             Alert.alert('Error', 'Unable to fetch data.');
         } finally {
             setLoading(false);
         }
-    }, [activeSplitId]);
+    }, []);
 
     useFocusEffect(
         useCallback(() => {
@@ -81,7 +83,8 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
 
     const refreshData = useCallback(async () => {
         setRefreshing(true);
-        await fetchData();
+        hasFetchedRef.current = false;
+        await fetchData(true);
         setRefreshing(false);
     }, [fetchData]);
 
@@ -131,14 +134,6 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
             tintColor={colors.accent.primary}
         />
     ), [refreshing, refreshData]);
-
-    useEffect(() => {
-        const auth = getAuth();
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (user) fetchData();
-        });
-        return () => unsubscribe();
-    }, []);
 
     return (
         <>

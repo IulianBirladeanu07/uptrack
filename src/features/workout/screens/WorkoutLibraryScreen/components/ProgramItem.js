@@ -116,4 +116,5 @@ const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit,
     );
 });
 
+ProgramItem.whyDidYouRender = true;
 export default ProgramItem;

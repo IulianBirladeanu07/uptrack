@@ -248,13 +248,12 @@ timerText: {
     marginTop: normalize(12),
   },
 
-  customKeyboardContainer: {
+customKeyboardContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.surface,
-  },
+},
 });
 
 export default styles;

@@ -179,4 +179,5 @@ const styles = StyleSheet.create({
   },
 });
 
+CategorySelector.whyDidYouRender = true;
 export default CategorySelector;

@@ -1,47 +1,12 @@
-import { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { getAuth } from 'firebase/auth';
 import CircularProgress from '../../../../shared/components/CircularProgress/CircularProgress';
 import MacroProgressBar from '../MacroProgresBar/MacroProgressBar';
-import WeightService from '../../services/weightService';
-import { useFoodContext } from '../../context/FoodContext';
 import { colors } from '../../../../shared/theme';
 import styles from '../../screens/NutritionScreen/NutritionScreenStyles';
 
-function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets, learningData, selectedDate }) {
-    const [weightData, setWeightData] = useState({
-        currentWeight:  null,
-        weeklyAverage:  null,
-        weeklyTrend:    null,
-        weighInCount:   0,
-    });
-
-    const { dailySteps, initialLoadComplete } = useFoodContext();
-    const [ weightLoading, setWeightLoading ] = useState(false);
-
-    useEffect(() => {
-        if (!initialLoadComplete) return;
-        
-        setWeightLoading(true);
-        
-        const fetchWeight = async () => {
-            try {
-                const auth = getAuth();
-                const user = auth.currentUser;
-                if (!user) return;
-                const data = await WeightService.getWeightDisplayData(user.uid, selectedDate);
-                setWeightData(data);
-            } catch (error) {
-                console.error('Weight fetch error:', error);
-            } finally {
-                setWeightLoading(false);
-            }
-        };
-
-        fetchWeight();
-    }, [selectedDate, initialLoadComplete]);
-
+function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets, learningData, weightData, dailySteps, initialLoadComplete }) {
     const macroValues = useMemo(() => ({
         carbs:         dailyNutrition.carbs   || 0,
         protein:       dailyNutrition.protein || 0,
@@ -71,22 +36,13 @@ function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets,
                     <View style={styles.metricIconContainer}>
                         <MaterialCommunityIcons name="scale-bathroom" size={20} color={colors.accent.primary} />
                     </View>
-                    {weightLoading ? (
+                    {weightData?.currentWeight ? (
                         <>
-                            <ActivityIndicator size="small" color={colors.accent.primary} style={{ marginVertical: 4 }} />
-                            <Text style={styles.metricLabel}>Loading...</Text>
+                            <Text style={styles.metricValue}>{weightData.currentWeight.toFixed(1)} kg</Text>
+                            <Text style={styles.metricLabel}>Today's weight</Text>
                         </>
                     ) : (
-                        <>
-                            <Text style={styles.metricValue}>
-                                {weightData.currentWeight
-                                    ? `${weightData.currentWeight.toFixed(1)} kg`
-                                    : 'Tap to weigh'}
-                            </Text>
-                            <Text style={styles.metricLabel}>
-                                {weightData.currentWeight ? `Today's weight` : 'Tap to weigh'}
-                            </Text>
-                        </>
+                        <Text style={[styles.metricValue, { textAlign: 'center' }]}>Tap to{'\n'}weigh</Text>
                     )}
                 </TouchableOpacity>
 
@@ -109,8 +65,8 @@ function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets,
                     <View style={[
                         styles.stepIconContainer,
                         {
-                            backgroundColor: dailySteps >= 10000 ? colors.faded.success    : colors.faded.stepsRed,
-                            borderColor:     dailySteps >= 10000 ? colors.border.success   : colors.border.stepsRed,
+                            backgroundColor: dailySteps >= 10000 ? colors.faded.success  : colors.faded.stepsRed,
+                            borderColor:     dailySteps >= 10000 ? colors.border.success : colors.border.stepsRed,
                         }
                     ]}>
                         <MaterialCommunityIcons name="run-fast" size={20} color={colors.accent.stepsRed} />
@@ -158,4 +114,15 @@ function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets,
     );
 }
 
-export default NutritionStats;
+NutritionStats.whyDidYouRender = true;
+export default React.memo(NutritionStats, (prev, next) => {
+    return (
+        prev.weightData === next.weightData &&
+        prev.dailyNutrition === next.dailyNutrition &&
+        prev.userMacros === next.userMacros &&
+        prev.hasTargets === next.hasTargets &&
+        prev.learningData === next.learningData &&
+        prev.dailySteps === next.dailySteps &&
+        prev.initialLoadComplete === next.initialLoadComplete
+    );
+});

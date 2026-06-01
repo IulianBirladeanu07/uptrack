@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useContext } from 'react';
 import { View, Text, TouchableOpacity, FlatList, BackHandler, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from '@react-navigation/native';
 import AnimatedMessage from '../../../../shared/components/AnimatedMessage/AnimatedMessage';
 import ExerciseInput from '../../components/ExerciseInput/ExerciseInput';
+import ExerciseOptionsModal from '../../components/ExerciseOptionsModal/ExerciseOptionsModal';
 import { sendWorkoutDataToFirestore } from '../../handlers/WorkoutHandler';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { workoutService } from '../../services/WorkoutService';
@@ -17,7 +17,6 @@ import CustomNumericKeyboard from '../../components/CustomNumericKeyboard/Custom
 
 const TimerComponent = () => {
     const { formattedTime } = useWorkoutTimer();
-    
     return (
         <View style={styles.timerContainer}>
             <Ionicons name="time-outline" size={normalize(14)} color="#6B7280" style={{ marginRight: normalize(6) }} />
@@ -36,48 +35,70 @@ const StartWorkout = ({ route, navigation }) => {
     const [focusedInputData, setFocusedInputData] = useState(null);
     const [isCommandCenterVisible, setIsCommandCenterVisible] = useState(false);
     const [isInitializing, setIsInitializing] = useState(true);
+    const [activeExerciseMenu, setActiveExerciseMenu] = useState(null);
 
     const flatListRef = useRef(null);
     const { refreshAllData } = useContext(WorkoutContext);
     const insets = useSafeAreaInsets();
     const isFinishingWorkout = useRef(false);
     const isInitialized = useRef(false);
-
-    const { formattedTime } = useWorkoutTimer();
+    const isKeyboardVisibleRef = useRef(false);
 
     const updateNotification = useCallback(() => {
         if (exerciseData.length === 0) return;
-        
         const current = exerciseData[0];
         const completedSets = current.sets.filter(s => s.isValidated).length;
-        const currentSetNumber = completedSets + 1;
-        const totalSets = current.sets.length;
-        
         workoutNotifications.update(
             current.exerciseName,
-            currentSetNumber,
-            totalSets,
-            formattedTime
+            completedSets + 1,
+            current.sets.length,
+            workoutTimer.getFormattedTime()
         );
-    }, [exerciseData, formattedTime]);
+    }, [exerciseData]);
 
     useEffect(() => {
         updateNotification();
     }, [updateNotification]);
 
-    const openAnimatedMessage = useCallback(
-        message => {
-            setAnimatedMessage(message);
-            setTimeout(() => setAnimatedMessage(''), 2000);
-        },
-        []
-    );
+    const openAnimatedMessage = useCallback((message) => {
+        setAnimatedMessage(message);
+        setTimeout(() => setAnimatedMessage(''), 2000);
+    }, []);
+
+    const handleMenuPress = useCallback((exercise, exerciseIndex) => {
+        if (isKeyboardVisibleRef.current) {
+            setIsKeyboardVisible(false);
+            setFocusedInputData(null);
+            isKeyboardVisibleRef.current = false;
+        }
+        setActiveExerciseMenu({ exercise, exerciseIndex });
+    }, []);
+
+    const handleMenuClose = useCallback(() => {
+        setActiveExerciseMenu(null);
+    }, []);
+
+    const handleMenuReplace = useCallback(() => {
+        if (!activeExerciseMenu) return;
+        navigation.navigate('ExerciseSelection', {
+            previousScreen: 'StartWorkout',
+            replaceExerciseName: activeExerciseMenu.exercise.exerciseName,
+        });
+    }, [activeExerciseMenu, navigation]);
+
+    const handleMenuDelete = useCallback(() => {
+        if (!activeExerciseMenu) return;
+        workoutService.deleteExercise(activeExerciseMenu.exerciseIndex);
+    }, [activeExerciseMenu]);
+
+    const handleMenuAddNote = useCallback(() => {
+    }, []);
 
     const handleKeyboardChange = useCallback((isVisible, inputData) => {
+        isKeyboardVisibleRef.current = isVisible;
         if (isVisible && inputData) {
             setFocusedInputData(inputData);
             setIsKeyboardVisible(true);
-            
             setTimeout(() => {
                 flatListRef.current?.scrollToIndex({
                     index: inputData.exerciseIndex,
@@ -93,11 +114,10 @@ const StartWorkout = ({ route, navigation }) => {
 
     const handleNext = useCallback(() => {
         if (!focusedInputData) return;
-        
         const { type, exerciseIndex, index: setIndex } = focusedInputData;
         let nextFocus = null;
         let shouldScrollToExercise = false;
-        
+
         if (type === 'weight') {
             nextFocus = { type: 'reps', exerciseIndex, index: setIndex };
         } else if (type === 'reps') {
@@ -112,83 +132,70 @@ const StartWorkout = ({ route, navigation }) => {
                 } else {
                     setIsKeyboardVisible(false);
                     setFocusedInputData(null);
+                    isKeyboardVisibleRef.current = false;
                     return;
                 }
             }
         }
-        
+
         if (nextFocus) {
             setFocusedInputData(nextFocus);
-            
             if (shouldScrollToExercise) {
                 setTimeout(() => {
                     flatListRef.current?.scrollToIndex({
                         index: nextFocus.exerciseIndex,
                         animated: true,
-                        viewPosition: 0.2, 
+                        viewPosition: 0.2,
                     });
                 }, 100);
             }
         }
     }, [focusedInputData, exerciseData]);
 
-    const handleSelectedWorkout = useCallback(
-        async ({ note, exercises }) => {
-            if (!exercises || !Array.isArray(exercises)) return;
-            
-            setInputText(note || '');
-            workoutService.setWorkoutNote(note || '');
-            
-            const loadedData = await workoutService.loadWorkoutFromTemplate(exercises);
-            setExerciseData(loadedData);
-            workoutTimer.start();
-            setSelectedExercise(loadedData[0]?.exerciseName || null);
-            setIsValidationPressed(false);
-        },
-        []
-    );
+    const handleSelectedWorkout = useCallback(async ({ note, exercises }) => {
+        if (!exercises || !Array.isArray(exercises)) return;
+        setInputText(note || '');
+        workoutService.setWorkoutNote(note || '');
+        const loadedData = await workoutService.loadWorkoutFromTemplate(exercises);
+        setExerciseData(loadedData);
+        workoutTimer.start();
+        setSelectedExercise(loadedData[0]?.exerciseName || null);
+        setIsValidationPressed(false);
+    }, []);
 
-    const addNewExercisesFromRoute = useCallback(
-        async (exercises) => {
-            if (!exercises || !Array.isArray(exercises)) return;
-            
-            const currentData = workoutService.getExerciseData();
-            const newExercises = [];
-            
-            for (const ex of exercises.filter(e => e && e.name)) {
-                if (currentData.some(existing => existing.exerciseName === ex.name)) continue;
-                
-                const lastSets = await workoutService.fetchLastSets(ex.name);
-                newExercises.push({
-                    exerciseName: ex.name,
-                    imageURL: ex.imageURL || '',
-                    sets: [{ weight: '', reps: '', isValidated: false, repsModified: false }],
-                    lastWorkoutSets: lastSets,
-                    repRange: ex.repRange || '',
-                });
-            }
+    const addNewExercisesFromRoute = useCallback(async (exercises) => {
+        if (!exercises || !Array.isArray(exercises)) return;
+        const currentData = workoutService.getExerciseData();
+        const newExercises = [];
 
-            if (newExercises.length > 0) {
-                workoutService.addExercises(newExercises);
-                const updatedData = workoutService.getExerciseData();
-                setExerciseData(updatedData);
-                
-                if (!selectedExercise) {
-                    setSelectedExercise(newExercises[0]?.exerciseName || null);
-                }
+        for (const ex of exercises.filter(e => e && e.name)) {
+            if (currentData.some(existing => existing.exerciseName === ex.name)) continue;
+            const lastSets = await workoutService.fetchLastSets(ex.name);
+            newExercises.push({
+                exerciseName: ex.name,
+                imageURL: ex.imageURL || '',
+                sets: [{ weight: '', reps: '', isValidated: false, repsModified: false }],
+                lastWorkoutSets: lastSets,
+                repRange: ex.repRange || '',
+            });
+        }
+
+        if (newExercises.length > 0) {
+            workoutService.addExercises(newExercises);
+            const updatedData = workoutService.getExerciseData();
+            setExerciseData(updatedData);
+            if (!selectedExercise) {
+                setSelectedExercise(newExercises[0]?.exerciseName || null);
             }
-        },
-        [selectedExercise]
-    );
+        }
+    }, [selectedExercise]);
 
     useEffect(() => {
         const hasTemplate = route.params?.selectedWorkout;
-        
         const unsubscribe = workoutService.subscribe((newData) => {
             if (!isFinishingWorkout.current) {
                 setExerciseData(newData);
-                const allValidated = workoutService.areAllSetsValidated();
-                setIsValidationPressed(allValidated);
+                setIsValidationPressed(workoutService.areAllSetsValidated());
             }
         });
 
@@ -201,28 +208,22 @@ const StartWorkout = ({ route, navigation }) => {
                 const restored = await workoutService.restoreWorkout();
                 if (restored) {
                     workoutTimer.restore(restored.startTime);
-                    const restoredExercises = workoutService.getExerciseData();
-                    setExerciseData(restoredExercises);
+                    setExerciseData(workoutService.getExerciseData());
                     setInputText(workoutService.getWorkoutNote());
                 } else {
                     workoutTimer.start();
                     workoutService.startWorkout();
-                    const initialData = workoutService.getExerciseData();
-                    setExerciseData(initialData);
+                    setExerciseData(workoutService.getExerciseData());
                 }
                 setIsInitializing(false);
             }
-            
             workoutNotifications.init();
             refreshAllData();
         };
-        
+
         initWorkout();
         isInitialized.current = true;
-
-        return () => {
-            unsubscribe();
-        };
+        return () => unsubscribe();
     }, [handleSelectedWorkout]);
 
     useFocusEffect(
@@ -231,7 +232,6 @@ const StartWorkout = ({ route, navigation }) => {
                 addNewExercisesFromRoute(route.params.selectedExercises);
                 navigation.setParams({ selectedExercises: undefined });
             }
-
             if (isInitialized.current && route.params?.selectedExercise) {
                 setSelectedExercise(route.params.selectedExercise);
                 navigation.setParams({ selectedExercise: undefined });
@@ -259,27 +259,18 @@ const StartWorkout = ({ route, navigation }) => {
             openAnimatedMessage('Add exercises to finish workout');
             return;
         }
-        
         try {
             isFinishingWorkout.current = true;
-            
-            const totalTime = workoutTimer.getElapsed();
-            const allValidated = workoutService.areAllSetsValidated();
-            const workoutData = [...exerciseData];
-            const workoutNote = inputText;
-            const templateName = route.params?.selectedWorkout?.templateName || 'Workout';
-            
             await sendWorkoutDataToFirestore(
-                workoutData,
-                workoutNote,
-                allValidated,
+                [...exerciseData],
+                inputText,
+                workoutService.areAllSetsValidated(),
                 navigation,
                 openAnimatedMessage,
                 () => workoutTimer.getFormattedTime(),
-                totalTime,
-                templateName
+                workoutTimer.getElapsed(),
+                route.params?.selectedWorkout?.templateName || 'Workout'
             );
-            
             workoutTimer.stop();
             await workoutService.clearWorkout();
             await workoutNotifications.clear();
@@ -293,34 +284,26 @@ const StartWorkout = ({ route, navigation }) => {
     }, [exerciseData, inputText, navigation, openAnimatedMessage, refreshAllData, route.params]);
 
     const handleAddExercisePress = useCallback(async () => {
-        if (!navigation) {
-            Alert.alert('Error', 'Navigation is not available.', [{ text: 'OK' }]);
-            return;
-        }
-        
+        if (!navigation) return;
         workoutService.startWorkout();
         await workoutService.persistWorkout();
         navigation.navigate('ExerciseSelection', { previousScreen: 'StartWorkout' });
     }, [navigation]);
 
     const handleScroll = useCallback((event) => {
-        if (isKeyboardVisible) {
+        if (isKeyboardVisibleRef.current) {
             setIsCommandCenterVisible(false);
             return;
         }
-        
         const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
         const canScroll = contentSize.height > layoutMeasurement.height;
-        
         if (!canScroll) {
             setIsCommandCenterVisible(exerciseData.length > 0);
             return;
         }
-        
-        const paddingToBottom = normalize(50);
-        const isAtBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - paddingToBottom;
+        const isAtBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - normalize(50);
         setIsCommandCenterVisible(isAtBottom && exerciseData.length > 0);
-    }, [exerciseData.length, isKeyboardVisible]);
+    }, [exerciseData.length]);
 
     const renderEmptyState = useMemo(() => {
         if (isInitializing) {
@@ -330,7 +313,6 @@ const StartWorkout = ({ route, navigation }) => {
                 </View>
             );
         }
-        
         return (
             <View style={styles.emptyStateContainer}>
                 <View style={styles.emptyStateContent}>
@@ -367,23 +349,16 @@ const StartWorkout = ({ route, navigation }) => {
                 <ExerciseInput
                     exercise={exercise}
                     exerciseIndex={exerciseIndex}
-                    exerciseData={exerciseData}
                     openAnimatedMessage={openAnimatedMessage}
                     onKeyboardChange={handleKeyboardChange}
                     focusedInputData={focusedInputData}
                     navigation={navigation}
+                    onMenuPress={handleMenuPress}
                 />
             );
         },
-        [exerciseData, openAnimatedMessage, handleKeyboardChange, focusedInputData, navigation]
+        [openAnimatedMessage, handleKeyboardChange, focusedInputData, navigation, handleMenuPress]
     );
-
-    useEffect(() => {
-        const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
-        return () => {
-            backHandler.remove();
-        };
-    }, []);
 
     useEffect(() => {
         if (isKeyboardVisible) {
@@ -393,26 +368,31 @@ const StartWorkout = ({ route, navigation }) => {
         }
     }, [isKeyboardVisible, exerciseData.length]);
 
-    const filteredExerciseData = useMemo(() => 
-        exerciseData.filter(ex => ex && ex.exerciseName && Array.isArray(ex.sets)),
+    const filteredExerciseData = useMemo(
+        () => exerciseData.filter(ex => ex && ex.exerciseName && Array.isArray(ex.sets)),
         [exerciseData]
     );
 
     const handleDismissKeyboard = useCallback(() => {
         setIsKeyboardVisible(false);
         setFocusedInputData(null);
+        isKeyboardVisibleRef.current = false;
     }, []);
 
     const handleBackPress = useCallback(() => {
-        if (isKeyboardVisible) {
-            setIsKeyboardVisible(false);
-            setFocusedInputData(null);
+        if (activeExerciseMenu) {
+            setActiveExerciseMenu(null);
             return true;
         }
-        
+        if (isKeyboardVisibleRef.current) {
+            setIsKeyboardVisible(false);
+            setFocusedInputData(null);
+            isKeyboardVisibleRef.current = false;
+            return true;
+        }
         navigation.navigate('Workout');
         return true;
-    }, [navigation, isKeyboardVisible]);
+    }, [navigation, activeExerciseMenu]);
 
     useEffect(() => {
         const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
@@ -420,13 +400,17 @@ const StartWorkout = ({ route, navigation }) => {
     }, [handleBackPress]);
 
     useEffect(() => {
-        const syncInputText = () => {
+        const timeoutId = setTimeout(() => {
             workoutService.setWorkoutNote(inputText);
-        };
-        
-        const timeoutId = setTimeout(syncInputText, 500);
+        }, 500);
         return () => clearTimeout(timeoutId);
     }, [inputText]);
+
+    const contentContainerStyle = useMemo(() => [
+        styles.scrollViewContent,
+        filteredExerciseData.length === 0 && styles.scrollViewContentEmpty,
+        { paddingBottom: isKeyboardVisible ? normalize(350) + insets.bottom : normalize(140) + insets.bottom },
+    ], [filteredExerciseData.length, isKeyboardVisible, insets.bottom]);
 
     if (isInitializing) {
         return (
@@ -436,11 +420,7 @@ const StartWorkout = ({ route, navigation }) => {
                         <Text style={styles.cancelText}>Cancel</Text>
                     </TouchableOpacity>
                     <TimerComponent />
-                    <TouchableOpacity
-                        style={[styles.headerButton, styles.finishButton]}
-                        disabled={true}
-                        hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-                    >
+                    <TouchableOpacity style={[styles.headerButton, styles.finishButton]} disabled={true} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
                         <Text style={[styles.finishText, styles.finishTextDisabled]}>Finish</Text>
                     </TouchableOpacity>
                 </View>
@@ -471,11 +451,7 @@ const StartWorkout = ({ route, navigation }) => {
             <FlatList
                 ref={flatListRef}
                 style={styles.scrollView}
-                contentContainerStyle={[
-                    styles.scrollViewContent,
-                    filteredExerciseData.length === 0 && styles.scrollViewContentEmpty,
-                    { paddingBottom: isKeyboardVisible ? normalize(350) + insets.bottom : normalize(140) + insets.bottom },
-                ]}
+                contentContainerStyle={contentContainerStyle}
                 data={filteredExerciseData}
                 renderItem={renderItem}
                 keyExtractor={(item, index) => `${item.exerciseName}-${index}`}
@@ -499,7 +475,7 @@ const StartWorkout = ({ route, navigation }) => {
                 }}
             />
 
-            {isCommandCenterVisible === true && filteredExerciseData.length > 0 ? (
+            {isCommandCenterVisible && filteredExerciseData.length > 0 && (
                 <View style={[styles.commandCenter, { bottom: normalize(32) + insets.bottom }]}>
                     <TouchableOpacity
                         style={styles.commandAdd}
@@ -509,11 +485,11 @@ const StartWorkout = ({ route, navigation }) => {
                         <Text style={styles.commandButtonText}>+ Add Exercise</Text>
                     </TouchableOpacity>
                 </View>
-            ) : null}
+            )}
 
             {animatedMessage ? <AnimatedMessage message={animatedMessage} /> : null}
 
-            {isKeyboardVisible && focusedInputData ? (
+            {isKeyboardVisible && focusedInputData && (
                 <View style={styles.customKeyboardContainer}>
                     <CustomNumericKeyboard
                         value={
@@ -533,9 +509,20 @@ const StartWorkout = ({ route, navigation }) => {
                         onDone={handleDismissKeyboard}
                     />
                 </View>
-            ) : null}
+            )}
+
+            <ExerciseOptionsModal
+                visible={!!activeExerciseMenu}
+                onClose={handleMenuClose}
+                exerciseName={activeExerciseMenu?.exercise?.exerciseName || ''}
+                onReplace={handleMenuReplace}
+                onDelete={handleMenuDelete}
+                onAddNote={handleMenuAddNote}
+            />
         </View>
     );
 };
+
+StartWorkout.whyDidYouRender = true;
 
 export default React.memo(StartWorkout);

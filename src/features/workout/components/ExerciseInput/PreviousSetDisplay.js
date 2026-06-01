@@ -1,6 +1,6 @@
-import { Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { COLORS } from './ExerciseInputStyles';
-import { normalize } from '../../../../shared/hooks/useResponsive';
+import { Text, TouchableOpacity } from 'react-native';
+import { colors, spacing, fontSize, fontWeight } from '../../../../shared/theme';
+import { createStyles } from '../../../../shared/theme/createStyles';
 
 const PreviousSetDisplay = ({ previousSetData, onPress, setIndex, isCompleted }) => {
   const hasPreviousData = previousSetData && (previousSetData.weight || previousSetData.reps);
@@ -10,13 +10,10 @@ const PreviousSetDisplay = ({ previousSetData, onPress, setIndex, isCompleted })
       onPress={() => onPress(setIndex)}
       disabled={!hasPreviousData}
       activeOpacity={0.7}
-      hitSlop={{ top: normalize(20), bottom: normalize(20), left: normalize(20), right: normalize(20) }}
+      hitSlop={{ top: spacing[5], bottom: spacing[5], left: spacing[5], right: spacing[5] }}
     >
       {hasPreviousData ? (
-        <Text style={[
-          styles.previousText,
-          isCompleted && styles.previousTextCompleted
-        ]}>
+        <Text style={[styles.previousText, isCompleted && styles.previousTextCompleted]}>
           {previousSetData.weight || '0'}kg ×{previousSetData.reps || '0'}
         </Text>
       ) : (
@@ -26,27 +23,28 @@ const PreviousSetDisplay = ({ previousSetData, onPress, setIndex, isCompleted })
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles(() => ({
   previousContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   previousText: {
-    color: COLORS.textMuted,
-    fontSize: normalize(13),
-    fontWeight: '500',
+    color: colors.text.quaternary,
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.medium,
     textAlign: 'center',
   },
   previousTextCompleted: {
     opacity: 0.5,
   },
   emptyStateText: {
-    color: COLORS.textInactive,
-    fontSize: normalize(12),
-    fontWeight: '400',
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.medium,
     textAlign: 'center',
   },
-});
+}));
 
+
+PreviousSetDisplay.whyDidYouRender = true;
 export default PreviousSetDisplay;

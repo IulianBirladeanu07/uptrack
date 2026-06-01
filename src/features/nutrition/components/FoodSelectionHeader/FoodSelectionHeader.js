@@ -242,4 +242,5 @@ const styles = StyleSheet.create({
   },
 });
 
+FoodSelectionHeader.whyDidYouRender = true;
 export default memo(FoodSelectionHeader);

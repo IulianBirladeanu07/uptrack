@@ -247,6 +247,7 @@ const FoodSearchResults = memo(({
     </View>
   );
 });
+FoodSearchResults.whyDidYouRender = true;
 
 const styles = createStyles(() => ({
   container: {

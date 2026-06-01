@@ -64,6 +64,8 @@ export const colors = {
     cyan: 'rgba(0, 212, 255, 0.15)',
     cyanDark: 'rgba(6, 182, 212, 0.08)',
     cyanAlt: 'rgba(33, 150, 243, 0.15)',
+    cyanExtraLight: 'rgba(6, 182, 212, 0.03)',
+
     green: 'rgba(76, 175, 80, 0.15)',
     error: 'rgba(255, 87, 34, 0.15)',
     errorAlt: 'rgba(220, 38, 38, 0.1)',
@@ -91,6 +93,8 @@ export const colors = {
     successAlt: 'rgba(16, 185, 129, 0.25)',
     cyan: 'rgba(0, 212, 255, 0.3)',
     cyanDark: 'rgba(6, 182, 212, 0.25)',
+    cyanStrong: 'rgba(6, 182, 212, 0.35)',
+    cyanBright: 'rgba(6, 182, 212, 0.5)',
     error: 'rgba(255, 87, 34, 0.3)',
     breakfast: 'rgba(255, 182, 39, 0.12)',
     lunch: 'rgba(255, 182, 39, 0.12)',

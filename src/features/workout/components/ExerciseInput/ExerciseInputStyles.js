@@ -1,132 +1,86 @@
-import { StyleSheet } from 'react-native';
-import { normalize } from '../../../../shared/hooks/useResponsive';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import { createStyles } from '../../../../shared/theme/createStyles';
 
-export const COLORS = {
-  bg: '#0A0E13',
-  surface: '#151B23',
-  surfaceLight: '#1F2937',
-  
-  text: '#F9FAFB',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
-  textInactive: 'rgba(156, 163, 175, 0.4)',
-  
-  primary: '#FF9500',
-  primaryTransparent: 'rgba(255, 149, 0, 0.15)',
-  primaryBorder: 'rgba(255, 149, 0, 0.3)',
-  
-  cyan: '#06B6D4',
-  cyanTransparent: 'rgba(6, 182, 212, 0.08)',
-  cyanBorder: 'rgba(6, 182, 212, 0.4)',
-  cyanGlow: 'rgba(6, 182, 212, 0.25)',
-  cyanFocusBg: 'rgba(6, 182, 212, 0.08)',
-cyanCompletedBorder: 'rgba(6, 182, 212, 0.25)',
-cyanCompletedBg: 'rgba(6, 182, 212, 0.04)',
-  accent2: '#06B6D4',
-  accent2Transparent: 'rgba(6, 182, 212, 0.15)',
-  accent2Border: 'rgba(6, 182, 212, 0.3)',
-  
-  danger: '#FF453A',
-  
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderLight: 'rgba(255, 255, 255, 0.05)',
-  borderDivider: 'rgba(255, 255, 255, 0.08)',
-  
-  inputBg: 'rgba(31, 41, 55, 0.5)',
-  inputBorder: 'rgba(255, 255, 255, 0.12)',
-};
-
-export const styles = StyleSheet.create({
+export const styles = createStyles(() => ({
   exerciseCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.background.secondary,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: normalize(18),
-    marginHorizontal: normalize(12),
-    marginBottom: normalize(20),
+    borderColor: colors.border.default,
+    borderRadius: radius[5],
+    marginHorizontal: spacing[3],
+    marginBottom: spacing[5],
     overflow: 'hidden',
   },
-  
   dataGrid: {
     backgroundColor: 'transparent',
   },
-  
   gridHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: normalize(16),
-    paddingVertical: normalize(10),
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
+    borderBottomColor: colors.border.light,
   },
-  
   gridHeaderText: {
-    fontSize: normalize(10),
-    fontWeight: '700',
+    fontSize: fontSize[10],
+    fontWeight: fontWeight.bold,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    color: COLORS.textSecondary,
+    color: colors.text.secondary,
     textAlign: 'center',
   },
-  
   gridHeaderSet: {
-    width: normalize(40),
+    width: spacing[10],
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
   gridHeaderPrev: {
-    width: normalize(90),
+    width: 90,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: normalize(8),
+    marginRight: spacing[2],
   },
-  
   gridHeaderWeight: {
-    width: normalize(90),
+    width: 90,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: normalize(8),
+    marginRight: spacing[2],
   },
-  
   gridHeaderReps: {
-    width: normalize(90),
+    width: 90,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: normalize(8),
+    marginRight: spacing[2],
   },
-  
   gridHeaderStatus: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
   holoAddBtn: {
-    marginHorizontal: normalize(16),
-    marginVertical: normalize(16),
-    backgroundColor: COLORS.primaryTransparent,
-    borderColor: COLORS.primaryBorder,
+    marginHorizontal: spacing[4],
+    marginVertical: spacing[4],
+    backgroundColor: colors.faded.primary,
+    borderColor: colors.border.primary,
     borderWidth: 1,
-    borderRadius: normalize(12),
+    borderRadius: radius[3],
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: normalize(12),
+    paddingVertical: spacing[3],
   },
-  
   holoAddBtnText: {
-    fontSize: normalize(14),
-    fontWeight: '700',
-    color: COLORS.primary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.bold,
+    color: colors.accent.primary,
     letterSpacing: 0.3,
   },
-  
   errorText: {
-    color: COLORS.danger,
-    fontSize: normalize(14),
-    padding: normalize(16),
+    color: colors.accent.error,
+    fontSize: fontSize[14],
+    padding: spacing[4],
     textAlign: 'center',
   },
-});
+  surfaceLight: colors.background.tertiary,
+}));
