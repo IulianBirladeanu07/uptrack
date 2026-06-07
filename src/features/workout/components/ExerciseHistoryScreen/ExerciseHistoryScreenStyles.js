@@ -1,0 +1,236 @@
+import { createStyles } from '../../../../shared/theme/createStyles';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+
+const styles = createStyles(() => ({
+    container: {
+        flex: 1,
+        backgroundColor: colors.background.primary,
+    },
+    headerSection: {
+        paddingHorizontal: spacing[4],
+        paddingTop: spacing[3],
+        backgroundColor: colors.background.secondary,
+    },
+    backRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[3],
+        marginBottom: spacing[4],
+    },
+    backButton: {
+        width: spacing[9],
+        height: spacing[9],
+        borderRadius: radius[2],
+        backgroundColor: colors.background.secondary,
+        borderWidth: 1,
+        borderColor: colors.border.default,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    heading: {
+        fontSize: fontSize[28],
+        fontWeight: fontWeight.bold,
+        color: colors.text.primary,
+        letterSpacing: -0.5,
+        flex: 1,
+    },
+    bestRow: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        gap: spacing[2],
+        marginBottom: spacing[4],
+    },
+    bestValue: {
+        fontSize: fontSize[20],
+        fontWeight: fontWeight.bold,
+        color: colors.text.primary,
+        letterSpacing: -0.3,
+    },
+    bestLabel: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.quaternary,
+    },
+    periodRow: {
+        flexDirection: 'row',
+        gap: spacing[2],
+        marginBottom: spacing[4],
+    },
+    periodChip: {
+        paddingHorizontal: spacing[3],
+        paddingVertical: spacing[2],
+        borderRadius: radius[2],
+        backgroundColor: colors.background.tertiary,
+        borderWidth: 1,
+        borderColor: colors.border.default,
+    },
+    periodChipActive: {
+        backgroundColor: colors.accent.primary,
+        borderColor: colors.accent.primary,
+    },
+    periodChipText: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.secondary,
+    },
+    periodChipTextActive: {
+        color: colors.accent.buttonText,
+    },
+    chartWrapper: {
+        marginBottom: spacing[2],
+    },
+    divider: {
+        height: 1,
+        backgroundColor: colors.border.light,
+        marginBottom: spacing[1],
+    },
+    listContent: {
+        paddingBottom: spacing[20],
+    },
+    sessionRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: spacing[4],
+        paddingVertical: spacing[3],
+        backgroundColor: colors.background.primary,
+    },
+    sessionLeft: {
+        flex: 1,
+        marginRight: spacing[3],
+    },
+    sessionDate: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.primary,
+        marginBottom: spacing[1],
+    },
+    sessionMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[3],
+    },
+    sessionMetaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[1],
+    },
+    sessionMetaText: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.quaternary,
+    },
+    sessionRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[2],
+    },
+    sessionBestValue: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.bold,
+        color: colors.accent.primary,
+    },
+    sessionSeparator: {
+        height: 1,
+        backgroundColor: colors.border.light,
+        marginHorizontal: spacing[4],
+    },
+    setRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: spacing[4],
+        paddingVertical: spacing[3],
+        backgroundColor: colors.background.secondary,
+        borderTopWidth: 1,
+        borderTopColor: colors.border.light,
+    },
+    setRowLast: {
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border.light,
+        marginBottom: spacing[1],
+    },
+    setIndex: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.bold,
+        color: colors.accent.primary,
+        width: spacing[6],
+    },
+    setWeight: {
+        flex: 1,
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.primary,
+    },
+    setReps: {
+        width: 60,
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.primary,
+    },
+    setColRM: {
+        width: 70,
+        alignItems: 'flex-end',
+    },
+    setRM: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.quaternary,
+        textAlign: 'right',
+    },
+    prTag: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.bold,
+        color: colors.accent.primary,
+        backgroundColor: colors.faded.primary,
+        paddingHorizontal: spacing[2],
+        paddingVertical: 2,
+        borderRadius: radius[1],
+        borderWidth: 1,
+        borderColor: colors.border.primary,
+        overflow: 'hidden',
+        marginLeft: spacing[2],
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        paddingTop: spacing[20],
+        paddingHorizontal: spacing[10],
+        gap: spacing[3],
+    },
+    emptyIconContainer: {
+        width: spacing[28],
+        height: spacing[28],
+        borderRadius: radius[14],
+        backgroundColor: colors.faded.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: spacing[3],
+        borderWidth: 1,
+        borderColor: colors.border.default,
+    },
+    emptyTitle: {
+        fontSize: fontSize[18],
+        fontWeight: fontWeight.bold,
+        color: colors.text.primary,
+        textAlign: 'center',
+    },
+    emptySubtitle: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.medium,
+        color: colors.text.quaternary,
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: spacing[3],
+    },
+    loadingText: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.medium,
+        color: colors.text.quaternary,
+    },
+}));
+
+export default styles;

@@ -91,8 +91,19 @@ const StartWorkout = ({ route, navigation }) => {
         workoutService.deleteExercise(activeExerciseMenu.exerciseIndex);
     }, [activeExerciseMenu]);
 
+    const noteRegistryRef = useRef({});
+
+    const onAddNote = useMemo(() => ({
+        register: (exerciseIndex, fn) => {
+            noteRegistryRef.current[exerciseIndex] = fn;
+        },
+    }), []);
+
     const handleMenuAddNote = useCallback(() => {
-    }, []);
+        if (!activeExerciseMenu) return;
+        const trigger = noteRegistryRef.current[activeExerciseMenu.exerciseIndex];
+        if (trigger) trigger();
+    }, [activeExerciseMenu]);
 
     const handleKeyboardChange = useCallback((isVisible, inputData) => {
         isKeyboardVisibleRef.current = isVisible;
@@ -259,9 +270,10 @@ const StartWorkout = ({ route, navigation }) => {
             openAnimatedMessage('Add exercises to finish workout');
             return;
         }
+        if (isFinishingWorkout.current) return;
         try {
             isFinishingWorkout.current = true;
-            await sendWorkoutDataToFirestore(
+            const result = await sendWorkoutDataToFirestore(
                 [...exerciseData],
                 inputText,
                 workoutService.areAllSetsValidated(),
@@ -271,6 +283,10 @@ const StartWorkout = ({ route, navigation }) => {
                 workoutTimer.getElapsed(),
                 route.params?.selectedWorkout?.templateName || 'Workout'
             );
+            if (result === false) {
+                isFinishingWorkout.current = false;
+                return;
+            }
             workoutTimer.stop();
             await workoutService.clearWorkout();
             await workoutNotifications.clear();
@@ -354,10 +370,11 @@ const StartWorkout = ({ route, navigation }) => {
                     focusedInputData={focusedInputData}
                     navigation={navigation}
                     onMenuPress={handleMenuPress}
+                    onAddNote={onAddNote}
                 />
             );
         },
-        [openAnimatedMessage, handleKeyboardChange, focusedInputData, navigation, handleMenuPress]
+        [openAnimatedMessage, handleKeyboardChange, focusedInputData, navigation, handleMenuPress, onAddNote]
     );
 
     useEffect(() => {
@@ -522,7 +539,5 @@ const StartWorkout = ({ route, navigation }) => {
         </View>
     );
 };
-
-StartWorkout.whyDidYouRender = true;
 
 export default React.memo(StartWorkout);

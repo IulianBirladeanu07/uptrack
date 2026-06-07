@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
@@ -20,7 +19,7 @@ class WorkoutNotificationService {
         if (Platform.OS === 'android') {
             await Notifications.setNotificationChannelAsync('workout', {
                 name: 'Workout',
-                importance: Notifications.AndroidImportance.HIGH,
+                importance: Notifications.AndroidImportance.LOW,
                 lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
                 sound: false,
                 vibrationPattern: [0],
@@ -30,13 +29,14 @@ class WorkoutNotificationService {
     }
 
     async start(exerciseCount) {
-        await this.init();
+        const granted = await this.init();
+        if (!granted) return;
         this.notificationId = await Notifications.scheduleNotificationAsync({
             content: {
                 title: 'Workout in Progress',
-                body: `${exerciseCount} exercises`,
+                body: `${exerciseCount} exercise${exerciseCount !== 1 ? 's' : ''}`,
                 sticky: true,
-                priority: 'high',
+                priority: 'low',
             },
             trigger: null,
         });
@@ -46,16 +46,18 @@ class WorkoutNotificationService {
         if (this._updateTimeout) clearTimeout(this._updateTimeout);
         this._updateTimeout = setTimeout(async () => {
             if (!this.notificationId) return;
-            await Notifications.dismissNotificationAsync(this.notificationId);
+
+            const prevId = this.notificationId;
             this.notificationId = await Notifications.scheduleNotificationAsync({
                 content: {
                     title: 'Workout in Progress',
                     body: `${exerciseName} • Set ${currentSet}/${totalSets} • ${elapsedTime}`,
                     sticky: true,
-                    priority: 'high',
+                    priority: 'low',
                 },
                 trigger: null,
             });
+            await Notifications.dismissNotificationAsync(prevId);
         }, 5000);
     }
 

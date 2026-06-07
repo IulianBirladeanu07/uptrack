@@ -114,7 +114,6 @@ function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets,
     );
 }
 
-NutritionStats.whyDidYouRender = true;
 export default React.memo(NutritionStats, (prev, next) => {
     return (
         prev.weightData === next.weightData &&

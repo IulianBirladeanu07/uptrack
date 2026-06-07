@@ -647,5 +647,4 @@ const ExerciseSelectionScreen = ({ route }) => {
   );
 };
 
-ExerciseSelectionScreen.whyDidYouRender = true;
 export default memo(ExerciseSelectionScreen);

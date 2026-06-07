@@ -109,5 +109,4 @@ const WorkoutTemplateLibrary = ({ templates, navigation, refreshControl, onCreat
   );
 };
 
-WorkoutTemplateLibrary.whyDidYouRender = true;
 export default React.memo(WorkoutTemplateLibrary);

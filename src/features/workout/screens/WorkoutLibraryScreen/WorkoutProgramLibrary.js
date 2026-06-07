@@ -103,5 +103,4 @@ const WorkoutProgramLibrary = ({
   );
 };
 
-WorkoutProgramLibrary.whyDidYouRender = true;
 export default React.memo(WorkoutProgramLibrary);

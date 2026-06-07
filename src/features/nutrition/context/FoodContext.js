@@ -125,14 +125,15 @@ const buildCategoryData = (cache) => {
 };
 
 export const FoodProvider = ({ children, initialUserData }) => {
-    const [currentUser,        setCurrentUser]        = useState(null);
-    const [selectedDate,       setSelectedDate]       = useState(new Date());
-    const [userProfile,        setUserProfile]        = useState(initialUserData || null);
-    const [loading,            setLoading]            = useState(false);
-    const [error,              setError]              = useState(null);
-    const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-    const [dailySteps,         setDailySteps]         = useState(0);
-    const [stepsVersion,       setStepsVersion]       = useState(0);
+    const [currentUser,          setCurrentUser]          = useState(null);
+    const [selectedDate,         setSelectedDate]         = useState(new Date());
+    const [userProfile,          setUserProfile]          = useState(initialUserData || null);
+    const [loading,              setLoading]              = useState(false);
+    const [error,                setError]                = useState(null);
+    const [initialLoadComplete,  setInitialLoadComplete]  = useState(false);
+    const [dailySteps,           setDailySteps]           = useState(0);
+    const [stepsVersion,         setStepsVersion]         = useState(0);
+    const [cacheVersion,         setCacheVersion]         = useState(0);
 
     const [mealState, setMealState] = useState({
         breakfast: [], lunch: [], dinner: [], snacks: []
@@ -173,7 +174,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
 
     const rollingWeekStats = useMemo(() =>
         getCurrentWeekRollingStats(mealCache.current, userData?.weightIns),
-    [mealState, dailySteps, stepsVersion, userData?.weightIns]);
+    [cacheVersion, stepsVersion, userData?.weightIns]);
 
     const getCaloriesForDateRange = useCallback((startDate, endDate) =>
         mealCache.current.getDateRange(startDate, endDate).map(({ date, meals }) => ({
@@ -215,6 +216,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
         setMealState(prev => ({ ...prev, [mealType]: foods }));
         mealCache.current.updateMealType(dateKey, mealType, foods);
         setCategoryData(buildCategoryData(mealCache.current));
+        setCacheVersion(v => v + 1);
     }, [selectedDate]);
 
     const updateDailySteps = useCallback((steps, dateKey) => {
@@ -355,6 +357,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 setUserProfile(initialUserData);
                 updateCurrentDayMeals(new Date());
                 setCategoryData(buildCategoryData(mealCache.current));
+                setCacheVersion(v => v + 1);
                 setInitialLoadComplete(true);
                 console.log(`[FoodContext] initialLoadComplete from cache: ${Date.now() - t0}ms`);
             }
@@ -368,6 +371,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 mealCache.current.buildFromMeals(last30DaysMeals);
                 updateCurrentDayMeals(new Date());
                 setCategoryData(buildCategoryData(mealCache.current));
+                setCacheVersion(v => v + 1);
                 if (!cachedMeals) setInitialLoadComplete(true);
                 console.log(`[FoodContext] initialLoadComplete from firestore: ${Date.now() - t0}ms`);
 
@@ -430,6 +434,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 setMealState({ breakfast: [], lunch: [], dinner: [], snacks: [] });
                 setDailySteps(0);
                 setStepsVersion(0);
+                setCacheVersion(0);
                 setError(null);
                 setLoading(false);
                 setInitialLoadComplete(false);

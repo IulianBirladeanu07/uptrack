@@ -10,17 +10,14 @@ import {
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
-    withSpring,
     withTiming,
-    cancelAnimation,
+    Easing,
     runOnJS,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { normalize } from '../../../../shared/hooks/useResponsive';
-
-const SPRING_CONFIG = { damping: 32, stiffness: 400, mass: 0.6 };
 
 const ExerciseOptionsModal = ({
     visible,
@@ -35,14 +32,12 @@ const ExerciseOptionsModal = ({
     const backdropOpacity = useSharedValue(0);
 
     useEffect(() => {
-        cancelAnimation(translateY);
-        cancelAnimation(backdropOpacity);
         if (visible) {
             backdropOpacity.value = withTiming(1, { duration: 150 });
-            translateY.value = withSpring(0, SPRING_CONFIG);
+            translateY.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
         } else {
             backdropOpacity.value = withTiming(0, { duration: 140 });
-            translateY.value = withTiming(300, { duration: 180 });
+            translateY.value = withTiming(300, { duration: 180, easing: Easing.in(Easing.cubic) });
         }
     }, [visible]);
 
@@ -55,10 +50,8 @@ const ExerciseOptionsModal = ({
     }));
 
     const handleAction = (callback) => {
-        cancelAnimation(translateY);
-        cancelAnimation(backdropOpacity);
         backdropOpacity.value = withTiming(0, { duration: 140 });
-        translateY.value = withTiming(300, { duration: 180 }, (finished) => {
+        translateY.value = withTiming(300, { duration: 180, easing: Easing.in(Easing.cubic) }, (finished) => {
             if (finished) {
                 runOnJS(onClose)();
                 runOnJS(callback)();
@@ -164,11 +157,10 @@ const styles = StyleSheet.create({
         marginBottom: spacing[3],
     },
     title: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.quaternary,
-        letterSpacing: 0.5,
-        textTransform: 'uppercase',
+        fontSize: fontSize[16],
+        fontWeight: fontWeight.bold,
+        color: colors.text.primary,
+        letterSpacing: 0.2,
         marginBottom: spacing[1],
         paddingHorizontal: spacing[1],
     },
@@ -188,7 +180,7 @@ const styles = StyleSheet.create({
     optionLabel: {
         fontSize: fontSize[14],
         fontWeight: fontWeight.semibold,
-        color: colors.text.secondary,
+        color: colors.text.primary,
     },
     optionLabelDanger: {
         color: colors.accent.error,
@@ -196,9 +188,8 @@ const styles = StyleSheet.create({
     divider: {
         height: 1,
         backgroundColor: colors.border.light,
-        marginLeft: normalize(32) + spacing[3],
+        marginLeft: spacing[11],
     },
 });
 
-ExerciseOptionsModal.whyDidYouRender = true;
 export default ExerciseOptionsModal;

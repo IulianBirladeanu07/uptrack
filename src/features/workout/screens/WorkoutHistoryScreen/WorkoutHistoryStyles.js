@@ -9,7 +9,7 @@ const styles = createStyles(() => ({
     contentWrapper: {
         paddingHorizontal: spacing[4],
         paddingTop: spacing[3],
-        paddingBottom: 90,
+        paddingBottom: spacing[22],
     },
     header: {
         marginBottom: spacing[4],
@@ -60,32 +60,43 @@ const styles = createStyles(() => ({
         flex: 1,
     },
     dateBadge: {
-        backgroundColor: colors.background.tertiary,
+        backgroundColor: colors.accent.primary,
         paddingHorizontal: spacing[2],
-        paddingVertical: 3,
-        borderRadius: radius[1],
+        // paddingVertical: 1,
+        borderRadius: radius[2],
+    },
+    dateBadgeToday: {
+        backgroundColor: colors.accent.primary,
+        paddingVertical: 1,
+        borderWidth: 1,
+        borderColor: colors.accent.primary,
+        borderRadius: radius[2],
     },
     dateText: {
+        paddingVertical: 1,
         fontSize: fontSize[10],
         fontWeight: fontWeight.semibold,
-        color: colors.text.secondary,
+        color: colors.background.primary,
         letterSpacing: 0.5,
+    },
+    dateTextToday: {
+        color: colors.background.primary,
     },
     prBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 215, 0, 0.1)',
+        backgroundColor: colors.faded.primary,
         paddingHorizontal: spacing[1],
-        paddingVertical: 3,
-        borderRadius: radius[1],
+        paddingVertical: spacing[1],
+        borderRadius: radius[2],
         gap: spacing[0],
         borderWidth: 1,
-        borderColor: 'rgba(255, 215, 0, 0.25)',
+        borderColor: colors.accent.primary,
     },
     prText: {
         fontSize: fontSize[10],
         fontWeight: fontWeight.bold,
-        color: '#FFD700',
+        color: colors.accent.primary,
         letterSpacing: 0.5,
     },
     statsMeta: {
@@ -154,7 +165,7 @@ const styles = createStyles(() => ({
     bestSetValue: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
-        color: colors.text.quaternary,
+        color: colors.text.secondary,
     },
     bestSetValuePR: {
         color: colors.accent.primary,

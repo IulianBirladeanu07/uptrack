@@ -49,27 +49,34 @@ export const sendWorkoutDataToFirestore = async (
 
         if (hasEmptyOrInvalidInputs) {
             openAnimatedMessage('Note: Some sets have empty or invalid weight/reps.');
-            return;
+            return false;
         }
 
         if (!isValidationPressed) {
-            Alert.alert(
-                'Unvalidated Sets',
-                'Some sets are not validated. Do you wish to proceed anyway?',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                        text: 'Proceed',
-                        onPress: async () => await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName),
-                    },
-                ]
-            );
+            return new Promise((resolve) => {
+                Alert.alert(
+                    'Unvalidated Sets',
+                    'Some sets are not validated. Do you wish to proceed anyway?',
+                    [
+                        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                        {
+                            text: 'Proceed',
+                            onPress: async () => {
+                                await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName);
+                                resolve(true);
+                            },
+                        },
+                    ]
+                );
+            });
         } else {
             await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName);
+            return true;
         }
     } catch (error) {
         console.error('Error adding workout data:', error.message);
         openAnimatedMessage(`Error: ${error.message}`);
+        return false;
     }
 };
 
@@ -936,4 +943,55 @@ export const updateSplitProgress = async (splitId, currentWeek) => {
     console.error('Error updating split progress:', error.message);
     throw error;
   }
+};
+
+export const getExerciseHistory = async (exerciseName) => {
+    try {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) throw new Error('User not authenticated.');
+
+        const workoutsRef = collection(db, 'workoutHistory');
+        const workoutQuery = query(
+            workoutsRef,
+            where('uid', '==', user.uid),
+            orderBy('timestamp', 'desc'),
+            limit(100)
+        );
+        const querySnapshot = await getDocs(workoutQuery);
+
+        const sessions = [];
+
+        for (const doc of querySnapshot.docs) {
+            const data = doc.data();
+            const exercises = data.exercises || [];
+            const exercise = exercises.find(ex => ex.exerciseName === exerciseName);
+            if (!exercise || !exercise.sets?.length) continue;
+
+            const validSets = exercise.sets.filter(s =>
+                (parseFloat(s.weight) > 0 || parseInt(s.reps) > 0)
+            );
+            if (!validSets.length) continue;
+
+            const best = validSets.reduce((b, s) => {
+                const e1rm = calculate1RM(parseFloat(s.weight) || 0, parseInt(s.reps) || 0);
+                return e1rm > b.e1rm ? { ...s, e1rm } : b;
+            }, { e1rm: 0 });
+
+            sessions.push({
+                id: doc.id,
+                timestamp: data.timestamp,
+                workoutName: data.workoutName || 'Workout',
+                sets: validSets,
+                best,
+                totalVolume: validSets.reduce((sum, s) =>
+                    sum + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0),
+            });
+        }
+
+        return sessions;
+    } catch (error) {
+        console.error('Error fetching exercise history:', error.message);
+        return [];
+    }
 };

@@ -285,8 +285,6 @@ const MealItem = memo(({
   );
 });
 
-MealItem.whyDidYouRender = true;
-
 const styles = createStyles(() => ({
   mealItem: {
     marginVertical: spacing[3],

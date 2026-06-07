@@ -250,6 +250,11 @@ const styles = createStyles(() => ({
         borderWidth: 1,
         borderColor: colors.border.default,
     },
+    dayCircleMissed: {
+        backgroundColor: colors.faded.error,
+        borderWidth: 1,
+        borderColor: colors.border.error,
+    },
     dayCircleText: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,

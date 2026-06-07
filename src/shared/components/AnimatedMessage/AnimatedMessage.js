@@ -1,78 +1,66 @@
 import React, { useEffect } from 'react';
-import { Text, StyleSheet, Dimensions } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming,
-  Easing
+import { Text } from 'react-native';
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withTiming,
+    Easing,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
+import { createStyles } from '../../theme/createStyles';
 import { normalize } from '../../hooks/useResponsive';
 
-const { height } = Dimensions.get('window');
-
 const AnimatedMessage = ({ message }) => {
-  const translateY = useSharedValue(-100);
-  const opacity = useSharedValue(0);
+    const insets = useSafeAreaInsets();
+    const opacity = useSharedValue(0);
 
-  useEffect(() => {
-    translateY.value = withTiming(0, {
-      duration: 400,
-      easing: Easing.out(Easing.exp),
-    });
-    opacity.value = withTiming(1, { duration: 300 });
+    useEffect(() => {
+        opacity.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) });
 
-    const timer = setTimeout(() => {
-      translateY.value = withTiming(-100, {
-        duration: 350,
-        easing: Easing.in(Easing.exp),
-      });
-      opacity.value = withTiming(0, { duration: 250 });
-    }, 2300);
+        const timer = setTimeout(() => {
+            opacity.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.cubic) });
+        }, 2300);
 
-    return () => clearTimeout(timer);
-  }, [message]);
+        return () => clearTimeout(timer);
+    }, [message]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: opacity.value,
-  }), []);
+    const animatedStyle = useAnimatedStyle(() => ({
+        opacity: opacity.value,
+    }));
 
-  return (
-    <Animated.View style={[styles.container, animatedStyle]}>
-      <Text style={styles.text} numberOfLines={2}>{message}</Text>
-    </Animated.View>
-  );
+    return (
+        <Animated.View style={[styles.container, { top: insets.top + normalize(24) }, animatedStyle]}>
+            <Ionicons name="alert-circle-outline" size={spacing.icon} color={colors.accent.primary} />
+            <Text style={styles.text} numberOfLines={1}>{message}</Text>
+        </Animated.View>
+    );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: height * 0.5,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(21, 27, 35, 0.96)',
-    paddingVertical: normalize(16),
-    paddingHorizontal: normalize(24),
-    borderRadius: normalize(14),
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 149, 0, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    elevation: 8,
-    zIndex: 9999,
-    minWidth: '70%',
-    maxWidth: '88%',
-    transform: [{ translateY: -normalize(30) }],
-  },
-  text: {
-    color: '#F9FAFB',
-    fontSize: normalize(15),
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    textAlign: 'center',
-    lineHeight: normalize(21),
-  },
-});
+const styles = createStyles(() => ({
+    container: {
+        position: 'absolute',
+        alignSelf: 'center',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[2],
+        backgroundColor: colors.background.secondary,
+        // paddingVertical: spacing[3],
+        paddingHorizontal: spacing[3],
+        borderRadius: radius[3],
+        borderWidth: 1,
+        borderColor: colors.border.primary,
+        zIndex: 9999,
+        height: normalize(54),
+    },
+    text: {
+        color: colors.text.primary,
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        letterSpacing: 0.1,
+        flexShrink: 1,
+    },
+}));
 
 export default AnimatedMessage;

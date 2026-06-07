@@ -193,5 +193,4 @@ const TemplateItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit
     );
 });
 
-TemplateItem.whyDidYouRender = true;
 export default TemplateItem;

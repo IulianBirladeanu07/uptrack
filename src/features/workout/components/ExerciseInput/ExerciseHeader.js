@@ -194,5 +194,4 @@ const styles = createStyles(() => ({
     },
 }));
 
-ExerciseHeader.whyDidYouRender = true;
 export default ExerciseHeader;

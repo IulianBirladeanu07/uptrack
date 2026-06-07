@@ -42,9 +42,8 @@ const styles = createStyles(() => ({
     fontSize: fontSize[12],
     fontWeight: fontWeight.medium,
     textAlign: 'center',
+    color: colors.text.quaternary,
   },
 }));
 
-
-PreviousSetDisplay.whyDidYouRender = true;
 export default PreviousSetDisplay;

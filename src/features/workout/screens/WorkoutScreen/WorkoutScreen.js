@@ -244,8 +244,6 @@ const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }) => {
                         ? styles.dayCircleDone
                         : d.isToday
                         ? styles.dayCircleToday
-                        : d.hasWorkout
-                        ? styles.dayCircleWorkout
                         : styles.dayCircleRest;
 
                     return (

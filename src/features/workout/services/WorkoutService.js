@@ -205,6 +205,10 @@ class WorkoutService {
 
     updateWeight(exerciseIndex, setIndex, value) {
         if (!this.exerciseData[exerciseIndex]?.sets[setIndex]) return;
+        if (value !== '') {
+            if (!/^\d+\.?\d?$/.test(value)) return;
+            if (parseFloat(value) > 500) return;
+        }
         this.exerciseData = [...this.exerciseData];
         this.exerciseData[exerciseIndex] = { ...this.exerciseData[exerciseIndex] };
         this.exerciseData[exerciseIndex].sets = [...this.exerciseData[exerciseIndex].sets];
@@ -218,6 +222,7 @@ class WorkoutService {
 
     updateReps(exerciseIndex, setIndex, value) {
         if (!this.exerciseData[exerciseIndex]?.sets[setIndex]) return;
+        if (value !== '' && (!/^\d+$/.test(value) || parseInt(value) < 1 || parseInt(value) > 100)) return;
         this.exerciseData = [...this.exerciseData];
         this.exerciseData[exerciseIndex] = { ...this.exerciseData[exerciseIndex] };
         this.exerciseData[exerciseIndex].sets = [...this.exerciseData[exerciseIndex].sets];
@@ -262,6 +267,15 @@ class WorkoutService {
                     return { ...set, isValidated: true };
                 }),
             };
+        });
+        this.notifyListeners();
+    }
+
+    setExerciseNote(exerciseIndex, note) {
+        if (!this.exerciseData[exerciseIndex]) return;
+        this.exerciseData = this.exerciseData.map((ex, idx) => {
+            if (idx !== exerciseIndex) return ex;
+            return { ...ex, note };
         });
         this.notifyListeners();
     }

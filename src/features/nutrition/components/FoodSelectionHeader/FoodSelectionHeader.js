@@ -1,5 +1,5 @@
 import { memo, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, StatusBar, Animated, Easing, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, StatusBar, Animated, Easing, TouchableOpacity } from 'react-native';
 import { Flame } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
@@ -7,7 +7,6 @@ const FoodSelectionHeader = ({
   date,
   dailyGoal = 2000,
   selectedFoods = [],
-  onCaloriePress,
   currentCalories = 0,
   targetCalories = 2000,
   onQuickActionsPress,
@@ -16,18 +15,15 @@ const FoodSelectionHeader = ({
     const selectedFoodsCalories = Math.round(
       selectedFoods.reduce((total, food) => total + (Number(food.calories) || 0), 0)
     );
-    
     const totalCurrentCalories = Math.round((currentCalories || 0) + selectedFoodsCalories);
-    const calculatedFoodCount = selectedFoods.length;
     const effectiveTargetCalories = targetCalories || dailyGoal;
     const calculatedCalorieProgress = Math.min((totalCurrentCalories / effectiveTargetCalories) * 100, 100);
-    const calculatedIsOverGoal = totalCurrentCalories > effectiveTargetCalories;
 
     return {
       calculatedCurrentCalories: totalCurrentCalories,
-      foodCount: calculatedFoodCount,
+      foodCount: selectedFoods.length,
       calorieProgress: calculatedCalorieProgress,
-      isOverGoal: calculatedIsOverGoal,
+      isOverGoal: totalCurrentCalories > effectiveTargetCalories,
     };
   }, [selectedFoods, currentCalories, targetCalories, dailyGoal]);
 
@@ -47,22 +43,17 @@ const FoodSelectionHeader = ({
 
   useEffect(() => {
     Animated.timing(animatedProgress, {
-      toValue: calorieProgress,
+      toValue: calorieProgress / 100,
       duration: 750,
       easing: Easing.out(Easing.quad),
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [calorieProgress]);
-
-  const progressWidth = animatedProgress.interpolate({
-    inputRange: [0, 100],
-    outputRange: ['0%', '100%'],
-  });
 
   return (
     <View>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      
+
       <View style={styles.topRow}>
         <View style={styles.titleContainer}>
           <View style={styles.titleRow}>
@@ -78,7 +69,7 @@ const FoodSelectionHeader = ({
           <Text style={styles.date}>{formattedDate}</Text>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.createButton}
           onPress={onQuickActionsPress}
           activeOpacity={0.7}
@@ -87,13 +78,13 @@ const FoodSelectionHeader = ({
         </TouchableOpacity>
       </View>
 
-      <Pressable onPress={onCaloriePress} style={styles.calorieCard}>
+      <View style={styles.calorieCard}>
         <View style={styles.calorieHeader}>
           <Text style={styles.calorieLabel}>Daily Progress</Text>
           <View style={styles.calorieValueContainer}>
-            <Flame 
-              size={spacing.iconSm} 
-              color={colors.accent.primary} 
+            <Flame
+              size={spacing.iconSm}
+              color={colors.accent.primary}
               strokeWidth={2.5}
             />
             <Text style={styles.calorieValue}>
@@ -101,24 +92,24 @@ const FoodSelectionHeader = ({
             </Text>
           </View>
         </View>
-        
+
         <View style={styles.progressRow}>
           <View style={styles.progressTrack}>
-            <Animated.View 
+            <Animated.View
               style={[
                 styles.progressFill,
-                { 
-                  width: progressWidth,
+                {
                   backgroundColor: colors.accent.primary,
+                  transform: [{ scaleX: animatedProgress }],
                 },
-              ]} 
+              ]}
             />
           </View>
           <Text style={styles.progressPercent}>
             {Math.round(calorieProgress)}%
           </Text>
         </View>
-      </Pressable>
+      </View>
     </View>
   );
 };
@@ -148,7 +139,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize[12],
     fontWeight: fontWeight.semibold,
     color: colors.text.secondary,
-    marginBottom: spacing[2]
+    marginBottom: spacing[2],
   },
   badge: {
     borderRadius: radius[3],
@@ -230,8 +221,9 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
+    width: '100%',
     borderRadius: radius[1],
-    minWidth: spacing[1],
+    transformOrigin: 'left',
   },
   progressPercent: {
     fontSize: fontSize[12],
@@ -242,5 +234,4 @@ const styles = StyleSheet.create({
   },
 });
 
-FoodSelectionHeader.whyDidYouRender = true;
 export default memo(FoodSelectionHeader);

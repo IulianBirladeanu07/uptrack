@@ -1,9 +1,11 @@
-import React, { useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TouchableWithoutFeedback, Animated, TouchableOpacity, Keyboard } from 'react-native';
+import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
+import { View, Text, TouchableWithoutFeedback, Animated, TouchableOpacity, Keyboard, TextInput } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { workoutService } from '../../services/WorkoutService';
 import ExerciseHeader from './ExerciseHeader';
 import SetRow from './SetRow';
 import { styles } from './ExerciseInputStyles';
+import { colors, spacing, fontSize, fontWeight } from '../../../../shared/theme';
 
 const ExerciseInput = ({
     exercise,
@@ -13,11 +15,14 @@ const ExerciseInput = ({
     focusedInputData,
     navigation,
     onMenuPress,
+    onAddNote,
 }) => {
-    const currentSets = useMemo(
-        () => exercise?.sets || [],
-        [exercise]
-    );
+    const currentSets = useMemo(() => exercise?.sets || [], [exercise]);
+
+    const [isNoteVisible, setIsNoteVisible] = useState(!!exercise.note);
+    const [noteText, setNoteText] = useState(exercise.note || '');
+    const [isNoteFocused, setIsNoteFocused] = useState(false);
+    const noteInputRef = useRef(null);
 
     const animRefs = useRef({
         fade: [],
@@ -31,6 +36,64 @@ const ExerciseInput = ({
     const handleMenuPress = useCallback(() => {
         onMenuPress(exercise, exerciseIndex);
     }, [onMenuPress, exercise, exerciseIndex]);
+
+    const handleNoteBlur = useCallback(() => {
+        setIsNoteFocused(false);
+        const trimmed = noteText.trim();
+        workoutService.setExerciseNote(exerciseIndex, trimmed);
+        if (!trimmed) setIsNoteVisible(false);
+    }, [noteText, exerciseIndex]);
+
+    const handleNoteFocus = useCallback(() => {
+        setIsNoteFocused(true);
+        if (onKeyboardChange) {
+            onKeyboardChange(false, null);
+        }
+    }, [onKeyboardChange]);
+
+    const handleClearNote = useCallback(() => {
+        setNoteText('');
+        workoutService.setExerciseNote(exerciseIndex, '');
+        setIsNoteVisible(false);
+        setIsNoteFocused(false);
+    }, [exerciseIndex]);
+
+    const handleOutsidePress = useCallback(() => {
+        Keyboard.dismiss();
+        if (isNoteFocused) {
+            noteInputRef.current?.blur();
+        }
+    }, [isNoteFocused]);
+
+    useEffect(() => {
+        if (onAddNote) {
+            onAddNote.register(exerciseIndex, () => {
+                setIsNoteVisible(true);
+                setTimeout(() => noteInputRef.current?.focus(), 100);
+            });
+        }
+    }, [exerciseIndex, onAddNote]);
+
+    useEffect(() => {
+        setNoteText(exercise.note || '');
+        setIsNoteVisible(!!exercise.note);
+    }, [exerciseIndex]);
+
+    useEffect(() => {
+        if (exercise.note !== undefined && exercise.note !== noteText) {
+            setNoteText(exercise.note || '');
+            setIsNoteVisible(!!exercise.note);
+        }
+    }, [exercise.note]);
+
+    useEffect(() => {
+        if (focusedInputData !== null && isNoteFocused) {
+            noteInputRef.current?.blur();
+            if (!noteText.trim()) {
+                setIsNoteVisible(false);
+            }
+        }
+    }, [focusedInputData]);
 
     useEffect(() => {
         const newLength = currentSets.length;
@@ -95,7 +158,7 @@ const ExerciseInput = ({
     ]);
 
     return (
-        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+        <TouchableWithoutFeedback onPress={handleOutsidePress}>
             <Animated.View style={[
                 styles.exerciseCard,
                 {
@@ -113,6 +176,36 @@ const ExerciseInput = ({
                     navigation={navigation}
                     onMenuPress={handleMenuPress}
                 />
+                {isNoteVisible && (
+                    <View style={styles.noteContainer}>
+                        <Ionicons name="create-outline" size={spacing.iconSm} color={colors.text.tertiary} />
+                        <TextInput
+                            ref={noteInputRef}
+                            style={styles.noteInput}
+                            value={noteText}
+                            onChangeText={setNoteText}
+                            onFocus={handleNoteFocus}
+                            onBlur={handleNoteBlur}
+                            placeholder="Add a note..."
+                            placeholderTextColor={colors.text.quaternary}
+                            returnKeyType="done"
+                            blurOnSubmit
+                            onSubmitEditing={() => noteInputRef.current?.blur()}
+                            maxLength={200}
+                            multiline={false}
+                            underlineColorAndroid="transparent"
+                            autoCorrect={false}
+                        />
+                        {isNoteFocused && noteText.length > 0 && (
+                            <TouchableOpacity
+                                onPress={handleClearNote}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Ionicons name="close-circle-outline" size={spacing.iconSm} color={colors.text.tertiary} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                )}
                 <View style={styles.dataGrid}>
                     <View style={styles.gridHeader}>
                         <View style={styles.gridHeaderSet}>
@@ -146,12 +239,11 @@ const ExerciseInput = ({
     );
 };
 
-ExerciseInput.whyDidYouRender = true;
-
 export default React.memo(ExerciseInput, (prev, next) => {
     if (prev.exerciseIndex !== next.exerciseIndex) return false;
     if (prev.focusedInputData !== next.focusedInputData) return false;
     if (prev.exercise !== next.exercise) return false;
     if (prev.onMenuPress !== next.onMenuPress) return false;
+    if (prev.onAddNote !== next.onAddNote) return false;
     return true;
 });

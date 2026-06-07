@@ -1,12 +1,15 @@
+import { StyleSheet, Dimensions } from 'react-native';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
-const styles = createStyles(() => ({
+const { width } = Dimensions.get('window');
+
+export const styles = createStyles(() => ({
     container: {
         flex: 1,
         backgroundColor: colors.background.primary,
     },
-    canvas: {
+    backgroundContainer: {
         position: 'absolute',
         top: 0,
         left: 0,
@@ -14,187 +17,170 @@ const styles = createStyles(() => ({
         bottom: 0,
     },
     backgroundImage: {
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
         width: '100%',
         height: '100%',
+        resizeMode: 'cover',
     },
     backgroundOverlay: {
         position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(10, 14, 19, 0.5)',
     },
-    fullScreen: {
+    backgroundGradient: {
         flex: 1,
-        paddingHorizontal: spacing[4],
-        justifyContent: 'center',
     },
-    shareCard: {
-        backgroundColor: colors.background.secondary,
+    workoutCard: {
+        marginTop: spacing[24],
+        alignSelf: 'center',
         borderRadius: radius[5],
+        backgroundColor: colors.background.secondary,
         borderWidth: 1,
         borderColor: colors.border.default,
-        overflow: 'hidden',
-    },
-    floatingCard: {
-        position: 'absolute',
-        left: '5%',
-        width: '90%',
-        backgroundColor: 'rgba(21, 27, 35, 0.95)',
-        borderRadius: radius[5],
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.10)',
+        paddingBottom: spacing[5],
         overflow: 'hidden',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.6,
-        shadowRadius: 24,
-        elevation: 12,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
+        elevation: 10,
+        marginBottom: spacing[5],
     },
-    cardTopBar: {
+    cardHeader: {
+        paddingHorizontal: spacing[5],
+        paddingTop: spacing[5],
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: spacing[4],
-        paddingVertical: spacing[3],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
+        alignItems: 'center',
     },
-    cardBrandRow: {
+    brandContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing[2],
     },
-    cardLogo: {
-        width: spacing[7],
-        height: spacing[7],
+    logoContainer: {
+        width: spacing[9],
+        height: spacing[9],
         backgroundColor: colors.accent.primary,
-        borderRadius: radius[1],
+        borderRadius: radius[2],
         alignItems: 'center',
         justifyContent: 'center',
     },
-    cardLogoImage: {
+    logoImage: {
         width: '100%',
         height: '100%',
     },
-    cardBrandText: {
+    brandText: {
         fontSize: fontSize[14],
-        fontWeight: fontWeight.bold,
+        fontWeight: '900',
         color: colors.text.primary,
+        letterSpacing: 2,
     },
-    cardDateText: {
-        fontSize: fontSize[14],
-        fontWeight: fontWeight.medium,
-        color: colors.text.quaternary,
+    dayBadge: {
+        backgroundColor: colors.accent.primary,
+        paddingHorizontal: spacing[2],
+        paddingVertical: spacing[1],
+        borderRadius: radius[2],
+        borderWidth: 1,
+        borderColor: colors.border.primary,
     },
-    cardHero: {
-        paddingHorizontal: spacing[4],
-        paddingTop: spacing[4],
-        paddingBottom: spacing[4],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
+    dayBadgeText: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.bold,
+        color: colors.background.primary,
+        textTransform: 'uppercase',
+    },
+    heroSection: {
         alignItems: 'center',
+        marginVertical: spacing[6],
+        paddingHorizontal: spacing[5],
     },
-    cardCompletedLabel: {
-        fontSize: fontSize[14],
-        fontWeight: fontWeight.bold,
-        color: colors.accent.primary,
-        letterSpacing: 1.2,
-        marginBottom: spacing[1],
-        textAlign: 'center',
-    },
-    cardWorkoutName: {
+    heroTitle: {
         fontSize: fontSize[28],
-        fontWeight: fontWeight.bold,
+        fontWeight: '900',
         color: colors.text.primary,
-        letterSpacing: -0.5,
-        lineHeight: 32,
         textAlign: 'center',
-        marginBottom: spacing[3],
+        fontStyle: 'italic',
+        textTransform: 'uppercase',
     },
-    cardStatsRow: {
+    statsRow: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        backgroundColor: colors.background.secondary,
-        borderRadius: radius[3],
-        paddingVertical: spacing[3],
-        alignSelf: 'stretch',
+        justifyContent: 'space-evenly',
+        width: '100%',
+        marginTop: spacing[4],
     },
     statItem: {
         alignItems: 'center',
-        flex: 1,
     },
-    cardStatValue: {
-        fontSize: fontSize[18],
-        fontWeight: fontWeight.bold,
-        color: colors.text.primary,
-        letterSpacing: -0.4,
+    statValue: {
+        fontSize: fontSize[24],
+        fontWeight: fontWeight.extrabold,
+        color: colors.accent.primary,
     },
-    cardStatLabel: {
+    statLabel: {
         fontSize: fontSize[10],
-        fontWeight: fontWeight.medium,
+        fontWeight: fontWeight.bold,
         color: colors.text.quaternary,
         textTransform: 'uppercase',
-        letterSpacing: 0.6,
-        marginTop: 2,
+        letterSpacing: 1,
     },
-    cardStatDivider: {
+    statDivider: {
         width: 1,
-        alignSelf: 'stretch',
-        backgroundColor: colors.border.light,
+        height: spacing[6],
+        backgroundColor: colors.border.default,
+        alignSelf: 'center',
     },
-    cardExercises: {
-        paddingHorizontal: spacing[4],
-        paddingTop: spacing[3],
-        paddingBottom: spacing[3],
+    listContainer: {
+        backgroundColor: 'rgba(0, 0, 0, 0.2)',
+        marginHorizontal: spacing[4],
+        borderRadius: radius[4],
+        paddingVertical: spacing[2],
+        borderWidth: 1,
+        borderColor: colors.border.light,
     },
-    cardExerciseHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: spacing[2],
-        paddingBottom: spacing[2],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
-    },
-    cardExerciseHeaderLabel: {
-        fontSize: fontSize[10],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.quaternary,
-        letterSpacing: 0.8,
-    },
-    cardExerciseRow: {
+    exerciseRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing[2],
+        paddingVertical: spacing[3],
+        paddingHorizontal: spacing[4],
         borderBottomWidth: 1,
         borderBottomColor: colors.border.light,
     },
-    cardExerciseRowLast: {
+    exerciseRowLast: {
         borderBottomWidth: 0,
     },
-    cardExerciseLeft: {
+    exerciseLeft: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing[2],
         marginRight: spacing[3],
     },
-    cardExerciseSets: {
+    exerciseSets: {
+        fontSize: fontSize[12],
         fontWeight: fontWeight.bold,
         color: colors.accent.primary,
-        width: spacing[5],
+        marginRight: spacing[3],
     },
-    cardExerciseName: {
+    exerciseName: {
         flex: 1,
+        fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
         color: colors.text.primary,
+        letterSpacing: 0.2,
     },
-    cardBestSet: {
-        fontWeight: fontWeight.medium,
-        color: colors.text.quaternary,
+    bestSetContainer: {
+        alignItems: 'flex-end',
     },
-    cardBestSetPR: {
+    bestSetValue: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.secondary,
+        letterSpacing: 0.3,
+    },
+    bestSetValuePR: {
         color: colors.accent.primary,
         fontWeight: fontWeight.bold,
     },
@@ -203,31 +189,38 @@ const styles = createStyles(() => ({
         bottom: 0,
         left: 0,
         right: 0,
-        paddingHorizontal: spacing[4],
-        paddingTop: spacing[4],
+        paddingHorizontal: spacing[5],
         backgroundColor: colors.background.primary,
+        borderTopLeftRadius: radius[6],
+        borderTopRightRadius: radius[6],
         borderTopWidth: 1,
         borderTopColor: colors.border.default,
     },
-    shareBtn: {
-        backgroundColor: colors.accent.primary,
+    primaryBtn: {
+        width: '100%',
+        height: spacing[14],
         borderRadius: radius[3],
-        paddingVertical: spacing[4],
+        overflow: 'hidden',
+        marginTop: spacing[5],
+        marginBottom: spacing[3],
+    },
+    primaryBtnGradient: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: spacing[2],
-        marginBottom: spacing[3],
     },
-    shareBtnText: {
-        fontSize: fontSize[16],
+    primaryBtnText: {
+        fontSize: fontSize[14],
         fontWeight: fontWeight.bold,
-        color: colors.accent.buttonText,
-        letterSpacing: 0.3,
+        color: colors.background.primary,
     },
     secondaryRow: {
         flexDirection: 'row',
-        gap: spacing[3],
+        justifyContent: 'space-between',
+        marginBottom: spacing[7],
+        gap: spacing[2],
     },
     secondaryBtn: {
         flex: 1,
@@ -239,42 +232,47 @@ const styles = createStyles(() => ({
         borderRadius: radius[3],
         borderWidth: 1,
         borderColor: colors.border.default,
-        gap: spacing[2],
+        gap: spacing[1],
     },
     secondaryBtnText: {
-        fontSize: fontSize[14],
+        fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
         color: colors.text.primary,
     },
-    removeBtn: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: spacing[3],
-        backgroundColor: colors.background.secondary,
-        borderRadius: radius[3],
-        borderWidth: 1,
-        borderColor: colors.border.default,
-        gap: spacing[2],
-    },
-    removeBtnText: {
-        fontSize: fontSize[14],
-        fontWeight: fontWeight.semibold,
-        color: colors.accent.error,
-    },
     closeBtn: {
         position: 'absolute',
-        right: spacing[4],
+        top: spacing[12],
+        right: spacing[5],
         zIndex: 50,
         width: spacing[10],
         height: spacing[10],
-        backgroundColor: colors.background.overlay,
-        borderRadius: spacing[5],
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        borderRadius: radius[8],
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
         borderColor: colors.border.default,
+    },
+    listHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing[4],
+        paddingTop: spacing[2],
+        marginBottom: spacing[1],
+    },
+    listHeaderExercise: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.bold,
+        color: colors.text.tertiary,
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+    },
+    listHeaderBest: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.bold,
+        color: colors.text.tertiary,
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
     },
 }));
 

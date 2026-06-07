@@ -47,6 +47,8 @@ const WorkoutCard = ({ item, activeWorkout, onPress }) => {
     const totalSets = exercises.reduce((total, ex) => total + ex.sets.length, 0);
     const durationMinutes = getDurationInMinutes(item.duration);
     const workoutTitle = getWorkoutLabel(item.timestamp, item.workoutName);
+    const dateLabel = formatDate(item.timestamp);
+    const isToday = dateLabel === 'TODAY';
 
     return (
         <TouchableOpacity
@@ -64,8 +66,8 @@ const WorkoutCard = ({ item, activeWorkout, onPress }) => {
                             <Text style={styles.prText}>{item.totalPRs}</Text>
                         </View>
                     )}
-                    <View style={styles.dateBadge}>
-                        <Text style={styles.dateText}>{formatDate(item.timestamp)}</Text>
+                    <View style={[styles.dateBadge, isToday && styles.dateBadgeToday]}>
+                        <Text style={[styles.dateText, isToday && styles.dateTextToday]}>{dateLabel}</Text>
                     </View>
                 </View>
             </View>
@@ -121,6 +123,7 @@ const WorkoutHistoryScreen = ({ navigation }) => {
         navigation.navigate('StartWorkout', {
             selectedWorkout: {
                 note: workout.note || '',
+                templateName: workout.workoutName || '',
                 exercises: workout.exercises.map(ex => ({
                     exerciseName: ex.exerciseName,
                     imageURL: ex.imageURL || '',
@@ -195,5 +198,4 @@ const WorkoutHistoryScreen = ({ navigation }) => {
     );
 };
 
-WorkoutHistoryScreen.whyDidYouRender = true;
 export default WorkoutHistoryScreen;
