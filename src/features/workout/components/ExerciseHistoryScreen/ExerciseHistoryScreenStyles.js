@@ -140,7 +140,7 @@ const styles = createStyles(() => ({
         alignItems: 'center',
         paddingHorizontal: spacing[4],
         paddingVertical: spacing[3],
-        backgroundColor: colors.background.secondary,
+        backgroundColor: colors.background.primary,
         borderTopWidth: 1,
         borderTopColor: colors.border.light,
     },

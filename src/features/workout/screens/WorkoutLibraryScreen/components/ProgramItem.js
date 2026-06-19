@@ -97,10 +97,12 @@ const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit,
             <View style={styles.workoutActions}>
                 <TouchableOpacity style={styles.editButton} onPress={() => onEdit(split)}>
                     <Ionicons name="create-outline" size={normalize(16)} color={colors.text.secondary} />
+                    <Text style={styles.editButtonText}>Edit</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.editButton} onPress={() => onViewSchedule(split)}>
                     <Ionicons name="calendar-outline" size={normalize(16)} color={colors.text.secondary} />
+                    <Text style={styles.editButtonText}>Schedule</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.startButton} onPress={() => onActivate(split)}>

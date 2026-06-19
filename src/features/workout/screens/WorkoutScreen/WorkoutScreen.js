@@ -96,7 +96,6 @@ const WorkoutStatsMeta = ({ duration, exerciseCount, totalSets }) => (
 const MainWorkoutCard = React.memo(({
     workoutData, onStart, onResume, onPreview,
     allExercises, isRestDay, activeWorkout, isToday, lastWorkoutStats,
-    splitName, weekNumber,
 }) => {
     if (isRestDay) {
         const stats = lastWorkoutStats;
@@ -242,7 +241,7 @@ const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }) => {
                 {days.map((d, i) => {
                     const circleStyle = d.done
                         ? styles.dayCircleDone
-                        : d.isToday
+                        : d.isToday && d.hasWorkout
                         ? styles.dayCircleToday
                         : styles.dayCircleRest;
 
@@ -264,7 +263,7 @@ const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }) => {
                             <View style={[styles.dayCircle, circleStyle]}>
                                 {d.done ? (
                                     <Ionicons name="checkmark" size={14} color={colors.accent.buttonText} />
-                                ) : d.isToday ? (
+                                ) : d.isToday && d.hasWorkout ? (
                                     <Ionicons name="play" size={9} color={colors.accent.primary} />
                                 ) : (
                                     <Text style={[styles.dayCircleText, !d.hasWorkout && styles.dayCircleTextRest]}>
@@ -529,8 +528,6 @@ const WorkoutScreen = () => {
                     activeWorkout={activeWorkout}
                     isToday={primaryWorkout.isToday}
                     lastWorkoutStats={userStats.lastWorkoutStats}
-                    splitName={activeSplit?.name}
-                    weekNumber={null}
                 />
 
                 <ThisWeekCard
