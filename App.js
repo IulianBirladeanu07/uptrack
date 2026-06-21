@@ -36,6 +36,14 @@ import CreateExerciseScreen from './src/features/workout/screens/CreateExerciseS
 import WeightHistoryScreen from './src/features/nutrition/components/WeightTracker/WeightHistoryScreen';
 import ExerciseHistoryScreen from './src/features/workout/components/ExerciseHistoryScreen/ExerciseHistoryScreen';
 
+if (typeof ErrorUtils !== 'undefined') {
+  const defaultHandler = ErrorUtils.getGlobalHandler();
+  ErrorUtils.setGlobalHandler((error, isFatal) => {
+    console.error('FULL_JS_STACK:', error?.stack);
+    defaultHandler(error, isFatal);
+  });
+}
+
 const Stack = createNativeStackNavigator();
 
 const AuthenticatedScreens = React.memo(() => (
