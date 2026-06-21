@@ -168,10 +168,10 @@ const ScheduleStep = ({
           </View>
           <TouchableOpacity
             style={styles.addWorkoutTextButton}
-            onPress={() => navigation.navigate('CreateWorkout')}
+            onPress={() => navigation.navigate('CreateTemplate')}
             activeOpacity={0.7}
           >
-            <Text style={styles.addWorkoutText}>+ Create workout</Text>
+            <Text style={styles.addWorkoutText}>+ Create template</Text>
           </TouchableOpacity>
         </View>
 
@@ -323,11 +323,11 @@ const ScheduleStep = ({
               <Text style={styles.emptyStateText}>Create your first workout to start building your split</Text>
               <TouchableOpacity
                 style={styles.emptyStateButton}
-                onPress={() => navigation.navigate('CreateWorkout')}
+                onPress={() => navigation.navigate('CreateTemplate')}
                 activeOpacity={0.8}
               >
                 <Ionicons name="add-circle-outline" size={20} color={COLORS.accentSecondary} />
-                <Text style={styles.emptyStateButtonText}>Create Workout</Text>
+                <Text style={styles.emptyStateButtonText}>Create Template</Text>
               </TouchableOpacity>
             </View>
           )}

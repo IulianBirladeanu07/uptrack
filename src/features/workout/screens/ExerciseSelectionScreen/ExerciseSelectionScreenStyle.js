@@ -2,34 +2,6 @@ import { Platform } from 'react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
-export const COLORS = {
-  background: colors.background.primary,
-  cardBackground: colors.background.secondary,
-  textPrimary: colors.text.primary,
-  textSecondary: colors.text.secondary,
-  textMuted: colors.text.tertiary,
-  border: colors.border.default,
-  borderLight: colors.border.light,
-  primaryOrange: colors.accent.primary,
-  primaryOrangeFaded: colors.faded.primary,
-  primaryOrangeLight: colors.faded.primaryLight,
-  primaryOrangeBorder: colors.border.primary,
-  primaryOrangeGradient: colors.faded.primaryExtraLight,
-  success: colors.accent.success,
-  successFaded: colors.faded.successAlt,
-  successBorder: colors.border.successAlt,
-  error: colors.accent.errorAlt,
-  shadow: 'rgba(0, 0, 0, 0.3)',
-  shadowDark: 'rgba(0, 0, 0, 0.4)',
-  glassEffect: colors.faded.surface,
-  glassEffectLight: colors.faded.surfaceLight,
-  imageBorder: colors.border.default,
-  imageBackground: colors.background.tertiary,
-  selectedBackground: colors.background.selectedCard,
-  primaryOrangeBorderStrong: colors.border.primarySelected,
-  primaryOrangeGlow: colors.border.primarySelected,
-};
-
 export const styles = createStyles(() => ({
   container: {
     flex: 1,

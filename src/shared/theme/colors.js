@@ -5,7 +5,7 @@ export const colors = {
     tertiary: '#1F2937',
     overlay: 'rgba(10, 14, 19, 0.85)',
     overlayLight: 'rgba(0, 0, 0, 0.2)',
-    selectedCard: 'rgba(22, 25, 28, 10)',
+    selectedCard: 'rgba(22, 25, 28, 0,1)',
   },
   
   text: {

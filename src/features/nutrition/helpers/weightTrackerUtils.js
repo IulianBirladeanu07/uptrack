@@ -25,8 +25,8 @@ export const getWeekStartDate = (date) => {
 export const getLocalWeekStart = (date) => {
   const d = getWeekStartDate(date);
   d.setHours(0, 0, 0, 0);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const y   = d.getFullYear();
+  const m   = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 };
@@ -45,6 +45,11 @@ export const calculateWeeklyAverage = (weeklyWeights) => {
 export const formatDate = (date) =>
   date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
+const parseWeekStart = (weekStartStr) => {
+  const [y, m, d] = weekStartStr.split('-').map(Number);
+  return { y, m, d };
+};
+
 export const loadUserWeightData = async (
   userId,
   currentDate,
@@ -59,39 +64,36 @@ export const loadUserWeightData = async (
     const userDoc = await getDoc(doc(db, 'users', userId));
     if (!userDoc.exists()) return;
 
-    const data = userDoc.data();
+    const data      = userDoc.data();
     const weightIns = data.weightIns || [];
 
     setCurrentWeight(data.currentWeight);
     setWeight(data.currentWeight ? data.currentWeight.toString() : '');
 
-    const today = new Date(currentDate);
+    const today         = new Date(currentDate);
     const weekStartDate = getLocalWeekStart(today);
-    const currentWeek = weightIns.find(e => e.weekStart === weekStartDate);
+    const currentWeek   = weightIns.find(e => e.weekStart === weekStartDate);
     setWeeklyData(currentWeek);
     setWeeklyAverage(currentWeek?.average ?? null);
 
-    const lastWeekStart = new Date(today);
+    const lastWeekStart     = new Date(today);
     lastWeekStart.setDate(lastWeekStart.getDate() - 7);
     const lastWeekStartDate = getLocalWeekStart(lastWeekStart);
-    const lastWeek = weightIns.find(e => e.weekStart === lastWeekStartDate);
+    const lastWeek          = weightIns.find(e => e.weekStart === lastWeekStartDate);
     setLastWeekAverage(lastWeek?.average ?? null);
 
-    // Build flat list of all logged entries across all weeks
-    // Chart filters by period internally, so we send everything
-    const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const dayKeys    = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     const allEntries = [];
 
     weightIns.forEach(week => {
       if (!week.days || !week.weekStart) return;
+      const { y, m, d } = parseWeekStart(week.weekStart);
       dayKeys.forEach((dayKey, dayIndex) => {
         const weight = week.days[dayKey];
         if (weight == null || isNaN(weight)) return;
-        const weekStartDate = new Date(week.weekStart);
-        const entryDate = new Date(weekStartDate);
-        entryDate.setDate(weekStartDate.getDate() + dayIndex);
+        const entryDate = new Date(y, m - 1, d + dayIndex);
         allEntries.push({
-          date: entryDate.toISOString(),
+          date:   entryDate.toISOString(),
           weight: parseFloat(weight),
         });
       });
@@ -113,12 +115,12 @@ export const handleSaveLogic = async (
   mealCache = null
 ) => {
   try {
-    const today = new Date(currentDate);
+    const today         = new Date(currentDate);
     const weekStartDate = getLocalWeekStart(today);
-    const dayKey = getDayKey(today);
+    const dayKey        = getDayKey(today);
 
-    const userDocRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
+    const userDocRef  = doc(db, 'users', userId);
+    const userDoc     = await getDoc(userDocRef);
     const currentData = userDoc.exists() ? userDoc.data() : {};
 
     const weightIns = Array.isArray(currentData.weightIns) ? [...currentData.weightIns] : [];
@@ -133,37 +135,53 @@ export const handleSaveLogic = async (
     } else {
       weightIns.push({
         weekStart: weekStartDate,
-        days: { [dayKey]: weightValue },
+        days:      { [dayKey]: weightValue },
         createdAt: new Date().toISOString(),
       });
       currentWeekIndex = weightIns.length - 1;
     }
 
-    const currentWeekEntry = weightIns[currentWeekIndex];
+    const currentWeekEntry  = weightIns[currentWeekIndex];
     currentWeekEntry.average = calculateWeeklyAverage(currentWeekEntry.days);
 
     weightIns.sort((a, b) => new Date(a.weekStart) - new Date(b.weekStart));
 
-    const sortedIndex = weightIns.findIndex(e => e.weekStart === weekStartDate);
-    let weeklyTrend = null;
-    let lastWeekAverage = null;
+    const sortedIndex    = weightIns.findIndex(e => e.weekStart === weekStartDate);
+    let weeklyTrend      = null;
+    let lastWeekAverage  = null;
 
     if (sortedIndex > 0) {
       const prev = weightIns[sortedIndex - 1];
       if (prev?.average != null && currentWeekEntry.average != null) {
         lastWeekAverage = prev.average;
-        weeklyTrend = parseFloat((currentWeekEntry.average - prev.average).toFixed(2));
+        weeklyTrend     = parseFloat((currentWeekEntry.average - prev.average).toFixed(2));
       }
     }
 
     const startWeight = currentData.startWeight ?? deriveStartWeight(weightIns);
-    const isNewWeek = sortedIndex > 0 && weightIns[sortedIndex - 1]?.weekStart !== currentData.lastSnapshotWeek;
+    const isNewWeek   = sortedIndex > 0 && weightIns[sortedIndex - 1]?.weekStart !== currentData.lastSnapshotWeek;
+
+    const dayKeyOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    let latestEntryDate = null;
+    weightIns.forEach(week => {
+      if (!week.days || !week.weekStart) return;
+      const [wy, wm, wd] = week.weekStart.split('-').map(Number);
+      dayKeyOrder.forEach((dk, dayIndex) => {
+        if (week.days[dk] == null) return;
+        const entryDate = new Date(wy, wm - 1, wd + dayIndex);
+        if (!latestEntryDate || entryDate > latestEntryDate) latestEntryDate = entryDate;
+      });
+    });
+
+    const todayDateOnly = new Date(today);
+    todayDateOnly.setHours(0, 0, 0, 0);
+    const isMostRecentEntry = !latestEntryDate || todayDateOnly.getTime() >= latestEntryDate.getTime();
 
     const updateData = {
-      currentWeight: weightValue,
       weightIns,
       lastWeightUpdate: new Date().toISOString(),
       weeklyTrend,
+      ...(isMostRecentEntry ? { currentWeight: weightValue } : {}),
       ...(startWeight && !currentData.startWeight ? { startWeight } : {}),
     };
 
@@ -173,11 +191,12 @@ export const handleSaveLogic = async (
 
     if (mealCache && isNewWeek) {
       const prevWeekEntry = weightIns[sortedIndex - 1];
-      const snapshot = await snapshotPreviousWeek(userId, prevWeekEntry, mealCache);
+      const snapshot      = await snapshotPreviousWeek(userId, prevWeekEntry, mealCache, updatedUserData);
 
       if (snapshot) {
         updatedUserData = {
           ...updatedUserData,
+          weeksSinceCutStart: snapshot.weeksSinceCutStart ?? updatedUserData.weeksSinceCutStart,
           weeklyNutrition: [
             ...(updatedUserData.weeklyNutrition || []).filter(w => w.weekStart !== snapshot.weekStart),
             snapshot,
@@ -196,7 +215,9 @@ export const handleSaveLogic = async (
 
     await AsyncStorage.setItem(`user_${userId}`, JSON.stringify(updatedUserData));
 
-    setCurrentWeight(weightValue);
+    if (isMostRecentEntry) {
+      setCurrentWeight(weightValue);
+    }
     setWeeklyAverage(currentWeekEntry.average);
 
     await loadDataCallback();
@@ -216,19 +237,18 @@ export const processWeightInsForDisplay = (weightIns, limit = 20) => {
 
   weightIns.forEach(week => {
     if (!week.days || !week.weekStart) return;
+    const [y, m, d] = week.weekStart.split('-').map(Number);
     dayKeys.forEach((dayKey, dayIndex) => {
       const weight = week.days[dayKey];
       if (weight == null || isNaN(weight)) return;
-      const weekStartDate = new Date(week.weekStart);
-      const entryDate = new Date(weekStartDate);
-      entryDate.setDate(weekStartDate.getDate() + dayIndex);
+      const entryDate = new Date(y, m - 1, d + dayIndex);
       entries.push({
-        date: entryDate,
-        weight: parseFloat(weight),
-        weekStart: week.weekStart,
+        date:          entryDate,
+        weight:        parseFloat(weight),
+        weekStart:     week.weekStart,
         dayKey,
-        dateKey: entryDate.toISOString().split('T')[0],
-        weekAverage: week.average,
+        dateKey:       entryDate.toISOString().split('T')[0],
+        weekAverage:   week.average,
         formattedDate: formatDisplayDate(entryDate),
       });
     });
@@ -238,11 +258,11 @@ export const processWeightInsForDisplay = (weightIns, limit = 20) => {
 };
 
 const formatDisplayDate = (date) => {
-  const today = new Date();
+  const today     = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
 
-  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === today.toDateString())     return 'Today';
   if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
 
   const daysAgo = Math.floor((today - date) / 86400000);
@@ -257,17 +277,17 @@ export const adjustWeight = (currentWeight, increment) =>
 export const showSuccessNotification = (setShowSuccess, successAnim) => {
   setShowSuccess(true);
   Animated.sequence([
-    Animated.spring(successAnim, { toValue: 1, duration: 300, useNativeDriver: true, tension: 100, friction: 8 }),
+    Animated.spring(successAnim,  { toValue: 1, duration: 300, useNativeDriver: true, tension: 100, friction: 8 }),
     Animated.delay(2000),
-    Animated.timing(successAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+    Animated.timing(successAnim,  { toValue: 0, duration: 200, useNativeDriver: true }),
   ]).start(() => setShowSuccess(false));
 };
 
 export const handleTabPress = (tab, setActiveTab, tabIndicatorAnim) => {
   setActiveTab(tab);
   Animated.timing(tabIndicatorAnim, {
-    toValue: ['input', 'week', 'trend'].indexOf(tab),
-    duration: 200,
+    toValue:         ['input', 'week', 'trend'].indexOf(tab),
+    duration:        200,
     useNativeDriver: true,
   }).start();
 };
@@ -275,13 +295,13 @@ export const handleTabPress = (tab, setActiveTab, tabIndicatorAnim) => {
 export const getWeightChangeColor = (weight, average) => {
   if (weight == null || average == null) return '#64748B';
   const diff = weight - average;
-  if (diff > 0.2) return '#EF4444';
+  if (diff >  0.2) return '#EF4444';
   if (diff < -0.2) return '#22C55E';
   return '#94A3B8';
 };
 
 export const getWeekDays = () => ({
-  days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  days:    ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   dayKeys: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
 });
 
@@ -292,18 +312,18 @@ export const calculateTrendStats = (trendData) => {
   if (!weights.length) return { totalChange: 0, avgWeight: 0, minWeight: 0, maxWeight: 0, weightRange: 0, trendDirection: 'stable' };
 
   const totalChange = parseFloat((weights[weights.length - 1] - weights[0]).toFixed(2));
-  const avgWeight = parseFloat((weights.reduce((a, b) => a + b, 0) / weights.length).toFixed(2));
-  const minWeight = Math.min(...weights);
-  const maxWeight = Math.max(...weights);
+  const avgWeight   = parseFloat((weights.reduce((a, b) => a + b, 0) / weights.length).toFixed(2));
+  const minWeight   = Math.min(...weights);
+  const maxWeight   = Math.max(...weights);
   const weightRange = parseFloat((maxWeight - minWeight).toFixed(2));
 
   let trendDirection = 'stable';
   if (weights.length >= 5) {
     const windowSize = Math.max(1, Math.floor(weights.length * 0.3));
-    const firstAvg = weights.slice(0, windowSize).reduce((a, b) => a + b, 0) / windowSize;
-    const lastAvg = weights.slice(-windowSize).reduce((a, b) => a + b, 0) / windowSize;
-    const diff = parseFloat((lastAvg - firstAvg).toFixed(2));
-    trendDirection = diff > 0.1 ? 'up' : diff < -0.1 ? 'down' : 'stable';
+    const firstAvg   = weights.slice(0, windowSize).reduce((a, b) => a + b, 0) / windowSize;
+    const lastAvg    = weights.slice(-windowSize).reduce((a, b) => a + b, 0) / windowSize;
+    const diff       = parseFloat((lastAvg - firstAvg).toFixed(2));
+    trendDirection   = diff > 0.1 ? 'up' : diff < -0.1 ? 'down' : 'stable';
   } else {
     trendDirection = totalChange > 0.1 ? 'up' : totalChange < -0.1 ? 'down' : 'stable';
   }

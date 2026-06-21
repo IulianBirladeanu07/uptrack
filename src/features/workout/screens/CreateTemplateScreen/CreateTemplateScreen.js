@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import styles from './CreateWorkoutScreenStyle';
+import styles from './CreateTemplateScreenStyle';
 import BasicInfoStep from './steps/BasicInfoStep';
 import ExercisesStep from './steps/ExercisesStep';
 import ReviewStep from './steps/ReviewStep';
@@ -28,7 +28,7 @@ import {
 } from '../../utils/createWorkoutUtils';
 import { addTemplateToFirestore, updateTemplateInFirestore } from '../../handlers/WorkoutHandler';
 
-const CreateWorkout = ({ navigation, route }) => {
+const CreateTemplate = ({ navigation, route }) => {
   const existingTemplate = route?.params?.template;
   const isEditing = route?.params?.isEditing || false;
 
@@ -224,7 +224,7 @@ const CreateWorkout = ({ navigation, route }) => {
   const handleReplaceExercise = useCallback((index) => {
     Keyboard.dismiss();
     navigation.navigate('ExerciseSelection', {
-      previousScreen: 'CreateWorkout',
+      previousScreen: 'CreateTemplate',
       replaceIndex: index,
     });
   }, [navigation]);
@@ -335,7 +335,7 @@ const CreateWorkout = ({ navigation, route }) => {
   const handleAddExercise = useCallback(() => {
     Keyboard.dismiss();
     navigation.navigate('ExerciseSelection', {
-      previousScreen: 'CreateWorkout',
+      previousScreen: 'CreateTemplate',
     });
   }, [navigation]);
 
@@ -529,4 +529,4 @@ const CreateWorkout = ({ navigation, route }) => {
   );
 };
 
-export default CreateWorkout;
+export default CreateTemplate;

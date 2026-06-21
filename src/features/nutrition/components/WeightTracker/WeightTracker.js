@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     View, Text, TouchableOpacity, ScrollView, Modal, Pressable,
-    TextInput, ActivityIndicator, Platform, Vibration,
+    ActivityIndicator, Platform, Vibration,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,13 +17,20 @@ import {
     handleSaveLogic,
     processWeightInsForDisplay,
     adjustWeight,
+    getLocalWeekStart,
 } from '../../helpers/weightTrackerUtils';
 import WeightChart from './WeightChart';
 
 const WEEK_DAYS          = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const DAY_LABELS         = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DATE_OPTIONS_COUNT = 7;
-const PREVIEW_COUNT      = 4;
+
+const KEYPAD_ROWS = [
+    ['1', '2', '3'],
+    ['4', '5', '6'],
+    ['7', '8', '9'],
+    ['.', '0', 'backspace'],
+];
 
 const formatDate = (d) => {
     const val = d instanceof Date && !isNaN(d) ? d : new Date();
@@ -34,6 +41,12 @@ const formatDate = (d) => {
     return val.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
+const formatWeekLabel = (weekStartStr) => {
+    const [y, m, d] = weekStartStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 const buildDateOptions = () =>
     Array.from({ length: DATE_OPTIONS_COUNT }, (_, i) => {
         const d = new Date();
@@ -42,42 +55,150 @@ const buildDateOptions = () =>
         return d;
     });
 
-const parseRecentEntries = (rawEntries) => {
-    const processed = processWeightInsForDisplay(rawEntries, 60);
-    return processed.map((e, i, arr) => ({
-        ...e,
-        id:          e.id || `${new Date(e.date).getTime()}-${i}`,
-        change:      i < arr.length - 1 ? e.weight - arr[i + 1].weight : 0,
-        displayDate: formatDate(e.date),
-    }));
+const buildWeeklyGroups = (weightIns) => {
+    if (!weightIns?.length) return [];
+    const dayKeyOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+    return [...weightIns]
+        .sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart))
+        .map((week, idx, arr) => {
+            const days = dayKeyOrder
+                .map((key, i) => {
+                    const val = week.days?.[key];
+                    if (val == null) return null;
+                    const [y, m, d] = week.weekStart.split('-').map(Number);
+                    const date = new Date(y, m - 1, d + i);
+                    return {
+                        key,
+                        weight:  parseFloat(val),
+                        dateStr: date.toISOString().split('T')[0],
+                    };
+                })
+                .filter(Boolean);
+
+            const prevWeek = arr[idx + 1];
+            const trend = (week.average != null && prevWeek?.average != null)
+                ? parseFloat((week.average - prevWeek.average).toFixed(2))
+                : null;
+
+            return {
+                weekStart:  week.weekStart,
+                average:    week.average ?? null,
+                days,
+                trend,
+                daysLogged: days.length,
+            };
+        });
 };
 
-const EntryRow = ({ entry, isLast, isBulking }) => {
-    const hasChange   = Math.abs(entry.change) > 0.05;
-    const isGain      = entry.change > 0;
-    const isPositive  = isBulking ? isGain : !isGain;
-    const changeColor = isPositive ? colors.accent.success : colors.accent.error;
-    const changeLabel = `${isGain ? '+' : ''}${entry.change.toFixed(1)}`;
+const serializeWeightIns = (weightIns) =>
+    (weightIns || []).map(w => ({
+        ...w,
+        days: w.days
+            ? Object.fromEntries(
+                Object.entries(w.days).map(([k, v]) => [k, v])
+              )
+            : {},
+    }));
 
+const TrendBadge = ({ value, isBulking }) => {
+    if (value == null) return null;
+    const isGood = isBulking ? value > 0 : value < 0;
+    const color  = value === 0
+        ? colors.text.quaternary
+        : isGood ? colors.accent.success : colors.accent.error;
+    const bg = value === 0
+        ? colors.faded.surface
+        : isGood ? colors.faded.successAlt : colors.faded.errorAlt;
     return (
-        <View style={[styles.entryRow, isLast && styles.entryRowLast]}>
-            <Text style={styles.entryDate}>{entry.displayDate}</Text>
-            <View style={styles.entryWeightRow}>
-                <Text style={styles.entryWeight}>{entry.weight.toFixed(1)}</Text>
-                <Text style={styles.entryWeightUnit}> kg</Text>
-            </View>
-            {hasChange
-                ? <Text style={[styles.deltaPillText, { color: changeColor }]}>{changeLabel}</Text>
-                : <Text style={styles.deltaNeutral}>—</Text>
-            }
+        <View style={[styles.trendChip, { backgroundColor: bg }]}>
+            <Text style={[styles.trendChipText, { color }]}>
+                {value > 0 ? '+' : ''}{value.toFixed(1)}
+            </Text>
         </View>
     );
 };
 
-const StatCell = ({ value, label, color }) => (
-    <View style={styles.statCell}>
-        <Text style={[styles.statValue, color && { color }]}>{value}</Text>
-        <Text style={styles.statLabel}>{label}</Text>
+const WeekRow = ({ group, isBulking, expanded, onToggle }) => {
+    const hasAverage = group.average != null;
+    return (
+        <View>
+            <TouchableOpacity
+                style={styles.weekHeader}
+                onPress={onToggle}
+                activeOpacity={0.7}
+            >
+                <View style={styles.weekHeaderLeft}>
+                    <Text style={styles.weekLabel}>Week of {formatWeekLabel(group.weekStart)}</Text>
+                    <Text style={styles.weekMeta}>{group.daysLogged} day{group.daysLogged !== 1 ? 's' : ''} logged</Text>
+                </View>
+                <View style={styles.weekHeaderRight}>
+                    {hasAverage && (
+                        <View style={styles.weekAverageRow}>
+                            <Text style={styles.weekAverage}>{group.average.toFixed(1)}</Text>
+                            <Text style={styles.weekAverageUnit}> kg</Text>
+                        </View>
+                    )}
+                    <TrendBadge value={group.trend} isBulking={isBulking} />
+                    <Ionicons
+                        name={expanded ? 'chevron-up' : 'chevron-down'}
+                        size={14}
+                        color={colors.text.quaternary}
+                    />
+                </View>
+            </TouchableOpacity>
+
+            {expanded && group.days.length > 0 && (
+                <View style={styles.dayList}>
+                    {group.days.map((day, i) => {
+                        const [y, m, d] = day.dateStr.split('-').map(Number);
+                        const date = new Date(y, m - 1, d);
+                        return (
+                            <View key={day.key} style={[styles.dayRow, i === group.days.length - 1 && styles.dayRowLast]}>
+                                <Text style={styles.dayLabel}>{formatDate(date)}</Text>
+                                <View style={styles.dayWeightRow}>
+                                    <Text style={styles.dayWeight}>{day.weight.toFixed(1)}</Text>
+                                    <Text style={styles.dayWeightUnit}> kg</Text>
+                                </View>
+                            </View>
+                        );
+                    })}
+                </View>
+            )}
+        </View>
+    );
+};
+
+const DatePill = ({ date, label, isSelected, hasEntry, onPress }) => (
+    <TouchableOpacity
+        style={[styles.datePill, isSelected && styles.datePillSelected]}
+        onPress={onPress}
+        activeOpacity={0.7}
+    >
+        <Text style={[styles.datePillDay, isSelected && styles.datePillDaySelected]}>{label}</Text>
+        <Text style={[styles.datePillNum, isSelected && styles.datePillNumSelected]}>{date.getDate()}</Text>
+        <View style={[styles.datePillDot, hasEntry && (isSelected ? styles.datePillDotOnSelected : styles.datePillDotFilled)]} />
+    </TouchableOpacity>
+);
+
+const Keypad = ({ onPress }) => (
+    <View style={styles.keypad}>
+        {KEYPAD_ROWS.map((row, i) => (
+            <View key={i} style={styles.keypadRow}>
+                {row.map(key => (
+                    <TouchableOpacity
+                        key={key}
+                        style={styles.keypadKey}
+                        onPress={() => onPress(key)}
+                        activeOpacity={0.6}
+                    >
+                        {key === 'backspace'
+                            ? <Ionicons name="backspace-outline" size={20} color={colors.text.primary} />
+                            : <Text style={styles.keypadKeyText}>{key}</Text>}
+                    </TouchableOpacity>
+                ))}
+            </View>
+        ))}
     </View>
 );
 
@@ -89,13 +210,13 @@ const WeightTracker = () => {
     const [loading,        setLoading]        = useState(true);
     const [saving,         setSaving]         = useState(false);
     const [modalVisible,   setModalVisible]   = useState(false);
-    const [datePickerOpen, setDatePickerOpen] = useState(false);
     const [chartPeriod,    setChartPeriod]    = useState('7');
+    const [expandedWeeks,  setExpandedWeeks]  = useState({});
 
     const [weightInput, setWeightInput] = useState('');
     const [isValid,     setIsValid]     = useState(true);
 
-    const [committedDate, setCommittedDate] = useState(() => {
+    const [committedDate] = useState(() => {
         const d = new Date();
         d.setHours(0, 0, 0, 0);
         return d;
@@ -107,13 +228,17 @@ const WeightTracker = () => {
     const [weeklyAverage,   setWeeklyAverage]   = useState(null);
     const [lastWeekAverage, setLastWeekAverage] = useState(null);
     const [trendData,       setTrendData]       = useState([]);
-    const [recentEntries,   setRecentEntries]   = useState([]);
+    const [weightIns,       setWeightIns]       = useState([]);
     const [startWeight,     setStartWeight]     = useState(null);
     const [goalWeight,      setGoalWeight]      = useState(null);
 
     const longPressTimer    = useRef(null);
     const longPressInterval = useRef(null);
+    const freshEntryRef     = useRef(true);
     const dateOptions       = useMemo(() => buildDateOptions(), []);
+
+    const isBulking    = goalWeight != null && startWeight != null && goalWeight > startWeight;
+    const weeklyGroups = useMemo(() => buildWeeklyGroups(weightIns), [weightIns]);
 
     const loadData = useCallback(async () => {
         if (!userId) return;
@@ -127,7 +252,7 @@ const WeightTracker = () => {
             const snap = await getDoc(doc(db, 'users', userId));
             if (snap.exists()) {
                 const d = snap.data();
-                setRecentEntries(parseRecentEntries(d.weightIns || []));
+                setWeightIns(d.weightIns || []);
                 setStartWeight(d.startWeight ?? null);
                 setGoalWeight(d.targetWeight ?? null);
             }
@@ -145,11 +270,11 @@ const WeightTracker = () => {
 
     useEffect(() => { if (userId) loadData(); }, [userId, loadData]);
 
-    const isBulking = goalWeight != null && currentWeight != null && goalWeight > currentWeight;
+    const allEntries = useMemo(() => processWeightInsForDisplay(weightIns, 60), [weightIns]);
 
     const streak = useMemo(() => {
-        if (!recentEntries.length) return 0;
-        const set = new Set(recentEntries.map(e => e.dateKey));
+        if (!allEntries.length) return 0;
+        const set = new Set(allEntries.map(e => e.dateKey));
         const cur = new Date();
         cur.setHours(0, 0, 0, 0);
         if (!set.has(cur.toISOString().split('T')[0])) cur.setDate(cur.getDate() - 1);
@@ -159,7 +284,7 @@ const WeightTracker = () => {
             else break;
         }
         return n;
-    }, [recentEntries]);
+    }, [allEntries]);
 
     const thisWeekDays = useMemo(() =>
         DAY_LABELS.map((label, i) => ({
@@ -178,21 +303,44 @@ const WeightTracker = () => {
         return Math.min(Math.max((Math.abs(currentWeight - startWeight) / total) * 100, 0), 100);
     }, [currentWeight, startWeight, goalWeight]);
 
-    const weightChange = (currentWeight != null && startWeight != null)
-        ? currentWeight - startWeight : null;
-
     const remaining = (currentWeight != null && goalWeight != null)
-        ? Math.abs(currentWeight - goalWeight) : null;
+        ? parseFloat(Math.abs(currentWeight - goalWeight).toFixed(1)) : null;
 
     const isExistingEntry = useMemo(() => {
         const key = modalDate.toISOString().split('T')[0];
-        return recentEntries.some(e => e.dateKey === key);
-    }, [modalDate, recentEntries]);
+        return allEntries.some(e => e.dateKey === key);
+    }, [modalDate, allEntries]);
 
-    const handleWeightChange = (v) => { setWeightInput(v); setIsValid(validateWeight(v)); };
+    const showError = !isValid && weightInput !== '';
+
+    const handleKeypadPress = (key) => {
+        if (Platform.OS === 'ios') Vibration.vibrate(5);
+
+        const isFresh = freshEntryRef.current;
+        freshEntryRef.current = false;
+
+        let next = weightInput;
+        if (key === 'backspace') {
+            next = weightInput.slice(0, -1);
+        } else if (key === '.') {
+            const base = isFresh ? '' : weightInput;
+            if (base.includes('.')) return;
+            next = base === '' ? '0.' : base + '.';
+        } else {
+            const base = isFresh ? '' : weightInput;
+            const [, decimals] = base.split('.');
+            if (decimals != null && decimals.length >= 1) return;
+            const digitsOnly = base.replace('.', '');
+            if (digitsOnly.length >= 4) return;
+            next = base + key;
+        }
+        setWeightInput(next);
+        setIsValid(next !== '' && validateWeight(next));
+    };
 
     const doAdjust = useCallback((delta) => {
         if (Platform.OS === 'ios') Vibration.vibrate(10);
+        freshEntryRef.current = false;
         setWeightInput(prev => adjustWeight(prev, delta));
         setIsValid(true);
     }, []);
@@ -208,6 +356,20 @@ const WeightTracker = () => {
         clearInterval(longPressInterval.current);
     }, []);
 
+    const selectDate = useCallback((d) => {
+        setModalDate(d);
+        const key   = d.toISOString().split('T')[0];
+        const entry = allEntries.find(e => e.dateKey === key);
+        if (entry) {
+            setWeightInput(entry.weight.toFixed(1));
+            setIsValid(true);
+        } else {
+            setWeightInput('');
+            setIsValid(false);
+        }
+        freshEntryRef.current = true;
+    }, [allEntries]);
+
     const handleSave = async () => {
         if (!validateWeight(weightInput)) return;
         setSaving(true);
@@ -216,7 +378,6 @@ const WeightTracker = () => {
                 userId, parseFloat(weightInput), modalDate,
                 setCurrentWeight, setWeeklyAverage, loadData,
             );
-            setCommittedDate(modalDate);
             setModalVisible(false);
         } catch (e) {
             console.error('handleSave:', e);
@@ -229,25 +390,32 @@ const WeightTracker = () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         setModalDate(today);
-        if (recentEntries[0]) { setWeightInput(recentEntries[0].weight.toFixed(1)); setIsValid(true); }
-        setDatePickerOpen(false);
+        if (allEntries[0]) {
+            setWeightInput(allEntries[0].weight.toFixed(1));
+            setIsValid(true);
+        } else {
+            setWeightInput('');
+            setIsValid(false);
+        }
+        freshEntryRef.current = true;
         setModalVisible(true);
     };
 
-    const closeModal = () => { setModalVisible(false); setDatePickerOpen(false); };
+    const closeModal = () => { setModalVisible(false); };
 
-    const statCellData = [
-        {
-            id:    'since_start',
-            value: weightChange != null ? `${weightChange > 0 ? '+' : ''}${weightChange.toFixed(1)}` : '--',
-            label: 'Since Start',
-        },
-        { id: 'to_goal',   value: remaining?.toFixed(1) ?? '--',                          label: 'To Goal'   },
-        { id: 'this_week', value: weeklyAverage != null ? weeklyAverage.toFixed(1) : '--', label: 'This Week' },
-    ];
+    const toggleWeek = useCallback((weekStart) => {
+        setExpandedWeeks(prev => ({ ...prev, [weekStart]: !prev[weekStart] }));
+    }, []);
 
-    const previewEntries = recentEntries.slice(0, PREVIEW_COUNT);
-    const hasMore        = recentEntries.length > PREVIEW_COUNT;
+    const weekChangeColor = weeklyAverage != null && lastWeekAverage != null
+        ? (isBulking
+            ? (weeklyAverage >= lastWeekAverage ? colors.accent.success : colors.accent.error)
+            : (weeklyAverage <= lastWeekAverage ? colors.accent.success : colors.accent.error))
+        : colors.text.primary;
+
+    const weekChangeDelta = weeklyAverage != null && lastWeekAverage != null
+        ? parseFloat((weeklyAverage - lastWeekAverage).toFixed(1))
+        : null;
 
     if (loading) return (
         <SafeAreaView style={styles.loadingScreen} edges={['top', 'bottom']}>
@@ -264,11 +432,9 @@ const WeightTracker = () => {
             >
                 <View style={styles.heroCard}>
                     <View style={styles.heroTopRow}>
-                        <Text style={styles.eyebrow}>Current Weight</Text>
-                        {streak > 0 && (
-                            <View style={styles.streakBadge}>
-                                <Text style={styles.streakText}>{loggedCount}/7 this week</Text>
-                            </View>
+                        <Text style={styles.eyebrow}>Weekly Average</Text>
+                        {loggedCount > 0 && (
+                            <Text style={styles.loggedCount}>{loggedCount}/7 logged</Text>
                         )}
                     </View>
 
@@ -297,12 +463,41 @@ const WeightTracker = () => {
                     ) : null}
 
                     <View style={styles.statRow}>
-                        {statCellData.map((cell, i) => (
-                            <View key={cell.id} style={styles.statRowItem}>
-                                {i > 0 && <View style={styles.statDivider} />}
-                                <StatCell value={cell.value} label={cell.label} color={cell.color} />
+                        <View style={styles.statCell}>
+                            <Text style={styles.statValue}>
+                                {lastWeekAverage != null ? lastWeekAverage.toFixed(1) : '--'}
+                            </Text>
+                            <Text style={styles.statLabel}>Last Week</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statCell}>
+                            <View style={styles.statValueRow}>
+                                <Text style={styles.statValue}>
+                                    {weeklyAverage != null ? weeklyAverage.toFixed(1) : '--'}
+                                </Text>
+                                {weekChangeDelta != null && (
+                                    <View style={[styles.deltaChip, {
+                                        backgroundColor: weekChangeDelta === 0
+                                            ? colors.faded.surface
+                                            : (!isBulking ? weekChangeDelta < 0 : weekChangeDelta > 0)
+                                                ? colors.faded.successAlt
+                                                : colors.faded.errorAlt,
+                                    }]}>
+                                        <Text style={[styles.deltaChipText, { color: weekChangeColor }]}>
+                                            {weekChangeDelta > 0 ? '+' : ''}{weekChangeDelta.toFixed(1)}
+                                        </Text>
+                                    </View>
+                                )}
                             </View>
-                        ))}
+                            <Text style={styles.statLabel}>This Week</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statCell}>
+                            <Text style={styles.statValue}>
+                                {remaining != null ? remaining.toFixed(1) : '--'}
+                            </Text>
+                            <Text style={styles.statLabel}>To Goal</Text>
+                        </View>
                     </View>
                 </View>
 
@@ -328,33 +523,39 @@ const WeightTracker = () => {
                             ))}
                         </View>
                     </View>
-                    <WeightChart data={trendData} period={chartPeriod} />
+                    <WeightChart data={trendData} period={chartPeriod} goalWeight={goalWeight} />
                 </View>
 
-                {recentEntries.length > 0 && (
-                    <View style={styles.entriesCard}>
-                        <View style={styles.entriesHeader}>
-                            <Text style={styles.cardTitle}>Recent</Text>
-                            <Text style={styles.cardTitleRight}>{recentEntries.length} logged</Text>
-                        </View>
-                        {previewEntries.map((entry, i) => (
-                            <EntryRow
-                                key={entry.id}
-                                entry={entry}
-                                isLast={i === previewEntries.length - 1 && !hasMore}
-                                isBulking={isBulking}
-                            />
-                        ))}
-                        {hasMore && (
+                {weeklyGroups.length > 0 && (
+                    <View style={styles.historyCard}>
+                        <View style={styles.historyHeader}>
+                            <Text style={styles.cardTitle}>History</Text>
                             <TouchableOpacity
-                                style={styles.viewAllBtn}
-                                onPress={() => navigation.navigate('WeightHistory', { entries: recentEntries, isBulking })}
+                                onPress={() => navigation.navigate('WeightHistory', {
+                                    weightIns:   serializeWeightIns(weightIns),
+                                    isBulking,
+                                    startWeight,
+                                    goalWeight,
+                                })}
                                 activeOpacity={0.7}
                             >
-                                <Text style={styles.viewAllText}>View all {recentEntries.length} entries</Text>
-                                <Ionicons name="chevron-forward" size={14} color={colors.accent.primary} />
+                                <Text style={styles.viewAllText}>View all</Text>
                             </TouchableOpacity>
-                        )}
+                        </View>
+
+                        <View style={styles.historyList}>
+                            {weeklyGroups.slice(0, 8).map((group, i) => (
+                                <View key={group.weekStart}>
+                                    {i > 0 && <View style={styles.weekDivider} />}
+                                    <WeekRow
+                                        group={group}
+                                        isBulking={isBulking}
+                                        expanded={!!expandedWeeks[group.weekStart]}
+                                        onToggle={() => toggleWeek(group.weekStart)}
+                                    />
+                                </View>
+                            ))}
+                        </View>
                     </View>
                 )}
             </ScrollView>
@@ -389,61 +590,37 @@ const WeightTracker = () => {
                                 </TouchableOpacity>
                             </View>
 
-                            <TouchableOpacity
-                                style={styles.dateTrigger}
-                                onPress={() => setDatePickerOpen(p => !p)}
-                                activeOpacity={0.7}
-                            >
-                                <Ionicons name="calendar-outline" size={14} color={colors.text.secondary} />
-                                <Text style={styles.dateTriggerText}>{formatDate(modalDate)}</Text>
-                                <Ionicons
-                                    name={datePickerOpen ? 'chevron-up' : 'chevron-down'}
-                                    size={14}
-                                    color={colors.text.quaternary}
-                                />
-                            </TouchableOpacity>
+                            <View style={styles.dateStrip}>
+                                {dateOptions.map(d => {
+                                    const key       = d.toISOString().split('T')[0];
+                                    const formatted = formatDate(d);
+                                    const label     = formatted === 'Today' ? 'Today'
+                                        : formatted === 'Yesterday' ? 'Yest'
+                                        : d.toLocaleDateString('en-US', { weekday: 'short' });
+                                    return (
+                                        <DatePill
+                                            key={key}
+                                            date={d}
+                                            label={label}
+                                            isSelected={d.toDateString() === modalDate.toDateString()}
+                                            hasEntry={allEntries.some(e => e.dateKey === key)}
+                                            onPress={() => selectDate(d)}
+                                        />
+                                    );
+                                })}
+                            </View>
 
-                            {datePickerOpen && (
-                                <View style={styles.datePicker}>
-                                    {dateOptions.map(d => {
-                                        const key        = d.toISOString().split('T')[0];
-                                        const isSelected = d.toDateString() === modalDate.toDateString();
-                                        const hasEntry   = recentEntries.some(e => e.dateKey === key);
-                                        return (
-                                            <TouchableOpacity
-                                                key={key}
-                                                style={[styles.dateOption, isSelected && styles.dateOptionSelected]}
-                                                onPress={() => { setModalDate(d); setDatePickerOpen(false); }}
-                                                activeOpacity={0.7}
-                                            >
-                                                <View style={styles.dateOptionLeft}>
-                                                    {isSelected && <View style={styles.dateSelectedDot} />}
-                                                    <Text style={[styles.dateOptionText, isSelected && styles.dateOptionTextSelected]}>
-                                                        {formatDate(d)}
-                                                    </Text>
-                                                </View>
-                                                {hasEntry && (
-                                                    <View style={styles.dateEntryBadge}>
-                                                        <Text style={styles.dateEntryBadgeText}>logged</Text>
-                                                    </View>
-                                                )}
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
-                            )}
-
-                            {recentEntries[0] && (
+                            {allEntries[0] && (
                                 <View style={styles.lastLogged}>
                                     <View style={styles.lastLoggedInner}>
                                         <View>
                                             <Text style={styles.lastLoggedLabel}>Last logged</Text>
                                             <View style={styles.lastLoggedRow}>
-                                                <Text style={styles.lastLoggedWeight}>{recentEntries[0].weight.toFixed(1)}</Text>
+                                                <Text style={styles.lastLoggedWeight}>{allEntries[0].weight.toFixed(1)}</Text>
                                                 <Text style={styles.lastLoggedUnit}> kg</Text>
                                             </View>
                                         </View>
-                                        <Text style={styles.lastLoggedDate}>{recentEntries[0].displayDate}</Text>
+                                        <Text style={styles.lastLoggedDate}>{formatDate(allEntries[0].date)}</Text>
                                     </View>
                                 </View>
                             )}
@@ -462,21 +639,14 @@ const WeightTracker = () => {
 
                                 <View style={styles.weightDisplay}>
                                     <View style={styles.weightInputRow}>
-                                        <TextInput
-                                            style={[styles.weightInput, !isValid && styles.weightInputError]}
-                                            value={weightInput}
-                                            onChangeText={handleWeightChange}
-                                            keyboardType="numeric"
-                                            selectTextOnFocus
-                                            maxLength={6}
-                                            placeholder="0.0"
-                                            placeholderTextColor={colors.text.quaternary}
-                                        />
-                                        <Text style={[styles.weightUnit, !isValid && styles.weightUnitError]}>kg</Text>
+                                        <Text style={[styles.weightInput, showError && styles.weightInputError]}>
+                                            {weightInput || '0.0'}
+                                        </Text>
+                                        <Text style={[styles.weightUnit, showError && styles.weightUnitError]}>kg</Text>
                                     </View>
-                                    {isExistingEntry && (
-                                        <Text style={styles.updateHint}>updates existing entry</Text>
-                                    )}
+                                    <Text style={[styles.updateHint, !isExistingEntry && styles.updateHintHidden]}>
+                                        updates existing entry
+                                    </Text>
                                 </View>
 
                                 <TouchableOpacity
@@ -490,6 +660,8 @@ const WeightTracker = () => {
                                     <Ionicons name="add" size={24} color={colors.text.primary} />
                                 </TouchableOpacity>
                             </View>
+
+                            <Keypad onPress={handleKeypadPress} />
 
                             <TouchableOpacity
                                 style={[styles.saveBtn, (!isValid || saving) && styles.saveBtnDisabled]}
@@ -546,57 +718,52 @@ const styles = createStyles(() => ({
         textTransform: 'uppercase',
         letterSpacing: 1.2,
     },
-    streakBadge: {
-        paddingHorizontal: spacing[2],
-        paddingVertical:   spacing[1],
-        borderRadius:      radius[2],
-        borderWidth:       1,
-        borderColor:       colors.accent.primary,
-        backgroundColor:   colors.accent.primary,
-    },
-    streakText: { fontSize: fontSize[10], fontWeight: fontWeight.bold, color: colors.accent.buttonText },
+    loggedCount: { fontSize: fontSize[10], fontWeight: fontWeight.semibold, color: colors.text.quaternary },
 
     heroWeightRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: spacing[1], marginBottom: spacing[4] },
     heroWeight:    { fontSize: fontSize[56], fontWeight: fontWeight.black, color: colors.text.primary, letterSpacing: -4, lineHeight: 64, includeFontPadding: false },
     heroUnit:      { fontSize: fontSize[20], fontWeight: fontWeight.semibold, color: colors.text.secondary, marginBottom: spacing[2] },
-    emptyHeroText: { fontSize: fontSize[12], color: colors.text.quaternary, marginBottom: spacing[4] },
+    emptyHeroText: { fontSize: fontSize[12], color: colors.text.quaternary, marginBottom: spacing[4], textAlign: 'center' },
 
-    progressSection:   { marginBottom: spacing[2] },
-    progressTrack:     { height: 6, backgroundColor: colors.background.tertiary, borderRadius: 3, overflow: 'hidden', marginBottom: spacing[2] },
-    progressFill:      { height: '100%', backgroundColor: colors.accent.primary, borderRadius: 2 },
-    progressLabels:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    progressSection: { marginBottom: spacing[2] },
+    progressTrack:   { height: 8, backgroundColor: colors.background.tertiary, borderRadius: radius[1], overflow: 'hidden', marginBottom: spacing[2] },
+    progressFill:    { height: '100%', backgroundColor: colors.accent.primary, borderRadius: radius[1] },
+    progressLabels:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     progressLabelSide: { fontSize: fontSize[10], fontWeight: fontWeight.medium, color: colors.text.quaternary },
     progressPercent:   { fontSize: fontSize[10], fontWeight: fontWeight.bold, color: colors.text.secondary },
 
-    statRow:     { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border.default, marginTop: spacing[3], paddingTop: spacing[3] },
-    statRowItem: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-    statCell:    { flex: 1, alignItems: 'center', gap: spacing[1] },
+    statRow:     { flexDirection: 'row', alignItems: 'flex-start', borderTopWidth: 1, borderTopColor: colors.border.default, marginTop: spacing[3], paddingTop: spacing[3] },
+    statCell:    { flex: 1, alignItems: 'center', gap: 2 },
     statValue:   { fontSize: fontSize[18], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.5 },
-    statLabel:   { fontSize: fontSize[10], fontWeight: fontWeight.semibold, color: colors.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 },
-    statDivider: { width: 1, height: spacing[7], backgroundColor: colors.border.default },
+    statValueRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+    statLabel:    { fontSize: fontSize[10], fontWeight: fontWeight.semibold, color: colors.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 },
+    statDivider:  { width: 1, height: spacing[8], backgroundColor: colors.border.default, marginTop: 2 },
+    deltaChip: {
+        paddingHorizontal: spacing[1],
+        paddingVertical:   1,
+        borderRadius:      radius[1],
+        alignItems:        'center',
+        marginLeft: spacing[1],
+    },
+    deltaChipText: { fontSize: fontSize[10], fontWeight: fontWeight.bold },
 
     card: {
         backgroundColor: colors.background.secondary,
         borderRadius:    radius[4],
         borderWidth:     1,
         borderColor:     colors.border.default,
-        padding:         spacing[4],
+        padding:         spacing[5],
     },
     cardHeader: {
         flexDirection:  'row',
-        alignItems:     'flex-start',
+        alignItems:     'center',
         justifyContent: 'space-between',
         marginBottom:   spacing[3],
     },
-    cardTitle:      { fontSize: fontSize[16], fontWeight: fontWeight.bold, color: colors.text.primary },
-    cardTitleRight: { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.accent.primary },
+    cardTitle:   { fontSize: fontSize[16], fontWeight: fontWeight.bold, color: colors.text.primary },
+    viewAllText: { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.accent.primary },
 
-    periodPills: {
-        flexDirection: 'row',
-        alignItems:    'center',
-        gap:           spacing[1],
-        flexShrink:    1,
-    },
+    periodPills: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
     periodPill: {
         paddingHorizontal: spacing[2],
         paddingVertical:   spacing[1],
@@ -608,14 +775,14 @@ const styles = createStyles(() => ({
     periodPillText:       { fontSize: fontSize[10], fontWeight: fontWeight.semibold, color: colors.text.quaternary },
     periodPillTextActive: { color: colors.accent.buttonText, fontWeight: fontWeight.bold },
 
-    entriesCard: {
+    historyCard: {
         backgroundColor: colors.background.secondary,
         borderRadius:    radius[4],
         borderWidth:     1,
         borderColor:     colors.border.default,
         overflow:        'hidden',
     },
-    entriesHeader: {
+    historyHeader: {
         flexDirection:     'row',
         alignItems:        'center',
         justifyContent:    'space-between',
@@ -625,33 +792,47 @@ const styles = createStyles(() => ({
         borderBottomWidth: 1,
         borderBottomColor: colors.border.default,
     },
-    entryRow: {
+    historyList: { paddingHorizontal: spacing[4] },
+
+    weekDivider: { height: 1, backgroundColor: colors.border.light },
+    weekHeader: {
+        flexDirection:   'row',
+        alignItems:      'center',
+        justifyContent:  'space-between',
+        paddingVertical: spacing[3],
+    },
+    weekHeaderLeft:  { flex: 1 },
+    weekHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+    weekLabel:       { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.text.primary },
+    weekMeta:        { fontSize: fontSize[10], fontWeight: fontWeight.medium, color: colors.text.quaternary, marginTop: 2 },
+    weekAverageRow:  { flexDirection: 'row', alignItems: 'baseline' },
+    weekAverage:     { fontSize: fontSize[16], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.5 },
+    weekAverageUnit: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.secondary },
+
+    trendChip: {
+        paddingHorizontal: spacing[2],
+        paddingVertical:   2,
+        borderRadius:      radius[1],
+        minWidth:          36,
+        alignItems:        'center',
+    },
+    trendChipText: { fontSize: fontSize[10], fontWeight: fontWeight.bold },
+
+    dayList:      { paddingBottom: spacing[2] },
+    dayRow: {
         flexDirection:     'row',
         alignItems:        'center',
         justifyContent:    'space-between',
-        paddingHorizontal: spacing[4],
         paddingVertical:   spacing[2],
+        paddingLeft:       spacing[4],
         borderBottomWidth: 1,
         borderBottomColor: colors.border.light,
     },
-    entryRowLast:    { borderBottomWidth: 0 },
-    entryDate:       { flex: 1, fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary },
-    entryWeightRow:  { flexDirection: 'row', alignItems: 'baseline', marginRight: spacing[3] },
-    entryWeight:     { fontSize: fontSize[14], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.5 },
-    entryWeightUnit: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.secondary },
-    deltaPillText:   { fontSize: fontSize[12], fontWeight: fontWeight.bold, minWidth: 36, textAlign: 'right' },
-    deltaNeutral:    { fontSize: fontSize[12], fontWeight: fontWeight.bold, color: colors.text.quaternary, minWidth: 36, textAlign: 'right' },
-
-    viewAllBtn: {
-        flexDirection:   'row',
-        alignItems:      'center',
-        justifyContent:  'center',
-        gap:             spacing[1],
-        paddingVertical: spacing[3],
-        borderTopWidth:  1,
-        borderTopColor:  colors.border.default,
-    },
-    viewAllText: { fontSize: fontSize[12], fontWeight: fontWeight.semibold, color: colors.accent.primary },
+    dayRowLast:    { borderBottomWidth: 0 },
+    dayLabel:      { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.secondary },
+    dayWeightRow:  { flexDirection: 'row', alignItems: 'baseline' },
+    dayWeight:     { fontSize: fontSize[14], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.5 },
+    dayWeightUnit: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.secondary },
 
     bottomBar: {
         position:          'absolute',
@@ -675,7 +856,7 @@ const styles = createStyles(() => ({
 
     modalOverlay: { flex: 1, backgroundColor: colors.background.overlay, justifyContent: 'flex-end' },
     modalSheet: {
-        backgroundColor:      colors.background.primary,
+        backgroundColor:      colors.background.secondary,
         borderTopLeftRadius:  radius[5],
         borderTopRightRadius: radius[5],
         borderTopWidth:       1,
@@ -714,56 +895,27 @@ const styles = createStyles(() => ({
         alignItems:      'center',
         justifyContent:  'center',
     },
-
-    dateTrigger: {
-        flexDirection:     'row',
-        alignItems:        'center',
-        gap:               spacing[2],
-        backgroundColor:   colors.background.secondary,
-        borderRadius:      radius[2],
+    dateStrip: { flexDirection: 'row', gap: spacing[2], paddingVertical: spacing[1], marginBottom: spacing[4] },
+    datePill: {
+        flex:              1,
+        paddingVertical:   spacing[3],
+        borderRadius:      radius[3],
+        backgroundColor:   colors.background.tertiary,
         borderWidth:       1,
         borderColor:       colors.border.default,
-        paddingHorizontal: spacing[3],
-        paddingVertical:   spacing[2],
-        marginBottom:      spacing[4],
-        alignSelf:         'flex-start',
-    },
-    dateTriggerText: { fontSize: fontSize[12], fontWeight: fontWeight.semibold, color: colors.text.secondary },
-
-    datePicker: {
-        backgroundColor: colors.background.secondary,
-        borderRadius:    radius[3],
-        borderWidth:     1,
-        borderColor:     colors.border.default,
-        marginBottom:    spacing[3],
-        overflow:        'hidden',
-    },
-    dateOption: {
-        flexDirection:     'row',
         alignItems:        'center',
-        justifyContent:    'space-between',
-        paddingHorizontal: spacing[4],
-        paddingVertical:   spacing[3],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
+        gap:               spacing[1],
     },
-    dateOptionSelected:     { backgroundColor: colors.background.tertiary },
-    dateOptionLeft:         { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-    dateSelectedDot:        { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent.primary },
-    dateOptionText:         { fontSize: fontSize[14], fontWeight: fontWeight.medium, color: colors.text.secondary },
-    dateOptionTextSelected: { color: colors.accent.primary, fontWeight: fontWeight.bold },
-    dateEntryBadge: {
-        backgroundColor:   colors.faded.primary,
-        borderRadius:      radius[1],
-        borderWidth:       1,
-        borderColor:       colors.border.primary,
-        paddingHorizontal: spacing[2],
-        paddingVertical:   spacing[1],
-    },
-    dateEntryBadgeText: { fontSize: fontSize[10], fontWeight: fontWeight.bold, color: colors.accent.primary },
-
+    datePillSelected:    { backgroundColor: colors.accent.primary, borderColor: colors.accent.primary },
+    datePillDay:         { fontSize: fontSize[10], fontWeight: fontWeight.bold, color: colors.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.4 },
+    datePillDaySelected: { color: colors.accent.buttonText },
+    datePillNum:         { fontSize: fontSize[18], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.5 },
+    datePillNumSelected: { color: colors.accent.buttonText },
+    datePillDot:         { width: 4, height: 4, borderRadius: 2, backgroundColor: 'transparent', marginTop: 2 },
+    datePillDotFilled:   { backgroundColor: colors.accent.primary },
+    datePillDotOnSelected: { backgroundColor: colors.accent.buttonText },
     lastLogged: {
-        backgroundColor:   colors.background.secondary,
+        backgroundColor:   colors.background.tertiary,
         borderRadius:      radius[3],
         borderWidth:       1,
         borderColor:       colors.border.default,
@@ -777,15 +929,14 @@ const styles = createStyles(() => ({
     lastLoggedWeight: { fontSize: fontSize[22], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.5 },
     lastLoggedUnit:   { fontSize: fontSize[14], fontWeight: fontWeight.medium, color: colors.text.secondary },
     lastLoggedDate:   { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary },
-
-    stepperRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[4], marginBottom: spacing[4] },
-    stepperBtn:     { width: spacing[12], height: spacing[12], borderRadius: radius[5], backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.default, alignItems: 'center', justifyContent: 'center' },
-    weightDisplay:  { alignItems: 'center', gap: spacing[1] },
-    weightInputRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing[1] },
+    stepperRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[4], marginBottom: spacing[4] },
+    stepperBtn:       { width: spacing[12], height: spacing[12], borderRadius: radius[5], backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.default, alignItems: 'center', justifyContent: 'center' },
+    weightDisplay:    { alignItems: 'center', gap: spacing[1] },
+    weightInputRow:   { flexDirection: 'row', alignItems: 'baseline', gap: spacing[1] },
     weightInput: {
         fontSize:           fontSize[56],
         fontWeight:         fontWeight.black,
-        color:              colors.accent.primary,
+        color:              colors.text.primary,
         textAlign:          'center',
         minWidth:           spacing[28],
         letterSpacing:      -4,
@@ -795,6 +946,21 @@ const styles = createStyles(() => ({
     weightUnit:       { fontSize: fontSize[18], fontWeight: fontWeight.semibold, color: colors.text.secondary },
     weightUnitError:  { color: colors.accent.error },
     updateHint:       { fontSize: fontSize[10], fontWeight: fontWeight.medium, color: colors.text.quaternary, letterSpacing: 0.2 },
+    updateHintHidden: { opacity: 0 },
+
+    keypad:    { gap: spacing[2], marginBottom: spacing[4] },
+    keypadRow: { flexDirection: 'row', gap: spacing[2] },
+    keypadKey: {
+        flex:            1,
+        height:          spacing[12],
+        borderRadius:    radius[3],
+        backgroundColor: colors.background.tertiary,
+        borderWidth:     1,
+        borderColor:     colors.border.default,
+        alignItems:      'center',
+        justifyContent:  'center',
+    },
+    keypadKeyText: { fontSize: fontSize[24], fontWeight: fontWeight.bold, color: colors.text.primary },
 
     saveBtn: {
         backgroundColor: colors.accent.primary,
@@ -806,8 +972,8 @@ const styles = createStyles(() => ({
         gap:             spacing[2],
     },
     saveBtnDisabled:     { backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.default },
-    saveBtnTextDisabled: { color: colors.text.quaternary },
     saveBtnText:         { fontSize: fontSize[16], fontWeight: fontWeight.bold, color: colors.accent.buttonText, letterSpacing: 0.3 },
+    saveBtnTextDisabled: { color: colors.text.quaternary },
 }));
 
 export default WeightTracker;

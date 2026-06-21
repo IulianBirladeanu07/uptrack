@@ -20,7 +20,7 @@ import WorkoutDetails from './src/features/workout/screens/WorkoutDetailsScreen/
 import StartWorkout from './src/features/workout/screens/StartWorkoutScreen/StartWorkout';
 import ExerciseSelectionScreen from './src/features/workout/screens/ExerciseSelectionScreen/ExerciseSelectionScreen';
 import WorkoutLibraryScreen from './src/features/workout/screens/WorkoutLibraryScreen/WorkoutLibraryScreen';
-import CreateWorkout from './src/features/workout/screens/CreateWorkoutScreen/CreateWorkoutScreen';
+import CreateTemplateScreen from './src/features/workout/screens/CreateTemplateScreen/CreateTemplateScreen';
 import FoodSelectionScreen from './src/features/nutrition/screens/FoodSelectionScreen/FoodSelectionScreen';
 import FoodDetailScreen from './src/features/nutrition/screens/FoodDetailScreen/FoodDetailScreen';
 import SplashScreen from './src/shared/components/SplashScreen/SplashScreen';
@@ -56,7 +56,7 @@ const AuthenticatedScreens = React.memo(() => (
         <Stack.Screen name="StartWorkout" component={StartWorkout} options={{ headerShown: false }} />
         <Stack.Screen name="ExerciseSelection" component={ExerciseSelectionScreen} options={{ headerShown: false }} />
         <Stack.Screen name="WorkoutLibrary" component={WorkoutLibraryScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="CreateWorkout" component={CreateWorkout} options={{ headerShown: false }} />
+        <Stack.Screen name="CreateTemplate" component={CreateTemplateScreen} options={{ headerShown: false }} />
         <Stack.Screen name="FoodSelection" component={FoodSelectionScreen} options={{ headerShown: false }} />
         <Stack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} options={{ headerShown: false }} />
         <Stack.Screen name="FoodDetail" component={FoodDetailScreen} options={{ headerShown: false }} />

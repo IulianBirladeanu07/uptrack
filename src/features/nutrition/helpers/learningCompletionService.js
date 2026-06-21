@@ -23,9 +23,9 @@ export const deriveStartWeight = (weightIns) => {
 
 export const getRollingWeekStats = (mealCache, weekStart, today) => {
   const start = new Date(weekStart);
-  const end = new Date(today);
+  const end   = new Date(today);
   end.setHours(23, 59, 59, 999);
-  
+
   const days = mealCache.getDateRange(start, end);
 
   const nutritionDays = days
@@ -34,10 +34,6 @@ export const getRollingWeekStats = (mealCache, weekStart, today) => {
 
   const stepDays = mealCache.getStepsRange(start, end).filter(d => d.steps > 0);
 
-  const avg = (arr, key) => arr.length > 0 
-    ? Math.round(arr.reduce((s, d) => s + (d[key] || 0), 0) / arr.length) 
-    : 0;
-
   return {
     daysLoggedNutrition: nutritionDays.length,
     avgCalories: avg(nutritionDays, 'calories'),
@@ -45,21 +41,22 @@ export const getRollingWeekStats = (mealCache, weekStart, today) => {
     avgCarbs:    avg(nutritionDays, 'carbs'),
     avgFats:     avg(nutritionDays, 'fat'),
     daysLoggedSteps: stepDays.length,
-    avgSteps: avg(stepDays, 'steps'),
-    totalSteps: stepDays.reduce((s, d) => s + d.steps, 0),
+    avgSteps:    avg(stepDays, 'steps'),
+    totalSteps:  stepDays.reduce((s, d) => s + d.steps, 0),
   };
 };
-export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache) => {
+
+export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache, userData) => {
   if (!previousWeekEntry?.weekStart) return null;
 
   const weekStart = previousWeekEntry.weekStart;
-  const start = new Date(weekStart);
-  const end = new Date(start);
+  const start     = new Date(weekStart);
+  const end       = new Date(start);
   end.setDate(start.getDate() + 6);
   end.setHours(23, 59, 59, 999);
 
   const todayKey = mealCache.formatDate(new Date());
-  const days = mealCache.getDateRange(start, end);
+  const days     = mealCache.getDateRange(start, end);
 
   const nutritionDays = days
     .map(({ meals }) => calculateDailyNutritionFromMeals(meals))
@@ -78,24 +75,44 @@ export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache)
     avgCarbs:    avg(nutritionDays, 'carbs'),
     avgFats:     avg(nutritionDays, 'fat'),
     daysLoggedSteps: stepDays.length,
-    avgSteps: avg(stepDays, 'steps'),
-    totalSteps: stepDays.reduce((s, d) => s + d.steps, 0),
+    avgSteps:    avg(stepDays, 'steps'),
+    totalSteps:  stepDays.reduce((s, d) => s + d.steps, 0),
     weightAverage: previousWeekEntry.average ?? null,
     createdAt: new Date().toISOString(),
   };
 
   try {
     const userDocRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
-    const existing = userDoc.data()?.weeklyNutrition || [];
+    const userDoc    = await getDoc(userDocRef);
+    const existing   = userDoc.data()?.weeklyNutrition || [];
 
     const updated = [
       ...existing.filter(w => w.weekStart !== weekStart),
       snapshot,
     ].sort((a, b) => new Date(a.weekStart) - new Date(b.weekStart));
 
-    await setDoc(userDocRef, { weeklyNutrition: updated }, { merge: true });
-    return snapshot;
+    const isWeightLoss = userData?.weightChangePlan?.type === 'weight_loss';
+    const goalSwitchDate = userData?.goalSwitchDate;
+
+    let weeksSinceCutStart = userData?.weeksSinceCutStart || 0;
+    if (isWeightLoss) {
+      if (goalSwitchDate) {
+        const switchDate = new Date(goalSwitchDate);
+        const snapshotDate = new Date(weekStart);
+        const diffMs = snapshotDate - switchDate;
+        weeksSinceCutStart = Math.max(0, Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)));
+      } else {
+        weeksSinceCutStart = weeksSinceCutStart + 1;
+      }
+    }
+
+    const firestoreUpdate = {
+      weeklyNutrition: updated,
+      ...(isWeightLoss ? { weeksSinceCutStart } : {}),
+    };
+
+    await setDoc(userDocRef, firestoreUpdate, { merge: true });
+    return { ...snapshot, weeksSinceCutStart };
   } catch (error) {
     console.error('snapshotPreviousWeek error:', error);
     return null;
@@ -105,9 +122,9 @@ export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache)
 export const getWeeklyCalorieStats = (weeklyNutrition, weeks = 2) => {
   if (!weeklyNutrition?.length) return [];
   return weeklyNutrition.slice(-weeks).map(w => ({
-    daysLogged: w.daysLoggedNutrition || 0,
+    daysLogged:  w.daysLoggedNutrition || 0,
     avgCalories: w.avgCalories || 0,
-    avgSteps: w.avgSteps || 0,
+    avgSteps:    w.avgSteps || 0,
   }));
 };
 
@@ -118,23 +135,31 @@ const daysSince = (isoDateStr) => {
 
 export const evaluateWeeklyProgress = async (userId, userData, mealCache, currentDate) => {
   if (!userData?.weightChangePlan || !userData?.targetCalories) return null;
-
+  if (userData.weightChangePlan.type !== 'weight_loss') return null;
   if (daysSince(userData.lastAdjustmentDate) < 6) return null;
 
   const weightIns = userData.weightIns || [];
   if (weightIns.length < 2) return null;
 
   const recentWeightWeeks = weightIns.slice(-4).map(week => ({
-    average: week.average ?? null,
+    average:    week.average ?? null,
     daysLogged: Object.keys(week.days || {}).length,
   }));
 
-  const weeklyNutrition = userData.weeklyNutrition || [];
+  const weeklyNutrition   = userData.weeklyNutrition || [];
   const weeklyCalorieData = getWeeklyCalorieStats(weeklyNutrition, 2);
   if (!weeklyCalorieData.length) return null;
 
   const adjustment = calculateWeeklyAdjustment(userData, recentWeightWeeks, weeklyCalorieData);
   if (!adjustment) return null;
+
+  if (adjustment.suggestion === 'steps') {
+    return {
+      suggestion:             'steps',
+      suggestedStepsIncrease: adjustment.suggestedStepsIncrease,
+      lastAdjustmentDate:     new Date().toISOString(),
+    };
+  }
 
   const updateData = {
     targetCalories: adjustment.newTargetCalories,
@@ -142,7 +167,7 @@ export const evaluateWeeklyProgress = async (userId, userData, mealCache, curren
     targetCarbs:    adjustment.newMacros.carbs,
     targetFats:     adjustment.newMacros.fats,
     lastCalorieAdjustment: adjustment,
-    lastAdjustmentDate: new Date().toISOString(),
+    lastAdjustmentDate:    new Date().toISOString(),
   };
 
   try {
@@ -171,13 +196,14 @@ export const initializeUserTargets = async (userId, weightChangePlan) => {
   if (!userId || !weightChangePlan) throw new Error('Invalid parameters');
 
   const targets = {
-    targetCalories:      weightChangePlan.goalCalories,
-    targetProtein:       weightChangePlan.macros.protein,
-    targetCarbs:         weightChangePlan.macros.carbs,
-    targetFats:          weightChangePlan.macros.fats,
-    maintenanceCalories: weightChangePlan.tdee,
+    targetCalories:       weightChangePlan.goalCalories,
+    targetProtein:        weightChangePlan.macros.protein,
+    targetCarbs:          weightChangePlan.macros.carbs,
+    targetFats:           weightChangePlan.macros.fats,
+    maintenanceCalories:  weightChangePlan.tdee,
     targetsInitializedAt: new Date().toISOString(),
-    targetsSource: 'formula',
+    targetsSource:        'formula',
+    weeksSinceCutStart:   0,
   };
 
   await setDoc(doc(db, 'users', userId), targets, { merge: true });
@@ -188,14 +214,14 @@ export const hasEnoughDataForAdjustment = (userData) => {
   const weightIns = userData?.weightIns || [];
   if (weightIns.length < 2) return false;
 
-  const recentWeeks = weightIns.slice(-2);
-  const hasWeightData = recentWeeks.every(
-    w => w.average != null && Object.keys(w.days || {}).length >= 3
+  const recentWeeks    = weightIns.slice(-2);
+  const hasWeightData  = recentWeeks.every(
+    w => w.average != null && Object.keys(w.days || {}).length >= 4
   );
 
   const weeklyNutrition = userData?.weeklyNutrition || [];
-  const calStats = getWeeklyCalorieStats(weeklyNutrition, 2);
-  const hasCalorieData = calStats.length >= 2 && calStats.every(w => w.daysLogged >= 4);
+  const calStats        = getWeeklyCalorieStats(weeklyNutrition, 2);
+  const hasCalorieData  = calStats.length >= 2 && calStats.every(w => w.daysLogged >= 4);
 
   return hasWeightData && hasCalorieData;
 };
@@ -233,12 +259,12 @@ export const checkAndCompleteLearning = async (userId, mealCache, currentDate, h
   if (!stats.isComplete) return null;
 
   const targets = {
-    targetCalories:      stats.averages.calories,
-    targetProtein:       stats.averages.protein,
-    targetCarbs:         stats.averages.carbs,
-    targetFats:          stats.averages.fat,
-    maintenanceCalories: stats.averages.calories,
-    targetsSource:       'learning',
+    targetCalories:       stats.averages.calories,
+    targetProtein:        stats.averages.protein,
+    targetCarbs:          stats.averages.carbs,
+    targetFats:           stats.averages.fat,
+    maintenanceCalories:  stats.averages.calories,
+    targetsSource:        'learning',
     targetsInitializedAt: new Date().toISOString(),
   };
 

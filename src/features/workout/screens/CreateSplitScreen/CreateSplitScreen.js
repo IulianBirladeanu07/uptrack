@@ -5,9 +5,9 @@ import BasicInfoStep from './steps/BasicInfoStep';
 import ScheduleStep from './steps/ScheduleStep';
 import ReviewStep from './steps/ReviewStep';
 
-import { ProgressSteps } from '../CreateWorkoutScreen/components/ProgressSteps';
-import { NavigationButtons } from '../CreateWorkoutScreen/components/NavigationButtons';
-import { Header } from '../CreateWorkoutScreen/components/Header';
+import { ProgressSteps } from '../CreateTemplateScreen/components/ProgressSteps';
+import { NavigationButtons } from '../CreateTemplateScreen/components/NavigationButtons';
+import { Header } from '../CreateTemplateScreen/components/Header';
 
 import { fetchTemplatesFromFirestore, addSplitToFirestore, updateSplitInFirestore } from '../../../workout/handlers/WorkoutHandler';
 import { STEPS } from './constants/CreateSplitScreenConstants';

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,69 +6,144 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
-const formatDate = (d) => {
-    const val = d instanceof Date && !isNaN(d) ? d : new Date(d);
-    if (val.toDateString() === new Date().toDateString()) return 'Today';
+const DAY_KEY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+const formatWeekRange = (weekStartStr) => {
+    const [y, m, d] = weekStartStr.split('-').map(Number);
+    const start = new Date(y, m - 1, d);
+    const end   = new Date(y, m - 1, d + 6);
+    const fmt   = (dt) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `${fmt(start)} – ${fmt(end)}`;
+};
+
+const formatDayLabel = (weekStartStr, dayIndex) => {
+    const [y, m, d] = weekStartStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d + dayIndex);
+    const today     = new Date();
     const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (val.toDateString() === yesterday.toDateString()) return 'Yesterday';
-    return val.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    yesterday.setDate(today.getDate() - 1);
+    today.setHours(0, 0, 0, 0);
+    yesterday.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+    if (date.getTime() === today.getTime()) return 'Today';
+    if (date.getTime() === yesterday.getTime()) return 'Yesterday';
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-const formatMonth = (dateStr) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+const formatMonth = (weekStartStr) => {
+    const [y, m] = weekStartStr.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 };
 
-const groupByMonth = (entries) => {
+const groupByMonth = (weightIns) => {
+    const sorted = [...weightIns].sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
     const groups = {};
-    entries.forEach(entry => {
-        const d = new Date(entry.date);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(entry);
+    sorted.forEach(week => {
+        const [y, m] = week.weekStart.split('-').map(Number);
+        const key = `${y}-${String(m).padStart(2, '0')}`;
+        if (!groups[key]) groups[key] = { label: formatMonth(week.weekStart), weeks: [] };
+        groups[key].weeks.push(week);
     });
-    return Object.entries(groups)
-        .sort(([a], [b]) => b.localeCompare(a))
-        .map(([key, entries]) => ({ key, label: formatMonth(key + '-01'), entries }));
+    return Object.values(groups);
 };
 
-const EntryRow = ({ entry, isLast, isBulking }) => {
-    const hasChange   = Math.abs(entry.change) > 0.05;
-    const isGain      = entry.change > 0;
-    const isPositive  = isBulking ? isGain : !isGain;
-    const changeColor = isPositive ? colors.accent.success : colors.accent.error;
-    const changeLabel = `${isGain ? '+' : ''}${entry.change.toFixed(1)}`;
+const TrendChip = ({ value, isBulking }) => {
+    if (value == null) return <View style={{ minWidth: 40 }} />;
+    const isGood  = isBulking ? value > 0 : value < 0;
+    const color   = value === 0 ? colors.text.quaternary : isGood ? colors.accent.success : colors.accent.error;
+    const bgColor = value === 0
+        ? colors.faded.surface
+        : isGood ? colors.faded.successAlt : colors.faded.errorAlt;
+    return (
+        <View style={[styles.trendChip, { backgroundColor: bgColor }]}>
+            <Text style={[styles.trendChipText, { color }]}>
+                {value > 0 ? '+' : ''}{value.toFixed(1)}
+            </Text>
+        </View>
+    );
+};
+
+const WeekCard = ({ week, prevWeek, isBulking, expanded, onToggle }) => {
+    const days = DAY_KEY_ORDER
+        .map((key, i) => {
+            const val = week.days?.[key];
+            if (val == null) return null;
+            return { key, weight: parseFloat(val), label: formatDayLabel(week.weekStart, i) };
+        })
+        .filter(Boolean);
+
+    const trend = (week.average != null && prevWeek?.average != null)
+        ? parseFloat((week.average - prevWeek.average).toFixed(2))
+        : null;
 
     return (
-        <View style={[styles.entryRow, isLast && styles.entryRowLast]}>
-            <Text style={styles.entryDate}>{formatDate(entry.date)}</Text>
-            <View style={styles.entryWeightRow}>
-                <Text style={styles.entryWeight}>{entry.weight.toFixed(1)}</Text>
-                <Text style={styles.entryWeightUnit}> kg</Text>
-            </View>
-            {hasChange
-                ? <Text style={[styles.deltaPillText, { color: changeColor }]}>{changeLabel}</Text>
-                : <Text style={styles.deltaNeutral}>—</Text>
-            }
+        <View style={styles.weekCard}>
+            <TouchableOpacity
+                style={styles.weekCardHeader}
+                onPress={onToggle}
+                activeOpacity={0.7}
+            >
+                <View style={styles.weekCardLeft}>
+                    <Text style={styles.weekRange}>{formatWeekRange(week.weekStart)}</Text>
+                    <Text style={styles.weekDaysLogged}>{days.length} day{days.length !== 1 ? 's' : ''} logged</Text>
+                </View>
+                <View style={styles.weekCardRight}>
+                    {week.average != null && (
+                        <Text style={styles.weekAvg}>{week.average.toFixed(1)} kg</Text>
+                    )}
+                    <TrendChip value={trend} isBulking={isBulking} />
+                    <Ionicons
+                        name={expanded ? 'chevron-up' : 'chevron-down'}
+                        size={14}
+                        color={colors.text.quaternary}
+                    />
+                </View>
+            </TouchableOpacity>
+
+            {expanded && days.length > 0 && (
+                <View style={styles.dayList}>
+                    {days.map((day, i) => (
+                        <View
+                            key={day.key}
+                            style={[styles.dayRow, i === days.length - 1 && styles.dayRowLast]}
+                        >
+                            <Text style={styles.dayLabel}>{day.label}</Text>
+                            <Text style={styles.dayWeight}>{day.weight.toFixed(1)} kg</Text>
+                        </View>
+                    ))}
+                </View>
+            )}
         </View>
     );
 };
 
 const WeightHistoryScreen = ({ route }) => {
     const navigation = useNavigation();
-    const { entries = [], isBulking = false } = route.params ?? {};
+    const { weightIns = [], isBulking = false, startWeight, goalWeight } = route.params ?? {};
+    const [expandedWeeks, setExpandedWeeks] = useState({});
 
-    const grouped = useMemo(() => groupByMonth(entries), [entries]);
+    const monthGroups = useMemo(() => groupByMonth(weightIns), [weightIns]);
 
-    const stats = useMemo(() => {
-        if (!entries.length) return null;
-        const weights = entries.map(e => e.weight);
-        const min = Math.min(...weights);
-        const max = Math.max(...weights);
-        const avg = weights.reduce((a, b) => a + b, 0) / weights.length;
-        return { min, max, avg };
-    }, [entries]);
+    const sortedAll = useMemo(() =>
+        [...weightIns].sort((a, b) => new Date(a.weekStart) - new Date(b.weekStart)),
+    [weightIns]);
+
+    const totalWeeks    = weightIns.length;
+    const latestAverage = sortedAll[sortedAll.length - 1]?.average ?? null;
+
+    const baseline = startWeight ?? sortedAll[0]?.average ?? null;
+
+    const totalChange = (baseline != null && latestAverage != null)
+        ? parseFloat((latestAverage - baseline).toFixed(1))
+        : null;
+
+    const changeIsGood = totalChange != null
+        ? (isBulking ? totalChange > 0 : totalChange < 0)
+        : null;
+
+    const toggleWeek = (weekStart) => {
+        setExpandedWeeks(prev => ({ ...prev, [weekStart]: !prev[weekStart] }));
+    };
 
     return (
         <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -78,7 +153,7 @@ const WeightHistoryScreen = ({ route }) => {
                 </TouchableOpacity>
                 <View style={styles.headerCenter} pointerEvents="none">
                     <Text style={styles.headerTitle}>Weight History</Text>
-                    <Text style={styles.headerSubtitle}>{entries.length} entries</Text>
+                    <Text style={styles.headerSubtitle}>{totalWeeks} week{totalWeeks !== 1 ? 's' : ''}</Text>
                 </View>
             </View>
 
@@ -87,40 +162,69 @@ const WeightHistoryScreen = ({ route }) => {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {stats && (
-                    <View style={styles.statsCard}>
-                        <View style={styles.statItem}>
-                            <Text style={[styles.statValue, { color: colors.accent.success }]}>{stats.min.toFixed(1)}</Text>
-                            <Text style={styles.statLabel}>MIN</Text>
-                        </View>
-                        <View style={styles.statDivider} />
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{stats.avg.toFixed(1)}</Text>
-                            <Text style={styles.statLabel}>AVG</Text>
-                        </View>
-                        <View style={styles.statDivider} />
-                        <View style={styles.statItem}>
-                            <Text style={[styles.statValue, { color: colors.accent.error }]}>{stats.max.toFixed(1)}</Text>
-                            <Text style={styles.statLabel}>MAX</Text>
-                        </View>
+                {(baseline != null || totalChange != null) && (
+                    <View style={styles.summaryCard}>
+                        {baseline != null && (
+                            <View style={styles.summaryItem}>
+                                <Text style={styles.summaryValue}>{baseline.toFixed(1)}</Text>
+                                <Text style={styles.summaryLabel}>START</Text>
+                            </View>
+                        )}
+                        {baseline != null && <View style={styles.summaryDivider} />}
+                        {latestAverage != null && (
+                            <View style={styles.summaryItem}>
+                                <Text style={styles.summaryValue}>{latestAverage.toFixed(1)}</Text>
+                                <Text style={styles.summaryLabel}>CURRENT</Text>
+                            </View>
+                        )}
+                        {totalChange != null && (
+                            <>
+                                <View style={styles.summaryDivider} />
+                                <View style={styles.summaryItem}>
+                                    <Text style={[
+                                        styles.summaryValue,
+                                        changeIsGood != null && {
+                                            color: changeIsGood ? colors.accent.success : colors.accent.error
+                                        }
+                                    ]}>
+                                        {totalChange > 0 ? '+' : ''}{totalChange}
+                                    </Text>
+                                    <Text style={styles.summaryLabel}>TOTAL</Text>
+                                </View>
+                            </>
+                        )}
+                        {goalWeight != null && (
+                            <>
+                                <View style={styles.summaryDivider} />
+                                <View style={styles.summaryItem}>
+                                    <Text style={[styles.summaryValue, { color: colors.accent.primary }]}>
+                                        {goalWeight.toFixed(1)}
+                                    </Text>
+                                    <Text style={styles.summaryLabel}>GOAL</Text>
+                                </View>
+                            </>
+                        )}
                     </View>
                 )}
 
-                {grouped.map(group => (
-                    <View key={group.key} style={styles.monthSection}>
-                        <View style={styles.monthHeader}>
-                            <Text style={styles.monthLabel}>{group.label}</Text>
-                            <Text style={styles.monthCount}>{group.entries.length} entries</Text>
-                        </View>
-                        <View style={styles.monthCard}>
-                            {group.entries.map((entry, i) => (
-                                <EntryRow
-                                    key={entry.id ?? `${entry.date}-${i}`}
-                                    entry={entry}
-                                    isLast={i === group.entries.length - 1}
-                                    isBulking={isBulking}
-                                />
-                            ))}
+                {monthGroups.map(group => (
+                    <View key={group.label} style={styles.monthSection}>
+                        <Text style={styles.monthLabel}>{group.label}</Text>
+                        <View style={styles.monthCards}>
+                            {group.weeks.map((week) => {
+                                const prevIdx = sortedAll.findIndex(w => w.weekStart === week.weekStart) - 1;
+                                const prevWeek = prevIdx >= 0 ? sortedAll[prevIdx] : null;
+                                return (
+                                    <WeekCard
+                                        key={week.weekStart}
+                                        week={week}
+                                        prevWeek={prevWeek}
+                                        isBulking={isBulking}
+                                        expanded={!!expandedWeeks[week.weekStart]}
+                                        onToggle={() => toggleWeek(week.weekStart)}
+                                    />
+                                );
+                            })}
                         </View>
                     </View>
                 ))}
@@ -151,19 +255,19 @@ const styles = createStyles(() => ({
         justifyContent:  'center',
     },
     headerCenter: {
-        position:  'absolute',
-        left:      0,
-        right:     0,
+        position:   'absolute',
+        left:       0,
+        right:      0,
         alignItems: 'center',
-        gap:       2,
+        gap:        2,
     },
     headerTitle:    { fontSize: fontSize[16], fontWeight: fontWeight.bold, color: colors.text.primary },
     headerSubtitle: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary },
 
     scroll:        { flex: 1 },
-    scrollContent: { paddingHorizontal: spacing[4], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[4] },
+    scrollContent: { paddingHorizontal: spacing[4], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[5] },
 
-    statsCard: {
+    summaryCard: {
         flexDirection:   'row',
         alignItems:      'center',
         backgroundColor: colors.background.secondary,
@@ -172,44 +276,65 @@ const styles = createStyles(() => ({
         borderColor:     colors.border.default,
         paddingVertical: spacing[4],
     },
-    statItem:    { flex: 1, alignItems: 'center', gap: spacing[1] },
-    statValue:   { fontSize: fontSize[20], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.5 },
-    statLabel:   { fontSize: fontSize[10], fontWeight: fontWeight.semibold, color: colors.text.quaternary, letterSpacing: 0.8 },
-    statDivider: { width: 1, height: spacing[8], backgroundColor: colors.border.default },
+    summaryItem:    { flex: 1, alignItems: 'center', gap: spacing[1] },
+    summaryValue:   { fontSize: fontSize[20], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.5 },
+    summaryLabel:   { fontSize: fontSize[10], fontWeight: fontWeight.bold, color: colors.text.quaternary, letterSpacing: 0.8 },
+    summaryDivider: { width: 1, height: spacing[8], backgroundColor: colors.border.default },
 
     monthSection: { gap: spacing[2] },
-    monthHeader: {
-        flexDirection:     'row',
-        alignItems:        'center',
-        justifyContent:    'space-between',
+    monthLabel: {
+        fontSize:          fontSize[12],
+        fontWeight:        fontWeight.bold,
+        color:             colors.text.quaternary,
+        textTransform:     'uppercase',
+        letterSpacing:     0.8,
         paddingHorizontal: spacing[1],
     },
-    monthLabel: { fontSize: fontSize[14], fontWeight: fontWeight.bold, color: colors.text.primary },
-    monthCount: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary },
-
-    monthCard: {
+    monthCards: {
         backgroundColor: colors.background.secondary,
         borderRadius:    radius[4],
         borderWidth:     1,
         borderColor:     colors.border.default,
         overflow:        'hidden',
     },
-    entryRow: {
+
+    weekCard:       { borderBottomWidth: 1, borderBottomColor: colors.border.light },
+    weekCardHeader: {
         flexDirection:     'row',
         alignItems:        'center',
         justifyContent:    'space-between',
         paddingHorizontal: spacing[4],
         paddingVertical:   spacing[3],
+    },
+    weekCardLeft:    { flex: 1 },
+    weekCardRight:   { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+    weekRange:       { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.text.primary },
+    weekDaysLogged:  { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary, marginTop: 2 },
+    weekAvg:         { fontSize: fontSize[16], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.3 },
+
+    trendChip: {
+        paddingHorizontal: spacing[2],
+        paddingVertical:   2,
+        borderRadius:      radius[1],
+        minWidth:          40,
+        alignItems:        'center',
+    },
+    trendChipText: { fontSize: fontSize[10], fontWeight: fontWeight.bold },
+
+    dayList: { paddingBottom: spacing[2] },
+    dayRow: {
+        flexDirection:     'row',
+        alignItems:        'center',
+        justifyContent:    'space-between',
+        paddingHorizontal: spacing[4],
+        paddingVertical:   spacing[2],
+        paddingLeft:       spacing[8],
         borderBottomWidth: 1,
         borderBottomColor: colors.border.light,
     },
-    entryRowLast:    { borderBottomWidth: 0 },
-    entryDate:       { flex: 1, fontSize: fontSize[14], fontWeight: fontWeight.medium, color: colors.text.secondary },
-    entryWeightRow: { flexDirection: 'row', alignItems: 'center', marginRight: spacing[3] },
-    entryWeight:     { fontSize: fontSize[14], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.5 },
-    entryWeightUnit: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.secondary },
-    deltaPillText:   { fontSize: fontSize[12], fontWeight: fontWeight.bold, minWidth: 36, textAlign: 'right' },
-    deltaNeutral:    { fontSize: fontSize[12], fontWeight: fontWeight.bold, color: colors.text.quaternary, minWidth: 36, textAlign: 'right' },
+    dayRowLast:  { borderBottomWidth: 0 },
+    dayLabel:    { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.secondary },
+    dayWeight:   { fontSize: fontSize[12], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.3 },
 }));
 
 export default WeightHistoryScreen;

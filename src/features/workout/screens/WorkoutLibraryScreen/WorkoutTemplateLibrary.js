@@ -40,7 +40,7 @@ const WorkoutTemplateLibrary = ({ templates, navigation, refreshControl, onCreat
   const handleEditTemplate = useCallback((template) => {
     const id = template.id;
     const data = template.data || template;
-    navigation.navigate('CreateWorkout', { 
+    navigation.navigate('CreateTemplate', { 
       template: { ...data, id },
       isEditing: true 
     });

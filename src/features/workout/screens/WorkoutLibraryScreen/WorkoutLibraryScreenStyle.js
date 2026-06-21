@@ -12,13 +12,13 @@ const styles = createStyles(() => ({
     contentWrapper: {
         flexGrow: 1,
         paddingHorizontal: spacing[3],
-        paddingBottom: 90,
+        paddingBottom: spacing[20],
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingVertical: 50,
+        paddingVertical: spacing[12],
     },
     loadingText: {
         marginTop: spacing[3],
@@ -88,7 +88,15 @@ const styles = createStyles(() => ({
         paddingVertical: spacing[2],
         paddingHorizontal: spacing[3],
         borderRadius: radius[2],
-        backgroundColor: colors.accent.primary,
+        backgroundColor: colors.faded.surface,
+        borderWidth: 1,
+        borderColor: colors.border.primaryAlt,
+    },
+    headerCreateButtonText: {
+        color: colors.text.tertiary,
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.bold,
+        marginLeft: spacing[1],
     },
     headerTopRow: {
         flexDirection: 'row',
@@ -97,12 +105,6 @@ const styles = createStyles(() => ({
         paddingHorizontal: spacing[4],
         paddingTop: spacing[4],
         paddingBottom: spacing[2],
-    },
-    headerCreateButtonText: {
-        color: colors.accent.buttonText,
-        fontSize: fontSize[14],
-        fontWeight: fontWeight.bold,
-        marginLeft: spacing[1],
     },
     segmentedControlContainer: {
         flexDirection: 'row',
@@ -292,7 +294,7 @@ const styles = createStyles(() => ({
         marginRight: spacing[4],
         borderWidth: 1,
         borderColor: colors.border.light,
-        backgroundColor: colors.faded.surfaceMedium,
+        backgroundColor: colors.faded.surfaceLight,
     },
     exerciseImage: {
         width: '100%',
@@ -326,7 +328,7 @@ const styles = createStyles(() => ({
         fontSize: fontSize[12],
         color: colors.text.quaternary,
         fontWeight: fontWeight.medium,
-        marginTop: 2,
+        marginTop: spacing[1],
     },
     setReps: {
         fontSize: fontSize[14],
@@ -388,7 +390,7 @@ const styles = createStyles(() => ({
         top: 0,
         left: 0,
         right: 0,
-        height: 50,
+        height: spacing[12],
         backgroundColor: colors.background.secondary,
         zIndex: -1,
     },

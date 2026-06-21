@@ -148,7 +148,7 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
                             onPress={handleCreate}
                             activeOpacity={0.7}
                         >
-                            <Ionicons name="add" size={normalize(20)} color={colors.accent.buttonText} />
+                            <Ionicons name="add" size={normalize(20)} color={colors.text.tertiary} />
                             <Text style={styles.headerCreateButtonText}>Create</Text>
                         </TouchableOpacity>
                     </View>

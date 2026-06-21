@@ -11,10 +11,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
-import { colors } from '../../../../../shared/theme';
+import { colors, spacing } from '../../../../../shared/theme';
 import styles from '../WorkoutLibraryScreenStyle';
 
-const DELETE_BUTTON_WIDTH = normalize(90);
+const DELETE_BUTTON_WIDTH = normalize(spacing[20]);
 const SPRING_CONFIG = {
     damping: 20,
     stiffness: 300,

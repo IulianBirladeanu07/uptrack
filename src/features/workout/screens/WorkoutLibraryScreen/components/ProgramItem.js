@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
-import { colors, spacing, fontSize } from '../../../../../shared/theme';
+import { colors, fontSize } from '../../../../../shared/theme';
 import styles from '../WorkoutLibraryScreenStyle';
 
 const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit, onActivate, onViewSchedule, isActive }) => {
@@ -62,7 +62,7 @@ const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit,
                                 <View style={styles.exerciseImageContainer}>
                                     <MaterialCommunityIcons
                                         name="calendar-check"
-                                        size={normalize(20)}
+                                        size={normalize(fontSize[20])}
                                         color={colors.accent.primary}
                                     />
                                 </View>
@@ -96,19 +96,19 @@ const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit,
 
             <View style={styles.workoutActions}>
                 <TouchableOpacity style={styles.editButton} onPress={() => onEdit(split)}>
-                    <Ionicons name="create-outline" size={normalize(16)} color={colors.text.secondary} />
+                    <Ionicons name="create-outline" size={normalize(fontSize[16])} color={colors.text.secondary} />
                     <Text style={styles.editButtonText}>Edit</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.editButton} onPress={() => onViewSchedule(split)}>
-                    <Ionicons name="calendar-outline" size={normalize(16)} color={colors.text.secondary} />
+                    <Ionicons name="calendar-outline" size={normalize(fontSize[16])} color={colors.text.secondary} />
                     <Text style={styles.editButtonText}>Schedule</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.startButton} onPress={() => onActivate(split)}>
                     <Ionicons
                         name={isActive ? 'checkmark-circle' : 'play'}
-                        size={normalize(18)}
+                        size={normalize(fontSize[18])}
                         color={colors.accent.buttonText}
                     />
                     <Text style={styles.startButtonText}>{isActive ? 'Active' : 'Activate'}</Text>
