@@ -53,6 +53,17 @@ module.exports = {
       package: "com.iulianbirladeanu.uptrack",
       versionCode: 2,
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
+      intentFilters: [
+        {
+          action: "VIEW",
+          data: [
+            {
+              scheme: "com.googleusercontent.apps.208634985017-brovur1pm6qgugp69hl76v7pkr9nija6"
+            }
+          ],
+          category: ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     web: {
       favicon: "./assets/uptrack-icon.png",
