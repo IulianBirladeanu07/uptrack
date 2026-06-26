@@ -1,515 +1,738 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Image,
+  Alert,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
+import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { LinearGradient } from 'expo-linear-gradient';
-import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { fetchUserProfile } from '../../../auth/services/firebaseAuthService';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
+import { AuthContext } from '../../../auth/context/AuthContext';
+import { createStyles } from '../../../../shared/theme/createStyles';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+
+const PLACEHOLDER_URI = 'https://via.placeholder.com/150';
+
+const Field = ({ icon, label, value, error, children }) => (
+  <View style={{ marginBottom: spacing[4] }}>
+    <Text style={styles.fieldLabel}>{label}</Text>
+    <View style={[styles.fieldCard, error && styles.fieldCardError]}>
+      <View style={styles.fieldIcon}>{icon}</View>
+      <View style={styles.fieldContent}>{children || <Text style={styles.fieldValue}>{value}</Text>}</View>
+    </View>
+    {error ? <Text style={styles.errorText}>{error}</Text> : null}
+  </View>
+);
+
+const SectionHeader = ({ title }) => (
+  <Text style={styles.sectionHeader}>{title}</Text>
+);
 
 const ProfileScreen = ({ navigation }) => {
   const { setUserSettings, userSettings } = useContext(WorkoutContext);
-  const [profilePicture, setProfilePicture] = useState(userSettings?.profilePicture || 'https://via.placeholder.com/150');
-  const [targetCalories, setTargetCalories] = useState(String(userSettings?.targetCalories || ''));
-  const [targetProtein, setTargetProtein] = useState(String(userSettings?.targetProtein || ''));
-  const [targetFats, setTargetFats] = useState(String(userSettings?.targetFats || ''));
-  const [targetCarbs, setTargetCarbs] = useState(String(userSettings?.targetCarbs || ''));
+  const { logout } = useContext(AuthContext);
+
+  const auth = getAuth();
+  const db = getFirestore();
+
+  const [profilePicture, setProfilePicture] = useState(userSettings?.profilePicture || PLACEHOLDER_URI);
   const [username, setUsername] = useState(userSettings?.username || '');
   const [email, setEmail] = useState(userSettings?.email || '');
   const [age, setAge] = useState(String(userSettings?.age || ''));
   const [weight, setWeight] = useState(String(userSettings?.weight || ''));
   const [height, setHeight] = useState(String(userSettings?.height || ''));
   const [dob, setDob] = useState(userSettings?.dob ? new Date(userSettings.dob) : new Date());
+  const [targetCalories, setTargetCalories] = useState(String(userSettings?.targetCalories || ''));
+  const [targetProtein, setTargetProtein] = useState(String(userSettings?.targetProtein || ''));
+  const [targetFats, setTargetFats] = useState(String(userSettings?.targetFats || ''));
+  const [targetCarbs, setTargetCarbs] = useState(String(userSettings?.targetCarbs || ''));
+
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [errors, setErrors] = useState({});
   const [isEditing, setIsEditing] = useState(false);
-
-  const auth = getAuth();
-  const db = getFirestore();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const loadUserProfile = async () => {
+    const load = async () => {
       const user = auth.currentUser;
       if (!user) {
         Alert.alert('Error', 'User not authenticated');
+        setLoading(false);
         return;
       }
-
-      const uid = user.uid;
       try {
-        const profileData = await fetchUserProfile(uid);
-        if (profileData) {
-          setProfilePicture(profileData.profilePicture);
-          setTargetCalories(String(profileData.targetCalories || ''));
-          setTargetProtein(String(profileData.targetProtein || ''));
-          setTargetFats(String(profileData.targetFats || ''));
-          setTargetCarbs(String(profileData.targetCarbs || ''));
-          setUsername(profileData.username || '');
-          setEmail(profileData.email || '');
-          setAge(String(profileData.age || ''));
-          setWeight(String(profileData.weight || ''));
-          setHeight(String(profileData.height || ''));
-          setDob(profileData.dob ? new Date(profileData.dob) : new Date());
-          setUserSettings(profileData);
+        const data = await fetchUserProfile(user.uid);
+        if (data) {
+          setProfilePicture(data.profilePicture || PLACEHOLDER_URI);
+          setUsername(data.username || '');
+          setEmail(data.email || '');
+          setAge(String(data.age || ''));
+          setWeight(String(data.weight || ''));
+          setHeight(String(data.height || ''));
+          setDob(data.dob ? new Date(data.dob) : new Date());
+          setTargetCalories(String(data.targetCalories || ''));
+          setTargetProtein(String(data.targetProtein || ''));
+          setTargetFats(String(data.targetFats || ''));
+          setTargetCarbs(String(data.targetCarbs || ''));
+          setUserSettings(data);
         }
       } catch (error) {
         Alert.alert('Error', error.message);
+      } finally {
+        setLoading(false);
       }
     };
-
-    loadUserProfile();
-  }, [setUserSettings]);
+    load();
+  }, []);
 
   const validate = () => {
-    let valid = true;
-    let errors = {};
-
-    if (!username.trim()) {
-      errors.username = 'Username is required';
-      valid = false;
-    }
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.email = 'Valid email is required';
-      valid = false;
-    }
-    if (!age.trim() || isNaN(age) || Number(age) <= 0) {
-      errors.age = 'Valid age is required';
-      valid = false;
-    }
-    if (!weight.trim() || isNaN(weight) || Number(weight) <= 0) {
-      errors.weight = 'Valid weight is required';
-      valid = false;
-    }
-    if (!height.trim() || isNaN(height) || Number(height) <= 0) {
-      errors.height = 'Valid height is required';
-      valid = false;
-    }
-    if (!targetCalories.trim() || isNaN(targetCalories) || Number(targetCalories) <= 0) {
-      errors.targetCalories = 'Valid target calories is required';
-      valid = false;
-    }
-    if (!targetProtein.trim() || isNaN(targetProtein) || Number(targetProtein) <= 0) {
-      errors.targetProtein = 'Valid target protein is required';
-      valid = false;
-    }
-    if (!targetFats.trim() || isNaN(targetFats) || Number(targetFats) <= 0) {
-      errors.targetFats = 'Valid target fats is required';
-      valid = false;
-    }
-    if (!targetCarbs.trim() || isNaN(targetCarbs) || Number(targetCarbs) <= 0) {
-      errors.targetCarbs = 'Valid target carbs is required';
-      valid = false;
-    }
-
-    setErrors(errors);
-    return valid;
+    const e = {};
+    if (!username.trim()) e.username = 'Required';
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Valid email required';
+    if (!age.trim() || isNaN(age) || Number(age) <= 0) e.age = 'Valid age required';
+    if (!weight.trim() || isNaN(weight) || Number(weight) <= 0) e.weight = 'Valid weight required';
+    if (!height.trim() || isNaN(height) || Number(height) <= 0) e.height = 'Valid height required';
+    if (!targetCalories.trim() || isNaN(targetCalories) || Number(targetCalories) <= 0) e.targetCalories = 'Required';
+    if (!targetProtein.trim() || isNaN(targetProtein) || Number(targetProtein) <= 0) e.targetProtein = 'Required';
+    if (!targetFats.trim() || isNaN(targetFats) || Number(targetFats) <= 0) e.targetFats = 'Required';
+    if (!targetCarbs.trim() || isNaN(targetCarbs) || Number(targetCarbs) <= 0) e.targetCarbs = 'Required';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleSave = async () => {
-    if (validate()) {
-      const user = auth.currentUser;
-      if (!user) {
-        Alert.alert('Error', 'User not authenticated');
-        return;
-      }
-      const uid = user.uid;
-      const profileData = {
-        profilePicture,
-        targetCalories: Number(targetCalories),
-        targetProtein: Number(targetProtein),
-        targetFats: Number(targetFats),
-        targetCarbs: Number(targetCarbs),
-        username,
-        email,
-        age: Number(age),
-        weight: Number(weight),
-        height: Number(height),
-        dob: dob.toISOString(),
-      };
-
-      try {
-        const userDocRef = doc(db, 'users', uid);
-        await setDoc(userDocRef, profileData);
-        setUserSettings(profileData);
-        Alert.alert('Success', 'Profile updated successfully!');
-        setIsEditing(false);
-      } catch (error) {
-        Alert.alert('Error', error.message);
-      }
+    if (!validate()) return;
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+    const profileData = {
+      profilePicture,
+      username,
+      email,
+      age: Number(age),
+      weight: Number(weight),
+      height: Number(height),
+      dob: dob.toISOString(),
+      targetCalories: Number(targetCalories),
+      targetProtein: Number(targetProtein),
+      targetFats: Number(targetFats),
+      targetCarbs: Number(targetCarbs),
+    };
+    setSaving(true);
+    try {
+      await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
+      setUserSettings(profileData);
+      setIsEditing(false);
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleCancel = () => {
-    setProfilePicture(userSettings?.profilePicture || 'https://via.placeholder.com/150');
-    setTargetCalories(String(userSettings?.targetCalories || ''));
-    setTargetProtein(String(userSettings?.targetProtein || ''));
-    setTargetFats(String(userSettings?.targetFats || ''));
-    setTargetCarbs(String(userSettings?.targetCarbs || ''));
-    setUsername(userSettings?.username || '');
-    setEmail(userSettings?.email || '');
-    setAge(String(userSettings?.age || ''));
-    setWeight(String(userSettings?.weight || ''));
-    setHeight(String(userSettings?.height || ''));
-    setDob(userSettings?.dob ? new Date(userSettings.dob) : new Date());
+  const handleCancel = useCallback(() => {
+    const s = userSettings || {};
+    setProfilePicture(s.profilePicture || PLACEHOLDER_URI);
+    setUsername(s.username || '');
+    setEmail(s.email || '');
+    setAge(String(s.age || ''));
+    setWeight(String(s.weight || ''));
+    setHeight(String(s.height || ''));
+    setDob(s.dob ? new Date(s.dob) : new Date());
+    setTargetCalories(String(s.targetCalories || ''));
+    setTargetProtein(String(s.targetProtein || ''));
+    setTargetFats(String(s.targetFats || ''));
+    setTargetCarbs(String(s.targetCarbs || ''));
     setErrors({});
     setIsEditing(false);
-  };
+  }, [userSettings]);
 
   const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [4, 4],
-      quality: 1,
+      aspect: [1, 1],
+      quality: 0.8,
     });
-
     if (!result.canceled) {
       setProfilePicture(result.assets[0].uri);
     }
   };
 
-  const onDateChange = (event, selectedDate) => {
-    const currentDate = selectedDate || dob;
-    setShowDatePicker(false);
-    setDob(currentDate);
+  const handleLogout = () => {
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: logout },
+    ]);
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.accent.primary} />
+      </View>
+    );
+  }
+
   return (
-    <LinearGradient colors={['#02111B', '#2A2D34']} style={styles.gradient}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={28} color="#fff" />
-        </TouchableOpacity>
-        <View style={styles.headerContainer}>
-          <TouchableOpacity onPress={pickImage} disabled={!isEditing}>
-            <Image source={{ uri: profilePicture }} style={styles.profilePicture} />
-            {isEditing && <Text style={styles.changePictureText}>Change Picture</Text>}
+    <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={spacing.iconLg} color={colors.text.primary} />
           </TouchableOpacity>
-          <Text style={styles.username}>{username || 'Username'}</Text>
+          <Text style={styles.headerTitle}>Profile</Text>
+          {!isEditing ? (
+            <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
+              <Ionicons name="create-outline" size={spacing.iconMd} color={colors.accent.primary} />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: spacing[9] }} />
+          )}
         </View>
-        <Text style={styles.header}>Set Your Profile</Text>
-        {isEditing ? (
-          <>
-            <View style={styles.card}>
-              <Ionicons name="person-outline" size={20} color="#fff" style={styles.icon} />
-              <TextInput
-                style={[styles.input, errors.username && { borderColor: 'red', borderWidth: 1 }]}
-                value={username}
-                onChangeText={setUsername}
-                placeholder="Enter your username"
-                placeholderTextColor="#ccc"
-              />
-            </View>
-            {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
-            <View style={styles.card}>
-              <Ionicons name="mail-outline" size={20} color="#fff" style={styles.icon} />
-              <TextInput
-                style={[styles.input, errors.email && { borderColor: 'red', borderWidth: 1 }]}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                placeholder="Enter your email"
-                placeholderTextColor="#ccc"
-              />
-            </View>
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-            <View style={styles.card}>
-              <Ionicons name="calendar-outline" size={20} color="#fff" style={styles.icon} />
-              <TextInput
-                style={[styles.input, errors.age && { borderColor: 'red', borderWidth: 1 }]}
-                keyboardType="numeric"
-                value={age}
-                onChangeText={setAge}
-                placeholder="Enter your age"
-                placeholderTextColor="#ccc"
-              />
-            </View>
-            {errors.age && <Text style={styles.errorText}>{errors.age}</Text>}
-            <View style={styles.card}>
-              <Ionicons name="barbell-outline" size={20} color="#fff" style={styles.icon} />
-              <TextInput
-                style={[styles.input, errors.weight && { borderColor: 'red', borderWidth: 1 }]}
-                keyboardType="numeric"
-                value={weight}
-                onChangeText={setWeight}
-                placeholder="Enter your weight"
-                placeholderTextColor="#ccc"
-              />
-            </View>
-            {errors.weight && <Text style={styles.errorText}>{errors.weight}</Text>}
-            <View style={styles.card}>
-              <Ionicons name="resize-outline" size={20} color="#fff" style={styles.icon} />
-              <TextInput
-                style={[styles.input, errors.height && { borderColor: 'red', borderWidth: 1 }]}
-                keyboardType="numeric"
-                value={height}
-                onChangeText={setHeight}
-                placeholder="Enter your height"
-                placeholderTextColor="#ccc"
-              />
-            </View>
-            {errors.height && <Text style={styles.errorText}>{errors.height}</Text>}
-            <View style={styles.card}>
-              <Ionicons name="calendar-outline" size={20} color="#fff" style={styles.icon} />
-              <TouchableOpacity onPress={() => setShowDatePicker(true)}>
-                <Text style={[styles.dateInput, errors.dob && { borderColor: 'red', borderWidth: 1 }]}>{dob.toDateString()}</Text>
-              </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={dob}
-                  mode="date"
-                  display="default"
-                  onChange={onDateChange}
+
+        <View style={styles.avatarSection}>
+          <TouchableOpacity
+            onPress={isEditing ? pickImage : undefined}
+            activeOpacity={isEditing ? 0.7 : 1}
+            style={styles.avatarWrapper}
+          >
+            <Image source={{ uri: profilePicture }} style={styles.avatar} />
+            {isEditing && (
+              <View style={styles.avatarEditBadge}>
+                <Ionicons name="camera" size={spacing.iconSm} color={colors.text.primary} />
+              </View>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.avatarUsername}>{username || 'Your Name'}</Text>
+          <Text style={styles.avatarEmail}>{email}</Text>
+        </View>
+
+        <SectionHeader title="Personal Info" />
+
+        <Field
+          label="Username"
+          icon={<Ionicons name="person-outline" size={spacing.icon} color={colors.text.tertiary} />}
+          value={username}
+          error={errors.username}
+        >
+          {isEditing && (
+            <TextInput
+              style={[styles.textInput, errors.username && styles.textInputError]}
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Username"
+              placeholderTextColor={colors.text.quaternary}
+              autoCapitalize="none"
+            />
+          )}
+        </Field>
+
+        <Field
+          label="Email"
+          icon={<MaterialIcons name="email" size={spacing.icon} color={colors.text.tertiary} />}
+          value={email}
+          error={errors.email}
+        >
+          {isEditing && (
+            <TextInput
+              style={[styles.textInput, errors.email && styles.textInputError]}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email"
+              placeholderTextColor={colors.text.quaternary}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          )}
+        </Field>
+
+        <View style={styles.row}>
+          <View style={{ flex: 1, marginRight: spacing[2] }}>
+            <Field
+              label="Age"
+              icon={<Ionicons name="calendar-outline" size={spacing.icon} color={colors.text.tertiary} />}
+              value={`${age} yrs`}
+              error={errors.age}
+            >
+              {isEditing && (
+                <TextInput
+                  style={[styles.textInput, errors.age && styles.textInputError]}
+                  value={age}
+                  onChangeText={setAge}
+                  placeholder="Age"
+                  placeholderTextColor={colors.text.quaternary}
+                  keyboardType="numeric"
                 />
               )}
-            </View>
-            {errors.dob && <Text style={styles.errorText}>{errors.dob}</Text>}
-            <Text style={styles.header}>Nutritional Targets</Text>
-            <View style={styles.card}>
-              <Ionicons name="flame-outline" size={20} color="#fff" style={styles.icon} />
+            </Field>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Field
+              label="Weight"
+              icon={<Ionicons name="barbell-outline" size={spacing.icon} color={colors.text.tertiary} />}
+              value={`${weight} kg`}
+              error={errors.weight}
+            >
+              {isEditing && (
+                <TextInput
+                  style={[styles.textInput, errors.weight && styles.textInputError]}
+                  value={weight}
+                  onChangeText={setWeight}
+                  placeholder="kg"
+                  placeholderTextColor={colors.text.quaternary}
+                  keyboardType="numeric"
+                />
+              )}
+            </Field>
+          </View>
+        </View>
+
+        <View style={styles.row}>
+          <View style={{ flex: 1, marginRight: spacing[2] }}>
+            <Field
+              label="Height"
+              icon={<Ionicons name="resize-outline" size={spacing.icon} color={colors.text.tertiary} />}
+              value={`${height} cm`}
+              error={errors.height}
+            >
+              {isEditing && (
+                <TextInput
+                  style={[styles.textInput, errors.height && styles.textInputError]}
+                  value={height}
+                  onChangeText={setHeight}
+                  placeholder="cm"
+                  placeholderTextColor={colors.text.quaternary}
+                  keyboardType="numeric"
+                />
+              )}
+            </Field>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Field
+              label="Date of Birth"
+              icon={<Ionicons name="calendar-outline" size={spacing.icon} color={colors.text.tertiary} />}
+              value={dob.toLocaleDateString()}
+              error={errors.dob}
+            >
+              {isEditing && (
+                <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+                  <Text style={styles.dateValue}>{dob.toLocaleDateString()}</Text>
+                </TouchableOpacity>
+              )}
+            </Field>
+          </View>
+        </View>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={dob}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowDatePicker(false);
+              if (date) setDob(date);
+            }}
+          />
+        )}
+
+        <SectionHeader title="Nutritional Targets" />
+
+        <View style={styles.macroGrid}>
+          <View style={[styles.macroCard, styles.macroCardCalories]}>
+            <Ionicons name="flame-outline" size={spacing.iconMd} color={colors.accent.primary} />
+            <Text style={styles.macroCardLabel}>Calories</Text>
+            {isEditing ? (
               <TextInput
-                style={[styles.input, errors.targetCalories && { borderColor: 'red', borderWidth: 1 }]}
-                keyboardType="numeric"
+                style={[styles.macroInput, errors.targetCalories && styles.textInputError]}
                 value={targetCalories}
                 onChangeText={setTargetCalories}
-                placeholder="Enter target calories (kcal)"
-                placeholderTextColor="#ccc"
-              />
-            </View>
-            {errors.targetCalories && <Text style={styles.errorText}>{errors.targetCalories}</Text>}
-            <View style={styles.card}>
-              <Ionicons name="nutrition-outline" size={20} color="#fff" style={styles.icon} />
-              <TextInput
-                style={[styles.input, errors.targetProtein && { borderColor: 'red', borderWidth: 1 }]}
+                placeholder="0"
+                placeholderTextColor={colors.text.quaternary}
                 keyboardType="numeric"
-                value={targetProtein}
-                onChangeText={setTargetProtein}
-                placeholder="Enter target protein (g)"
-                placeholderTextColor="#ccc"
+                textAlign="center"
               />
+            ) : (
+              <Text style={styles.macroCardValue}>{targetCalories}</Text>
+            )}
+            <Text style={styles.macroCardUnit}>kcal</Text>
+          </View>
+        </View>
+
+        <View style={styles.macroRow}>
+          {[
+            {
+              key: 'targetProtein',
+              label: 'Protein',
+              value: targetProtein,
+              setter: setTargetProtein,
+              color: colors.accent.purpleLight,
+              bg: colors.faded.purpleAlt,
+              border: colors.border.protein,
+              icon: 'nutrition-outline',
+            },
+            {
+              key: 'targetCarbs',
+              label: 'Carbs',
+              value: targetCarbs,
+              setter: setTargetCarbs,
+              color: colors.accent.greenLight,
+              bg: colors.faded.green,
+              border: colors.border.carbs,
+              icon: 'restaurant-outline',
+            },
+            {
+              key: 'targetFats',
+              label: 'Fats',
+              value: targetFats,
+              setter: setTargetFats,
+              color: colors.accent.cyanLight,
+              bg: colors.faded.cyanAlt,
+              border: colors.border.fat,
+              icon: 'fast-food-outline',
+            },
+          ].map(({ key, label, value, setter, color, bg, border, icon }) => (
+            <View key={key} style={[styles.macroMini, { backgroundColor: bg, borderColor: border }]}>
+              <Ionicons name={icon} size={spacing.icon} color={color} />
+              <Text style={[styles.macroMiniLabel, { color }]}>{label}</Text>
+              {isEditing ? (
+                <TextInput
+                  style={[styles.macroMiniInput, errors[key] && styles.textInputError, { color }]}
+                  value={value}
+                  onChangeText={setter}
+                  placeholder="0"
+                  placeholderTextColor={colors.text.quaternary}
+                  keyboardType="numeric"
+                  textAlign="center"
+                />
+              ) : (
+                <Text style={[styles.macroMiniValue, { color }]}>{value}g</Text>
+              )}
             </View>
-            {errors.targetProtein && <Text style={styles.errorText}>{errors.targetProtein}</Text>}
-            <View style={styles.card}>
-              <Ionicons name="fast-food-outline" size={20} color="#fff" style={styles.icon} />
-              <TextInput
-                style={[styles.input, errors.targetFats && { borderColor: 'red', borderWidth: 1 }]}
-                keyboardType="numeric"
-                value={targetFats}
-                onChangeText={setTargetFats}
-                placeholder="Enter target fats (g)"
-                placeholderTextColor="#ccc"
-              />
-            </View>
-            {errors.targetFats && <Text style={styles.errorText}>{errors.targetFats}</Text>}
-            <View style={styles.card}>
-              <Ionicons name="restaurant-outline" size={20} color="#fff" style={styles.icon} />
-              <TextInput
-                style={[styles.input, errors.targetCarbs && { borderColor: 'red', borderWidth: 1 }]}
-                keyboardType="numeric"
-                value={targetCarbs}
-                onChangeText={setTargetCarbs}
-                placeholder="Enter target carbs (g)"
-                placeholderTextColor="#ccc"
-              />
-            </View>
-            {errors.targetCarbs && <Text style={styles.errorText}>{errors.targetCarbs}</Text>}
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                <View style={styles.buttonBackground}>
-                  <Text style={styles.buttonText}>Save</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-                <View style={styles.buttonBackground}>
-                  <Text style={styles.buttonText}>Cancel</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </>
-        ) : (
-          <>
-            <View style={styles.card}>
-              <Ionicons name="person-outline" size={20} color="#fff" style={styles.icon} />
-              <Text style={styles.input}>{username}</Text>
-            </View>
-            <View style={styles.card}>
-              <Ionicons name="mail-outline" size={20} color="#fff" style={styles.icon} />
-              <Text style={styles.input}>{email}</Text>
-            </View>
-            <View style={styles.card}>
-              <Ionicons name="calendar-outline" size={20} color="#fff" style={styles.icon} />
-              <Text style={styles.input}>{age}</Text>
-            </View>
-            <View style={styles.card}>
-              <Ionicons name="barbell-outline" size={20} color="#fff" style={styles.icon} />
-              <Text style={styles.input}>{weight} kg</Text>
-            </View>
-            <View style={styles.card}>
-              <Ionicons name="resize-outline" size={20} color="#fff" style={styles.icon} />
-              <Text style={styles.input}>{height} cm</Text>
-            </View>
-            <View style={styles.card}>
-              <Ionicons name="calendar-outline" size={20} color="#fff" style={styles.icon} />
-              <Text style={styles.input}>{dob.toDateString()}</Text>
-            </View>
-            <Text style={styles.header}>Nutritional Targets</Text>
-            <View style={styles.card}>
-              <Ionicons name="flame-outline" size={20} color="#fff" style={styles.icon} />
-              <Text style={styles.input}>{targetCalories} kcal</Text>
-            </View>
-            <View style={styles.card}>
-              <Ionicons name="nutrition-outline" size={20} color="#fff" style={styles.icon} />
-              <Text style={styles.input}>{targetProtein} g</Text>
-            </View>
-            <View style={styles.card}>
-              <Ionicons name="fast-food-outline" size={20} color="#fff" style={styles.icon} />
-              <Text style={styles.input}>{targetFats} g</Text>
-            </View>
-            <View style={styles.card}>
-              <Ionicons name="restaurant-outline" size={20} color="#fff" style={styles.icon} />
-              <Text style={styles.input}>{targetCarbs} g</Text>
-            </View>
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.saveButton} onPress={() => setIsEditing(true)}>
-                <View style={styles.buttonBackground}>
-                  <Text style={styles.buttonText}>Edit</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </>
+          ))}
+        </View>
+
+        {isEditing && (
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.cancelButton} onPress={handleCancel} disabled={saving}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.accent.buttonText} />
+              ) : (
+                <Text style={styles.saveButtonText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         )}
+
+        <View style={styles.separator} />
+
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <MaterialCommunityIcons name="logout" size={spacing.icon} color={colors.accent.error} />
+          <Text style={styles.logoutText}>Log Out</Text>
+        </TouchableOpacity>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
-  gradient: {
+const styles = createStyles(() => ({
+  screen: {
     flex: 1,
+    backgroundColor: colors.background.primary,
   },
-  container: {
-    flexGrow: 1,
-    padding: 20,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 40,
-    left: 20,
-    zIndex: 1,
-  },
-  headerContainer: {
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.background.primary,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 40,
   },
-  profilePicture: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 2,
-    borderColor: '#00bfff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  changePictureText: {
-    color: '#00bfff',
-    marginTop: 5,
-    textAlign: 'center',
-  },
-  username: {
-    marginTop: 10,
-    fontSize: 22,
-    color: '#fff',
-    fontWeight: 'bold',
+  scrollContent: {
+    paddingHorizontal: spacing[5],
+    paddingBottom: spacing[12],
+    paddingTop: spacing[5],
   },
   header: {
-    fontSize: 26,
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  card: {
-    backgroundColor: '#02202B',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
+    justifyContent: 'space-between',
+    marginBottom: spacing[6],
   },
-  label: {
-    color: '#fff',
-    fontSize: 18,
+  backButton: {
+    width: spacing[9],
+    height: spacing[9],
+    borderRadius: radius[3],
+    backgroundColor: colors.background.secondary,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: fontSize[18],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+  },
+  editButton: {
+    width: spacing[9],
+    height: spacing[9],
+    borderRadius: radius[3],
+    backgroundColor: colors.faded.primary,
+    borderWidth: 1,
+    borderColor: colors.border.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: spacing[8],
+  },
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: spacing[3],
+  },
+  avatar: {
+    width: spacing[20],
+    height: spacing[20],
+    borderRadius: spacing[10],
+    borderWidth: 2,
+    borderColor: colors.border.primary,
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: spacing[7],
+    height: spacing[7],
+    borderRadius: spacing[4],
+    backgroundColor: colors.accent.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.background.primary,
+  },
+  avatarUsername: {
+    fontSize: fontSize[20],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+  },
+  avatarEmail: {
+    fontSize: fontSize[14],
+    color: colors.text.tertiary,
+    marginTop: spacing[1],
+  },
+  sectionHeader: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.tertiary,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: spacing[3],
+    marginTop: spacing[2],
+  },
+  fieldLabel: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.medium,
+    color: colors.text.tertiary,
+    marginBottom: spacing[1],
+  },
+  fieldCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[3],
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[3],
+    gap: spacing[2],
+  },
+  fieldCardError: {
+    borderColor: colors.accent.error,
+  },
+  fieldIcon: {
+    width: spacing[6],
+    alignItems: 'center',
+  },
+  fieldContent: {
     flex: 1,
   },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 5,
-    padding: 10,
-    color: '#000',
-    flex: 2,
-    left: 5,
+  fieldValue: {
+    fontSize: fontSize[16],
+    color: colors.text.primary,
+    fontWeight: fontWeight.medium,
   },
-  dateInput: {
-    backgroundColor: '#fff',
-    borderRadius: 5,
-    padding: 10,
-    color: '#000',
-    flex: 2,
-    paddingVertical: 12,
+  textInput: {
+    fontSize: fontSize[16],
+    color: colors.text.primary,
+    fontWeight: fontWeight.medium,
+    padding: 0,
   },
-  icon: {
-    marginRight: 10,
+  textInputError: {
+    color: colors.accent.error,
   },
-  buttonContainer: {
+  dateValue: {
+    fontSize: fontSize[16],
+    color: colors.text.primary,
+    fontWeight: fontWeight.medium,
+  },
+  errorText: {
+    fontSize: fontSize[12],
+    color: colors.accent.error,
+    marginTop: spacing[1],
+    marginLeft: spacing[1],
+  },
+  row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
+  },
+  macroGrid: {
+    marginBottom: spacing[3],
+  },
+  macroCard: {
+    alignItems: 'center',
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[3],
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    padding: spacing[4],
+    gap: spacing[1],
+  },
+  macroCardCalories: {
+    borderColor: colors.border.primary,
+    backgroundColor: colors.faded.primaryLight,
+  },
+  macroCardLabel: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  macroCardValue: {
+    fontSize: fontSize[32],
+    fontWeight: fontWeight.black,
+    color: colors.accent.primary,
+    lineHeight: 38,
+  },
+  macroCardUnit: {
+    fontSize: fontSize[12],
+    color: colors.text.tertiary,
+    fontWeight: fontWeight.medium,
+  },
+  macroInput: {
+    fontSize: fontSize[32],
+    fontWeight: fontWeight.black,
+    color: colors.accent.primary,
+    width: '100%',
+    textAlign: 'center',
+    padding: 0,
+  },
+  macroRow: {
+    flexDirection: 'row',
+    gap: spacing[2],
+    marginBottom: spacing[6],
+  },
+  macroMini: {
+    flex: 1,
+    alignItems: 'center',
+    borderRadius: radius[3],
+    borderWidth: 1,
+    padding: spacing[3],
+    gap: spacing[1],
+  },
+  macroMiniLabel: {
+    fontSize: fontSize[10],
+    fontWeight: fontWeight.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  macroMiniValue: {
+    fontSize: fontSize[18],
+    fontWeight: fontWeight.extrabold,
+  },
+  macroMiniInput: {
+    fontSize: fontSize[18],
+    fontWeight: fontWeight.extrabold,
+    width: '100%',
+    textAlign: 'center',
+    padding: 0,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing[3],
+    marginBottom: spacing[4],
   },
   saveButton: {
     flex: 1,
-    marginRight: 5,
-    shadowColor: '#000',
-    backgroundColor: '#008080',
-    padding: 15,
-    shadowOffset: { width: 0, height: 2 },
+    backgroundColor: colors.accent.primary,
+    borderRadius: radius[4],
+    height: spacing.buttonHeight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.accent.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 3,
-    borderRadius: 8,
-    elevation: 5,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  saveButtonText: {
+    color: colors.accent.buttonText,
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize[16],
   },
   cancelButton: {
     flex: 1,
-    marginLeft: 5,
-    shadowColor: '#000',
-    backgroundColor: 'red',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    borderRadius: 8,
-    shadowRadius: 3,
-    elevation: 5,
-    padding: 15,
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[4],
+    height: spacing.buttonHeight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
-  buttonText: {
-    color: '#fff',
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: 'bold',
+  cancelButtonText: {
+    color: colors.text.secondary,
+    fontWeight: fontWeight.semibold,
+    fontSize: fontSize[16],
   },
-  errorText: {
-    color: 'red',
-    marginBottom: 10,
-    marginLeft: 10,
+  separator: {
+    height: 1,
+    backgroundColor: colors.border.default,
+    marginVertical: spacing[4],
   },
-});
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.faded.errorAlt,
+    borderRadius: radius[4],
+    height: spacing.buttonHeight,
+    borderWidth: 1,
+    borderColor: colors.border.error,
+  },
+  logoutText: {
+    color: colors.accent.error,
+    fontWeight: fontWeight.semibold,
+    fontSize: fontSize[16],
+  },
+}));
 
 export default ProfileScreen;

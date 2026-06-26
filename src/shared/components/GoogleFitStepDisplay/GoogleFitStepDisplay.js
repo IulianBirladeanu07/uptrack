@@ -13,7 +13,7 @@ if (Platform.OS === 'ios') {
 
 const GOOGLE_FIT_AUTH_KEY = 'google_fit_authorized';
 
-const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
+const GoogleFitStepDisplay = ({ onStepsUpdate, onStepsError, onStepsLoading }) => {
     const [initialized, setInitialized] = useState(false);
     const initializingRef = useRef(false);
 
@@ -77,21 +77,6 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
             }
         }
         return true;
-    };
-
-    const initializeGoogleFit = async () => {
-        const permissionGranted = await requestAndroidPermission();
-        if (!permissionGranted) throw new Error('Permission denied');
-
-        const options = {
-            scopes: [
-                Scopes.FITNESS_ACTIVITY_READ,
-                Scopes.FITNESS_BODY_READ,
-            ],
-        };
-
-        const authResult = await GoogleFit.authorize(options);
-        if (!authResult.success) throw new Error('Authorization failed');
     };
 
     const fetchTodaySteps = async () => {
@@ -180,6 +165,7 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
                 }
             } catch (err) {
                 console.log('[Steps] fetchLast7Days error:', err);
+                onStepsError?.('steps_unavailable');
             }
         }
     };
@@ -190,36 +176,48 @@ const GoogleFitStepDisplay = ({ onStepsUpdate }) => {
         if (onStepsUpdate) onStepsUpdate(steps, todayKey);
     };
 
-const initialize = async () => {
-    if (initializingRef.current || initialized) return;
-    initializingRef.current = true;
-    try {
-        if (Platform.OS === 'ios') {
-            await initializeHealthKit();
-        } else {
-            const permissionGranted = await requestAndroidPermission();
-            if (!permissionGranted) throw new Error('Permission denied');
+    const initialize = async () => {
+        if (initializingRef.current || initialized) return;
+        initializingRef.current = true;
+        onStepsLoading?.(true);
+        try {
+            if (Platform.OS === 'ios') {
+                await initializeHealthKit();
+            } else {
+                const permissionGranted = await requestAndroidPermission();
+                if (!permissionGranted) {
+                    onStepsError?.('permission_denied');
+                    throw new Error('Permission denied');
+                }
 
-            const options = {
-                scopes: [
-                    Scopes.FITNESS_ACTIVITY_READ,
-                    Scopes.FITNESS_BODY_READ,
-                ],
-            };
-
-            await GoogleFit.authorize(options);
+                const alreadyAuthorized = await AsyncStorage.getItem(GOOGLE_FIT_AUTH_KEY);
+                if (!alreadyAuthorized) {
+                    const options = {
+                        scopes: [
+                            Scopes.FITNESS_ACTIVITY_READ,
+                            Scopes.FITNESS_BODY_READ,
+                        ],
+                    };
+                    const authResult = await GoogleFit.authorize(options);
+                    if (!authResult.success) {
+                        onStepsError?.('auth_failed');
+                        throw new Error('Authorization failed');
+                    }
+                    await AsyncStorage.setItem(GOOGLE_FIT_AUTH_KEY, 'true');
+                }
+            }
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await fetchLast7DaysSteps();
+            await updateTodaySteps();
+            setInitialized(true);
+        } catch (err) {
+            console.log('[Steps] initialize failed:', err?.message || err);
+        } finally {
+            initializingRef.current = false;
+            onStepsLoading?.(false);
         }
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await fetchLast7DaysSteps();
-        await updateTodaySteps();
-        setInitialized(true);
-    } catch (err) {
-        console.log('[Steps] initialize failed:', err?.message || err);
-    } finally {
-        initializingRef.current = false;
-    }
-};
-  
+    };
+
     useEffect(() => {
         initialize();
     }, []);

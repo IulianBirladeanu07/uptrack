@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../../context/AuthContext';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -18,22 +18,25 @@ const LoginScreen = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState(null);
 
   const navigation = useNavigation();
   const { setAuthenticated, setProfileSetupComplete } = useContext(AuthContext);
 
   const handleSignIn = async () => {
+    setError(null);
     setLoading(true);
     try {
       await firebaseAuthService.signInWithEmailAndPassword(email, password, setAuthenticated, setProfileSetupComplete);
-    } catch (error) {
-      Alert.alert('Login Failed', error.message);
+    } catch (e) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setError(null);
     setGoogleLoading(true);
     try {
       await GoogleSignin.hasPlayServices();
@@ -41,11 +44,9 @@ const LoginScreen = () => {
       const idToken = userInfo.data?.idToken;
       if (!idToken) throw new Error('No id_token received');
       await firebaseAuthService.signInWithGoogle({ params: { id_token: idToken } }, setAuthenticated, setProfileSetupComplete);
-    } catch (error) {
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        // user cancelled
-      } else {
-        Alert.alert('Error', 'Failed to sign in with Google: ' + error.message);
+    } catch (e) {
+      if (e.code !== statusCodes.SIGN_IN_CANCELLED) {
+        setError('Failed to sign in with Google. Please try again.');
       }
     } finally {
       setGoogleLoading(false);
@@ -65,7 +66,7 @@ const LoginScreen = () => {
         <TextInput
           style={styles.input}
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(v) => { setEmail(v); setError(null); }}
           placeholder="Email"
           placeholderTextColor={colors.text.tertiary}
           autoCapitalize="none"
@@ -78,7 +79,7 @@ const LoginScreen = () => {
         <TextInput
           style={styles.input}
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(v) => { setPassword(v); setError(null); }}
           placeholder="Password"
           placeholderTextColor={colors.text.tertiary}
           secureTextEntry={!showPassword}
@@ -88,8 +89,15 @@ const LoginScreen = () => {
         </TouchableOpacity>
       </View>
 
+      {error && (
+        <View style={styles.errorBanner}>
+          <Ionicons name="alert-circle-outline" size={spacing[5]} color={colors.accent.error} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       <TouchableOpacity style={styles.button} onPress={handleSignIn} disabled={loading}>
-        {loading ? <ActivityIndicator color={colors.text.primary} /> : <Text style={styles.buttonText}>Login</Text>}
+        {loading ? <ActivityIndicator color={colors.accent.buttonText} /> : <Text style={styles.buttonText}>Login</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -161,6 +169,24 @@ const styles = createStyles(() => ({
   },
   inputIcon: {
     marginRight: spacing[3],
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.faded.errorAlt,
+    borderWidth: 1,
+    borderColor: colors.border.error,
+    borderRadius: radius[3],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    marginBottom: spacing[2],
+  },
+  errorText: {
+    flex: 1,
+    color: colors.accent.error,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.medium,
   },
   button: {
     backgroundColor: colors.accent.primary,

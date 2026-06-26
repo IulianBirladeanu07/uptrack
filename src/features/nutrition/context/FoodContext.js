@@ -133,6 +133,8 @@ export const FoodProvider = ({ children, initialUserData }) => {
     const [initialLoadComplete, setInitialLoadComplete] = useState(false);
     const [dailySteps,          setDailySteps]          = useState(0);
     const [stepsVersion,        setStepsVersion]        = useState(0);
+    const [stepsLoading,        setStepsLoading]        = useState(false);
+    const [stepsError,          setStepsError]          = useState(null);
     const [cacheVersion,        setCacheVersion]        = useState(0);
     const [categoryData,        setCategoryData]        = useState({
         recentMeals: [], frequentFoods: [], favoriteFoods: []
@@ -233,6 +235,16 @@ export const FoodProvider = ({ children, initialUserData }) => {
         if (key === formatDate(selectedDate)) setDailySteps(steps);
         setStepsVersion(v => v + 1);
     }, [selectedDate]);
+
+    const handleStepsError = useCallback((errorCode) => {
+        if (!mountedRef.current) return;
+        setStepsError(errorCode);
+    }, []);
+
+    const handleStepsLoading = useCallback((isLoading) => {
+        if (!mountedRef.current) return;
+        setStepsLoading(isLoading);
+    }, []);
 
     const getWeeklyAvgSteps = useCallback(() => {
         const endDate   = new Date(selectedDate);
@@ -439,6 +451,8 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 setMealState({ breakfast: [], lunch: [], dinner: [], snacks: [] });
                 setDailySteps(0);
                 setStepsVersion(0);
+                setStepsLoading(false);
+                setStepsError(null);
                 setCacheVersion(0);
                 setError(null);
                 setLoading(false);
@@ -492,6 +506,8 @@ export const FoodProvider = ({ children, initialUserData }) => {
         getCaloriesForDateRange,
         getNutritionForDateRange,
         getStepsForDateRange,
+        stepsLoading,
+        stepsError,
     }), [
         mealState, selectedDate, handleDateChange, categoryData,
         userProfile, nutritionHookData.hasTargets, enhancedLearningData,
@@ -499,12 +515,16 @@ export const FoodProvider = ({ children, initialUserData }) => {
         handleAddMeal, handleDeleteMeal, updateMealInDatabase, updateMealState,
         getTrendData, dailySteps, updateDailySteps, getWeeklyAvgSteps,
         loading, error, initialLoadComplete, rollingWeekStats, getCaloriesForDateRange,
-        getNutritionForDateRange, getStepsForDateRange,
+        getNutritionForDateRange, getStepsForDateRange, stepsLoading, stepsError,
     ]);
 
     return (
         <FoodContext.Provider value={contextValue}>
-            <GoogleFitStepDisplay onStepsUpdate={updateDailySteps} />
+            <GoogleFitStepDisplay
+                onStepsUpdate={updateDailySteps}
+                onStepsError={handleStepsError}
+                onStepsLoading={handleStepsLoading}
+            />
             {children}
         </FoodContext.Provider>
     );

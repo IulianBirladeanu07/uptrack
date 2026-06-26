@@ -1,6 +1,6 @@
-import { signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, sendPasswordResetEmail as firebaseSendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../../auth/services/firebaseConfigService'
+import { auth, db } from '../../auth/services/firebaseConfigService';
 import Constants from 'expo-constants';
 
 const handleFirebaseError = (error) => {
@@ -19,67 +19,56 @@ const handleFirebaseError = (error) => {
 };
 
 const signInWithEmailAndPassword = async (email, password, setAuthenticated, setProfileSetupComplete) => {
-  try {
-    const response = await firebaseSignInWithEmailAndPassword(auth, email, password);
-    const user = response.user;
+  const response = await firebaseSignInWithEmailAndPassword(auth, email, password);
+  const user = response.user;
 
-    if (!user.emailVerified) {
-      throw new Error('Email not verified. Please verify your email before logging in.');
-    }
-
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    const userData = userDoc.data() || {};
-
-    setAuthenticated(true);
-    setProfileSetupComplete(userData.profileSetupComplete || false);
-  } catch (error) {
-    console.error('Error during sign-in:', error);
+  if (!user.emailVerified) {
+    throw new Error('Email not verified. Please verify your email before logging in.');
   }
+
+  const userDoc = await getDoc(doc(db, 'users', user.uid));
+  const userData = userDoc.data() || {};
+
+  setAuthenticated(true);
+  setProfileSetupComplete(userData.profileSetupComplete || false);
 };
 
 const signInWithGoogle = async (googleResponse, setAuthenticated, setProfileSetupComplete) => {
   const { id_token } = googleResponse.params;
   const credential = GoogleAuthProvider.credential(id_token);
 
-  try {
-    const userCredential = await signInWithCredential(auth, credential);
-    const user = userCredential.user;
+  const userCredential = await signInWithCredential(auth, credential);
+  const user = userCredential.user;
 
-    const { uid, email, displayName, photoURL } = user;
+  const { uid, email, displayName, photoURL } = user;
+  const userDocRef = doc(db, 'users', uid);
+  const userDoc = await getDoc(userDocRef);
 
-    const userDocRef = doc(db, 'users', uid);
-
-    const userDoc = await getDoc(userDocRef);
-    if (userDoc.exists()) {
-      await updateDoc(userDocRef, {
-        displayName: displayName || userDoc.data().displayName,
-        photoURL: photoURL || userDoc.data().photoURL,
-        lastLogin: serverTimestamp(),
-      });
-    } else {
-      await setDoc(userDocRef, {
-        email,
-        displayName,
-        photoURL,
-        profileSetupComplete: false,
-        createdAt: serverTimestamp(),
-      });
-    }
-
-    const userData = (await getDoc(userDocRef)).data();
-    setAuthenticated(true);
-    setProfileSetupComplete(userData.profileSetupComplete || false);
-  } catch (error) {
-    console.error('Error signing in with Google:', error.message);
-    throw new Error('Failed to sign in with Google. Please try again.');
+  if (userDoc.exists()) {
+    await updateDoc(userDocRef, {
+      displayName: displayName || userDoc.data().displayName,
+      photoURL: photoURL || userDoc.data().photoURL,
+      lastLogin: serverTimestamp(),
+    });
+  } else {
+    await setDoc(userDocRef, {
+      email,
+      displayName,
+      photoURL,
+      profileSetupComplete: false,
+      createdAt: serverTimestamp(),
+    });
   }
+
+  const userData = (await getDoc(userDocRef)).data();
+  setAuthenticated(true);
+  setProfileSetupComplete(userData.profileSetupComplete || false);
 };
 
 const sendPasswordResetEmail = async (email) => {
   try {
-    await firebase.auth().sendPasswordResetEmail(email);
+    await firebaseSendPasswordResetEmail(auth, email);
   } catch (error) {
-    console.error('Error sending password reset email:', error.message);
     throw new Error(handleFirebaseError(error));
   }
 };
