@@ -185,31 +185,32 @@ const GoogleFitStepDisplay = ({ onStepsUpdate, onStepsError, onStepsLoading }) =
                 await initializeHealthKit();
             } else {
                 const permissionGranted = await requestAndroidPermission();
+                console.log('[Steps] permission granted:', permissionGranted);
                 if (!permissionGranted) {
                     onStepsError?.('permission_denied');
                     throw new Error('Permission denied');
                 }
 
-                const alreadyAuthorized = await AsyncStorage.getItem(GOOGLE_FIT_AUTH_KEY);
-                if (!alreadyAuthorized) {
-                    const options = {
-                        scopes: [
-                            Scopes.FITNESS_ACTIVITY_READ,
-                            Scopes.FITNESS_BODY_READ,
-                        ],
-                    };
-                    const authResult = await GoogleFit.authorize(options);
-                    if (!authResult.success) {
-                        onStepsError?.('auth_failed');
-                        throw new Error('Authorization failed');
-                    }
-                    await AsyncStorage.setItem(GOOGLE_FIT_AUTH_KEY, 'true');
+                const options = {
+                    scopes: [
+                        Scopes.FITNESS_ACTIVITY_READ,
+                        Scopes.FITNESS_BODY_READ,
+                    ],
+                };
+                const authResult = await GoogleFit.authorize(options);
+                console.log('[Steps] auth result:', JSON.stringify(authResult));
+                if (!authResult.success) {
+                    onStepsError?.('auth_failed');
+                    throw new Error('Authorization failed');
                 }
+                await AsyncStorage.setItem(GOOGLE_FIT_AUTH_KEY, 'true');
             }
+            console.log('[Steps] starting fetch');
             await new Promise(resolve => setTimeout(resolve, 500));
             await fetchLast7DaysSteps();
             await updateTodaySteps();
             setInitialized(true);
+            console.log('[Steps] initialize complete');
         } catch (err) {
             console.log('[Steps] initialize failed:', err?.message || err);
         } finally {
