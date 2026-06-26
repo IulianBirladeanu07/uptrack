@@ -212,6 +212,7 @@ const WeightTracker = () => {
     const [modalVisible,   setModalVisible]   = useState(false);
     const [chartPeriod,    setChartPeriod]    = useState('7');
     const [expandedWeeks,  setExpandedWeeks]  = useState({});
+    const [chartWidth,     setChartWidth]     = useState(0);
 
     const [weightInput, setWeightInput] = useState('');
     const [isValid,     setIsValid]     = useState(true);
@@ -501,7 +502,10 @@ const WeightTracker = () => {
                     </View>
                 </View>
 
-                <View style={styles.card}>
+                <View
+                    style={styles.card}
+                    onLayout={e => setChartWidth(e.nativeEvent.layout.width - spacing[5] * 2)}
+                >
                     <View style={styles.cardHeader}>
                         <Text style={styles.cardTitle}>Progress</Text>
                         <View style={styles.periodPills}>
@@ -523,7 +527,9 @@ const WeightTracker = () => {
                             ))}
                         </View>
                     </View>
-                    <WeightChart data={trendData} period={chartPeriod} goalWeight={goalWeight} />
+                    {chartWidth > 0 && (
+                        <WeightChart data={trendData} period={chartPeriod} goalWeight={goalWeight} width={chartWidth} />
+                    )}
                 </View>
 
                 {weeklyGroups.length > 0 && (
@@ -695,7 +701,7 @@ const styles = createStyles(() => ({
     screen:        { flex: 1, backgroundColor: colors.background.primary },
     loadingScreen: { flex: 1, backgroundColor: colors.background.primary, justifyContent: 'center', alignItems: 'center' },
     scroll:        { flex: 1 },
-    scrollContent: { paddingHorizontal: spacing[4], paddingTop: spacing[3], gap: spacing[3] },
+    scrollContent: { paddingHorizontal: spacing[4], paddingTop: spacing[3], gap: spacing[5] },
 
     heroCard: {
         backgroundColor: colors.background.secondary,

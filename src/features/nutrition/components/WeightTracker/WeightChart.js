@@ -1,10 +1,8 @@
 import React, { useMemo } from 'react';
-import { View, Text, Dimensions } from 'react-native';
+import { View, Text } from 'react-native';
 import Svg, { Path, Circle, Text as SvgText, G } from 'react-native-svg';
 import { colors, spacing, fontSize, fontWeight } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export const PERIODS = [
     { key: '7',  label: 'Week' },
@@ -13,9 +11,9 @@ export const PERIODS = [
 ];
 
 const CHART_H    = 160;
+const PAD_SIDE   = 10;
 const PAD_TOP    = 10;
 const PAD_BOTTOM = 40;
-const PAD_SIDE   = 12;
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -65,9 +63,8 @@ const toY = (w, yMin, yMax, top, bottom) =>
 const labelAnchor = (i, total) =>
     i === 0 ? 'start' : i === total - 1 ? 'end' : 'middle';
 
-const WeightChart = ({ data, period }) => {
-    const outerW  = SCREEN_WIDTH - spacing[4] * 4 + spacing[3];
-    const drawW   = outerW - PAD_SIDE * 2;
+const WeightChart = ({ data, period, width }) => {
+    const drawW   = width - PAD_SIDE * 2;
     const drawTop = PAD_TOP;
     const drawBot = CHART_H - PAD_BOTTOM;
 
@@ -175,53 +172,51 @@ const WeightChart = ({ data, period }) => {
     }
 
     return (
-        <View>
-            <Svg width={outerW} height={CHART_H}>
-                <G x={PAD_SIDE}>
-                    <Path d={areaPath} fill={colors.accent.primary} fillOpacity={0.07} />
-                    <Path
-                        d={linePath}
-                        stroke={colors.accent.primary}
-                        strokeWidth="2"
-                        fill="none"
-                        strokeLinejoin="round"
-                        strokeLinecap="round"
-                    />
+        <Svg width={width} height={CHART_H}>
+            <G x={PAD_SIDE}>
+                <Path d={areaPath} fill={colors.accent.primary} fillOpacity={0.07} />
+                <Path
+                    d={linePath}
+                    stroke={colors.accent.primary}
+                    strokeWidth="2"
+                    fill="none"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                />
 
-                    {points.map(p => (
-                        <React.Fragment key={p.key}>
-                            <Circle cx={p.x} cy={p.y} r={3.5} fill={colors.accent.primary} />
-                            <SvgText
-                                x={p.x}
-                                y={p.above ? p.y - 13 : p.y + 20}
-                                fontSize={9}
-                                fontWeight="700"
-                                fill={colors.accent.primary}
-                                textAnchor={labelAnchor(p.idx, p.total)}
-                            >
-                                {p.weight.toFixed(1)}
-                            </SvgText>
-                        </React.Fragment>
+                {points.map(p => (
+                    <React.Fragment key={p.key}>
+                        <Circle cx={p.x} cy={p.y} r={3.5} fill={colors.accent.primary} />
+                        <SvgText
+                            x={p.x}
+                            y={p.above ? p.y - 13 : p.y + 20}
+                            fontSize={9}
+                            fontWeight="700"
+                            fill={colors.accent.primary}
+                            textAnchor={labelAnchor(p.idx, p.total)}
+                        >
+                            {p.weight.toFixed(1)}
+                        </SvgText>
+                    </React.Fragment>
+                ))}
+
+                {xLabels
+                    .filter((_, i) => period !== '8W' || i % 2 === 0)
+                    .map(l => (
+                        <SvgText
+                            key={l.key}
+                            x={l.x}
+                            y={CHART_H - 10}
+                            fontSize={9}
+                            fontWeight="500"
+                            fill={colors.text.quaternary}
+                            textAnchor={labelAnchor(l.index, l.total)}
+                        >
+                            {l.label}
+                        </SvgText>
                     ))}
-
-                    {xLabels
-                        .filter((_, i) => period !== '8W' || i % 2 === 0)
-                        .map(l => (
-                            <SvgText
-                                key={l.key}
-                                x={l.x}
-                                y={CHART_H - 10}
-                                fontSize={9}
-                                fontWeight="500"
-                                fill={colors.text.quaternary}
-                                textAnchor={labelAnchor(l.index, l.total)}
-                            >
-                                {l.label}
-                            </SvgText>
-                        ))}
-                </G>
-            </Svg>
-        </View>
+            </G>
+        </Svg>
     );
 };
 

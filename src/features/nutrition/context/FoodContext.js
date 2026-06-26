@@ -148,8 +148,13 @@ export const FoodProvider = ({ children, initialUserData }) => {
     const mealCache         = useRef(new MealCache());
     const mountedRef        = useRef(true);
     const pendingOps        = useRef(new Set());
+    const selectedDateRef   = useRef(selectedDate);
 
     const { userData, refreshUserData } = useContext(AuthContext);
+
+    useEffect(() => {
+        selectedDateRef.current = selectedDate;
+    }, [selectedDate]);
 
     const nutritionHookData = useDailyNutrition(
         mealState.breakfast, mealState.lunch, mealState.dinner, mealState.snacks,
@@ -185,6 +190,12 @@ export const FoodProvider = ({ children, initialUserData }) => {
         }, 0);
         return () => clearTimeout(id);
     }, [cacheVersion]);
+
+    useEffect(() => {
+        if (!mountedRef.current) return;
+        const key = formatDate(selectedDateRef.current);
+        setDailySteps(mealCache.current.getSteps(key));
+    }, [stepsVersion, selectedDate]);
 
     const getCaloriesForDateRange = useCallback((startDate, endDate) =>
         mealCache.current.getDateRange(startDate, endDate).map(({ date, meals }) => ({
@@ -222,19 +233,18 @@ export const FoodProvider = ({ children, initialUserData }) => {
 
     const updateMealState = useCallback((mealType, foods) => {
         if (!mountedRef.current) return;
-        const dateKey = formatDate(selectedDate);
+        const dateKey = formatDate(selectedDateRef.current);
         setMealState(prev => ({ ...prev, [mealType]: foods }));
         mealCache.current.updateMealType(dateKey, mealType, foods);
         setCacheVersion(v => v + 1);
-    }, [selectedDate]);
+    }, []);
 
     const updateDailySteps = useCallback((steps, dateKey) => {
         if (!mountedRef.current) return;
-        const key = dateKey || formatDate(selectedDate);
+        const key = dateKey || formatDate(selectedDateRef.current);
         mealCache.current.setSteps(key, steps);
-        if (key === formatDate(selectedDate)) setDailySteps(steps);
         setStepsVersion(v => v + 1);
-    }, [selectedDate]);
+    }, []);
 
     const handleStepsError = useCallback((errorCode) => {
         if (!mountedRef.current) return;
@@ -247,16 +257,16 @@ export const FoodProvider = ({ children, initialUserData }) => {
     }, []);
 
     const getWeeklyAvgSteps = useCallback(() => {
-        const endDate   = new Date(selectedDate);
+        const endDate   = new Date(selectedDateRef.current);
         const startDate = new Date(endDate);
         startDate.setDate(endDate.getDate() - 7);
         const data          = mealCache.current.getStepsRange(startDate, endDate);
-        const todayKey      = formatDate(selectedDate);
+        const todayKey      = formatDate(selectedDateRef.current);
         const isToday       = todayKey === formatDate(new Date());
         const completedDays = isToday ? data.filter(d => d.date !== todayKey) : data;
         const total         = completedDays.reduce((sum, d) => sum + d.steps, 0);
         return completedDays.length > 0 ? Math.round(total / completedDays.length) : 0;
-    }, [selectedDate]);
+    }, []);
 
     const getNutritionForDateRange = useCallback((startDate, endDate) =>
         mealCache.current.getDateRange(startDate, endDate).map(({ date, meals }) => {
@@ -283,7 +293,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
 
     const handleAddMeal = useCallback(async (mealType, foods, mealDate) => {
         if (!currentUser || !mealType || !foods?.length) throw new Error('Invalid meal parameters');
-        const formattedDate = formatDate(mealDate || selectedDate);
+        const formattedDate = formatDate(mealDate || selectedDateRef.current);
         const operationKey  = `add-meal-${formattedDate}-${mealType}`;
         return executeWithLock(operationKey, async () => {
             try {
@@ -298,11 +308,11 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 throw error;
             }
         });
-    }, [currentUser, selectedDate, updateMealState, executeWithLock, handleError, serializeCacheForPersist]);
+    }, [currentUser, updateMealState, executeWithLock, handleError, serializeCacheForPersist]);
 
     const handleDeleteMeal = useCallback(async (mealType, foodId) => {
         if (!currentUser || !mealType || !foodId) return false;
-        const formattedDate = formatDate(selectedDate);
+        const formattedDate = formatDate(selectedDateRef.current);
         const operationKey  = `delete-meal-${formattedDate}-${mealType}-${foodId}`;
         return executeWithLock(operationKey, async () => {
             try {
@@ -317,11 +327,11 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 return false;
             }
         }) || false;
-    }, [currentUser, selectedDate, updateMealState, executeWithLock, handleError, serializeCacheForPersist]);
+    }, [currentUser, updateMealState, executeWithLock, handleError, serializeCacheForPersist]);
 
     const updateMealInDatabase = useCallback(async (mealType, foodId, updatedFoodDetails) => {
         if (!currentUser || !mealType || !foodId || !updatedFoodDetails) throw new Error('Invalid update parameters');
-        const formattedDate = formatDate(selectedDate);
+        const formattedDate = formatDate(selectedDateRef.current);
         const operationKey  = `update-meal-${formattedDate}-${mealType}-${foodId}`;
         return executeWithLock(operationKey, async () => {
             try {
@@ -335,20 +345,18 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 throw error;
             }
         });
-    }, [currentUser, selectedDate, updateMealState, executeWithLock, handleError, serializeCacheForPersist]);
+    }, [currentUser, updateMealState, executeWithLock, handleError, serializeCacheForPersist]);
 
     const updateCurrentDayMeals = useCallback((date) => {
         if (!mountedRef.current) return;
         const dateKey  = formatDate(date);
         const dayMeals = mealCache.current.get(dateKey);
-        const daySteps = mealCache.current.getSteps(dateKey);
         setMealState({
             breakfast: dayMeals.breakfast || [],
             lunch:     dayMeals.lunch     || [],
             dinner:    dayMeals.dinner    || [],
             snacks:    dayMeals.snacks    || [],
         });
-        setDailySteps(daySteps);
     }, []);
 
     const handleDateChange = useCallback((date) => {
@@ -463,7 +471,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
     }, [initializeAppData]);
 
     const getTrendData = useCallback((days = 7) => {
-        const endDate   = new Date(selectedDate);
+        const endDate   = new Date(selectedDateRef.current);
         const startDate = new Date(endDate);
         startDate.setDate(endDate.getDate() - days + 1);
         const daily   = mealCache.current.getDateRange(startDate, endDate).map(({ date, meals }) => ({
@@ -473,7 +481,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
         const total   = daily.reduce((sum, d) => sum + d.calories, 0);
         const average = daily.length ? total / daily.length : 0;
         return { daily, total, average };
-    }, [selectedDate]);
+    }, []);
 
     const contextValue = useMemo(() => ({
         breakfastFoods:   mealState.breakfast,
