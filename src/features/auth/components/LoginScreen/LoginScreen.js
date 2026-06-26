@@ -22,7 +22,8 @@ const LoginScreen = () => {
   const { setAuthenticated, setProfileSetupComplete } = useContext(AuthContext);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    androidClientId: firebaseAuthService.getGoogleClientId(),
+    androidClientId: firebaseAuthService.getGoogleAndroidClientId(),
+    webClientId: firebaseAuthService.getGoogleWebClientId(),
   });
 
   useEffect(() => {

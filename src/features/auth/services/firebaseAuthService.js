@@ -84,13 +84,16 @@ const sendPasswordResetEmail = async (email) => {
   }
 };
 
-const getGoogleClientId = () => {
+const getGoogleAndroidClientId = () => {
   return Constants.expoConfig.extra.googleAndroidClientId;
+};
+
+const getGoogleWebClientId = () => {
+  return Constants.expoConfig.extra.googleWebClientId;
 };
 
 export const getCurrentUser = () => {
   const user = auth.currentUser;
-
   if (!user) {
     throw new Error('User not authenticated.');
   }
@@ -101,6 +104,7 @@ export default {
   signInWithEmailAndPassword,
   signInWithGoogle,
   sendPasswordResetEmail,
-  getGoogleClientId,
+  getGoogleAndroidClientId,
+  getGoogleWebClientId,
   getCurrentUser,
 };
