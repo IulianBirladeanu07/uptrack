@@ -46,7 +46,7 @@ const LoginScreen = () => {
       await firebaseAuthService.signInWithGoogle({ params: { id_token: idToken } }, setAuthenticated, setProfileSetupComplete);
     } catch (e) {
       if (e.code !== statusCodes.SIGN_IN_CANCELLED) {
-        setError('Failed to sign in with Google. Please try again.');
+        setError(e.message || 'Failed to sign in with Google. Please try again.');
       }
     } finally {
       setGoogleLoading(false);
