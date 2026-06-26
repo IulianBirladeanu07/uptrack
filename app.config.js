@@ -10,13 +10,13 @@ module.exports = {
     plugins: [
       "expo-font",
       "expo-web-browser",
+      "@react-native-google-signin/google-signin",
       [
         "expo-build-properties",
         {
           android: {
             newArchEnabled: true,
             minSdkVersion: 26,
-
           },
           ios: {
             useFrameworks: "static",

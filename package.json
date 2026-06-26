@@ -17,6 +17,7 @@
     "@react-native-async-storage/async-storage": "1.24.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-picker/picker": "2.11.1",
+    "@react-native-google-signin/google-signin": "^13.1.0",
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/native-stack": "^6.9.26",
     "@supabase/supabase-js": "^2.48.1",
@@ -70,7 +71,8 @@
           "lucide-react-native",
           "react-native-google-fit",
           "react-native-health",
-          "react-native-vector-icons"
+          "react-native-vector-icons",
+          "@react-native-google-signin/google-signin"
         ],
         "listUnknownPackages": false
       }

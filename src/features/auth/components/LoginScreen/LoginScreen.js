@@ -1,15 +1,16 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useContext } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../../context/AuthContext';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import firebaseAuthService from '../../services/firebaseAuthService';
 
-WebBrowser.maybeCompleteAuthSession();
+GoogleSignin.configure({
+  webClientId: firebaseAuthService.getGoogleWebClientId(),
+});
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -20,19 +21,6 @@ const LoginScreen = () => {
 
   const navigation = useNavigation();
   const { setAuthenticated, setProfileSetupComplete } = useContext(AuthContext);
-
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    androidClientId: firebaseAuthService.getGoogleAndroidClientId(),
-    webClientId: firebaseAuthService.getGoogleWebClientId(),
-  });
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      handleGoogleSignIn(response);
-    } else if (response?.type === 'error') {
-      Alert.alert('Error', 'Google Sign-In failed.');
-    }
-  }, [response]);
 
   const handleSignIn = async () => {
     setLoading(true);
@@ -45,12 +33,20 @@ const LoginScreen = () => {
     }
   };
 
-  const handleGoogleSignIn = async (googleResponse) => {
+  const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     try {
-      await firebaseAuthService.signInWithGoogle(googleResponse, setAuthenticated, setProfileSetupComplete, navigation);
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken;
+      if (!idToken) throw new Error('No id_token received');
+      await firebaseAuthService.signInWithGoogle({ params: { id_token: idToken } }, setAuthenticated, setProfileSetupComplete);
     } catch (error) {
-      Alert.alert('Error', 'Failed to sign in with Google: ' + error.message);
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user cancelled
+      } else {
+        Alert.alert('Error', 'Failed to sign in with Google: ' + error.message);
+      }
     } finally {
       setGoogleLoading(false);
     }
@@ -98,8 +94,8 @@ const LoginScreen = () => {
 
       <TouchableOpacity
         style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
-        onPress={() => promptAsync()}
-        disabled={!request || googleLoading}
+        onPress={handleGoogleSignIn}
+        disabled={googleLoading}
       >
         {googleLoading ? (
           <ActivityIndicator color={colors.text.primary} />
