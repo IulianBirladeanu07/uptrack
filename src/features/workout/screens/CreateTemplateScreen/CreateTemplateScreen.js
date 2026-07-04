@@ -95,6 +95,10 @@ const CreateTemplate = ({ navigation, route }) => {
   const memoizedSetPreferredDays = useCallback((value) => setPreferredDays(value), []);
 
   const handleBackPress = useCallback(() => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+      return true;
+    }
     if (exercises.length > 0 || templateName.trim() !== '' || preferredDays.length > 0) {
       Alert.alert(
         "Discard Changes?",
@@ -112,7 +116,7 @@ const CreateTemplate = ({ navigation, route }) => {
     }
     navigation.goBack();
     return true;
-  }, [navigation, exercises.length, templateName, preferredDays]);
+  }, [navigation, currentStep, exercises.length, templateName, preferredDays]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
