@@ -89,7 +89,7 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
     }, [fetchData]);
 
     const handleCreate = useCallback(() => {
-        navigation.navigate(activeSegment === 'Splits' ? 'CreateSplit' : 'CreateWorkout', { templates });
+        navigation.navigate(activeSegment === 'Splits' ? 'CreateSplit' : 'CreateTemplate', { templates });
     }, [navigation, activeSegment, templates]);
 
     const handleDeleteTemplate = useCallback(async (templateId) => {

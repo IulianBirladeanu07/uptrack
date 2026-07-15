@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     View, Text, TouchableOpacity, ScrollView, Modal, Pressable,
-    ActivityIndicator, Platform, Vibration,
+    ActivityIndicator, Platform, Vibration, Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -216,6 +216,7 @@ const WeightTracker = () => {
 
     const [weightInput, setWeightInput] = useState('');
     const [isValid,     setIsValid]     = useState(true);
+    const [isSelected,  setIsSelected]  = useState(false);
 
     const [committedDate] = useState(() => {
         const d = new Date();
@@ -236,6 +237,7 @@ const WeightTracker = () => {
     const longPressTimer    = useRef(null);
     const longPressInterval = useRef(null);
     const freshEntryRef     = useRef(true);
+    const cursorOpacity     = useRef(new Animated.Value(1)).current;
     const dateOptions       = useMemo(() => buildDateOptions(), []);
 
     const isBulking    = goalWeight != null && startWeight != null && goalWeight > startWeight;
@@ -270,6 +272,21 @@ const WeightTracker = () => {
     }, []);
 
     useEffect(() => { if (userId) loadData(); }, [userId, loadData]);
+
+    useEffect(() => {
+        if (isSelected || !modalVisible) {
+            cursorOpacity.setValue(1);
+            return;
+        }
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(cursorOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+                Animated.timing(cursorOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+            ])
+        );
+        loop.start();
+        return () => loop.stop();
+    }, [isSelected, modalVisible, cursorOpacity]);
 
     const allEntries = useMemo(() => processWeightInsForDisplay(weightIns, 60), [weightIns]);
 
@@ -319,6 +336,7 @@ const WeightTracker = () => {
 
         const isFresh = freshEntryRef.current;
         freshEntryRef.current = false;
+        setIsSelected(false);
 
         let next = weightInput;
         if (key === 'backspace') {
@@ -342,6 +360,7 @@ const WeightTracker = () => {
     const doAdjust = useCallback((delta) => {
         if (Platform.OS === 'ios') Vibration.vibrate(10);
         freshEntryRef.current = false;
+        setIsSelected(false);
         setWeightInput(prev => adjustWeight(prev, delta));
         setIsValid(true);
     }, []);
@@ -369,6 +388,7 @@ const WeightTracker = () => {
             setIsValid(false);
         }
         freshEntryRef.current = true;
+        setIsSelected(true);
     }, [allEntries]);
 
     const handleSave = async () => {
@@ -399,10 +419,14 @@ const WeightTracker = () => {
             setIsValid(false);
         }
         freshEntryRef.current = true;
+        setIsSelected(true);
         setModalVisible(true);
     };
 
-    const closeModal = () => { setModalVisible(false); };
+    const closeModal = () => {
+        setModalVisible(false);
+        setIsSelected(false);
+    };
 
     const toggleWeek = useCallback((weekStart) => {
         setExpandedWeeks(prev => ({ ...prev, [weekStart]: !prev[weekStart] }));
@@ -433,7 +457,7 @@ const WeightTracker = () => {
             >
                 <View style={styles.heroCard}>
                     <View style={styles.heroTopRow}>
-                        <Text style={styles.eyebrow}>Weekly Average</Text>
+                        <Text style={styles.eyebrow}>Today's Weight</Text>
                         {loggedCount > 0 && (
                             <Text style={styles.loggedCount}>{loggedCount}/7 logged</Text>
                         )}
@@ -643,16 +667,20 @@ const WeightTracker = () => {
                                     <Ionicons name="remove" size={24} color={colors.text.primary} />
                                 </TouchableOpacity>
 
-                                <View style={styles.weightDisplay}>
-                                    <View style={styles.weightInputRow}>
+                                <View style={styles.weightInputRow}>
+                                    <Pressable
+                                        onPress={() => {
+                                            freshEntryRef.current = true;
+                                            setIsSelected(true);
+                                        }}
+                                        hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+                                        style={[styles.weightInputBox, isSelected && styles.weightInputBoxSelected]}
+                                    >
                                         <Text style={[styles.weightInput, showError && styles.weightInputError]}>
                                             {weightInput || '0.0'}
                                         </Text>
-                                        <Text style={[styles.weightUnit, showError && styles.weightUnitError]}>kg</Text>
-                                    </View>
-                                    <Text style={[styles.updateHint, !isExistingEntry && styles.updateHintHidden]}>
-                                        updates existing entry
-                                    </Text>
+                                    </Pressable>
+                                    <Text style={[styles.weightUnit, showError && styles.weightUnitError]}>kg</Text>
                                 </View>
 
                                 <TouchableOpacity
@@ -666,6 +694,10 @@ const WeightTracker = () => {
                                     <Ionicons name="add" size={24} color={colors.text.primary} />
                                 </TouchableOpacity>
                             </View>
+
+                            <Text style={[styles.updateHint, !isExistingEntry && styles.updateHintHidden]}>
+                                updates existing entry
+                            </Text>
 
                             <Keypad onPress={handleKeypadPress} />
 
@@ -935,10 +967,20 @@ const styles = createStyles(() => ({
     lastLoggedWeight: { fontSize: fontSize[22], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.5 },
     lastLoggedUnit:   { fontSize: fontSize[14], fontWeight: fontWeight.medium, color: colors.text.secondary },
     lastLoggedDate:   { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary },
-    stepperRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[4], marginBottom: spacing[4] },
-    stepperBtn:       { width: spacing[12], height: spacing[12], borderRadius: radius[5], backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.default, alignItems: 'center', justifyContent: 'center' },
-    weightDisplay:    { alignItems: 'center', gap: spacing[1] },
-    weightInputRow:   { flexDirection: 'row', alignItems: 'baseline', gap: spacing[1] },
+
+    stepperRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[4], marginBottom: spacing[1] },
+    stepperBtn:     { width: spacing[12], height: spacing[12], borderRadius: radius[5], backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.default, alignItems: 'center', justifyContent: 'center' },
+    weightInputRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing[1] },
+
+    weightInputBox: {
+        paddingHorizontal: spacing[3],
+        paddingVertical: spacing[1],
+        borderBottomWidth: 2,
+        borderBottomColor: colors.border.default,
+    },
+    weightInputBoxSelected: {
+        borderBottomColor: colors.accent.primary,
+    },    
     weightInput: {
         fontSize:           fontSize[56],
         fontWeight:         fontWeight.black,
@@ -949,9 +991,17 @@ const styles = createStyles(() => ({
         includeFontPadding: false,
     },
     weightInputError: { color: colors.accent.error },
-    weightUnit:       { fontSize: fontSize[18], fontWeight: fontWeight.semibold, color: colors.text.secondary },
+
+    weightUnit:       { fontSize: fontSize[20], fontWeight: fontWeight.semibold, color: colors.text.secondary },
     weightUnitError:  { color: colors.accent.error },
-    updateHint:       { fontSize: fontSize[10], fontWeight: fontWeight.medium, color: colors.text.quaternary, letterSpacing: 0.2 },
+    updateHint: {
+        fontSize:      fontSize[10],
+        fontWeight:    fontWeight.medium,
+        color:         colors.text.quaternary,
+        letterSpacing: 0.2,
+        textAlign:     'center',
+        marginBottom:  spacing[4],
+    },
     updateHintHidden: { opacity: 0 },
 
     keypad:    { gap: spacing[2], marginBottom: spacing[4] },

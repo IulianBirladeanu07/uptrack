@@ -2,8 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { normalize } from '../../../../../shared/hooks/useResponsive';
-import { COLORS } from './ReviewStepStyles';
+import { colors, spacing, fontSize } from '../../../../../shared/theme';
 import styles from './ReviewStepStyles';
 import Svg, { Path, Text as SvgText, Circle, G } from 'react-native-svg';
 import { daysOfWeek } from '../constants/CreateSplitScreenConstants';
@@ -13,8 +12,8 @@ const pieChartColors = [
   '#EF4444', '#3B82F6', '#A3E635', '#F97316', '#BE185D'
 ];
 
-const CustomPieChart = ({ data, size = normalize(200), selectedIndex, onPress, colors }) => {
-  const radius = size / 2 - normalize(10);
+const CustomPieChart = ({ data, size = spacing[45], selectedIndex, onPress, chartColors }) => {
+  const radius = size / 2 - spacing[2];
   const center = size / 2;
 
   const createPath = (startAngle, endAngle, radius, centerX, centerY) => {
@@ -48,7 +47,7 @@ const CustomPieChart = ({ data, size = normalize(200), selectedIndex, onPress, c
           {data.map((item, index) => {
             const angle = (item.value / total) * 360;
             const isSelected = selectedIndex === index;
-            const adjustedRadius = isSelected ? radius + normalize(8) : radius;
+            const adjustedRadius = isSelected ? radius + spacing[2] : radius;
 
             const path = createPath(currentAngle, currentAngle + angle, adjustedRadius, center, center);
             currentAngle += angle;
@@ -57,10 +56,10 @@ const CustomPieChart = ({ data, size = normalize(200), selectedIndex, onPress, c
               <G key={index}>
                 <Path
                   d={path}
-                  fill={colors[index % colors.length]}
+                  fill={chartColors[index % chartColors.length]}
                   opacity={isSelected ? 1 : 0.8}
-                  stroke={COLORS.background}
-                  strokeWidth={normalize(2)}
+                  stroke={colors.background.primary}
+                  strokeWidth={2}
                 />
                 <TouchableOpacity
                   style={{
@@ -77,7 +76,7 @@ const CustomPieChart = ({ data, size = normalize(200), selectedIndex, onPress, c
                     d={path}
                     fill="transparent"
                     stroke="transparent"
-                    strokeWidth={normalize(2)}
+                    strokeWidth={2}
                   />
                 </TouchableOpacity>
               </G>
@@ -88,27 +87,27 @@ const CustomPieChart = ({ data, size = normalize(200), selectedIndex, onPress, c
             cx={center}
             cy={center}
             r={radius * 0.4}
-            fill={COLORS.background}
-            stroke="rgba(255, 255, 255, 0.1)"
+            fill={colors.background.primary}
+            stroke={colors.border.light}
             strokeWidth={1}
           />
 
           <SvgText
             x={center}
-            y={center - normalize(8)}
+            y={center - spacing[2]}
             textAnchor="middle"
-            fontSize={normalize(16)}
+            fontSize={fontSize[16]}
             fontWeight="bold"
-            fill={COLORS.textPrimary}
+            fill={colors.text.primary}
           >
             {data.length}
           </SvgText>
           <SvgText
             x={center}
-            y={center + normalize(8)}
+            y={center + spacing[2]}
             textAnchor="middle"
-            fontSize={normalize(10)}
-            fill={COLORS.textSecondary}
+            fontSize={fontSize[10]}
+            fill={colors.text.secondary}
           >
             Muscles
           </SvgText>
@@ -119,7 +118,7 @@ const CustomPieChart = ({ data, size = normalize(200), selectedIndex, onPress, c
 };
 
 const ReviewStep = ({ splitData, setCurrentStep }) => {
-  const [selectedMuscleIndex, setSelectedMuscleIndex] = useState(0); 
+  const [selectedMuscleIndex, setSelectedMuscleIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
   const [animatedValue] = useState(new Animated.Value(0));
   const muscleListRef = useRef(null);
@@ -274,7 +273,7 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
       }]
     }]}>
       <LinearGradient
-        colors={['rgba(255, 133, 53, 0.15)', 'rgba(0, 212, 255, 0.1)', 'transparent']}
+        colors={[colors.faded.primary, colors.faded.cyan, 'transparent']}
         start={[0, 0]}
         end={[1, 1]}
         style={styles.gradientOverlay}
@@ -294,21 +293,21 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
             onPress={() => setCurrentStep(0)}
             activeOpacity={0.8}
           >
-            <Feather name="edit-3" size={normalize(20)} color={COLORS.textPrimary} />
+            <Feather name="edit-3" size={spacing.iconMd} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.quickStats}>
           <View style={styles.statPill}>
-            <Ionicons name="fitness" size={normalize(16)} color={COLORS.accentPrimary} />
+            <Ionicons name="fitness" size={spacing.iconSm} color={colors.accent.primary} />
             <Text style={styles.statText}>{stats.workoutDays} workouts</Text>
           </View>
           <View style={styles.statPill}>
-            <Ionicons name="time" size={normalize(16)} color={COLORS.accentSecondary} />
+            <Ionicons name="time" size={spacing.iconSm} color={colors.accent.cyan} />
             <Text style={styles.statText}>{Math.round((stats.totalDuration) / 60 * 10) / 10}h total</Text>
           </View>
           <View style={styles.statPill}>
-            <Ionicons name="barbell" size={normalize(16)} color={COLORS.success} />
+            <Ionicons name="barbell" size={spacing.iconSm} color={colors.accent.successAlt} />
             <Text style={styles.statText}>{stats.totalSets} sets</Text>
           </View>
         </View>
@@ -331,8 +330,8 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
         >
           <Ionicons
             name={tab.icon}
-            size={normalize(18)}
-            color={activeTab === tab.id ? COLORS.accentPrimary : COLORS.textMuted}
+            size={spacing.iconMd}
+            color={activeTab === tab.id ? colors.accent.primary : colors.text.quaternary}
           />
           <Text style={[
             styles.tabText,
@@ -367,12 +366,12 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
               ]}>
                 <Ionicons
                   name={insight.icon}
-                  size={normalize(16)}
+                  size={spacing.iconSm}
                   color={
-                    insight.type === 'success' ? COLORS.success :
-                      insight.type === 'warning' ? '#f59e0b' :
-                        insight.type === 'error' ? '#ef4444' :
-                          '#3b82f6'
+                    insight.type === 'success' ? colors.accent.successAlt :
+                      insight.type === 'warning' ? colors.accent.warning :
+                        insight.type === 'error' ? colors.accent.errorAlt :
+                          colors.accent.blue
                   }
                 />
               </View>
@@ -388,17 +387,17 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
 
       <View style={styles.metricsGrid}>
         <View style={styles.metricCard}>
-          <Ionicons name="trending-up" size={normalize(24)} color={COLORS.accentPrimary} />
+          <Ionicons name="trending-up" size={spacing.iconLg} color={colors.accent.primary} />
           <Text style={styles.metricValue}>{stats.avgDuration}m</Text>
           <Text style={styles.metricLabel}>Avg Session</Text>
         </View>
         <View style={styles.metricCard}>
-          <Ionicons name="repeat" size={normalize(24)} color={COLORS.accentSecondary} />
+          <Ionicons name="repeat" size={spacing.iconLg} color={colors.accent.cyan} />
           <Text style={styles.metricValue}>{stats.avgSets}</Text>
           <Text style={styles.metricLabel}>Sets/Session</Text>
         </View>
         <View style={styles.metricCard}>
-          <Ionicons name="body" size={normalize(24)} color={COLORS.success} />
+          <Ionicons name="body" size={spacing.iconLg} color={colors.accent.successAlt} />
           <Text style={styles.metricValue}>{stats.muscleGroupSets.length}</Text>
           <Text style={styles.metricLabel}>Muscle Groups</Text>
         </View>
@@ -417,12 +416,12 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
           <View style={styles.pieChartContainer}>
             <CustomPieChart
               data={pieChartData.length > 0 ? pieChartData : [{ muscle: 'No Data', value: 1 }]}
-              size={normalize(200)}
+              size={spacing[45]}
               selectedIndex={selectedMuscleIndex}
               onPress={(index) => {
                 setSelectedMuscleIndex(index);
               }}
-              colors={pieChartColors}
+              chartColors={pieChartColors}
             />
           </View>
 
@@ -506,12 +505,12 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
                     onPress={() => setSelectedDay(day.id)}
                   >
                     <View style={[
-                      styles.dayPill, 
+                      styles.dayPill,
                       isActive && styles.dayPillActive,
                       dayIsRest && !isActive && styles.restDayPill
                     ]}>
                       <Text style={[
-                        styles.dayPillText, 
+                        styles.dayPillText,
                         isActive && styles.dayPillTextActive,
                         dayIsRest && !isActive && styles.dayPillTextRest
                       ]}>
@@ -529,15 +528,15 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
               <Text style={styles.restDayTitle}>Rest & Recover</Text>
               <View style={styles.restMetrics}>
                 <View style={styles.restMetric}>
-                  <Ionicons name="time" size={normalize(16)} color={COLORS.textMuted} />
+                  <Ionicons name="time" size={spacing.iconSm} color={colors.text.quaternary} />
                   <Text style={styles.restMetricText}>Full Day Off</Text>
                 </View>
                 <View style={styles.restMetric}>
-                  <Ionicons name="walk" size={normalize(16)} color={COLORS.textMuted} />
+                  <Ionicons name="walk" size={spacing.iconSm} color={colors.text.quaternary} />
                   <Text style={styles.restMetricText}>Light Activity</Text>
                 </View>
                 <View style={styles.restMetric}>
-                  <Ionicons name="body" size={normalize(16)} color={COLORS.textMuted} />
+                  <Ionicons name="body" size={spacing.iconSm} color={colors.text.quaternary} />
                   <Text style={styles.restMetricText}>Recovery Focus</Text>
                 </View>
               </View>
@@ -564,15 +563,15 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
               </Text>
               <View style={styles.workoutMetrics}>
                 <View style={styles.workoutMetric}>
-                  <Ionicons name="time" size={normalize(16)} color={COLORS.textMuted} />
+                  <Ionicons name="time" size={spacing.iconSm} color={colors.text.quaternary} />
                   <Text style={styles.workoutMetricText}>{selectedWorkout.duration || 0} min</Text>
                 </View>
                 <View style={styles.workoutMetric}>
-                  <Ionicons name="repeat" size={normalize(16)} color={COLORS.textMuted} />
+                  <Ionicons name="repeat" size={spacing.iconSm} color={colors.text.quaternary} />
                   <Text style={styles.workoutMetricText}>{selectedWorkout.exercises?.length || 0} exercises</Text>
                 </View>
                 <View style={styles.workoutMetric}>
-                  <Ionicons name="barbell" size={normalize(16)} color={COLORS.textMuted} />
+                  <Ionicons name="barbell" size={spacing.iconSm} color={colors.text.quaternary} />
                   <Text style={styles.workoutMetricText}>
                     {selectedWorkout.exercises?.reduce((total, ex) => total + (parseInt(ex.numSets) || 0), 0) || 0} sets
                   </Text>

@@ -1,4 +1,4 @@
-import { signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, sendPasswordResetEmail as firebaseSendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, GoogleAuthProvider, signInWithCredential, sendPasswordResetEmail as firebaseSendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../auth/services/firebaseConfigService';
 import Constants from 'expo-constants';
@@ -31,6 +31,25 @@ const signInWithEmailAndPassword = async (email, password, setAuthenticated, set
 
   setAuthenticated(true);
   setProfileSetupComplete(userData.profileSetupComplete || false);
+};
+
+const signUpWithEmailAndPassword = async (email, password) => {
+  try {
+    const response = await createUserWithEmailAndPassword(auth, email, password);
+    const user = response.user;
+
+    await setDoc(doc(db, 'users', user.uid), {
+      email,
+      profileSetupComplete: false,
+      createdAt: serverTimestamp(),
+    });
+
+    await sendEmailVerification(user);
+
+    return user;
+  } catch (error) {
+    throw new Error(handleFirebaseError(error));
+  }
 };
 
 const signInWithGoogle = async (googleResponse, setAuthenticated, setProfileSetupComplete) => {
@@ -81,6 +100,11 @@ const getGoogleWebClientId = () => {
   return Constants.expoConfig.extra.googleWebClientId;
 };
 
+export const fetchUserProfile = async (uid) => {
+  const userDoc = await getDoc(doc(db, 'users', uid));
+  return userDoc.exists() ? userDoc.data() : null;
+};
+
 export const getCurrentUser = () => {
   const user = auth.currentUser;
   if (!user) {
@@ -91,6 +115,7 @@ export const getCurrentUser = () => {
 
 export default {
   signInWithEmailAndPassword,
+  signUpWithEmailAndPassword,
   signInWithGoogle,
   sendPasswordResetEmail,
   getGoogleAndroidClientId,

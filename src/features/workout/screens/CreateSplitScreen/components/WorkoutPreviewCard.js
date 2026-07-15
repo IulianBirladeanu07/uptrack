@@ -1,16 +1,9 @@
 import React, { useCallback, useMemo, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, LayoutAnimation, Haptics } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { normalize } from '../../../../../shared/hooks/useResponsive';
+import { colors, spacing } from '../../../../../shared/theme';
 import styles from './WorkoutPreviewCardStyles';
-import { workoutColors, daysOfWeek } from '../constants/CreateSplitScreenConstants';
-
-const colors = {
-  bg: '#0A0E13',
-  primary: '#FF9500',
-  textPrimary: '#F9FAFB',
-  textTertiary: '#6B7280',
-};
+import { workoutColors } from '../constants/CreateSplitScreenConstants';
 
 const WorkoutPreviewCard = React.memo(({
   workout,
@@ -19,37 +12,33 @@ const WorkoutPreviewCard = React.memo(({
   colorIndex,
   splitData,
   onRemove,
-  isRotationSchedule = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showAllExercises, setShowAllExercises] = useState(false);
-  const scaleAnimation = useRef(new Animated.Value(1)).current;
   const rotateAnimation = useRef(new Animated.Value(0)).current;
-  const fadeAnimation = useRef(new Animated.Value(0)).current;
   const buttonScaleAnimation = useRef(new Animated.Value(1)).current;
-  const footerFadeAnimation = useRef(new Animated.Value(1)).current;
 
   const getWorkoutVisualization = useCallback((wk) => {
     const isRest = wk.templateName?.toLowerCase() === 'rest';
     if (isRest) {
-      return workoutColors.find(c => c.category === 'rest') || { bg: 'rgba(107, 114, 128, 0.2)', text: colors.textPrimary, icon: 'bed' };
+      return workoutColors.find(c => c.category === 'rest') || { bg: colors.faded.surfaceMedium, text: colors.text.quaternary, icon: 'bed' };
     }
     const workoutName = (wk.templateName || '').toLowerCase();
     const muscleGroups = (wk.exercises || []).map(ex => (ex.muscleGroup || '').toLowerCase()).join(' ');
 
     if (workoutName.includes('cardio') || muscleGroups.includes('cardio')) {
-      return workoutColors.find(c => c.category === 'cardio') || { bg: '#3B82F6', text: '#FFFFFF', icon: 'bicycle' };
+      return workoutColors.find(c => c.category === 'cardio') || { bg: colors.accent.blue, text: colors.text.primary, icon: 'bicycle' };
     }
     if (workoutName.includes('hiit') || workoutName.includes('circuit')) {
-      return workoutColors.find(c => c.category === 'hiit') || { bg: '#F59E0B', text: '#FFFFFF', icon: 'flame' };
+      return workoutColors.find(c => c.category === 'hiit') || { bg: colors.accent.amber, text: colors.text.primary, icon: 'flame' };
     }
     if (workoutName.includes('yoga') || workoutName.includes('stretch')) {
-      return workoutColors.find(c => c.category === 'recovery') || { bg: '#10B981', text: '#FFFFFF', icon: 'yoga' };
+      return workoutColors.find(c => c.category === 'recovery') || { bg: colors.accent.success, text: colors.text.primary, icon: 'yoga' };
     }
     if (workoutName.includes('functional') || muscleGroups.includes('functional')) {
-      return workoutColors.find(c => c.category === 'functional') || { bg: '#8B5CF6', text: '#FFFFFF', icon: 'walk' };
+      return workoutColors.find(c => c.category === 'functional') || { bg: colors.accent.purple, text: colors.text.primary, icon: 'walk' };
     }
-    return workoutColors[colorIndex % workoutColors.length] || { bg: colors.primary, text: colors.textPrimary, icon: 'barbell' };
+    return workoutColors[colorIndex % workoutColors.length] || { bg: colors.accent.primary, text: colors.text.primary, icon: 'barbell' };
   }, [colorIndex]);
 
   const workoutVisualization = useMemo(() => getWorkoutVisualization(workout), [getWorkoutVisualization, workout]);
@@ -85,19 +74,7 @@ const WorkoutPreviewCard = React.memo(({
       duration: 250,
       useNativeDriver: true,
     }).start();
-
-    Animated.timing(fadeAnimation, {
-      toValue: isExpanded ? 0 : 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-
-    Animated.timing(footerFadeAnimation, {
-      toValue: isExpanded ? 1 : 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  }, [isExpanded, rotateAnimation, fadeAnimation, footerFadeAnimation, workout.exercises?.length]);
+  }, [isExpanded, rotateAnimation, workout.exercises?.length]);
 
   const handleQuickAdd = useCallback((event) => {
     event.stopPropagation();
@@ -139,15 +116,6 @@ const WorkoutPreviewCard = React.memo(({
     setShowAllExercises(prev => !prev);
   }, []);
 
-  const getDayDisplayName = useCallback((dayId) => {
-    if (isRotationSchedule) {
-      return `Day ${dayId}`;
-    } else {
-      const dayInfo = daysOfWeek.find(d => d.id === dayId);
-      return dayInfo?.name || 'day';
-    }
-  }, [isRotationSchedule]);
-
   if (!workout) return null;
 
   const totalSets = useMemo(() => {
@@ -176,161 +144,123 @@ const WorkoutPreviewCard = React.memo(({
 
   const hasMoreExercises = workout.exercises?.length > 4;
 
-  const cardStyles = useMemo(() => {
-    const baseStyles = [styles.workoutCard, { transform: [{ scale: scaleAnimation }] }];
-    if (isAssigned && isExpanded) {
-      baseStyles.push(styles.workoutCardAssignedExpanded);
-    } else if (isAssigned) {
-      baseStyles.push(styles.workoutCardAssigned);
-    } else if (isExpanded) {
-      baseStyles.push(styles.workoutCardExpanded);
-    }
-    return baseStyles;
-  }, [isAssigned, isExpanded, scaleAnimation]);
-
   return (
-    <Animated.View style={cardStyles}>
+    <View style={[styles.workoutCard, isAssigned && styles.workoutCardAssigned]}>
       <TouchableOpacity
-        activeOpacity={hasExercises ? 0.95 : 1}
+        activeOpacity={hasExercises ? 0.85 : 1}
         onPress={hasExercises ? handleToggleExpand : undefined}
-        style={styles.cardContainer}
-        delayPressIn={50}
+        style={styles.cardHeader}
       >
-        <View style={styles.cardHeader}>
-          <View style={styles.headerLeft}>
-            <View style={[styles.workoutIcon, { backgroundColor: workoutVisualization.bg }]}>
-              <Ionicons
-                name={workoutVisualization.icon}
-                size={normalize(22)}
-                color={workoutVisualization.text}
-              />
+        <View style={styles.headerLeft}>
+          <View style={[styles.workoutIcon, { backgroundColor: workoutVisualization.bg }]}>
+            <Ionicons
+              name={workoutVisualization.icon}
+              size={spacing.iconMd}
+              color={workoutVisualization.text}
+            />
+          </View>
+          <View style={styles.headerContent}>
+            <View style={styles.titleRow}>
+              <Text style={styles.workoutName} numberOfLines={1}>
+                {workout.templateName || 'Unnamed Workout'}
+              </Text>
+              {isAssigned && (
+                <View style={styles.assignedBadge}>
+                  <Text style={styles.assignedText}>Assigned</Text>
+                </View>
+              )}
             </View>
-            <View style={styles.headerContent}>
-              <View style={styles.titleRow}>
-                <Text style={styles.workoutName} numberOfLines={1}>
-                  {workout.templateName || 'Unnamed Workout'}
-                </Text>
-                {isAssigned && (
-                  <View style={styles.assignedBadge}>
-                    <Text style={styles.assignedText}>ASSIGNED</Text>
-                  </View>
-                )}
-              </View>
+            {!isRestDay ? (
               <View style={styles.metaRow}>
-                {!isRestDay ? (
+                <View style={styles.metaItem}>
+                  <Ionicons name="time-outline" size={spacing.iconSm} color={colors.text.quaternary} />
+                  <Text style={styles.metaText}>{estimatedDuration}m</Text>
+                </View>
+                <View style={styles.metaDivider} />
+                <View style={styles.metaItem}>
+                  <Ionicons name="barbell-outline" size={spacing.iconSm} color={colors.text.quaternary} />
+                  <Text style={styles.metaText}>{workout.exercises?.length || 0} exercises</Text>
+                </View>
+                {totalSets > 0 && (
                   <>
-                    <View style={styles.metaItem}>
-                      <Ionicons name="time-outline" size={normalize(12)} color={colors.textTertiary} />
-                      <Text style={styles.metaText}>{estimatedDuration}m</Text>
-                    </View>
                     <View style={styles.metaDivider} />
-                    <View style={styles.metaItem}>
-                      <Ionicons name="fitness-outline" size={normalize(12)} color={colors.textTertiary} />
-                      <Text style={styles.metaText}>{workout.exercises?.length || 0} exercises</Text>
-                    </View>
-                    {totalSets > 0 && (
-                      <>
-                        <View style={styles.metaDivider} />
-                        <View style={styles.metaItem}>
-                          <Text style={styles.metaText}>{totalSets} sets</Text>
-                        </View>
-                      </>
-                    )}
+                    <Text style={styles.metaText}>{totalSets} sets</Text>
                   </>
-                ) : (
-                  <View style={styles.restMeta}>
-                    <Ionicons name="moon-outline" size={normalize(12)} color={colors.textPrimary} />
-                    <Text style={[styles.metaText, { color: colors.textPrimary }]}>Rest day</Text>
-                  </View>
                 )}
               </View>
-            </View>
+            ) : (
+              <View style={styles.restMeta}>
+                <Ionicons name="moon-outline" size={spacing.iconSm} color={colors.text.quaternary} />
+                <Text style={styles.metaText}>Rest day</Text>
+              </View>
+            )}
           </View>
+        </View>
 
-          <View style={styles.headerActions}>
-            {canAdd && (
-              <Animated.View style={{ transform: [{ scale: buttonScaleAnimation }] }}>
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={handleQuickAdd}
-                  activeOpacity={0.8}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons
-                    name="add"
-                    size={normalize(20)}
-                    color={colors.primary}
-                  />
-                </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {canAdd && (
+            <Animated.View style={{ transform: [{ scale: buttonScaleAnimation }] }}>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={handleQuickAdd}
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="add" size={spacing.iconMd} color={colors.accent.primary} />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+          {isAssigned && (
+            <Animated.View style={{ transform: [{ scale: buttonScaleAnimation }] }}>
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={handleRemoveFromDay}
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="checkmark" size={spacing.iconSm} color={colors.accent.success} />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+          {hasExercises && (
+            <View style={styles.chevronButton}>
+              <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
+                <Ionicons name="chevron-down" size={spacing.iconSm} color={colors.text.quaternary} />
               </Animated.View>
-            )}
-            {isAssigned && (
-              <Animated.View style={{ transform: [{ scale: buttonScaleAnimation }] }}>
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={handleRemoveFromDay}
-                  activeOpacity={0.8}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons
-                    name="checkmark"
-                    size={normalize(18)}
-                    color="#10b981"
-                  />
-                </TouchableOpacity>
-              </Animated.View>
-            )}
-          </View>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
 
       {isExpanded && hasExercises && (
-        <Animated.View style={[styles.expandedContent, { opacity: fadeAnimation }]}>
-          <View style={styles.exerciseList}>
-            {exercisesToShow.map((exercise, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.exerciseRow,
-                  index === exercisesToShow.length - 1 && !hasMoreExercises && styles.exerciseRowLast
-                ]}
-              >
-                <View style={styles.exerciseInfo}>
-                  <Text style={styles.exerciseName} numberOfLines={1}>
-                    {exercise.exerciseName || 'Unknown Exercise'}
-                  </Text>
-                  <Text style={styles.exerciseMuscle}>{exercise.muscleGroup}</Text>
-                </View>
-                <View style={styles.exerciseStats}>
-                  <Text style={styles.exerciseStatsText}>
-                    {exercise.numSets} × {exercise.repRange || 'N/A'}
-                  </Text>
-                </View>
-              </View>
-            ))}
-            {hasMoreExercises && (
-              <TouchableOpacity
-                style={styles.showMoreButton}
-                onPress={handleShowMoreExercises}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.showMoreText}>
-                  {showAllExercises
-                    ? 'Show less'
-                    : `Show ${workout.exercises.length - 4} more exercises`
-                  }
-                </Text>
-                <Ionicons
-                  name={showAllExercises ? "chevron-up" : "chevron-down"}
-                  size={normalize(12)}
-                  color={colors.primary}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
-        </Animated.View>
+        <View style={styles.expandedContent}>
+          {exercisesToShow.map((exercise, index) => (
+            <View
+              key={index}
+              style={[
+                styles.exerciseRow,
+                index === exercisesToShow.length - 1 && !hasMoreExercises && styles.exerciseRowLast,
+              ]}
+            >
+              <Text style={styles.exerciseSetsInline}>{exercise.numSets}x</Text>
+              <Text style={styles.exerciseName} numberOfLines={1}>
+                {exercise.exerciseName || 'Unknown Exercise'}
+              </Text>
+              <Text style={styles.exerciseReps}>{exercise.repRange || 'N/A'}</Text>
+            </View>
+          ))}
+          {hasMoreExercises && (
+            <TouchableOpacity onPress={handleShowMoreExercises} activeOpacity={0.7} style={styles.showMoreRow}>
+              <View style={styles.showMoreLine} />
+              <Text style={styles.showMoreText}>
+                {showAllExercises ? 'Show less' : `+${workout.exercises.length - 4} more exercises`}
+              </Text>
+              <View style={styles.showMoreLine} />
+            </TouchableOpacity>
+          )}
+        </View>
       )}
-    </Animated.View>
+    </View>
   );
 });
 

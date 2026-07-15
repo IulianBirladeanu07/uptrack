@@ -93,7 +93,6 @@ export const styles = createStyles(() => ({
     flexDirection: 'row',
     gap: spacing[3],
     alignItems: 'center',
-    marginTop: spacing[1],
   },
 
   metaText: {
@@ -109,6 +108,37 @@ export const styles = createStyles(() => ({
     backgroundColor: colors.accent.primary,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  activeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+
+  activeText: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    color: colors.accent.primary,
+  },
+
+  activeTimer: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.medium,
+    color: colors.text.secondary,
+  },
+
+  resumeTimer: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.medium,
+    color: colors.text.secondary,
+  },
+
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accent.primary,
   },
 
   nutritionCard: {
@@ -362,5 +392,10 @@ export const styles = createStyles(() => ({
     fontSize: fontSize[10],
     color: colors.text.secondary,
     fontWeight: fontWeight.medium,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
 }));

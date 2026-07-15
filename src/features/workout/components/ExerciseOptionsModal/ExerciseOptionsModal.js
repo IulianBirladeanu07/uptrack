@@ -26,6 +26,10 @@ const ExerciseOptionsModal = ({
     onReplace,
     onDelete,
     onAddNote,
+    onMoveUp,
+    onMoveDown,
+    canMoveUp = false,
+    canMoveDown = false,
 }) => {
     const insets = useSafeAreaInsets();
     const translateY = useSharedValue(300);
@@ -122,6 +126,41 @@ const ExerciseOptionsModal = ({
                             </View>
                             <Text style={[styles.optionLabel, styles.optionLabelDanger]}>Delete Exercise</Text>
                         </TouchableOpacity>
+
+                        {(canMoveUp || canMoveDown) && (
+                            <>
+                                <View style={styles.sectionDivider} />
+                                <View style={styles.moveRow}>
+                                    <TouchableOpacity
+                                        style={styles.moveOption}
+                                        onPress={() => canMoveUp && handleAction(onMoveUp)}
+                                        activeOpacity={canMoveUp ? 0.65 : 1}
+                                        disabled={!canMoveUp}
+                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    >
+                                        <View style={[styles.iconWrap, styles.iconWrapSmall, { backgroundColor: colors.faded.surface }]}>
+                                            <Ionicons name="arrow-up-outline" size={normalize(14)} color={canMoveUp ? colors.text.secondary : colors.text.quaternary} />
+                                        </View>
+                                        <Text style={[styles.optionLabelSmall, !canMoveUp && styles.optionLabelDisabled]}>Move Up</Text>
+                                    </TouchableOpacity>
+
+                                    <View style={styles.moveDivider} />
+
+                                    <TouchableOpacity
+                                        style={styles.moveOption}
+                                        onPress={() => canMoveDown && handleAction(onMoveDown)}
+                                        activeOpacity={canMoveDown ? 0.65 : 1}
+                                        disabled={!canMoveDown}
+                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    >
+                                        <View style={[styles.iconWrap, styles.iconWrapSmall, { backgroundColor: colors.faded.surface }]}>
+                                            <Ionicons name="arrow-down-outline" size={normalize(14)} color={canMoveDown ? colors.text.secondary : colors.text.quaternary} />
+                                        </View>
+                                        <Text style={[styles.optionLabelSmall, !canMoveDown && styles.optionLabelDisabled]}>Move Down</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </>
+                        )}
                     </Animated.View>
                 </Pressable>
             </Pressable>
@@ -170,6 +209,40 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: spacing[3],
         gap: spacing[3],
+    },
+    moveRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: spacing[3],
+        gap: spacing[4],
+    },
+    sectionDivider: {
+        height: 1,
+        backgroundColor: colors.border.light,
+        marginTop: spacing[1],
+    },
+    moveOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[2],
+    },
+    moveDivider: {
+        width: 1,
+        height: spacing[6],
+        backgroundColor: colors.border.light,
+    },
+    iconWrapSmall: {
+        width: spacing[7],
+        height: spacing[7],
+    },
+    optionLabelSmall: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.primary,
+    },
+    optionLabelDisabled: {
+        color: colors.text.quaternary,
     },
     iconWrap: {
         width: spacing[8],

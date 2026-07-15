@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { signUpWithEmailAndPassword } from '../../services/firebaseAuthService';
+import firebaseAuthService from '../../services/firebaseAuthService';
 import { Ionicons } from '@expo/vector-icons';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
@@ -39,7 +39,7 @@ const RegistrationScreen = () => {
         setLoading(false);
         return;
       }
-      await signUpWithEmailAndPassword(email, password);
+      await firebaseAuthService.signUpWithEmailAndPassword(email, password);
       setError(null);
       Alert.alert(
         'Registration Successful',

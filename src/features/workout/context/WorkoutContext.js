@@ -103,6 +103,7 @@ export const WorkoutProvider = ({ children }) => {
         workoutHistory,
         templates,
         activeWorkout,
+        setActiveWorkout,
         refreshAllData,
         userSettings,
         setUserSettings,

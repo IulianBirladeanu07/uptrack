@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { normalize } from '../../../../../shared/hooks/useResponsive';
-import { COLORS } from '../CreateSplitScreenStyles'
+import { colors, spacing } from '../../../../../shared/theme';
 import styles from './BasicInfoStepStyles';
 
 const BasicInfoStep = ({ splitData, handleChange }) => {
@@ -20,8 +19,8 @@ const BasicInfoStep = ({ splitData, handleChange }) => {
             <View style={[styles.splitTypeIcon, isSelected && styles.splitTypeIconSelected]}>
               <Ionicons
                 name={icon}
-                size={normalize(20)}
-                color={isSelected ? COLORS.bg : COLORS.textMuted}
+                size={spacing.iconMd}
+                color={isSelected ? colors.background.primary : colors.text.quaternary}
               />
             </View>
             <View style={styles.splitTypeTextContainer}>
@@ -34,7 +33,7 @@ const BasicInfoStep = ({ splitData, handleChange }) => {
             </View>
             <View style={[styles.splitTypeCheck, isSelected && styles.splitTypeCheckSelected]}>
               {isSelected && (
-                <Ionicons name="checkmark" size={normalize(14)} color={COLORS.bg} />
+                <Ionicons name="checkmark" size={spacing.iconSm} color={colors.background.primary} />
               )}
             </View>
           </View>
@@ -51,18 +50,18 @@ const BasicInfoStep = ({ splitData, handleChange }) => {
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderLeft}>
                 <View style={styles.orangeIconContainer}>
-                  <Feather name="edit" size={normalize(20)} color={COLORS.bg} />
+                  <Feather name="edit" size={spacing.iconMd} color={colors.background.primary} />
                 </View>
                 <Text style={styles.sectionHeaderTitle}>Split Details</Text>
               </View>
             </View>
-            
+
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Split Name</Text>
               <TextInput
                 style={[styles.input, styles.workoutNameInput]}
                 placeholder="Enter split name"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.text.quaternary}
                 value={splitData.name}
                 onChangeText={(text) => handleChange('name', text)}
                 returnKeyType="next"
@@ -75,7 +74,7 @@ const BasicInfoStep = ({ splitData, handleChange }) => {
               <TextInput
                 style={[styles.input, styles.notesInput]}
                 placeholder="Describe your workout goals and focus areas..."
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.text.quaternary}
                 value={splitData.description}
                 onChangeText={(text) => handleChange('description', text.length <= 200 ? text : splitData.description)}
                 multiline

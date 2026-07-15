@@ -399,6 +399,21 @@ const styles = createStyles(() => ({
     actionIcon: {
         marginRight: spacing[1],
     },
+    dragHandleButton: {
+        width: spacing[8],
+        height: spacing[8],
+        borderRadius: radius[4],
+        backgroundColor: colors.faded.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    draggingCard: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 10,
+    },
 }));
 
 export default styles;

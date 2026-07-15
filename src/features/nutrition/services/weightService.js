@@ -19,6 +19,17 @@ export class WeightService {
         return weekStart;
     }
 
+    static formatDateKey(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    static getLocalWeekStartKey(date) {
+        return this.formatDateKey(this.getWeekStartDate(date));
+    }
+
     static calculateWeeklyAverage(weeklyWeights) {
         const weights = Object.values(weeklyWeights).filter(w => w !== null && w !== undefined);
         if (weights.length === 0) return null;
@@ -63,7 +74,7 @@ export class WeightService {
 
     static async saveWeightEntry(userId, date, weight) {
         try {
-            const weekStartDate = this.getWeekStartDate(date).toISOString().split('T')[0];
+            const weekStartDate = this.getLocalWeekStartKey(date);
             const dayKey = this.getDayKey(date);
 
             const userData = await this.getUserWeightData(userId);
@@ -182,7 +193,7 @@ export class WeightService {
             const userData = await this.getUserWeightData(userId);
             if (!userData || !userData.weightIns) return null;
 
-            const weekStartDate = this.getWeekStartDate(date).toISOString().split('T')[0];
+            const weekStartDate = this.getLocalWeekStartKey(date);
             const dayKey = this.getDayKey(date);
 
             const weekEntry = userData.weightIns.find(entry => entry.weekStart === weekStartDate);
@@ -202,15 +213,15 @@ export class WeightService {
             const userData = await this.getUserWeightData(userId);
             if (!userData || !userData.weightIns) return null;
 
-            const weekStartDate = this.getWeekStartDate(date).toISOString().split('T')[0];
+            const weekStartDate = this.getLocalWeekStartKey(date);
 
             let weekEntry = userData.weightIns.find(entry => entry.weekStart === weekStartDate);
 
             if (!weekEntry) {
-                const altWeekStart = new Date(weekStartDate);
-                altWeekStart.setDate(altWeekStart.getDate() + 1);
-                const altWeekStartStr = altWeekStart.toISOString().split('T')[0];
-                weekEntry = userData.weightIns.find(entry => entry.weekStart === altWeekStartStr);
+                const [y, m, d] = weekStartDate.split('-').map(Number);
+                const shiftedDate = new Date(y, m - 1, d + 1);
+                const shiftedKey = this.formatDateKey(shiftedDate);
+                weekEntry = userData.weightIns.find(entry => entry.weekStart === shiftedKey);
             }
 
             if (weekEntry) {
@@ -236,7 +247,7 @@ export class WeightService {
                 return { trend: null, lastWeekAverage: null, currentWeekAverage: null };
             }
 
-            const weekStartDate = this.getWeekStartDate(date).toISOString().split('T')[0];
+            const weekStartDate = this.getLocalWeekStartKey(date);
             const sortedWeightIns = [...userData.weightIns].sort((a, b) =>
                 new Date(a.weekStart) - new Date(b.weekStart)
             );
@@ -282,64 +293,6 @@ export class WeightService {
         } catch (error) {
             console.error('Error getting weight history:', error);
             return [];
-        }
-    }
-
-    static async adjustUserTargetsBasedOnProgress(userId) {
-        try {
-            const userData = await this.getUserWeightData(userId);
-            if (!userData || !userData.weightChangePlan || !userData.weightIns) return null;
-
-            const { weightChangePlan } = userData;
-            const recentWeeks = userData.weightIns
-                .sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart))
-                .slice(0, 4)
-                .filter(week => week.average);
-
-            if (recentWeeks.length < 2) return null;
-
-            const firstWeek = recentWeeks[recentWeeks.length - 1];
-            const lastWeek = recentWeeks[0];
-            const weeksDiff = recentWeeks.length - 1;
-            const actualWeeklyRate = (lastWeek.average - firstWeek.average) / weeksDiff;
-
-            const targetWeeklyRate = weightChangePlan.ratePerWeek || 0;
-            const progressRatio = Math.abs(actualWeeklyRate) / Math.abs(targetWeeklyRate);
-
-            let calorieAdjustment = 0;
-
-            if (weightChangePlan.type === 'weight_loss') {
-                if (progressRatio < 0.8) calorieAdjustment = -100;
-                else if (progressRatio > 1.2) calorieAdjustment = 100;
-            } else if (weightChangePlan.type === 'muscle_gain') {
-                if (progressRatio < 0.8) calorieAdjustment = 100;
-                else if (progressRatio > 1.2) calorieAdjustment = -50;
-            }
-
-            if (calorieAdjustment !== 0) {
-                const newGoalCalories = weightChangePlan.goalCalories + calorieAdjustment;
-
-                const updatedPlan = {
-                    ...weightChangePlan,
-                    goalCalories: newGoalCalories,
-                    lastAdjusted: new Date().toISOString(),
-                    adjustmentReason: `Progress rate: ${actualWeeklyRate.toFixed(2)}kg/week vs target ${targetWeeklyRate.toFixed(2)}kg/week`,
-                };
-
-                const userDocRef = doc(db, 'users', userId);
-                await setDoc(userDocRef, { weightChangePlan: updatedPlan }, { merge: true });
-
-                const cacheData = { ...userData, weightChangePlan: updatedPlan };
-                memoryCache.set(userId, cacheData);
-                await AsyncStorage.setItem(`user_${userId}`, JSON.stringify(cacheData));
-
-                return updatedPlan;
-            }
-
-            return null;
-        } catch (error) {
-            console.error('Error adjusting user targets:', error);
-            return null;
         }
     }
 }

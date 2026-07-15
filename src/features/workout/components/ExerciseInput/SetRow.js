@@ -75,6 +75,11 @@ const SetRow = ({
     const isWeightFocused = isThisRowFocused && focusedInputData?.type === 'weight';
     const isRepsFocused = isThisRowFocused && focusedInputData?.type === 'reps';
 
+    const resetSwipe = useCallback(() => {
+        translateX.value = 0;
+        deleteProgress.value = 0;
+    }, [translateX, deleteProgress]);
+
     const confirmDelete = useCallback(() => {
         const handleDelete = () => {
             if (totalSetsInExercise === 1) {
@@ -93,7 +98,10 @@ const SetRow = ({
                         {
                             text: "Delete Exercise",
                             style: "destructive",
-                            onPress: () => workoutService.deleteSet(exerciseIndex, setIndex),
+                            onPress: () => {
+                                resetSwipe();
+                                workoutService.deleteSet(exerciseIndex, setIndex);
+                            },
                         }
                     ]
                 );
@@ -113,17 +121,21 @@ const SetRow = ({
                         {
                             text: "Delete",
                             style: "destructive",
-                            onPress: () => workoutService.deleteSet(exerciseIndex, setIndex),
+                            onPress: () => {
+                                resetSwipe();
+                                workoutService.deleteSet(exerciseIndex, setIndex);
+                            },
                         }
                     ]
                 );
             } else {
+                resetSwipe();
                 workoutService.deleteSet(exerciseIndex, setIndex);
             }
         };
 
         handleDelete();
-    }, [exerciseIndex, setIndex, setData.isValidated, totalSetsInExercise, translateX, deleteProgress]);
+    }, [exerciseIndex, setIndex, setData.isValidated, totalSetsInExercise, translateX, deleteProgress, resetSwipe]);
 
     const panGesture = Gesture.Pan()
         .activeOffsetX([-8, 8])
@@ -172,7 +184,8 @@ const SetRow = ({
     const animatedCheckStyle = useAnimatedStyle(() => {
         'worklet';
         const progress = deleteProgress.value;
-        if (progress === 0) return {};
+        const restingBackground = setData.isValidated ? colors.faded.cyan : colors.background.tertiary;
+        const restingBorder = setData.isValidated ? colors.border.cyanBright : colors.border.default;
         return {
             transform: [
                 { scale: 1 + (progress * 0.12) },
@@ -180,12 +193,12 @@ const SetRow = ({
             ],
             backgroundColor: progress > 0.5
                 ? `rgba(255, 69, 58, ${0.15 + progress * 0.85})`
-                : undefined,
+                : restingBackground,
             borderColor: progress > 0.5
                 ? `rgba(255, 69, 58, ${0.5 + progress * 0.5})`
-                : undefined,
+                : restingBorder,
         };
-    }, []);
+    }, [setData.isValidated]);
 
     const animatedTrashStyle = useAnimatedStyle(() => {
         'worklet';

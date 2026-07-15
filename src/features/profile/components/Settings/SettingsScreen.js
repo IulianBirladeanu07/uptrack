@@ -1,71 +1,16 @@
 import { useState, useContext, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { doc, setDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { db } from '../../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../../auth/context/AuthContext';
-import { calculateWeightChangePlan } from '../../utils/FitnessProfileUtils';
+import { calculateWeightChangePlan } from '../../utils/nutritionPlanEngine';
+import { OptionRow, NumberStepper } from '../../../../shared/components/FormControls/FormControls';
+import { ACTIVITY_OPTIONS, EXPERIENCE_OPTIONS, STRESS_OPTIONS } from '../../utils/profileOptions';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
-
-const ACTIVITY_OPTIONS = [
-  { label: 'Sedentary',         value: 'sedentary',         desc: 'Desk job, little movement' },
-  { label: 'Lightly Active',    value: 'lightly_active',    desc: '2-3 workouts/week' },
-  { label: 'Moderately Active', value: 'moderately_active', desc: '3-4 workouts/week' },
-  { label: 'Very Active',       value: 'very_active',       desc: '4-5 workouts/week' },
-  { label: 'Extremely Active',  value: 'extremely_active',  desc: '5-7 workouts/week' },
-];
-
-const EXPERIENCE_OPTIONS = [
-  { label: 'Novice',       value: 'novice',       desc: '<6 months training' },
-  { label: 'Beginner',     value: 'beginner',     desc: '6mo - 2 years' },
-  { label: 'Intermediate', value: 'intermediate', desc: '2-5 years' },
-  { label: 'Advanced',     value: 'advanced',     desc: '5-7 years' },
-  { label: 'Elite',        value: 'elite',        desc: '7+ years' },
-];
-
-const STRESS_OPTIONS = [
-  { label: 'Low',      value: 'low',      desc: 'Relaxed, minimal stress' },
-  { label: 'Moderate', value: 'moderate', desc: 'Occasional work stress' },
-  { label: 'High',     value: 'high',     desc: 'Constant pressure daily' },
-];
-
-const OptionRow = ({ option, selected, onPress }) => (
-  <TouchableOpacity
-    style={[styles.optionRow, selected && styles.optionRowSelected]}
-    onPress={() => onPress(option.value)}
-    activeOpacity={0.7}
-  >
-    <View style={styles.optionRowLeft}>
-      <View style={[styles.optionDot, selected && styles.optionDotSelected]} />
-      <View>
-        <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>{option.label}</Text>
-        {option.desc && <Text style={styles.optionDesc}>{option.desc}</Text>}
-      </View>
-    </View>
-    {selected && <Ionicons name="checkmark" size={18} color={colors.accent.primary} />}
-  </TouchableOpacity>
-);
-
-const NumberStepper = ({ label, value, onDecrement, onIncrement, unit }) => (
-  <View style={styles.stepperRow}>
-    <Text style={styles.stepperLabel}>{label}</Text>
-    <View style={styles.stepperControls}>
-      <TouchableOpacity style={styles.stepperBtn} onPress={onDecrement} activeOpacity={0.7}>
-        <Ionicons name="remove" size={20} color={colors.text.primary} />
-      </TouchableOpacity>
-      <View style={styles.stepperValueWrap}>
-        <Text style={styles.stepperValue}>{value}</Text>
-        <Text style={styles.stepperUnit}>{unit}</Text>
-      </View>
-      <TouchableOpacity style={styles.stepperBtn} onPress={onIncrement} activeOpacity={0.7}>
-        <Ionicons name="add" size={20} color={colors.text.primary} />
-      </TouchableOpacity>
-    </View>
-  </View>
-);
 
 const SectionTitle = ({ children }) => <Text style={styles.sectionTitle}>{children}</Text>;
 
@@ -76,14 +21,15 @@ const SettingsScreen = ({ navigation }) => {
   const [hasChanges, setHasChanges] = useState(false);
 
   const [form, setForm] = useState({
-    age:             userData?.age             || 24,
-    height:          userData?.height          || 175,
-    gender:          userData?.gender          || 'male',
-    currentWeight:   userData?.currentWeight   || 80,
-    targetWeight:    userData?.targetWeight     || 80,
-    activityLevel:   userData?.activityLevel   || 'moderately_active',
-    experienceLevel: userData?.experienceLevel || 'intermediate',
-    stressLevel:     userData?.stressLevel     || 'moderate',
+    age:               userData?.age               || 24,
+    height:            userData?.height             || 175,
+    gender:            userData?.gender             || 'male',
+    currentWeight:     userData?.currentWeight      || 80,
+    targetWeight:      userData?.targetWeight       || 80,
+    activityLevel:     userData?.activityLevel      || 'moderately_active',
+    experienceLevel:   userData?.experienceLevel    || 'intermediate',
+    stressLevel:       userData?.stressLevel        || 'moderate',
+    autoAdjustEnabled: userData?.autoAdjustEnabled  ?? true,
   });
 
   const [original] = useState({ ...form });
@@ -320,6 +266,22 @@ const SettingsScreen = ({ navigation }) => {
             </View>
           ))}
         </View>
+
+        <SectionTitle>Automation</SectionTitle>
+        <View style={styles.card}>
+          <View style={styles.stepperRow}>
+            <View style={styles.automationTextCol}>
+              <Text style={styles.stepperLabel}>Auto-Adjust Calories</Text>
+              <Text style={styles.optionDesc}>Weekly targets update automatically based on your progress</Text>
+            </View>
+            <Switch
+              value={form.autoAdjustEnabled}
+              onValueChange={v => update('autoAdjustEnabled', v)}
+              trackColor={{ false: colors.background.tertiary, true: colors.faded.primary }}
+              thumbColor={form.autoAdjustEnabled ? colors.accent.primary : colors.text.quaternary}
+            />
+          </View>
+        </View>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing[4]) }]}>
@@ -378,24 +340,13 @@ const styles = createStyles(() => ({
   divider:             { height: 1, backgroundColor: colors.border.default, marginHorizontal: spacing[4] },
   stepperRow:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing[4], paddingVertical: spacing[4] },
   stepperLabel:        { fontSize: fontSize[16], fontWeight: fontWeight.semibold, color: colors.text.primary },
-  stepperControls:     { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  stepperBtn:          { width: spacing[9], height: spacing[9], borderRadius: radius[2], backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.default, justifyContent: 'center', alignItems: 'center' },
-  stepperValueWrap:    { flexDirection: 'row', alignItems: 'baseline', gap: spacing[1], minWidth: spacing[18], justifyContent: 'center' },
-  stepperValue:        { fontSize: fontSize[20], fontWeight: fontWeight.extrabold, color: colors.text.primary },
-  stepperUnit:         { fontSize: fontSize[14], fontWeight: fontWeight.medium, color: colors.text.tertiary },
   genderToggle:        { flexDirection: 'row', gap: spacing[2] },
   genderBtn:           { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius[3], backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.default },
   genderBtnSelected:   { backgroundColor: colors.accent.primary, borderColor: colors.accent.primary },
   genderBtnText:       { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.text.tertiary },
   genderBtnTextSelected: { color: colors.accent.buttonText, fontWeight: fontWeight.bold },
-  optionRow:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing[4], paddingVertical: spacing[4] },
-  optionRowSelected:   { backgroundColor: colors.faded.primaryExtraLight },
-  optionRowLeft:       { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  optionDot:           { width: spacing[2], height: spacing[2], borderRadius: radius[1], backgroundColor: colors.text.quaternary },
-  optionDotSelected:   { backgroundColor: colors.accent.primary },
-  optionLabel:         { fontSize: fontSize[16], fontWeight: fontWeight.semibold, color: colors.text.secondary },
-  optionLabelSelected: { color: colors.text.primary, fontWeight: fontWeight.bold },
   optionDesc:          { fontSize: fontSize[12], color: colors.text.quaternary, fontWeight: fontWeight.medium, marginTop: spacing[1] },
+  automationTextCol:   { flex: 1, paddingRight: spacing[4] },
   footer:              { paddingHorizontal: spacing[4], paddingTop: spacing[3], backgroundColor: colors.background.primary },
   saveBtn:             { backgroundColor: colors.accent.primary, borderRadius: radius[4], paddingVertical: spacing[4], alignItems: 'center', justifyContent: 'center' },
   saveBtnDisabled:     { backgroundColor: colors.background.secondary, borderWidth: 1, borderColor: colors.border.default },

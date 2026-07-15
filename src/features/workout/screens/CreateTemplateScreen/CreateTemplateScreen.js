@@ -18,22 +18,36 @@ import NavigationButtons from './components/NavigationButtons';
 import Header from './components/Header';
 import Notification from './components/Notification';
 
-import { 
-  validateBasicInfo, 
-  validateExercises, 
-  validateForm, 
+import {
+  validateBasicInfo,
+  validateExercises,
+  validateForm,
   createExerciseFromSelection,
-  createTemplateData, 
+  createTemplateData,
   TEMPLATE_STEPS
 } from '../../utils/createWorkoutUtils';
 import { addTemplateToFirestore, updateTemplateInFirestore } from '../../handlers/WorkoutHandler';
+
+const generateExerciseId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 const CreateTemplate = ({ navigation, route }) => {
   const existingTemplate = route?.params?.template;
   const isEditing = route?.params?.isEditing || false;
 
   const [templateName, setTemplateName] = useState(existingTemplate?.templateName || '');
-  const [exercises, setExercises] = useState(existingTemplate?.exercises || []);
+  const [exercises, setExercises] = useState(() =>
+    (existingTemplate?.exercises || []).map((ex) => ({
+      ...ex,
+      id: ex.id || generateExerciseId(),
+    }))
+  );
+  const [exerciseFadeAnims, setExerciseFadeAnims] = useState(() => {
+    const anims = {};
+    exercises.forEach((ex) => {
+      anims[ex.id] = new Animated.Value(1);
+    });
+    return anims;
+  });
   const [note, setNote] = useState(existingTemplate?.note || '');
   const [duration, setDuration] = useState(existingTemplate?.duration || 60);
   const [workoutType, setWorkoutType] = useState(existingTemplate?.workoutType || 'Strength');
@@ -41,12 +55,11 @@ const CreateTemplate = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [exerciseFadeAnims, setExerciseFadeAnims] = useState([]);
   const [undoState, setUndoState] = useState({
     type: null,
     exercise: null,
     index: null,
-    animation: null,
+    replacedWithId: null,
     isActive: false,
   });
   const [notification, setNotification] = useState({
@@ -58,13 +71,8 @@ const CreateTemplate = ({ navigation, route }) => {
 
   const fabAnim = useRef(new Animated.Value(1)).current;
   const scrollViewRef = useRef(null);
-
-  useEffect(() => {
-    if (existingTemplate?.exercises) {
-      const anims = existingTemplate.exercises.map(() => new Animated.Value(1));
-      setExerciseFadeAnims(anims);
-    }
-  }, []);
+  const exercisesRef = useRef(exercises);
+  useEffect(() => { exercisesRef.current = exercises; }, [exercises]);
 
   const showNotification = useCallback((message, isError = false, action = null) => {
     setNotification({ message, isError, action, visible: true });
@@ -79,7 +87,7 @@ const CreateTemplate = ({ navigation, route }) => {
             type: null,
             exercise: null,
             index: null,
-            animation: null,
+            replacedWithId: null,
             isActive: false,
           };
         }
@@ -160,7 +168,7 @@ const CreateTemplate = ({ navigation, route }) => {
   const undoDeleteExercise = useCallback(() => {
     setUndoState((currentUndoState) => {
       if (!currentUndoState.isActive || currentUndoState.type !== 'delete') return currentUndoState;
-      const { exercise, index, animation } = currentUndoState;
+      const { exercise, index } = currentUndoState;
       if (exercise && index !== null) {
         const newAnim = new Animated.Value(0);
         setExercises((prev) => {
@@ -168,11 +176,7 @@ const CreateTemplate = ({ navigation, route }) => {
           newExercises.splice(index, 0, exercise);
           return newExercises;
         });
-        setExerciseFadeAnims((prev) => {
-          const newAnims = [...prev];
-          newAnims.splice(index, 0, newAnim);
-          return newAnims;
-        });
+        setExerciseFadeAnims((prev) => ({ ...prev, [exercise.id]: newAnim }));
         setTimeout(() => {
           safelyRunAnimation(newAnim, 1);
         }, 50);
@@ -182,7 +186,7 @@ const CreateTemplate = ({ navigation, route }) => {
         type: null,
         exercise: null,
         index: null,
-        animation: null,
+        replacedWithId: null,
         isActive: false,
       };
     });
@@ -191,24 +195,21 @@ const CreateTemplate = ({ navigation, route }) => {
   const undoReplaceExercise = useCallback(() => {
     setUndoState((currentUndoState) => {
       if (!currentUndoState.isActive || currentUndoState.type !== 'replace') return currentUndoState;
-      const { exercise, index, animation } = currentUndoState;
-      if (exercise && index !== null) {
+      const { exercise, replacedWithId } = currentUndoState;
+      if (exercise && replacedWithId) {
         const newAnim = new Animated.Value(0);
         setExercises((prev) => {
-          if (index < prev.length) {
-            const newExercises = [...prev];
-            newExercises[index] = exercise;
-            return newExercises;
-          }
-          return prev;
+          const currentIdx = prev.findIndex((ex) => ex.id === replacedWithId);
+          if (currentIdx === -1) return prev;
+          const next = [...prev];
+          next[currentIdx] = exercise;
+          return next;
         });
         setExerciseFadeAnims((prev) => {
-          if (index < prev.length) {
-            const newAnims = [...prev];
-            newAnims[index] = newAnim;
-            return newAnims;
-          }
-          return prev;
+          const next = { ...prev };
+          delete next[replacedWithId];
+          next[exercise.id] = newAnim;
+          return next;
         });
         setTimeout(() => {
           safelyRunAnimation(newAnim, 1);
@@ -219,17 +220,17 @@ const CreateTemplate = ({ navigation, route }) => {
         type: null,
         exercise: null,
         index: null,
-        animation: null,
+        replacedWithId: null,
         isActive: false,
       };
     });
   }, [showNotification]);
 
-  const handleReplaceExercise = useCallback((index) => {
+  const handleReplaceExercise = useCallback((id) => {
     Keyboard.dismiss();
     navigation.navigate('ExerciseSelection', {
       previousScreen: 'CreateTemplate',
-      replaceIndex: index,
+      replaceIndex: id,
     });
   }, [navigation]);
 
@@ -244,9 +245,10 @@ const CreateTemplate = ({ navigation, route }) => {
       showNotification('This exercise is already added.', true);
       return;
     }
+    const newId = generateExerciseId();
     const newAnim = new Animated.Value(0);
-    setExercises((prev) => [...prev, exercise]);
-    setExerciseFadeAnims((prev) => [...prev, newAnim]);
+    setExercises((prev) => [...prev, { ...exercise, id: newId }]);
+    setExerciseFadeAnims((prev) => ({ ...prev, [newId]: newAnim }));
     setTimeout(() => {
       safelyRunAnimation(newAnim, 1);
     }, 50);
@@ -255,18 +257,23 @@ const CreateTemplate = ({ navigation, route }) => {
   useEffect(() => {
     if (route.params?.selectedExercises) {
       const newExercises = createExerciseFromSelection(route.params.selectedExercises);
-      const replaceIndex = route.params?.replaceIndex;
+      const replaceExerciseId = route.params?.replaceIndex;
       navigation.setParams({ selectedExercises: null, replaceIndex: null });
-      if (replaceIndex !== undefined && replaceIndex >= 0 && replaceIndex < exercises.length) {
+      if (replaceExerciseId) {
         const exerciseToReplace = Array.isArray(newExercises) ? newExercises[0] : newExercises;
         if (
           exerciseToReplace &&
           typeof exerciseToReplace === 'object' &&
           (exerciseToReplace.exerciseName || exerciseToReplace.name)
         ) {
+          const currentIndex = exercises.findIndex((ex) => ex.id === replaceExerciseId);
+          if (currentIndex === -1) {
+            showNotification('Failed to replace exercise. Please try again.', true);
+            return;
+          }
           const isDuplicate = exercises.some(
-            (existingExercise, i) =>
-              i !== replaceIndex &&
+            (existingExercise) =>
+              existingExercise.id !== replaceExerciseId &&
               (existingExercise.exerciseName || existingExercise.name) ===
               (exerciseToReplace.exerciseName || exerciseToReplace.name)
           );
@@ -274,28 +281,30 @@ const CreateTemplate = ({ navigation, route }) => {
             showNotification('This exercise is already added.', true);
             return;
           }
+          const originalExercise = exercises[currentIndex];
+          const newId = generateExerciseId();
           setUndoState({
             type: 'replace',
-            exercise: exercises[replaceIndex],
-            index: replaceIndex,
-            animation: exerciseFadeAnims[replaceIndex],
+            exercise: originalExercise,
+            replacedWithId: newId,
+            index: currentIndex,
             isActive: true,
           });
           const newAnim = new Animated.Value(0);
-          setExercises((prev) => {
-            const newExercises = [...prev];
-            newExercises[replaceIndex] = { ...exerciseToReplace, restTime: prev[replaceIndex]?.restTime || 180 };
-            return newExercises;
-          });
+          setExercises((prev) => prev.map((ex) => ex.id === replaceExerciseId
+            ? { ...exerciseToReplace, id: newId, restTime: ex.restTime || 180 }
+            : ex
+          ));
           setExerciseFadeAnims((prev) => {
-            const newAnims = [...prev];
-            newAnims[replaceIndex] = newAnim;
-            return newAnims;
+            const next = { ...prev };
+            delete next[replaceExerciseId];
+            next[newId] = newAnim;
+            return next;
           });
           setTimeout(() => {
             safelyRunAnimation(newAnim, 1);
           }, 100);
-          const originalExerciseName = exercises[replaceIndex]?.exerciseName || exercises[replaceIndex]?.name || 'Exercise';
+          const originalExerciseName = originalExercise?.exerciseName || originalExercise?.name || 'Exercise';
           const newExerciseName = exerciseToReplace.exerciseName || exerciseToReplace.name || 'Exercise';
           showNotification(
             `Replaced "${originalExerciseName}" with "${newExerciseName}".`,
@@ -328,10 +337,8 @@ const CreateTemplate = ({ navigation, route }) => {
   }, [
     route.params?.selectedExercises,
     route.params?.replaceIndex,
-    exercises.length,
-    addExerciseWithAnimation,
     exercises,
-    exerciseFadeAnims,
+    addExerciseWithAnimation,
     undoReplaceExercise,
     showNotification,
   ]);
@@ -343,65 +350,50 @@ const CreateTemplate = ({ navigation, route }) => {
     });
   }, [navigation]);
 
-  const handleSetsChange = useCallback((value, index) => {
-    setExercises((prev) => {
-      const newExercises = [...prev];
-      newExercises[index] = { ...newExercises[index], numSets: value };
-      return newExercises;
-    });
+  const handleSetsChange = useCallback((value, id) => {
+    setExercises((prev) => prev.map((ex) => (ex.id === id ? { ...ex, numSets: value } : ex)));
   }, []);
 
-  const handleRepsChange = useCallback((value, index) => {
-    setExercises((prev) => {
-      const newExercises = [...prev];
-      newExercises[index] = { ...newExercises[index], repRange: value };
-      return newExercises;
-    });
+  const handleRepsChange = useCallback((value, id) => {
+    setExercises((prev) => prev.map((ex) => (ex.id === id ? { ...ex, repRange: value } : ex)));
   }, []);
 
-  const handleRestTimeChange = useCallback((value, index) => {
-    setExercises((prev) => {
-      const newExercises = [...prev];
-      newExercises[index] = { ...newExercises[index], restTime: value };
-      return newExercises;
-    });
+  const handleRestTimeChange = useCallback((value, id) => {
+    setExercises((prev) => prev.map((ex) => (ex.id === id ? { ...ex, restTime: value } : ex)));
   }, []);
 
-  const handleDeleteExercise = useCallback((index) => {
-    if (index < 0 || index >= exercises.length) return;
-    const exerciseToDelete = exercises[index];
-    const animToDelete = exerciseFadeAnims[index];
-    const exerciseName = exerciseToDelete?.exerciseName || exerciseToDelete?.name || 'Exercise';
+  const handleDeleteExercise = useCallback((id) => {
+    const currentExercises = exercisesRef.current;
+    const idx = currentExercises.findIndex((ex) => ex.id === id);
+    if (idx === -1) return;
+    const exerciseToDelete = currentExercises[idx];
     setUndoState({
       type: 'delete',
       exercise: exerciseToDelete,
-      index: index,
-      animation: animToDelete,
+      index: idx,
+      replacedWithId: null,
       isActive: true,
     });
-    setExercises((prev) => {
-      const newExercises = [...prev];
-      newExercises.splice(index, 1);
-      return newExercises;
-    });
+    setExercises((prev) => prev.filter((ex) => ex.id !== id));
     setExerciseFadeAnims((prev) => {
-      const newAnims = [...prev];
-      newAnims.splice(index, 1);
-      return newAnims;
+      const next = { ...prev };
+      delete next[id];
+      return next;
     });
+    const exerciseName = exerciseToDelete?.exerciseName || exerciseToDelete?.name || 'Exercise';
     showNotification(
       `Exercise "${exerciseName}" deleted.`,
       false,
       { text: 'Undo', onPress: undoDeleteExercise }
     );
-  }, [exercises, exerciseFadeAnims, undoDeleteExercise, showNotification]);
+  }, [undoDeleteExercise, showNotification]);
 
-  const handleNoteChange = useCallback((value, index) => {
-    setExercises((prev) => {
-      const newExercises = [...prev];
-      newExercises[index] = { ...newExercises[index], note: value };
-      return newExercises;
-    });
+  const handleNoteChange = useCallback((value, id) => {
+    setExercises((prev) => prev.map((ex) => (ex.id === id ? { ...ex, note: value } : ex)));
+  }, []);
+
+  const handleReorderExercises = useCallback(({ data }) => {
+    setExercises(data);
   }, []);
 
   const goToPreviousStep = useCallback(() => {
@@ -429,7 +421,7 @@ const CreateTemplate = ({ navigation, route }) => {
     try {
       setLoading(true);
       const templateData = createTemplateData(templateName, exercises, note, duration, preferredDays);
-      
+
       if (isEditing && existingTemplate?.id) {
         await updateTemplateInFirestore(existingTemplate.id, templateData);
         showNotification('Workout template updated successfully!');
@@ -437,7 +429,7 @@ const CreateTemplate = ({ navigation, route }) => {
         await addTemplateToFirestore(templateData, templateName);
         showNotification('Workout template created successfully!');
       }
-      
+
       navigation.navigate('WorkoutLibrary');
     } catch (error) {
       console.error('Error saving template:', error);
@@ -472,7 +464,7 @@ const CreateTemplate = ({ navigation, route }) => {
         return (
           <ExercisesStep
             exercises={exercises}
-            exerciseFadeAnims={exerciseFadeAnims || []}
+            exerciseFadeAnims={exerciseFadeAnims || {}}
             handleAddExercise={handleAddExercise}
             handleSetsChange={handleSetsChange}
             handleRepsChange={handleRepsChange}
@@ -480,6 +472,7 @@ const CreateTemplate = ({ navigation, route }) => {
             handleDeleteExercise={handleDeleteExercise}
             handleNoteChange={handleNoteChange}
             handleReplaceExercise={handleReplaceExercise}
+            handleReorderExercises={handleReorderExercises}
             scrollViewRef={scrollViewRef}
           />
         );

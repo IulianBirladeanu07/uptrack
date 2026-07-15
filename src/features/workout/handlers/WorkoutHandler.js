@@ -17,6 +17,14 @@ import { db } from '../../auth/services/firebaseConfigService'
 import { Alert, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export const SPLITS_CACHE_KEY = 'cached_splits';
+
+export const clearSplitsCache = async () => {
+    try {
+        await AsyncStorage.removeItem(SPLITS_CACHE_KEY);
+    } catch {}
+};
+
 export const sendWorkoutDataToFirestore = async (
     exerciseData,
     inputText,
@@ -792,6 +800,7 @@ export const updateSplitInFirestore = async (splitId, splitData) => {
     };
 
     await updateDoc(splitRef, updateData);
+    await clearSplitsCache();
     return splitId;
   } catch (error) {
     console.error('Error updating split:', error);
@@ -866,6 +875,7 @@ export const addSplitToFirestore = async (splitData) => {
     const splitDocRef = doc(splitsCollectionRef, formattedTimestamp);
 
     await setDoc(splitDocRef, splitDataToSave);
+    await clearSplitsCache();
     return formattedTimestamp;
   } catch (error) {
     console.error('Error saving split to Firestore:', error.message);
@@ -896,6 +906,7 @@ export const updateSplitDay = async (splitId, day, workoutData) => {
       lastModified: serverTimestamp()
     });
     
+    await clearSplitsCache();
     return true;
   } catch (error) {
     console.error('Error updating split day:', error.message);
@@ -915,6 +926,7 @@ export const deleteSplitFromFirestore = async (splitId) => {
     const splitDocRef = doc(db, 'workoutSplits', splitId);
     
     await deleteDoc(splitDocRef);
+    await clearSplitsCache();
     return true;
   } catch (error) {
     console.error('Error deleting split from Firestore:', error.message);

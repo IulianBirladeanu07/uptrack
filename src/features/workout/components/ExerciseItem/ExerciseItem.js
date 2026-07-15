@@ -12,8 +12,8 @@ import {
   Vibration,
   Platform,
   LayoutAnimation,
-  PanResponder,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import styles, { COLORS } from './ExerciseItemStyle';
 import { normalize } from '../../../../shared/hooks/useResponsive';
@@ -43,10 +43,10 @@ const NATIVE_ANIMATION_CONFIG = {
 const BUTTON_HIT_SLOP = { top: 10, right: 10, bottom: 10, left: 10 };
 
 const runAnimation = (anim, toValue, customConfig = {}) => {
-  const config = customConfig.useNativeDriver !== undefined 
-    ? { ...customConfig } 
+  const config = customConfig.useNativeDriver !== undefined
+    ? { ...customConfig }
     : { ...NATIVE_ANIMATION_CONFIG, ...customConfig };
-    
+
   return Animated.timing(anim, {
     toValue,
     ...config,
@@ -55,47 +55,53 @@ const runAnimation = (anim, toValue, customConfig = {}) => {
 
 const formatRestTime = (seconds) => {
   if (!seconds) return '3m';
-  
+
   if (seconds < 60) {
     return `${seconds}s`;
   }
-  
+
   const minutes = seconds / 60;
-  
+
   if (seconds % 60 === 0) {
     return `${Math.floor(minutes)}m`;
   }
-  
+
   if (seconds % 30 === 0) {
     return `${minutes}m`;
   }
-  
+
   const wholeMinutes = Math.floor(minutes);
   const remainingSeconds = seconds % 60;
-  
+
   if (wholeMinutes === 0) {
     return `${remainingSeconds}s`;
   }
-  
+
   return `${wholeMinutes}m ${remainingSeconds}s`;
 };
 
 const CustomButton = ({
   onPress,
+  onPressIn,
+  onLongPress,
   style,
   icon,
   accessibilityLabel,
   children,
   activeOpacity = 0.7,
   hitSlop = BUTTON_HIT_SLOP,
+  disabled = false,
 }) => (
   <TouchableOpacity
     style={style}
     onPress={onPress}
+    onPressIn={onPressIn}
+    onLongPress={onLongPress}
     activeOpacity={activeOpacity}
     hitSlop={hitSlop}
     accessibilityLabel={accessibilityLabel}
     accessibilityRole="button"
+    disabled={disabled}
   >
     {icon || children}
   </TouchableOpacity>
@@ -187,7 +193,7 @@ const RestTimeModal = ({ visible, onClose, currentValue, onSave }) => {
           <TouchableWithoutFeedback>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Custom Rest Time</Text>
-              
+
               <View style={styles.timeInputsContainer}>
                 <View style={styles.timeInputGroup}>
                   <TextInput
@@ -241,14 +247,14 @@ const Chip = ({ label, isSelected, onPress, size = 'default' }) => (
   <CustomButton
     onPress={onPress}
     style={[
-      styles.chip, 
+      styles.chip,
       isSelected && styles.selectedChip,
       size === 'small' && styles.smallChip
     ]}
     activeOpacity={0.6}
   >
     <Text style={[
-      styles.chipText, 
+      styles.chipText,
       isSelected && styles.selectedChipText,
       size === 'small' && styles.smallChipText
     ]}>
@@ -298,7 +304,7 @@ const RestTimeSelector = ({ selectedValue, onSelect, onCustomPress, hasUserSelec
 
   const handleSelect = useCallback((value) => {
     onSelect(value);
-    
+
     Animated.parallel([
       Animated.timing(opacityAnim, {
         toValue: 0,
@@ -321,7 +327,7 @@ const RestTimeSelector = ({ selectedValue, onSelect, onCustomPress, hasUserSelec
 
   const handleCustomPress = useCallback(() => {
     onCustomPress();
-    
+
     Animated.parallel([
       Animated.timing(opacityAnim, {
         toValue: 0,
@@ -399,9 +405,9 @@ const RestTimeSelector = ({ selectedValue, onSelect, onCustomPress, hasUserSelec
         ]}>
           {formatRestTime(selectedValue)}
         </Text>
-        <Animated.View style={{ 
-          transform: [{ rotate: chevronRotation }], 
-          marginLeft: normalize(4) 
+        <Animated.View style={{
+          transform: [{ rotate: chevronRotation }],
+          marginLeft: normalize(4)
         }}>
           <Ionicons
             name="chevron-down"
@@ -445,7 +451,7 @@ const RestTimeSelector = ({ selectedValue, onSelect, onCustomPress, hasUserSelec
             );
           })}
         </View>
-        
+
         <View style={styles.restActionsRow}>
           <TouchableOpacity
             onPress={handleCustomPress}
@@ -475,20 +481,33 @@ const RestTimeSelector = ({ selectedValue, onSelect, onCustomPress, hasUserSelec
   );
 };
 
+const areEqual = (prevProps, nextProps) => {
+  return (
+    prevProps.exercise === nextProps.exercise &&
+    prevProps.fadeAnim === nextProps.fadeAnim &&
+    prevProps.isDragging === nextProps.isDragging &&
+    prevProps.onDrag === nextProps.onDrag &&
+    prevProps.onSetsChange === nextProps.onSetsChange &&
+    prevProps.onRepsChange === nextProps.onRepsChange &&
+    prevProps.onNoteChange === nextProps.onNoteChange &&
+    prevProps.onRestBetweenSetsChange === nextProps.onRestBetweenSetsChange &&
+    prevProps.onDelete === nextProps.onDelete &&
+    prevProps.onReplace === nextProps.onReplace
+  );
+};
+
 const ExerciseItem = React.memo(
-  ({ exercise, index, onSetsChange, onRepsChange, onNoteChange, onRestBetweenSetsChange, onDelete, onReplace, fadeAnim }) => {
+  ({ exercise, index, onSetsChange, onRepsChange, onNoteChange, onRestBetweenSetsChange, onDelete, onReplace, fadeAnim, onDrag, isDragging }) => {
     const [showDetails, setShowDetails] = useState(index === 0);
     const [modalState, setModalState] = useState({
       customRep: { visible: false, value: exercise?.repRange || '' },
       customRest: { visible: false },
     });
 
-    const iconAnim = useRef(new Animated.Value(index === 0 ? 1.2 : 1)).current;
-    const iconRotation = useRef(new Animated.Value(index === 0 ? 0 : 1)).current;
     const detailsOpacity = useRef(new Animated.Value(index === 0 ? 1 : 0)).current;
     const detailsTranslateY = useRef(new Animated.Value(index === 0 ? 0 : -20)).current;
     const buttonsOpacity = useRef(new Animated.Value(index === 0 ? 1 : 0)).current;
-    
+
     const swipeTranslateX = useRef(new Animated.Value(0)).current;
     const swipeOpacity = useRef(new Animated.Value(1)).current;
     const backgroundColorAnim = useRef(new Animated.Value(0)).current;
@@ -500,81 +519,78 @@ const ExerciseItem = React.memo(
 
     useEffect(() => {
       if (exercise.restTime === undefined) {
-        onRestBetweenSetsChange(180, index);
+        onRestBetweenSetsChange(180, exercise.id);
       }
-    }, [exercise.restTime, onRestBetweenSetsChange, index]);
+    }, [exercise.restTime, exercise.id, onRestBetweenSetsChange]);
 
-    const panResponder = useRef(
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dy) < 20;
-        },
-        onPanResponderMove: (_, gestureState) => {
-          swipeTranslateX.setValue(gestureState.dx);
-          const colorValue = gestureState.dx > 0 ? 1 : gestureState.dx < 0 ? -1 : 0;
-          backgroundColorAnim.setValue(colorValue);
-        },
-        onPanResponderRelease: (_, gestureState) => {
-          if (Math.abs(gestureState.dx) > SWIPE_THRESHOLD) {
-            if (gestureState.dx > 0) {
-              Animated.parallel([
-                Animated.timing(swipeTranslateX, {
-                  toValue: 200,
-                  duration: 200,
-                  useNativeDriver: true,
-                }),
-                Animated.timing(backgroundColorAnim, {
-                  toValue: 1,
-                  duration: 200,
-                  useNativeDriver: false,
-                }),
-              ]).start(() => {
-                onReplace(index);
-                swipeTranslateX.setValue(0);
-                backgroundColorAnim.setValue(0);
-                Vibration.vibrate(20);
-              });
-            } else {
-              Animated.parallel([
-                Animated.timing(swipeTranslateX, {
-                  toValue: -200,
-                  duration: 200,
-                  useNativeDriver: true,
-                }),
-                Animated.timing(backgroundColorAnim, {
-                  toValue: -1,
-                  duration: 200,
-                  useNativeDriver: false,
-                }),
-              ]).start(() => {
-                Animated.timing(swipeOpacity, {
-                  toValue: 0,
-                  duration: 200,
-                  useNativeDriver: true,
-                }).start(() => {
-                  onDelete(index);
-                  Vibration.vibrate(40);
-                });
-              });
-            }
-          } else {
+    const panGesture = Gesture.Pan()
+      .runOnJS(true)
+      .enabled(!isDragging)
+      .activeOffsetX([-10, 10])
+      .failOffsetY([-20, 20])
+      .onUpdate((event) => {
+        swipeTranslateX.setValue(event.translationX);
+        const colorValue = event.translationX > 0 ? 1 : event.translationX < 0 ? -1 : 0;
+        backgroundColorAnim.setValue(colorValue);
+      })
+      .onEnd((event) => {
+        if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
+          if (event.translationX > 0) {
             Animated.parallel([
               Animated.timing(swipeTranslateX, {
-                toValue: 0,
+                toValue: 200,
                 duration: 200,
                 useNativeDriver: true,
               }),
               Animated.timing(backgroundColorAnim, {
-                toValue: 0,
+                toValue: 1,
                 duration: 200,
                 useNativeDriver: false,
               }),
-            ]).start();
+            ]).start(() => {
+              onReplace(exercise.id);
+              swipeTranslateX.setValue(0);
+              backgroundColorAnim.setValue(0);
+              Vibration.vibrate(20);
+            });
+          } else {
+            Animated.parallel([
+              Animated.timing(swipeTranslateX, {
+                toValue: -200,
+                duration: 200,
+                useNativeDriver: true,
+              }),
+              Animated.timing(backgroundColorAnim, {
+                toValue: -1,
+                duration: 200,
+                useNativeDriver: false,
+              }),
+            ]).start(() => {
+              Animated.timing(swipeOpacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+              }).start(() => {
+                onDelete(exercise.id);
+                Vibration.vibrate(40);
+              });
+            });
           }
-        },
-      })
-    ).current;
+        } else {
+          Animated.parallel([
+            Animated.timing(swipeTranslateX, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+            Animated.timing(backgroundColorAnim, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: false,
+            }),
+          ]).start();
+        }
+      });
 
     const toggleDetails = useCallback(() => {
       LayoutAnimation.configureNext({
@@ -583,23 +599,21 @@ const ExerciseItem = React.memo(
           type: LayoutAnimation.Types.easeInEaseOut,
         },
       });
-      
+
       const newValue = !showDetails;
       setShowDetails(newValue);
-      
-      runAnimation(iconAnim, newValue ? 1.2 : 1, { duration: 150 });
-      runAnimation(iconRotation, newValue ? 0 : 1, { duration: 150 });
+
       runAnimation(detailsOpacity, newValue ? 1 : 0, { duration: 300 });
       runAnimation(detailsTranslateY, newValue ? 0 : -20, { duration: 300 });
       runAnimation(buttonsOpacity, newValue ? 1 : 0, {
         delay: newValue ? 150 : 0,
         duration: 200,
       });
-      
+
       if (Platform.OS === 'ios') {
         Vibration.vibrate(5);
       }
-    }, [showDetails, iconAnim, iconRotation, detailsOpacity, detailsTranslateY, buttonsOpacity]);
+    }, [showDetails, detailsOpacity, detailsTranslateY, buttonsOpacity]);
 
     const handleModalChange = useCallback((modal, field, value) => {
       setModalState((prev) => ({
@@ -611,14 +625,14 @@ const ExerciseItem = React.memo(
     const saveRepModal = useCallback(() => {
       const { value } = modalState.customRep;
       if (value.trim()) {
-        onRepsChange(value.trim(), index);
+        onRepsChange(value.trim(), exercise.id);
       }
       handleModalChange('customRep', 'visible', false);
-    }, [modalState.customRep.value, onRepsChange, index, handleModalChange]);
+    }, [modalState.customRep.value, onRepsChange, exercise.id, handleModalChange]);
 
     const handleRestTimeSelect = useCallback((restTime) => {
-      onRestBetweenSetsChange(restTime, index);
-    }, [onRestBetweenSetsChange, index]);
+      onRestBetweenSetsChange(restTime, exercise.id);
+    }, [onRestBetweenSetsChange, exercise.id]);
 
     const handleCustomRestPress = useCallback(() => {
       setModalState(prev => ({
@@ -630,8 +644,8 @@ const ExerciseItem = React.memo(
     }, []);
 
     const handleRestTimeSave = useCallback((totalSeconds) => {
-      onRestBetweenSetsChange(totalSeconds, index);
-    }, [onRestBetweenSetsChange, index]);
+      onRestBetweenSetsChange(totalSeconds, exercise.id);
+    }, [onRestBetweenSetsChange, exercise.id]);
 
     useEffect(() => {
       runAnimation(buttonsOpacity, showDetails ? 1 : 0, {
@@ -640,23 +654,11 @@ const ExerciseItem = React.memo(
       });
     }, [showDetails, buttonsOpacity]);
 
-    const iconRotationInterpolate = iconRotation.interpolate({
-      inputRange: [0, 1],
-      outputRange: ['0deg', '180deg']
-    });
-
     const backgroundColorInterpolate = backgroundColorAnim.interpolate({
       inputRange: [-1, 0, 1],
       outputRange: [COLORS.error, COLORS.transparent, COLORS.primary],
       extrapolate: 'clamp',
     });
-
-    const animatedIconStyle = {
-      transform: [
-        { scale: iconAnim },
-        { rotate: iconRotationInterpolate },
-      ],
-    };
 
     const animatedDetailsStyle = {
       opacity: detailsOpacity,
@@ -677,150 +679,152 @@ const ExerciseItem = React.memo(
     return (
       <View style={styles.exerciseItemContainer}>
         <Animated.View style={[styles.swipeBackground, animatedBackgroundStyle]} />
-        
-        <Animated.View
-          {...panResponder.panHandlers}
-          style={[
-            styles.exerciseCard,
-            showDetails && styles.cardExpanded,
-            animatedCardStyle,
-            { opacity: fadeAnim || 1 },
-          ]}
-        >
-          <View style={styles.exerciseHeader}>
-            <CustomButton
-              onPress={toggleDetails}
-              style={styles.exerciseHeaderButton}
-              activeOpacity={0.9}
-            >
-              <View style={styles.imageContainer}>
-                {exercise.imageURL ? (
-                  <Image
-                    source={{ uri: exercise.imageURL }}
-                    style={styles.exerciseImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={styles.exerciseImage}>
-                    <Ionicons name="barbell" size={20} color={COLORS.textMuted} />
-                  </View>
-                )}
-              </View>
-              <View style={styles.exerciseTextContainer}>
-                <View style={styles.nameAndSetsContainer}>
-                  <Text style={styles.exerciseName} numberOfLines={1} ellipsizeMode="tail">
-                    {exerciseName}
-                  </Text>
-                </View>
-                {(exercise.numSets || exercise.repRange || muscleGroup) && (
-                  <View style={styles.setsRepsSummary}>
-                    {(exercise.numSets || exercise.repRange) && (
-                      <Text style={styles.setsRepsText}>
-                        {exercise.numSets && exercise.repRange
-                          ? `${exercise.numSets} x ${exercise.repRange}`
-                          : exercise.numSets
-                          ? `${exercise.numSets} sets`
-                          : exercise.repRange
-                          ? `${exercise.repRange} reps`
-                          : ''}
-                      </Text>
-                    )}
-                    {muscleGroup && (exercise.numSets || exercise.repRange) && (
-                      <View style={styles.circleSeparator} />
-                    )}
-                    {muscleGroup && <Text style={styles.setsRepsText}>{muscleGroup}</Text>}
-                  </View>
-                )}
-              </View>
-            </CustomButton>
-            
-            <View style={styles.headerButtonsContainer}>
+
+        <GestureDetector gesture={panGesture}>
+          <Animated.View
+            style={[
+              styles.exerciseCard,
+              showDetails && styles.cardExpanded,
+              animatedCardStyle,
+              isDragging && styles.draggingCard,
+              { opacity: fadeAnim || 1 },
+            ]}
+          >
+            <View style={styles.exerciseHeader}>
               <CustomButton
                 onPress={toggleDetails}
-                style={styles.collapseButton}
-                icon={
-                  <Animated.View style={animatedIconStyle}>
+                style={styles.exerciseHeaderButton}
+                activeOpacity={0.9}
+              >
+                <View style={styles.imageContainer}>
+                  {exercise.imageURL ? (
+                    <Image
+                      source={{ uri: exercise.imageURL }}
+                      style={styles.exerciseImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.exerciseImage}>
+                      <Ionicons name="barbell" size={20} color={COLORS.textMuted} />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.exerciseTextContainer}>
+                  <View style={styles.nameAndSetsContainer}>
+                    <Text style={styles.exerciseName} numberOfLines={1} ellipsizeMode="tail">
+                      {exerciseName}
+                    </Text>
+                  </View>
+                  {(exercise.numSets || exercise.repRange || muscleGroup) && (
+                    <View style={styles.setsRepsSummary}>
+                      {(exercise.numSets || exercise.repRange) && (
+                        <Text style={styles.setsRepsText}>
+                          {exercise.numSets && exercise.repRange
+                            ? `${exercise.numSets} x ${exercise.repRange}`
+                            : exercise.numSets
+                            ? `${exercise.numSets} sets`
+                            : exercise.repRange
+                            ? `${exercise.repRange} reps`
+                            : ''}
+                        </Text>
+                      )}
+                      {muscleGroup && (exercise.numSets || exercise.repRange) && (
+                        <View style={styles.circleSeparator} />
+                      )}
+                      {muscleGroup && <Text style={styles.setsRepsText}>{muscleGroup}</Text>}
+                    </View>
+                  )}
+                </View>
+              </CustomButton>
+
+              <View style={styles.headerButtonsContainer}>
+                <CustomButton
+                  onPressIn={onDrag}
+                  disabled={!onDrag}
+                  style={styles.dragHandleButton}
+                  icon={
                     <Ionicons
-                      name={showDetails ? 'chevron-up' : 'chevron-down'}
-                      size={14}
+                      name="reorder-three-outline"
+                      size={18}
                       color={COLORS.textSecondary}
                     />
-                  </Animated.View>
-                }
-              />
+                  }
+                  accessibilityLabel="Drag to reorder exercise"
+                />
+              </View>
             </View>
-          </View>
 
-          {showDetails && (
-            <Animated.View
-              style={[styles.detailsContainer, animatedDetailsStyle, styles.detailsContainerPadding]}
-            >
-              <View>
-                <View style={styles.detailRow}>
-                  <View style={styles.setsAndRestRow}>
-                    <View style={styles.setsSection}>
-                      <Text style={styles.detailLabel}>SETS</Text>
-                      <View style={styles.chipsContainer}>
-                        {SET_OPTIONS.map((setNum) => (
-                          <Chip
-                            key={`set-${setNum}`}
-                            label={setNum.toString()}
-                            isSelected={Number(exercise.numSets) === setNum}
-                            onPress={() => onSetsChange(setNum.toString(), index)}
-                          />
-                        ))}
+            {showDetails && (
+              <Animated.View
+                style={[styles.detailsContainer, animatedDetailsStyle, styles.detailsContainerPadding]}
+              >
+                <View>
+                  <View style={styles.detailRow}>
+                    <View style={styles.setsAndRestRow}>
+                      <View style={styles.setsSection}>
+                        <Text style={styles.detailLabel}>SETS</Text>
+                        <View style={styles.chipsContainer}>
+                          {SET_OPTIONS.map((setNum) => (
+                            <Chip
+                              key={`set-${setNum}`}
+                              label={setNum.toString()}
+                              isSelected={Number(exercise.numSets) === setNum}
+                              onPress={() => onSetsChange(setNum.toString(), exercise.id)}
+                            />
+                          ))}
+                        </View>
+                      </View>
+
+                      <View style={styles.restSection}>
+                        <Text style={styles.detailLabel}>REST </Text>
+                        <RestTimeSelector
+                          selectedValue={exercise.restTime}
+                          onSelect={handleRestTimeSelect}
+                          onCustomPress={handleCustomRestPress}
+                        />
                       </View>
                     </View>
+                  </View>
 
-                    <View style={styles.restSection}>
-                      <Text style={styles.detailLabel}>REST </Text>
-                      <RestTimeSelector
-                        selectedValue={exercise.restTime}
-                        onSelect={handleRestTimeSelect}
-                        onCustomPress={handleCustomRestPress}
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>REP RANGE</Text>
+                    <View style={styles.chipsContainer}>
+                      {REP_RANGE_OPTIONS.map((option) => (
+                        <Chip
+                          key={`rep-${option.value}`}
+                          label={option.label}
+                          isSelected={exercise.repRange === option.value}
+                          onPress={() => onRepsChange(option.value, exercise.id)}
+                        />
+                      ))}
+                      <Chip
+                        label={isCustomRepRange ? exercise.repRange : 'Custom'}
+                        isSelected={isCustomRepRange}
+                        onPress={() => handleModalChange('customRep', 'visible', true)}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.noteContainer}>
+                    <Text style={styles.detailLabel}>NOTE</Text>
+                    <View style={styles.noteRow}>
+                      <TextInput
+                        style={styles.noteTextInput}
+                        value={exercise.note || ''}
+                        onChangeText={(text) => onNoteChange(text, exercise.id)}
+                        placeholder="Add notes for this exercise..."
+                        placeholderTextColor={COLORS.textMuted}
+                        multiline
+                        numberOfLines={2}
+                        textAlignVertical="top"
                       />
                     </View>
                   </View>
                 </View>
-
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>REP RANGE</Text>
-                  <View style={styles.chipsContainer}>
-                    {REP_RANGE_OPTIONS.map((option) => (
-                      <Chip
-                        key={`rep-${option.value}`}
-                        label={option.label}
-                        isSelected={exercise.repRange === option.value}
-                        onPress={() => onRepsChange(option.value, index)}
-                      />
-                    ))}
-                    <Chip
-                      label={isCustomRepRange ? exercise.repRange : 'Custom'}
-                      isSelected={isCustomRepRange}
-                      onPress={() => handleModalChange('customRep', 'visible', true)}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.noteContainer}>
-                  <Text style={styles.detailLabel}>NOTE</Text>
-                  <View style={styles.noteRow}>
-                    <TextInput
-                      style={styles.noteTextInput}
-                      value={exercise.note || ''}
-                      onChangeText={(text) => onNoteChange(text, index)}
-                      placeholder="Add notes for this exercise..."
-                      placeholderTextColor={COLORS.textMuted}
-                      multiline
-                      numberOfLines={2}
-                      textAlignVertical="top"
-                    />
-                  </View>
-                </View>
-              </View>
-            </Animated.View>
-          )}
-        </Animated.View>
+              </Animated.View>
+            )}
+          </Animated.View>
+        </GestureDetector>
 
         <ModalWrapper
           visible={modalState.customRep.visible}
@@ -840,7 +844,8 @@ const ExerciseItem = React.memo(
         />
       </View>
     );
-  }
+  },
+  areEqual
 );
 
 export default ExerciseItem;

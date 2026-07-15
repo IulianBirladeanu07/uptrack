@@ -2,9 +2,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { COLORS } from '../CreateSplitScreenStyles';
 import styles from './ScheduleStepStyles';
-import { normalize } from '../../../../../shared/hooks/useResponsive';
+import { colors, spacing } from '../../../../../shared/theme';
 import WorkoutPreviewCard from '../components/WorkoutPreviewCard';
 import { daysOfWeek } from '../constants/CreateSplitScreenConstants';
 
@@ -21,21 +20,21 @@ const ScheduleStep = ({
 }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [rotationDaysInput, setRotationDaysInput] = useState('');
-  
+
   const isWeeklySchedule = splitData.type === 'weekly';
   const isRotationSchedule = splitData.type === 'rotation';
 
   const rotationDays = useMemo(() => {
     if (!isRotationSchedule) return [];
-    
+
     const schedule = splitData.schedule || {};
     const existingNumbers = Object.keys(schedule)
       .map(key => parseInt(key))
       .filter(num => !isNaN(num))
       .sort((a, b) => a - b);
-    
+
     const dayCount = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 5;
-    
+
     return Array.from({ length: dayCount }, (_, i) => ({
       id: i + 1,
       name: `Day ${i + 1}`,
@@ -46,9 +45,9 @@ const ScheduleStep = ({
 
   const currentScheduleDays = isWeeklySchedule ? daysOfWeek : rotationDays;
   const assignedCount = Object.values(splitData.schedule).filter(w => w !== null).length;
-  
-  const currentDayWorkout = useMemo(() => 
-    splitData.schedule[selectedDay], 
+
+  const currentDayWorkout = useMemo(() =>
+    splitData.schedule[selectedDay],
     [splitData.schedule, selectedDay]
   );
 
@@ -64,9 +63,35 @@ const ScheduleStep = ({
     setIsModalVisible(true);
   }, [isRotationSchedule, rotationDays.length]);
 
+  const updateRotationDays = useCallback((newDayCount) => {
+    const currentDayCount = rotationDays.length;
+
+    if (newDayCount === currentDayCount) {
+      return;
+    }
+
+    if (newDayCount > currentDayCount) {
+      for (let i = currentDayCount + 1; i <= newDayCount; i++) {
+        if (handleAddRotationDay) {
+          handleAddRotationDay(i);
+        }
+      }
+    } else if (newDayCount < currentDayCount) {
+      for (let i = currentDayCount; i > newDayCount; i--) {
+        if (handleRemoveRotationDay) {
+          handleRemoveRotationDay(i);
+        }
+      }
+    }
+
+    if (selectedDay > newDayCount) {
+      setSelectedDay(1);
+    }
+  }, [handleAddRotationDay, handleRemoveRotationDay, rotationDays.length, selectedDay, setSelectedDay]);
+
   const handleSaveRotationDays = useCallback(() => {
     const newDayCount = parseInt(rotationDaysInput);
-    
+
     if (isNaN(newDayCount) || newDayCount < 1 || newDayCount > 14) {
       Alert.alert('Invalid Input', 'Please enter a number between 1 and 14 days.');
       return;
@@ -81,15 +106,15 @@ const ScheduleStep = ({
       const wouldLoseWorkouts = rotationDays
         .slice(newDayCount)
         .some(day => splitData.schedule[day.number]);
-      
+
       if (wouldLoseWorkouts) {
         Alert.alert(
           'Warning',
           `Reducing to ${newDayCount} days will remove workouts assigned to days ${newDayCount + 1} and above. Continue?`,
           [
             { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Continue', 
+            {
+              text: 'Continue',
               style: 'destructive',
               onPress: () => {
                 updateRotationDays(newDayCount);
@@ -104,36 +129,10 @@ const ScheduleStep = ({
 
     updateRotationDays(newDayCount);
     setIsModalVisible(false);
-  }, [rotationDaysInput, rotationDays.length, splitData.schedule]);
-
-  const updateRotationDays = useCallback((newDayCount) => {
-    const currentDayCount = rotationDays.length;
-    
-    if (newDayCount === currentDayCount) {
-      return;
-    }
-    
-    if (newDayCount > currentDayCount) {
-      for (let i = currentDayCount + 1; i <= newDayCount; i++) {
-        if (handleAddRotationDay) {
-          handleAddRotationDay(i);
-        }
-      }
-    } else if (newDayCount < currentDayCount) {
-      for (let i = currentDayCount; i > newDayCount; i--) {
-        if (handleRemoveRotationDay) {
-          handleRemoveRotationDay(i);
-        }
-      }
-    }
-    
-    if (selectedDay > newDayCount) {
-      setSelectedDay(1);
-    }
-  }, [handleAddRotationDay, handleRemoveRotationDay, rotationDays.length, selectedDay, setSelectedDay]);
+  }, [rotationDaysInput, rotationDays, splitData.schedule, updateRotationDays]);
 
   const workoutStats = useMemo(() => {
-    const assigned = workouts.filter(workout => 
+    const assigned = workouts.filter(workout =>
       Object.values(splitData.schedule).some(w => w?.id === workout.id)
     ).length;
     const unassigned = workouts.length - assigned;
@@ -176,47 +175,44 @@ const ScheduleStep = ({
         </View>
 
         {isWeeklySchedule ? (
-          <View style={[styles.dayPillsScrollView, { marginHorizontal: normalize(20) }]}>
+          <View style={[styles.dayPillsScrollView, { marginHorizontal: spacing[5] }]}>
             <View style={styles.dayPills}>
               {currentScheduleDays.map(day => {
                 const dayId = day.id;
                 const isSelected = selectedDay === dayId;
                 const hasWorkout = splitData.schedule[dayId];
-                const isRestDay = !hasWorkout;
-                
+
                 return (
                   <TouchableOpacity
                     key={dayId}
-                    style={[
-                      styles.dayPill,
-                      styles.dayPillWeekly,
-                      isSelected && styles.dayPillSelected,
-                      hasWorkout && !isSelected && styles.dayPillHasWorkout,
-                      isRestDay && !isSelected && styles.dayPillRestDay,
-                    ]}
+                    style={styles.dayColumn}
                     onPress={() => setSelectedDay(dayId)}
                     activeOpacity={0.7}
                   >
-                    <View style={styles.dayPillContent}>
+                    <View style={[
+                      styles.dayCircle,
+                      hasWorkout && styles.dayCircleHasWorkout,
+                      isSelected && styles.dayCircleSelected,
+                    ]}>
                       <Text style={[
-                        styles.dayPillText,
-                        styles.dayPillTextWeekly,
-                        isSelected && styles.dayPillTextSelected,
-                        hasWorkout && !isSelected && styles.dayPillTextHasWorkout,
-                        isRestDay && !isSelected && styles.dayPillTextRestDay
+                        styles.dayCircleText,
+                        hasWorkout && styles.dayCircleTextHasWorkout,
+                        isSelected && styles.dayCircleTextSelected,
                       ]}>
                         {day.shortLabel}
                       </Text>
                     </View>
+                    <Text style={[styles.dayLabel, isSelected && styles.dayLabelSelected]}>
+                      {day.name.slice(0, 3)}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
           </View>
         ) : (
-          
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.dayPillsContainer}
             style={styles.dayPillsScrollView}
@@ -226,26 +222,23 @@ const ScheduleStep = ({
                 const dayId = day.number;
                 const isSelected = selectedDay === dayId;
                 const hasWorkout = splitData.schedule[dayId];
-                
+
                 return (
                   <TouchableOpacity
                     key={dayId}
-                    style={[
-                      styles.dayPill,
-                      styles.dayPillRotation,
-                      isSelected && styles.dayPillSelected,
-                      hasWorkout && !isSelected && styles.dayPillHasWorkout,
-                      !isSelected && styles.dayPillRotationBorder,
-                    ]}
+                    style={styles.dayColumn}
                     onPress={() => setSelectedDay(dayId)}
                     activeOpacity={0.7}
                   >
-                    <View style={styles.dayPillContent}>
+                    <View style={[
+                      styles.dayCircle,
+                      hasWorkout && styles.dayCircleHasWorkout,
+                      isSelected && styles.dayCircleSelected,
+                    ]}>
                       <Text style={[
-                        styles.dayPillText,
-                        styles.dayPillTextRotation,
-                        isSelected && styles.dayPillTextSelected,
-                        hasWorkout && !isSelected && styles.dayPillTextHasWorkout,
+                        styles.dayCircleText,
+                        hasWorkout && styles.dayCircleTextHasWorkout,
+                        isSelected && styles.dayCircleTextSelected,
                       ]}>
                         {day.shortLabel}
                       </Text>
@@ -253,28 +246,25 @@ const ScheduleStep = ({
                   </TouchableOpacity>
                 );
               })}
-              
+
               <TouchableOpacity
                 style={styles.settingsButton}
                 onPress={handleOpenModal}
                 activeOpacity={0.7}
                 accessibilityLabel="Configure number of rotation days"
               >
-                <Ionicons name="settings-outline" size={16} color={COLORS.accentPrimary} />
+                <Ionicons name="settings-outline" size={spacing.iconSm} color={colors.accent.primary} />
               </TouchableOpacity>
             </View>
           </ScrollView>
         )}
 
-        {}
         <View style={styles.contextBar}>
           <View style={styles.contextLeft}>
             <Text style={styles.contextText}>
-              {currentDayWorkout 
+              {currentDayWorkout
                 ? `${getCurrentDayName()}: ${currentDayWorkout.templateName}`
-                : isWeeklySchedule 
-                  ? `${getCurrentDayName()} • Rest Day`
-                  : `${getCurrentDayName()} • Rest Day`
+                : `${getCurrentDayName()} • Rest Day`
               }
             </Text>
             {!currentDayWorkout && (
@@ -293,13 +283,11 @@ const ScheduleStep = ({
         </View>
       </View>
 
-      {}
-      <ScrollView 
+      <ScrollView
         style={styles.scrollableContent}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {}
         <View style={styles.workoutsList}>
           {workouts.length > 0 ? (
             workouts.map((workout, index) => (
@@ -311,13 +299,12 @@ const ScheduleStep = ({
                 selectedDay={selectedDay}
                 colorIndex={index}
                 splitData={splitData}
-                isRotationSchedule={isRotationSchedule}
               />
             ))
           ) : (
             <View style={styles.emptyState}>
               <View style={styles.emptyStateIcon}>
-                <Ionicons name="barbell-outline" size={48} color={COLORS.textMuted} />
+                <Ionicons name="barbell-outline" size={spacing[12]} color={colors.text.quaternary} />
               </View>
               <Text style={styles.emptyStateTitle}>No workouts yet</Text>
               <Text style={styles.emptyStateText}>Create your first workout to start building your split</Text>
@@ -326,7 +313,7 @@ const ScheduleStep = ({
                 onPress={() => navigation.navigate('CreateTemplate')}
                 activeOpacity={0.8}
               >
-                <Ionicons name="add-circle-outline" size={20} color={COLORS.accentSecondary} />
+                <Ionicons name="add-circle-outline" size={spacing.iconMd} color={colors.accent.cyan} />
                 <Text style={styles.emptyStateButtonText}>Create Template</Text>
               </TouchableOpacity>
             </View>
@@ -334,7 +321,6 @@ const ScheduleStep = ({
         </View>
       </ScrollView>
 
-      {}
       <Modal
         visible={isModalVisible}
         transparent={true}
@@ -350,10 +336,10 @@ const ScheduleStep = ({
                 onPress={() => setIsModalVisible(false)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="close" size={24} color={COLORS.textPrimary} />
+                <Ionicons name="close" size={spacing.iconLg} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.modalBody}>
               <Text style={styles.modalLabel}>Number of days in rotation:</Text>
               <TextInput
@@ -362,7 +348,7 @@ const ScheduleStep = ({
                 onChangeText={setRotationDaysInput}
                 keyboardType="numeric"
                 placeholder="Enter number of days (1-14)"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.text.quaternary}
                 maxLength={2}
                 selectTextOnFocus={true}
               />
@@ -394,4 +380,4 @@ const ScheduleStep = ({
   );
 };
 
-export default React.memo(ScheduleStep);  
+export default React.memo(ScheduleStep);

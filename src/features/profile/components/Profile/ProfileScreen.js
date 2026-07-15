@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth } from 'firebase/auth';
 import { fetchUserProfile } from '../../../auth/services/firebaseAuthService';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
@@ -21,6 +21,25 @@ import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
 const PLACEHOLDER_URI = 'https://via.placeholder.com/150';
+
+const StatTile = ({ label, value, unit, isEditing, onChangeText }) => (
+  <View style={styles.statTile}>
+    {isEditing ? (
+      <TextInput
+        style={styles.statInput}
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType="numeric"
+        placeholder="0"
+        placeholderTextColor={colors.text.quaternary}
+        textAlign="center"
+      />
+    ) : (
+      <Text style={styles.statValue}>{value || '-'}</Text>
+    )}
+    <Text style={styles.statUnit}>{unit}</Text>
+  </View>
+);
 
 const Field = ({ icon, label, value, error, children }) => (
   <View style={{ marginBottom: spacing[4] }}>
@@ -43,20 +62,20 @@ const ProfileScreen = ({ navigation }) => {
 
   const auth = getAuth();
   const db = getFirestore();
+  const storage = getStorage();
 
   const [profilePicture, setProfilePicture] = useState(userSettings?.profilePicture || PLACEHOLDER_URI);
+  const [pendingImageUri, setPendingImageUri] = useState(null);
   const [username, setUsername] = useState(userSettings?.username || '');
   const [email, setEmail] = useState(userSettings?.email || '');
   const [age, setAge] = useState(String(userSettings?.age || ''));
   const [weight, setWeight] = useState(String(userSettings?.weight || ''));
   const [height, setHeight] = useState(String(userSettings?.height || ''));
-  const [dob, setDob] = useState(userSettings?.dob ? new Date(userSettings.dob) : new Date());
-  const [targetCalories, setTargetCalories] = useState(String(userSettings?.targetCalories || ''));
-  const [targetProtein, setTargetProtein] = useState(String(userSettings?.targetProtein || ''));
-  const [targetFats, setTargetFats] = useState(String(userSettings?.targetFats || ''));
-  const [targetCarbs, setTargetCarbs] = useState(String(userSettings?.targetCarbs || ''));
+  const [targetCalories, setTargetCalories] = useState(userSettings?.targetCalories || 0);
+  const [targetProtein, setTargetProtein] = useState(userSettings?.targetProtein || 0);
+  const [targetFats, setTargetFats] = useState(userSettings?.targetFats || 0);
+  const [targetCarbs, setTargetCarbs] = useState(userSettings?.targetCarbs || 0);
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [errors, setErrors] = useState({});
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -79,11 +98,10 @@ const ProfileScreen = ({ navigation }) => {
           setAge(String(data.age || ''));
           setWeight(String(data.weight || ''));
           setHeight(String(data.height || ''));
-          setDob(data.dob ? new Date(data.dob) : new Date());
-          setTargetCalories(String(data.targetCalories || ''));
-          setTargetProtein(String(data.targetProtein || ''));
-          setTargetFats(String(data.targetFats || ''));
-          setTargetCarbs(String(data.targetCarbs || ''));
+          setTargetCalories(data.targetCalories || 0);
+          setTargetProtein(data.targetProtein || 0);
+          setTargetFats(data.targetFats || 0);
+          setTargetCarbs(data.targetCarbs || 0);
           setUserSettings(data);
         }
       } catch (error) {
@@ -99,15 +117,19 @@ const ProfileScreen = ({ navigation }) => {
     const e = {};
     if (!username.trim()) e.username = 'Required';
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Valid email required';
-    if (!age.trim() || isNaN(age) || Number(age) <= 0) e.age = 'Valid age required';
-    if (!weight.trim() || isNaN(weight) || Number(weight) <= 0) e.weight = 'Valid weight required';
-    if (!height.trim() || isNaN(height) || Number(height) <= 0) e.height = 'Valid height required';
-    if (!targetCalories.trim() || isNaN(targetCalories) || Number(targetCalories) <= 0) e.targetCalories = 'Required';
-    if (!targetProtein.trim() || isNaN(targetProtein) || Number(targetProtein) <= 0) e.targetProtein = 'Required';
-    if (!targetFats.trim() || isNaN(targetFats) || Number(targetFats) <= 0) e.targetFats = 'Required';
-    if (!targetCarbs.trim() || isNaN(targetCarbs) || Number(targetCarbs) <= 0) e.targetCarbs = 'Required';
+    if (!age.trim() || isNaN(age) || Number(age) <= 0) e.age = 'Invalid';
+    if (!weight.trim() || isNaN(weight) || Number(weight) <= 0) e.weight = 'Invalid';
+    if (!height.trim() || isNaN(height) || Number(height) <= 0) e.height = 'Invalid';
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const uploadProfilePicture = async (uid, uri) => {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const pictureRef = ref(storage, `profilePictures/${uid}.jpg`);
+    await uploadBytes(pictureRef, blob);
+    return getDownloadURL(pictureRef);
   };
 
   const handleSave = async () => {
@@ -117,23 +139,27 @@ const ProfileScreen = ({ navigation }) => {
       Alert.alert('Error', 'User not authenticated');
       return;
     }
-    const profileData = {
-      profilePicture,
-      username,
-      email,
-      age: Number(age),
-      weight: Number(weight),
-      height: Number(height),
-      dob: dob.toISOString(),
-      targetCalories: Number(targetCalories),
-      targetProtein: Number(targetProtein),
-      targetFats: Number(targetFats),
-      targetCarbs: Number(targetCarbs),
-    };
+
     setSaving(true);
     try {
+      let finalProfilePicture = profilePicture;
+      if (pendingImageUri) {
+        finalProfilePicture = await uploadProfilePicture(user.uid, pendingImageUri);
+      }
+
+      const profileData = {
+        profilePicture: finalProfilePicture,
+        username,
+        email,
+        age: Number(age),
+        weight: Number(weight),
+        height: Number(height),
+      };
+
       await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
-      setUserSettings(profileData);
+      setProfilePicture(finalProfilePicture);
+      setPendingImageUri(null);
+      setUserSettings(prev => ({ ...prev, ...profileData }));
       setIsEditing(false);
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -145,16 +171,12 @@ const ProfileScreen = ({ navigation }) => {
   const handleCancel = useCallback(() => {
     const s = userSettings || {};
     setProfilePicture(s.profilePicture || PLACEHOLDER_URI);
+    setPendingImageUri(null);
     setUsername(s.username || '');
     setEmail(s.email || '');
     setAge(String(s.age || ''));
     setWeight(String(s.weight || ''));
     setHeight(String(s.height || ''));
-    setDob(s.dob ? new Date(s.dob) : new Date());
-    setTargetCalories(String(s.targetCalories || ''));
-    setTargetProtein(String(s.targetProtein || ''));
-    setTargetFats(String(s.targetFats || ''));
-    setTargetCarbs(String(s.targetCarbs || ''));
     setErrors({});
     setIsEditing(false);
   }, [userSettings]);
@@ -168,6 +190,7 @@ const ProfileScreen = ({ navigation }) => {
     });
     if (!result.canceled) {
       setProfilePicture(result.assets[0].uri);
+      setPendingImageUri(result.assets[0].uri);
     }
   };
 
@@ -223,6 +246,15 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.avatarEmail}>{email}</Text>
         </View>
 
+        <View style={styles.statRow}>
+          <StatTile label="Age" value={age} unit="yrs" isEditing={isEditing} onChangeText={setAge} />
+          <StatTile label="Weight" value={weight} unit="kg" isEditing={isEditing} onChangeText={setWeight} />
+          <StatTile label="Height" value={height} unit="cm" isEditing={isEditing} onChangeText={setHeight} />
+        </View>
+        {(errors.age || errors.weight || errors.height) && (
+          <Text style={styles.statError}>Check age, weight, and height</Text>
+        )}
+
         <SectionHeader title="Personal Info" />
 
         <Field
@@ -262,170 +294,31 @@ const ProfileScreen = ({ navigation }) => {
           )}
         </Field>
 
-        <View style={styles.row}>
-          <View style={{ flex: 1, marginRight: spacing[2] }}>
-            <Field
-              label="Age"
-              icon={<Ionicons name="calendar-outline" size={spacing.icon} color={colors.text.tertiary} />}
-              value={`${age} yrs`}
-              error={errors.age}
-            >
-              {isEditing && (
-                <TextInput
-                  style={[styles.textInput, errors.age && styles.textInputError]}
-                  value={age}
-                  onChangeText={setAge}
-                  placeholder="Age"
-                  placeholderTextColor={colors.text.quaternary}
-                  keyboardType="numeric"
-                />
-              )}
-            </Field>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Field
-              label="Weight"
-              icon={<Ionicons name="barbell-outline" size={spacing.icon} color={colors.text.tertiary} />}
-              value={`${weight} kg`}
-              error={errors.weight}
-            >
-              {isEditing && (
-                <TextInput
-                  style={[styles.textInput, errors.weight && styles.textInputError]}
-                  value={weight}
-                  onChangeText={setWeight}
-                  placeholder="kg"
-                  placeholderTextColor={colors.text.quaternary}
-                  keyboardType="numeric"
-                />
-              )}
-            </Field>
-          </View>
-        </View>
+        <SectionHeader title="Nutrition Target" />
 
-        <View style={styles.row}>
-          <View style={{ flex: 1, marginRight: spacing[2] }}>
-            <Field
-              label="Height"
-              icon={<Ionicons name="resize-outline" size={spacing.icon} color={colors.text.tertiary} />}
-              value={`${height} cm`}
-              error={errors.height}
-            >
-              {isEditing && (
-                <TextInput
-                  style={[styles.textInput, errors.height && styles.textInputError]}
-                  value={height}
-                  onChangeText={setHeight}
-                  placeholder="cm"
-                  placeholderTextColor={colors.text.quaternary}
-                  keyboardType="numeric"
-                />
-              )}
-            </Field>
+        <View style={styles.nutritionCard}>
+          <View style={styles.nutritionKcalRow}>
+            <Text style={styles.nutritionKcal}>{targetCalories}</Text>
+            <Text style={styles.nutritionKcalUnit}>kcal / day</Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <Field
-              label="Date of Birth"
-              icon={<Ionicons name="calendar-outline" size={spacing.icon} color={colors.text.tertiary} />}
-              value={dob.toLocaleDateString()}
-              error={errors.dob}
-            >
-              {isEditing && (
-                <TouchableOpacity onPress={() => setShowDatePicker(true)}>
-                  <Text style={styles.dateValue}>{dob.toLocaleDateString()}</Text>
-                </TouchableOpacity>
-              )}
-            </Field>
-          </View>
-        </View>
-
-        {showDatePicker && (
-          <DateTimePicker
-            value={dob}
-            mode="date"
-            display="default"
-            onChange={(event, date) => {
-              setShowDatePicker(false);
-              if (date) setDob(date);
-            }}
-          />
-        )}
-
-        <SectionHeader title="Nutritional Targets" />
-
-        <View style={styles.macroGrid}>
-          <View style={[styles.macroCard, styles.macroCardCalories]}>
-            <Ionicons name="flame-outline" size={spacing.iconMd} color={colors.accent.primary} />
-            <Text style={styles.macroCardLabel}>Calories</Text>
-            {isEditing ? (
-              <TextInput
-                style={[styles.macroInput, errors.targetCalories && styles.textInputError]}
-                value={targetCalories}
-                onChangeText={setTargetCalories}
-                placeholder="0"
-                placeholderTextColor={colors.text.quaternary}
-                keyboardType="numeric"
-                textAlign="center"
-              />
-            ) : (
-              <Text style={styles.macroCardValue}>{targetCalories}</Text>
-            )}
-            <Text style={styles.macroCardUnit}>kcal</Text>
-          </View>
-        </View>
-
-        <View style={styles.macroRow}>
-          {[
-            {
-              key: 'targetProtein',
-              label: 'Protein',
-              value: targetProtein,
-              setter: setTargetProtein,
-              color: colors.accent.purpleLight,
-              bg: colors.faded.purpleAlt,
-              border: colors.border.protein,
-              icon: 'nutrition-outline',
-            },
-            {
-              key: 'targetCarbs',
-              label: 'Carbs',
-              value: targetCarbs,
-              setter: setTargetCarbs,
-              color: colors.accent.greenLight,
-              bg: colors.faded.green,
-              border: colors.border.carbs,
-              icon: 'restaurant-outline',
-            },
-            {
-              key: 'targetFats',
-              label: 'Fats',
-              value: targetFats,
-              setter: setTargetFats,
-              color: colors.accent.cyanLight,
-              bg: colors.faded.cyanAlt,
-              border: colors.border.fat,
-              icon: 'fast-food-outline',
-            },
-          ].map(({ key, label, value, setter, color, bg, border, icon }) => (
-            <View key={key} style={[styles.macroMini, { backgroundColor: bg, borderColor: border }]}>
-              <Ionicons name={icon} size={spacing.icon} color={color} />
-              <Text style={[styles.macroMiniLabel, { color }]}>{label}</Text>
-              {isEditing ? (
-                <TextInput
-                  style={[styles.macroMiniInput, errors[key] && styles.textInputError, { color }]}
-                  value={value}
-                  onChangeText={setter}
-                  placeholder="0"
-                  placeholderTextColor={colors.text.quaternary}
-                  keyboardType="numeric"
-                  textAlign="center"
-                />
-              ) : (
-                <Text style={[styles.macroMiniValue, { color }]}>{value}g</Text>
-              )}
+          <View style={styles.nutritionMacroRow}>
+            <View style={styles.nutritionMacroItem}>
+              <Text style={styles.nutritionMacroLabel}>Protein</Text>
+              <Text style={styles.nutritionMacroValue}>{targetProtein}g</Text>
             </View>
-          ))}
+            <View style={styles.nutritionMacroItem}>
+              <Text style={styles.nutritionMacroLabel}>Carbs</Text>
+              <Text style={styles.nutritionMacroValue}>{targetCarbs}g</Text>
+            </View>
+            <View style={styles.nutritionMacroItem}>
+              <Text style={styles.nutritionMacroLabel}>Fat</Text>
+              <Text style={styles.nutritionMacroValue}>{targetFats}g</Text>
+            </View>
+          </View>
         </View>
+        <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+          <Text style={styles.settingsLink}>Managed in Settings</Text>
+        </TouchableOpacity>
 
         {isEditing && (
           <View style={styles.actionRow}>
@@ -502,16 +395,16 @@ const styles = createStyles(() => ({
   },
   avatarSection: {
     alignItems: 'center',
-    marginBottom: spacing[8],
+    marginBottom: spacing[5],
   },
   avatarWrapper: {
     position: 'relative',
     marginBottom: spacing[3],
   },
   avatar: {
-    width: spacing[20],
-    height: spacing[20],
-    borderRadius: spacing[10],
+    width: spacing[18],
+    height: spacing[18],
+    borderRadius: spacing[9],
     borderWidth: 2,
     borderColor: colors.border.primary,
   },
@@ -519,9 +412,9 @@ const styles = createStyles(() => ({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: spacing[7],
-    height: spacing[7],
-    borderRadius: spacing[4],
+    width: spacing[6],
+    height: spacing[6],
+    borderRadius: spacing[3],
     backgroundColor: colors.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -529,14 +422,50 @@ const styles = createStyles(() => ({
     borderColor: colors.background.primary,
   },
   avatarUsername: {
-    fontSize: fontSize[20],
+    fontSize: fontSize[18],
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
   },
   avatarEmail: {
-    fontSize: fontSize[14],
+    fontSize: fontSize[13],
     color: colors.text.tertiary,
     marginTop: spacing[1],
+  },
+  statRow: {
+    flexDirection: 'row',
+    gap: spacing[2],
+    marginBottom: spacing[2],
+  },
+  statTile: {
+    flex: 1,
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[3],
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    paddingVertical: spacing[3],
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: fontSize[18],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+  },
+  statInput: {
+    fontSize: fontSize[18],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    width: '100%',
+    padding: 0,
+  },
+  statUnit: {
+    fontSize: fontSize[11],
+    color: colors.text.quaternary,
+    marginTop: spacing[1],
+  },
+  statError: {
+    fontSize: fontSize[12],
+    color: colors.accent.error,
+    marginBottom: spacing[6],
   },
   sectionHeader: {
     fontSize: fontSize[12],
@@ -545,7 +474,7 @@ const styles = createStyles(() => ({
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: spacing[3],
-    marginTop: spacing[2],
+    marginTop: spacing[6],
   },
   fieldLabel: {
     fontSize: fontSize[12],
@@ -588,95 +517,66 @@ const styles = createStyles(() => ({
   textInputError: {
     color: colors.accent.error,
   },
-  dateValue: {
-    fontSize: fontSize[16],
-    color: colors.text.primary,
-    fontWeight: fontWeight.medium,
-  },
   errorText: {
     fontSize: fontSize[12],
     color: colors.accent.error,
     marginTop: spacing[1],
     marginLeft: spacing[1],
   },
-  row: {
-    flexDirection: 'row',
-  },
-  macroGrid: {
-    marginBottom: spacing[3],
-  },
-  macroCard: {
-    alignItems: 'center',
+  nutritionCard: {
     backgroundColor: colors.background.secondary,
-    borderRadius: radius[3],
+    borderRadius: radius[4],
     borderWidth: 1,
     borderColor: colors.border.default,
     padding: spacing[4],
-    gap: spacing[1],
   },
-  macroCardCalories: {
-    borderColor: colors.border.primary,
-    backgroundColor: colors.faded.primaryLight,
-  },
-  macroCardLabel: {
-    fontSize: fontSize[12],
-    fontWeight: fontWeight.semibold,
-    color: colors.text.secondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  macroCardValue: {
-    fontSize: fontSize[32],
-    fontWeight: fontWeight.black,
-    color: colors.accent.primary,
-    lineHeight: 38,
-  },
-  macroCardUnit: {
-    fontSize: fontSize[12],
-    color: colors.text.tertiary,
-    fontWeight: fontWeight.medium,
-  },
-  macroInput: {
-    fontSize: fontSize[32],
-    fontWeight: fontWeight.black,
-    color: colors.accent.primary,
-    width: '100%',
-    textAlign: 'center',
-    padding: 0,
-  },
-  macroRow: {
+  nutritionKcalRow: {
     flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
     gap: spacing[2],
-    marginBottom: spacing[6],
+    marginBottom: spacing[4],
   },
-  macroMini: {
+  nutritionKcal: {
+    fontSize: fontSize[28],
+    fontWeight: fontWeight.extrabold,
+    color: colors.text.primary,
+  },
+  nutritionKcalUnit: {
+    fontSize: fontSize[12],
+    color: colors.text.quaternary,
+  },
+  nutritionMacroRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: colors.border.default,
+    paddingTop: spacing[3],
+  },
+  nutritionMacroItem: {
     flex: 1,
     alignItems: 'center',
-    borderRadius: radius[3],
-    borderWidth: 1,
-    padding: spacing[3],
-    gap: spacing[1],
   },
-  macroMiniLabel: {
-    fontSize: fontSize[10],
+  nutritionMacroLabel: {
+    fontSize: fontSize[11],
+    color: colors.text.quaternary,
+    marginBottom: spacing[1],
+  },
+  nutritionMacroValue: {
+    fontSize: fontSize[15],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+  },
+  settingsLink: {
+    fontSize: fontSize[13],
+    color: colors.accent.cyan,
     fontWeight: fontWeight.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  macroMiniValue: {
-    fontSize: fontSize[18],
-    fontWeight: fontWeight.extrabold,
-  },
-  macroMiniInput: {
-    fontSize: fontSize[18],
-    fontWeight: fontWeight.extrabold,
-    width: '100%',
     textAlign: 'center',
-    padding: 0,
+    marginTop: spacing[3],
   },
   actionRow: {
     flexDirection: 'row',
     gap: spacing[3],
+    marginTop: spacing[6],
     marginBottom: spacing[4],
   },
   saveButton: {

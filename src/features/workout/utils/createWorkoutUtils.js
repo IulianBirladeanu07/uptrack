@@ -104,7 +104,7 @@ export const createTemplateData = (templateName, exercises, note, duration, pref
     category: ex.category || '',
     numSets: ex.numSets || '',
     repRange: ex.repRange || '',
-    restBetweenSets: ex.restBetweenSets || '',
+    restTime: ex.restTime || 180,
     note: ex.note || ''
   })),
   exerciseCount: exercises.length,

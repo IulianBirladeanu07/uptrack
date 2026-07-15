@@ -25,7 +25,8 @@ import FoodSelectionScreen from './src/features/nutrition/screens/FoodSelectionS
 import FoodDetailScreen from './src/features/nutrition/screens/FoodDetailScreen/FoodDetailScreen';
 import SplashScreen from './src/shared/components/SplashScreen/SplashScreen';
 import ChangePasswordScreen from './src/features/auth/components/ChangePasswordScreen/ChangePasswordScreen';
-import FitnessProfileSetup from './src/features/profile/components/ProfileSetup/FitnessProfileSetup';
+import OnboardingFlow from './src/features/profile/screens/OnboardingFlow';
+import PlanSummaryScreen from './src/features/profile/screens/PlanSummaryScreen';
 import ForgotPasswordScreen from './src/features/auth/components/ForgotPasswordScreen/ForgotPasswordScreen';
 import CustomFoodScreen from './src/features/nutrition/screens/FoodSelectionScreen/CustomFoodScreen';
 import BarcodeScannerScreen from './src/features/nutrition/screens/BarcodeScannerScreen/BarcodeScannerScreen';
@@ -111,11 +112,18 @@ const MainApp = () => {
       );
     }
     return (
-      <Stack.Screen
-        name="FitnessProfileSetup"
-        component={FitnessProfileSetup}
-        options={{ headerShown: false }}
-      />
+      <>
+        <Stack.Screen
+          name="OnboardingFlow"
+          component={OnboardingFlow}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PlanSummary"
+          component={PlanSummaryScreen}
+          options={{ headerShown: false }}
+        />
+      </>
     );
   }, [authenticated, loading, profileSetupComplete]);
 

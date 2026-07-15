@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BasicInfoStep from './steps/BasicInfoStep';
 import ScheduleStep from './steps/ScheduleStep';
@@ -11,8 +11,9 @@ import { Header } from '../CreateTemplateScreen/components/Header';
 
 import { fetchTemplatesFromFirestore, addSplitToFirestore, updateSplitInFirestore } from '../../../workout/handlers/WorkoutHandler';
 import { STEPS } from './constants/CreateSplitScreenConstants';
-import styles, { COLORS } from './CreateSplitScreenStyles';
 import { SPLIT_STEPS } from '../../utils/createWorkoutUtils';
+import styles from './CreateSplitScreenStyles';
+import { colors } from '../../../../shared/theme';
 
 const CreateSplitScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -21,7 +22,7 @@ const CreateSplitScreen = ({ navigation, route }) => {
 
   const [currentStep, setCurrentStep] = useState(0);
   const [splitData, setSplitData] = useState(
-    isEditing 
+    isEditing
       ? {
           id: split.id,
           name: split.name || split.templateName || '',
@@ -36,15 +37,15 @@ const CreateSplitScreen = ({ navigation, route }) => {
           schedule: {},
         }
   );
-  
+
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedDay, setSelectedDay] = useState(
-    isEditing 
+    isEditing
       ? (split.type === 'rotation' ? 1 : 'monday')
       : 'monday'
   );
-  
+
   useEffect(() => {
     const loadWorkouts = async () => {
       setLoading(true);
@@ -102,7 +103,7 @@ const CreateSplitScreen = ({ navigation, route }) => {
           schedule: cleanedSchedule,
         };
       });
-      
+
       if (!isEditing || (isEditing && split.type !== 'rotation')) {
         setSelectedDay(1);
         if (Object.keys(splitData.schedule).length === 0) {
@@ -197,61 +198,60 @@ const CreateSplitScreen = ({ navigation, route }) => {
     return true;
   }, [currentStep, splitData]);
 
-const handleSaveSplit = useCallback(async () => {
-  if (!validateForm()) {
-    Alert.alert('Error', 'Please assign at least one workout to a day.');
-    return;
-  }
-  
-  setLoading(true);
-  try {
-    
-    let splitId;
-    if (isEditing) {
-      await updateSplitInFirestore(splitData.id, splitData);
-      splitId = splitData.id;
-    } else {
-      splitId = await addSplitToFirestore(splitData);
+  const handleSaveSplit = useCallback(async () => {
+    if (!validateForm()) {
+      Alert.alert('Error', 'Please assign at least one workout to a day.');
+      return;
     }
-      
-    Alert.alert(
-      'Success', 
-      `Split ${isEditing ? 'updated' : 'created'} successfully!`,
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            if (isEditing) {
-              navigation.goBack();
-            } else {
-              navigation.navigate('WorkoutLibrary', { 
-                refresh: true,
-                newSplitId: splitId 
-              });
+
+    setLoading(true);
+    try {
+      let splitId;
+      if (isEditing) {
+        await updateSplitInFirestore(splitData.id, splitData);
+        splitId = splitData.id;
+      } else {
+        splitId = await addSplitToFirestore(splitData);
+      }
+
+      Alert.alert(
+        'Success',
+        `Split ${isEditing ? 'updated' : 'created'} successfully!`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (isEditing) {
+                navigation.goBack();
+              } else {
+                navigation.navigate('WorkoutLibrary', {
+                  refresh: true,
+                  newSplitId: splitId
+                });
+              }
             }
           }
-        }
-      ]
-    );
-    
-  } catch (error) {
-    console.error(`Error ${isEditing ? 'updating' : 'creating'} split:`, error);
-    Alert.alert(
-      'Error', 
-      error.message || `Failed to ${isEditing ? 'update' : 'create'} split. Please try again.`,
-      [{ text: 'OK' }]
-    );
-  } finally {
-    setLoading(false);
-  }
-}, [validateForm, navigation, splitData, isEditing]);
+        ]
+      );
+
+    } catch (error) {
+      console.error(`Error ${isEditing ? 'updating' : 'creating'} split:`, error);
+      Alert.alert(
+        'Error',
+        error.message || `Failed to ${isEditing ? 'update' : 'create'} split. Please try again.`,
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [validateForm, navigation, splitData, isEditing]);
 
   const goToNextStep = useCallback(() => {
     if (validateForm()) {
       setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
     } else {
-      const errorMessage = currentStep === 0 
-        ? 'Please enter a split name.' 
+      const errorMessage = currentStep === 0
+        ? 'Please enter a split name.'
         : 'Please assign at least one workout.';
       Alert.alert('Missing Information', errorMessage);
     }
@@ -267,20 +267,20 @@ const handleSaveSplit = useCallback(async () => {
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom, paddingTop: insets.top }]}>
-      <Header 
-        title={isEditing ? `Edit ${split?.name || 'Split'}` : STEPS[currentStep]?.title || 'Create Workout Split'} 
-        handleBackPress={goToPreviousStep} 
+      <Header
+        title={isEditing ? `Edit ${split?.name || 'Split'}` : STEPS[currentStep]?.title || 'Create Workout Split'}
+        handleBackPress={goToPreviousStep}
       />
       <ProgressSteps currentStep={currentStep} steps={SPLIT_STEPS} />
-      {loading && <ActivityIndicator size="large" color={COLORS.primary} style={styles.loadingIndicator} />}
-      
+      {loading && <ActivityIndicator size="large" color={colors.accent.primary} style={styles.loadingIndicator} />}
+
       {currentStep === 0 && (
-        <BasicInfoStep 
-          splitData={splitData} 
-          handleChange={handleChange} 
+        <BasicInfoStep
+          splitData={splitData}
+          handleChange={handleChange}
         />
       )}
-      
+
       {currentStep === 1 && (
         <ScheduleStep
           splitData={splitData}
@@ -294,14 +294,14 @@ const handleSaveSplit = useCallback(async () => {
           navigation={navigation}
         />
       )}
-      
+
       {currentStep === 2 && (
-        <ReviewStep 
-          splitData={splitData} 
-          setCurrentStep={setCurrentStep} 
+        <ReviewStep
+          splitData={splitData}
+          setCurrentStep={setCurrentStep}
         />
       )}
-      
+
       <NavigationButtons
         currentStep={currentStep}
         goToPreviousStep={goToPreviousStep}

@@ -40,6 +40,7 @@ const LoginScreen = () => {
     setGoogleLoading(true);
     try {
       await GoogleSignin.hasPlayServices();
+      await GoogleSignin.signOut();
       const userInfo = await GoogleSignin.signIn();
       const idToken = userInfo.data?.idToken;
       if (!idToken) throw new Error('No id_token received');

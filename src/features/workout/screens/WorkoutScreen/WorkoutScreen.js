@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useContext } from 'react';
+import React, { useCallback, useMemo, useState, useContext, useRef } from 'react';
 import {
     View, Text, TouchableOpacity, Modal, Pressable,
     ScrollView, ActivityIndicator, Animated,
@@ -97,6 +97,19 @@ const MainWorkoutCard = React.memo(({
     workoutData, onStart, onResume, onPreview,
     allExercises, isRestDay, activeWorkout, isToday, lastWorkoutStats,
 }) => {
+    if (activeWorkout) {
+        return (
+            <View style={styles.workoutCard}>
+                <Text style={styles.workoutCardTitle}>{activeWorkout.templateName || 'Workout'}</Text>
+                <TouchableOpacity style={styles.resumeButton} onPress={onResume} activeOpacity={0.8}>
+                    <PulseDot />
+                    <Text style={styles.resumeButtonText}>Resume Workout</Text>
+                    <Text style={styles.resumeTimer}>· <LiveTimer startTime={activeWorkout.startTime} /></Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
     if (isRestDay) {
         const stats = lastWorkoutStats;
         const extraCount = (stats?.exercises?.length ?? 0) - 3;
@@ -200,18 +213,10 @@ const MainWorkoutCard = React.memo(({
                 </TouchableOpacity>
             )}
 
-            {activeWorkout ? (
-                <TouchableOpacity style={styles.resumeButton} onPress={onResume} activeOpacity={0.8}>
-                    <PulseDot />
-                    <Text style={styles.resumeButtonText}>Resume Workout</Text>
-                    <Text style={styles.resumeTimer}>· <LiveTimer startTime={activeWorkout.startTime} /></Text>
-                </TouchableOpacity>
-            ) : (
-                <TouchableOpacity style={styles.startButton} onPress={onStart} activeOpacity={0.8}>
-                    <Ionicons name="play" size={14} color={colors.accent.buttonText} />
-                    <Text style={styles.startButtonText}>Start Workout</Text>
-                </TouchableOpacity>
-            )}
+            <TouchableOpacity style={styles.startButton} onPress={onStart} activeOpacity={0.8}>
+                <Ionicons name="play" size={14} color={colors.accent.buttonText} />
+                <Text style={styles.startButtonText}>Start Workout</Text>
+            </TouchableOpacity>
         </View>
     );
 });
@@ -341,6 +346,7 @@ const WorkoutScreen = () => {
     const [todayWorkout, setTodayWorkout] = useState(null);
     const [upcomingWorkouts, setUpcomingWorkouts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const hasLoadedOnceRef = useRef(false);
 
     const { activeWorkout, workoutHistory } = useContext(WorkoutContext);
 
@@ -398,9 +404,11 @@ const WorkoutScreen = () => {
 
     const loadActiveSplit = useCallback(async () => {
         try {
-            setLoading(true);
+            if (!hasLoadedOnceRef.current) {
+                setLoading(true);
+            }
             const splits = await fetchSplitsFromFirestore();
-            if (!splits.length) { setLoading(false); return; }
+            if (!splits.length) { return; }
 
             const raw = splits[0];
             const active = {
@@ -443,6 +451,7 @@ const WorkoutScreen = () => {
         } catch (e) {
             console.error('Error loading split:', e);
         } finally {
+            hasLoadedOnceRef.current = true;
             setLoading(false);
         }
     }, []);

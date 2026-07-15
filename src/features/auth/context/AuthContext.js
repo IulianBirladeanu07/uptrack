@@ -7,6 +7,12 @@ import { deriveStartWeight } from '../../nutrition/helpers/learningCompletionSer
 
 export const AuthContext = createContext();
 
+const PROFILE_DEFAULTS = {
+  autoAdjustEnabled:   true,
+  bfCategoryCollected: false,
+  weeksSinceCutStart:  0,
+};
+
 const deriveAndSaveStartWeight = async (userId, data) => {
   if (data.startWeight || !data.weightIns?.length) return data;
 
@@ -15,6 +21,17 @@ const deriveAndSaveStartWeight = async (userId, data) => {
 
   await setDoc(doc(db, 'users', userId), { startWeight }, { merge: true });
   return { ...data, startWeight };
+};
+
+const applyProfileDefaults = async (userId, data) => {
+  const missing = {};
+  Object.entries(PROFILE_DEFAULTS).forEach(([key, value]) => {
+    if (data[key] === undefined) missing[key] = value;
+  });
+  if (!Object.keys(missing).length) return data;
+
+  await setDoc(doc(db, 'users', userId), missing, { merge: true });
+  return { ...data, ...missing };
 };
 
 export const AuthProvider = ({ children }) => {
@@ -29,7 +46,8 @@ export const AuthProvider = ({ children }) => {
       if (!user) return;
 
       const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const data = await deriveAndSaveStartWeight(user.uid, userDoc.data() || {});
+      let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() || {});
+      data = await applyProfileDefaults(user.uid, data);
       setUserData(data);
       return data;
     } catch (error) {
@@ -42,7 +60,8 @@ export const AuthProvider = ({ children }) => {
       try {
         if (user) {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
-          const data = await deriveAndSaveStartWeight(user.uid, userDoc.data() || {});
+          let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() || {});
+          data = await applyProfileDefaults(user.uid, data);
 
           setAuthenticated(true);
           setProfileSetupComplete(!!data.profileSetupComplete);
@@ -66,6 +85,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      await GoogleSignin.signOut();
       await signOut(auth);
       setAuthenticated(false);
       setProfileSetupComplete(false);

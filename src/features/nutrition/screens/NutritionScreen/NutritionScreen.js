@@ -3,10 +3,10 @@ import { View, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
+import { useFoodContext } from '../../context/FoodContext';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
-import { useFoodContext } from '../../context/FoodContext';
 import MealContainer from '../../components/NutritionItem/MealContainer';
 import useLearningCompletion from '../../helpers/useLearningCompletion';
 import DateNavigationHeader from '../../components/DateNavigationHeader/DateNavigationHeader';

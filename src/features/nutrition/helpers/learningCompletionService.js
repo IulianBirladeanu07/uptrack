@@ -1,6 +1,6 @@
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
-import { calculateWeeklyAdjustment } from '../../profile/utils/FitnessProfileUtils';
+import { calculatePlanAdjustment } from '../../profile/utils/nutritionPlanEngine';
 
 export const calculateDailyNutritionFromMeals = (meals) =>
   Object.values(meals || {})
@@ -119,7 +119,7 @@ export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache,
   }
 };
 
-export const getWeeklyCalorieStats = (weeklyNutrition, weeks = 2) => {
+export const getWeeklyCalorieStats = (weeklyNutrition, weeks = 4) => {
   if (!weeklyNutrition?.length) return [];
   return weeklyNutrition.slice(-weeks).map(w => ({
     daysLogged:  w.daysLoggedNutrition || 0,
@@ -135,44 +135,40 @@ const daysSince = (isoDateStr) => {
 
 export const evaluateWeeklyProgress = async (userId, userData, mealCache, currentDate) => {
   if (!userData?.weightChangePlan || !userData?.targetCalories) return null;
-  if (userData.weightChangePlan.type !== 'weight_loss') return null;
   if (daysSince(userData.lastAdjustmentDate) < 6) return null;
 
-  const weightIns = userData.weightIns || [];
-  if (weightIns.length < 2) return null;
-
-  const recentWeightWeeks = weightIns.slice(-4).map(week => ({
-    average:    week.average ?? null,
-    daysLogged: Object.keys(week.days || {}).length,
-  }));
-
-  const weeklyNutrition   = userData.weeklyNutrition || [];
-  const weeklyCalorieData = getWeeklyCalorieStats(weeklyNutrition, 2);
+  const weeklyCalorieData = getWeeklyCalorieStats(userData.weeklyNutrition || [], 4);
   if (!weeklyCalorieData.length) return null;
 
-  const adjustment = calculateWeeklyAdjustment(userData, recentWeightWeeks, weeklyCalorieData);
+  const adjustment = calculatePlanAdjustment(userData, weeklyCalorieData);
   if (!adjustment) return null;
 
-  if (adjustment.suggestion === 'steps') {
-    return {
-      suggestion:             'steps',
-      suggestedStepsIncrease: adjustment.suggestedStepsIncrease,
-      lastAdjustmentDate:     new Date().toISOString(),
+  const now = new Date().toISOString();
+  let updateData;
+
+  if (adjustment.suggestion === 'goal_reached') {
+    updateData = {
+      lastCalorieAdjustment: { reason: 'goal_reached', adjustedAt: now },
+      lastAdjustmentDate: now,
+    };
+  } else if (adjustment.suggestion === 'increase_steps' || adjustment.suggestion === 'hold') {
+    updateData = {
+      lastAdjustmentDate: now,
+    };
+  } else {
+    updateData = {
+      targetCalories: adjustment.newTargetCalories,
+      targetProtein:  adjustment.newMacros.protein,
+      targetCarbs:    adjustment.newMacros.carbs,
+      targetFats:     adjustment.newMacros.fats,
+      lastCalorieAdjustment: adjustment,
+      lastAdjustmentDate:    now,
     };
   }
 
-  const updateData = {
-    targetCalories: adjustment.newTargetCalories,
-    targetProtein:  adjustment.newMacros.protein,
-    targetCarbs:    adjustment.newMacros.carbs,
-    targetFats:     adjustment.newMacros.fats,
-    lastCalorieAdjustment: adjustment,
-    lastAdjustmentDate:    new Date().toISOString(),
-  };
-
   try {
     await setDoc(doc(db, 'users', userId), updateData, { merge: true });
-    return updateData;
+    return { suggestion: adjustment.suggestion, ...updateData };
   } catch (error) {
     console.error('evaluateWeeklyProgress error:', error);
     return null;
@@ -208,22 +204,6 @@ export const initializeUserTargets = async (userId, weightChangePlan) => {
 
   await setDoc(doc(db, 'users', userId), targets, { merge: true });
   return targets;
-};
-
-export const hasEnoughDataForAdjustment = (userData) => {
-  const weightIns = userData?.weightIns || [];
-  if (weightIns.length < 2) return false;
-
-  const recentWeeks    = weightIns.slice(-2);
-  const hasWeightData  = recentWeeks.every(
-    w => w.average != null && Object.keys(w.days || {}).length >= 4
-  );
-
-  const weeklyNutrition = userData?.weeklyNutrition || [];
-  const calStats        = getWeeklyCalorieStats(weeklyNutrition, 2);
-  const hasCalorieData  = calStats.length >= 2 && calStats.every(w => w.daysLogged >= 4);
-
-  return hasWeightData && hasCalorieData;
 };
 
 export const calculateLearningStats = (mealCache, currentDate, requiredDays = 7) => {

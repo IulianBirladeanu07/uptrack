@@ -1,19 +1,22 @@
-import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react';
-import { View, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useMemo, useContext, useCallback, useRef } from 'react';
+import { View, TouchableOpacity, Text, ActivityIndicator, Animated } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuth } from 'firebase/auth';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
+import HomeNoticeCard from '../../../../shared/components/HomeNoticeCard/HomeNoticeCard';
 import { colors, spacing } from '../../../../shared/theme';
-import { fetchSplitsFromFirestore } from '../../../workout/handlers/WorkoutHandler';
+import { fetchSplitsFromFirestore, SPLITS_CACHE_KEY } from '../../../workout/handlers/WorkoutHandler';
+import { getHomeNotices } from '../../../profile/utils/homeSurfaceEngine';
 import { styles } from './DashboardScreenStyles';
 
-const SPLITS_CACHE_KEY = 'cached_splits';
 const SPLITS_CACHE_TTL = 15 * 60 * 1000;
+const BF_RECHECK_SNOOZE_DAYS = 14;
 
 const DAYS_MAP = {
     0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday',
@@ -50,7 +53,61 @@ const resolveWorkoutFromSplits = (splits) => {
     } : null;
 };
 
-const TodayWorkout = ({ workout, onPress }) => {
+const LiveTimer = ({ startTime }) => {
+    const [elapsed, setElapsed] = useState(0);
+
+    useEffect(() => {
+        const tick = () => setElapsed(Math.floor((Date.now() - startTime) / 1000));
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [startTime]);
+
+    const h = Math.floor(elapsed / 3600);
+    const m = Math.floor((elapsed % 3600) / 60);
+    const s = elapsed % 60;
+    const pad = n => (n < 10 ? '0' + n : n);
+    const fmt = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+
+    return <Text style={styles.resumeTimer}>{fmt}</Text>;
+};
+
+const PulseDot = () => {
+    const scale = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(scale, { toValue: 1.4, duration: 600, useNativeDriver: true }),
+                Animated.timing(scale, { toValue: 1, duration: 600, useNativeDriver: true }),
+            ])
+        ).start();
+    }, [scale]);
+
+    return <Animated.View style={[styles.pulseDot, { transform: [{ scale }] }]} />;
+};
+
+const TodayWorkout = ({ workout, activeWorkout, onPress }) => {
+    if (activeWorkout) {
+        return (
+            <TouchableOpacity style={styles.workoutCard} onPress={onPress} activeOpacity={0.85}>
+                <View style={styles.workoutContent}>
+                    <View style={styles.workoutInfo}>
+                        <Text style={styles.workoutTitle}>{activeWorkout.templateName || 'Workout'}</Text>
+                        <View style={styles.activeRow}>
+                            <PulseDot />
+                            <Text style={styles.activeText}>In progress</Text>
+                            <Text style={styles.activeTimer}>· <LiveTimer startTime={activeWorkout.startTime} /></Text>
+                        </View>
+                    </View>
+                    <View style={styles.playButton}>
+                        <Ionicons name="play" size={spacing[4]} color={colors.accent.buttonText} />
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
+    }
+
     if (!workout) {
         return (
             <View style={styles.workoutCard}>
@@ -80,7 +137,7 @@ const TodayWorkout = ({ workout, onPress }) => {
                     </View>
                 </View>
                 <View style={styles.playButton}>
-                    <Ionicons name="play" size={spacing[4]} color={colors.background.primary} />
+                    <Ionicons name="play" size={spacing[4]} color={colors.accent.buttonText} />
                 </View>
             </View>
         </TouchableOpacity>
@@ -114,8 +171,8 @@ const TodayNutrition = ({ calories, targetCalories, macros, onPress }) => {
             <View style={styles.macroRow}>
                 {[
                     { label: 'Carbs',   value: macros.carbs,   color: colors.accent.success },
-                    { label: 'Protein', value: macros.protein,  color: colors.accent.purple },
-                    { label: 'Fat',     value: macros.fat,      color: colors.accent.cyan },
+                    { label: 'Protein', value: macros.protein, color: colors.accent.purple },
+                    { label: 'Fat',     value: macros.fat,     color: colors.accent.cyan },
                 ].map(macro => (
                     <View key={macro.label} style={styles.macroItem}>
                         <View style={styles.macroHeader}>
@@ -254,44 +311,126 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
 const DashboardScreen = () => {
     const navigation = useNavigation();
     const [todayScheduledWorkout, setTodayScheduledWorkout] = useState(null);
+    const [workoutLoading, setWorkoutLoading] = useState(true);
 
-    const { dailyNutrition, userMacros, rollingWeekStats, getCaloriesForDateRange, initialLoadComplete } = useFoodContext();
-    const { workoutHistory } = useContext(WorkoutContext);
+    const [dismissedAdjustments, setDismissedAdjustments] = useState([]);
+    const [goalReachedDismissed, setGoalReachedDismissed] = useState(false);
+    const [bfRecheckSnoozedUntil, setBfRecheckSnoozedUntil] = useState(null);
+    const [stepsPermissionDismissedAt, setStepsPermissionDismissedAt] = useState(null);
+    const [noticesLoaded, setNoticesLoaded] = useState(false);
+
+    const { dailyNutrition, userMacros, rollingWeekStats, getCaloriesForDateRange, initialLoadComplete, stepsConnected, stepsLoading, retryStepsConnection } = useFoodContext();
+    const { workoutHistory, activeWorkout } = useContext(WorkoutContext);
     const { userData } = useContext(AuthContext);
 
     const targetWorkouts = userData?.targetWorkoutsPerWeek || 5;
+    const uid = getAuth().currentUser?.uid;
 
     useEffect(() => {
-        let cancelled = false;
-
-        const loadWorkout = async () => {
+        if (!uid) return;
+        const loadDismissalState = async () => {
             try {
-                const cached = await AsyncStorage.getItem(SPLITS_CACHE_KEY);
-                if (cached) {
-                    const { splits, ts } = JSON.parse(cached);
-                    if (Date.now() - ts < SPLITS_CACHE_TTL) {
-                        if (!cancelled) {
-                            setTodayScheduledWorkout(resolveWorkoutFromSplits(splits));
-                            return;
-                        }
-                    }
-                }
-            } catch {}
-
-            try {
-                const splits = await fetchSplitsFromFirestore();
-                if (!cancelled) {
-                    setTodayScheduledWorkout(resolveWorkoutFromSplits(splits));
-                    AsyncStorage.setItem(SPLITS_CACHE_KEY, JSON.stringify({ splits, ts: Date.now() })).catch(() => {});
-                }
-            } catch {
-                if (!cancelled) setTodayScheduledWorkout(null);
+                const [adjRaw, goalRaw, bfRaw, stepsRaw] = await Promise.all([
+                    AsyncStorage.getItem(`home_dismissed_adjustments_${uid}`),
+                    AsyncStorage.getItem(`home_goal_reached_dismissed_${uid}`),
+                    AsyncStorage.getItem(`home_bf_recheck_snooze_${uid}`),
+                    AsyncStorage.getItem(`home_steps_permission_dismissed_${uid}`),
+                ]);
+                setDismissedAdjustments(adjRaw ? JSON.parse(adjRaw) : []);
+                setGoalReachedDismissed(goalRaw === 'true');
+                setBfRecheckSnoozedUntil(bfRaw || null);
+                setStepsPermissionDismissedAt(stepsRaw || null);
+            } catch (e) {
+                console.error('loadDismissalState error:', e);
+            } finally {
+                setNoticesLoaded(true);
             }
         };
+        loadDismissalState();
+    }, [uid]);
 
-        loadWorkout();
-        return () => { cancelled = true; };
-    }, []);
+    const notices = useMemo(() => {
+        if (!noticesLoaded || !userData || !initialLoadComplete) return [];
+        return getHomeNotices({
+            userData,
+            stepsConnected,
+            stepsLoading,
+            dismissedAdjustmentTimestamps: dismissedAdjustments,
+            bfRecheckSnoozedUntil,
+            stepsPermissionDismissedAt,
+            goalReachedDismissed,
+        });
+    }, [noticesLoaded, userData, initialLoadComplete, stepsConnected, stepsLoading, dismissedAdjustments, bfRecheckSnoozedUntil, stepsPermissionDismissedAt, goalReachedDismissed]);
+
+    const handleDismissNotice = useCallback(async (notice) => {
+        try {
+            if (notice.type === 'calorie_adjustment') {
+                const updated = [...dismissedAdjustments, notice.dismissKey];
+                setDismissedAdjustments(updated);
+                await AsyncStorage.setItem(`home_dismissed_adjustments_${uid}`, JSON.stringify(updated));
+            } else if (notice.type === 'goal_reached') {
+                setGoalReachedDismissed(true);
+                await AsyncStorage.setItem(`home_goal_reached_dismissed_${uid}`, 'true');
+            } else if (notice.type === 'bf_recheck') {
+                const snoozeUntil = new Date();
+                snoozeUntil.setDate(snoozeUntil.getDate() + BF_RECHECK_SNOOZE_DAYS);
+                setBfRecheckSnoozedUntil(snoozeUntil.toISOString());
+                await AsyncStorage.setItem(`home_bf_recheck_snooze_${uid}`, snoozeUntil.toISOString());
+            } else if (notice.type === 'steps_permission') {
+                const now = new Date().toISOString();
+                setStepsPermissionDismissedAt(now);
+                await AsyncStorage.setItem(`home_steps_permission_dismissed_${uid}`, now);
+            }
+        } catch (e) {
+            console.error('handleDismissNotice error:', e);
+        }
+    }, [uid, dismissedAdjustments]);
+
+    const handleNoticeAction = useCallback((notice) => {
+        if (notice.type === 'goal_reached' || notice.type === 'bf_recheck') {
+            navigation.navigate('Settings');
+        } else if (notice.type === 'steps_permission') {
+            retryStepsConnection();
+        }
+    }, [navigation, retryStepsConnection]);
+
+    useFocusEffect(
+        useCallback(() => {
+            let cancelled = false;
+            setWorkoutLoading(true);
+
+            const loadWorkout = async () => {
+                try {
+                    const cached = await AsyncStorage.getItem(SPLITS_CACHE_KEY);
+                    if (cached) {
+                        const { splits, ts } = JSON.parse(cached);
+                        if (Date.now() - ts < SPLITS_CACHE_TTL) {
+                            if (!cancelled) {
+                                setTodayScheduledWorkout(resolveWorkoutFromSplits(splits));
+                                setWorkoutLoading(false);
+                                return;
+                            }
+                        }
+                    }
+                } catch {}
+
+                try {
+                    const splits = await fetchSplitsFromFirestore();
+                    if (!cancelled) {
+                        setTodayScheduledWorkout(resolveWorkoutFromSplits(splits));
+                        AsyncStorage.setItem(SPLITS_CACHE_KEY, JSON.stringify({ splits, ts: Date.now() })).catch(() => {});
+                    }
+                } catch {
+                    if (!cancelled) setTodayScheduledWorkout(null);
+                } finally {
+                    if (!cancelled) setWorkoutLoading(false);
+                }
+            };
+
+            loadWorkout();
+            return () => { cancelled = true; };
+        }, [])
+    );
 
     const weeklyWorkoutsCount = useMemo(() => {
         if (!workoutHistory?.length) return 0;
@@ -303,6 +442,10 @@ const DashboardScreen = () => {
     }, [workoutHistory]);
 
     const handleWorkoutPress = useCallback(() => {
+        if (activeWorkout) {
+            navigation.navigate('StartWorkout');
+            return;
+        }
         if (todayScheduledWorkout) {
             navigation.navigate('StartWorkout', {
                 selectedWorkout: {
@@ -314,7 +457,9 @@ const DashboardScreen = () => {
         } else {
             navigation.navigate('Workout');
         }
-    }, [navigation, todayScheduledWorkout]);
+    }, [navigation, todayScheduledWorkout, activeWorkout]);
+
+    const dashboardReady = initialLoadComplete && !workoutLoading;
 
     return (
         <ApplicationCustomScreen>
@@ -328,26 +473,52 @@ const DashboardScreen = () => {
                     })()}</Text>
                     <Text style={styles.greetingDate}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
                 </View>
-                <View style={styles.content}>
-                    <TodayWorkout
-                        workout={todayScheduledWorkout}
-                        onPress={handleWorkoutPress}
-                    />
-                    <TodayNutrition
-                        calories={dailyNutrition?.calories || 0}
-                        targetCalories={userMacros?.targetCalories || 2000}
-                        macros={{ carbs: dailyNutrition?.carbs || 0, protein: dailyNutrition?.protein || 0, fat: dailyNutrition?.fat || 0 }}
-                        onPress={() => navigation.navigate('Nutrition')}
-                    />
-                    <WeeklyOverview
-                        rollingStats={rollingWeekStats}
-                        weeklyWorkouts={weeklyWorkoutsCount}
-                        targetWorkouts={targetWorkouts}
-                        getCaloriesForDateRange={getCaloriesForDateRange}
-                        onWeightPress={() => navigation.navigate('WeightTracker')}
-                        dataReady={initialLoadComplete}
-                    />
-                </View>
+                {dashboardReady ? (
+                    <View style={styles.content}>
+                        {/* Home notices temporarily disabled
+                        {notices.map(notice => (
+                            <HomeNoticeCard
+                                key={notice.id}
+                                notice={notice}
+                                onAction={
+                                    (notice.type === 'goal_reached' || notice.type === 'bf_recheck' || notice.type === 'steps_permission')
+                                        ? () => handleNoticeAction(notice)
+                                        : undefined
+                                }
+                                actionLabel={
+                                    notice.type === 'goal_reached' ? 'Update Goal'
+                                        : notice.type === 'steps_permission' ? 'Connect'
+                                        : 'Update'
+                                }
+                                onDismiss={() => handleDismissNotice(notice)}
+                            />
+                        ))}
+                        */}
+                        <TodayWorkout
+                            workout={todayScheduledWorkout}
+                            activeWorkout={activeWorkout}
+                            onPress={handleWorkoutPress}
+                        />
+                        <TodayNutrition
+                            calories={dailyNutrition?.calories || 0}
+                            targetCalories={userMacros?.targetCalories || 2000}
+                            macros={{ carbs: dailyNutrition?.carbs || 0, protein: dailyNutrition?.protein || 0, fat: dailyNutrition?.fat || 0 }}
+                            onPress={() => navigation.navigate('Nutrition')}
+                        />
+                        <WeeklyOverview
+                            rollingStats={rollingWeekStats}
+                            weeklyWorkouts={weeklyWorkoutsCount}
+                            targetWorkouts={targetWorkouts}
+                            getCaloriesForDateRange={getCaloriesForDateRange}
+                            onWeightPress={() => navigation.navigate('WeightTracker')}
+                            dataReady={initialLoadComplete}
+                        />
+                    </View>
+                ) : (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color={colors.accent.primary} />
+                    </View>
+                )}
                 <BottomNav />
             </View>
         </ApplicationCustomScreen>

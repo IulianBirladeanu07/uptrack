@@ -2,6 +2,16 @@ import { useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSetsFromLastWorkout } from '../handlers/WorkoutHandler';
 
+const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+export const createEmptySet = () => ({
+    id: generateId(),
+    weight: '',
+    reps: '',
+    isValidated: false,
+    repsModified: false,
+});
+
 class WorkoutService {
     constructor() {
         this.listeners = [];
@@ -9,6 +19,7 @@ class WorkoutService {
         this.batchingUpdates = false;
         this.workoutStartTime = null;
         this.workoutNote = '';
+        this.workoutTemplateName = '';
         this.lastSetCache = new Map();
         this._persistTimeout = null;
         this._notifyTimeout = null;
@@ -57,6 +68,7 @@ class WorkoutService {
             startTime: this.workoutStartTime || Date.now(),
             exercises: this.exerciseData,
             note: this.workoutNote,
+            templateName: this.workoutTemplateName || '',
             isActive: true,
             lastSaved: Date.now(),
         };
@@ -69,9 +81,13 @@ class WorkoutService {
             if (!saved) return null;
             const state = JSON.parse(saved);
             if (state.isActive) {
-                this.exerciseData = state.exercises || [];
+                this.exerciseData = (state.exercises || []).map(ex => ({
+                    ...ex,
+                    sets: (ex.sets || []).map(set => (set.id ? set : { ...set, id: generateId() })),
+                }));
                 this.workoutStartTime = state.startTime;
                 this.workoutNote = state.note || '';
+                this.workoutTemplateName = state.templateName || '';
                 this.notifyListeners();
                 return state;
             }
@@ -93,6 +109,7 @@ class WorkoutService {
         this.exerciseData = [];
         this.workoutStartTime = null;
         this.workoutNote = '';
+        this.workoutTemplateName = '';
         this.lastSetCache.clear();
         await AsyncStorage.removeItem('activeWorkout');
         this.notifyListeners();
@@ -105,6 +122,15 @@ class WorkoutService {
 
     getWorkoutNote() {
         return this.workoutNote;
+    }
+
+    setWorkoutTemplateName(name) {
+        this.workoutTemplateName = name || '';
+        this.schedulePersist();
+    }
+
+    getWorkoutTemplateName() {
+        return this.workoutTemplateName;
     }
 
     startWorkout() {
@@ -157,6 +183,7 @@ class WorkoutService {
                     ...ex,
                     lastWorkoutSets: lastSets,
                     sets: ex.sets.map(set => ({
+                        id: generateId(),
                         weight: set.weight || '',
                         reps: set.reps || '',
                         isValidated: false,
@@ -183,6 +210,7 @@ class WorkoutService {
             const sets = Array.from({ length: numSets }, (_, i) => {
                 const previousSet = lastSets[i];
                 return {
+                    id: generateId(),
                     weight: previousSet?.weight || '',
                     reps: previousSet?.reps || defaultReps[i] || '',
                     isValidated: false,
@@ -285,11 +313,9 @@ class WorkoutService {
         const exercise = this.exerciseData[exerciseIndex];
         const lastSet = exercise.sets[exercise.sets.length - 1];
         const newSet = {
+            ...createEmptySet(),
             weight: lastSet?.weight || '',
             reps: lastSet?.reps || '',
-            isValidated: false,
-            repsModified: false,
-            weightModified: false,
         };
         this.exerciseData = this.exerciseData.map((ex, idx) => {
             if (idx !== exerciseIndex) return ex;
@@ -315,6 +341,22 @@ class WorkoutService {
 
     deleteExercise(exerciseIndex) {
         this.exerciseData = this.exerciseData.filter((_, idx) => idx !== exerciseIndex);
+        this.notifyListeners();
+    }
+
+    moveExercise(exerciseIndex, direction) {
+        const newIndex = exerciseIndex + direction;
+        if (!this.exerciseData[exerciseIndex] || newIndex < 0 || newIndex >= this.exerciseData.length) return;
+        const updated = [...this.exerciseData];
+        const [moved] = updated.splice(exerciseIndex, 1);
+        updated.splice(newIndex, 0, moved);
+        this.exerciseData = updated;
+        this.notifyListeners();
+    }
+
+    replaceExercise(exerciseIndex, newExercise) {
+        if (!this.exerciseData[exerciseIndex]) return;
+        this.exerciseData = this.exerciseData.map((ex, idx) => (idx === exerciseIndex ? newExercise : ex));
         this.notifyListeners();
     }
 

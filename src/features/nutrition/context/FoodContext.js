@@ -7,7 +7,7 @@ import GoogleFitStepDisplay from '../../../shared/components/GoogleFitStepDispla
 
 import { addMeal, deleteMealItem, updateMealItem, fetchLast30DaysMeals } from '../services/mealService';
 import { getLocalWeekStart } from '../helpers/weightTrackerUtils';
-import { getRollingWeekStats, checkAndCompleteLearning, calculateLearningStats, checkAndRunWeeklyEval, hasEnoughDataForAdjustment } from '../helpers/learningCompletionService';
+import { getRollingWeekStats, checkAndCompleteLearning, calculateLearningStats, checkAndRunWeeklyEval } from '../helpers/learningCompletionService';
 import useDailyNutrition from '../helpers/useDailyNutrition';
 import MealCache from './cache/MealCache';
 import { formatDate } from '../utils/dateUtils';
@@ -135,6 +135,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
     const [stepsVersion,        setStepsVersion]        = useState(0);
     const [stepsLoading,        setStepsLoading]        = useState(false);
     const [stepsError,          setStepsError]          = useState(null);
+    const [stepsConnected,      setStepsConnected]      = useState(null);
     const [cacheVersion,        setCacheVersion]        = useState(0);
     const [categoryData,        setCategoryData]        = useState({
         recentMeals: [], frequentFoods: [], favoriteFoods: []
@@ -149,6 +150,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
     const mountedRef        = useRef(true);
     const pendingOps        = useRef(new Set());
     const selectedDateRef   = useRef(selectedDate);
+    const stepsDisplayRef   = useRef(null);
 
     const { userData, refreshUserData } = useContext(AuthContext);
 
@@ -254,6 +256,15 @@ export const FoodProvider = ({ children, initialUserData }) => {
     const handleStepsLoading = useCallback((isLoading) => {
         if (!mountedRef.current) return;
         setStepsLoading(isLoading);
+    }, []);
+
+    const handleStepsConnectedChange = useCallback((connected) => {
+        if (!mountedRef.current) return;
+        setStepsConnected(connected);
+    }, []);
+
+    const retryStepsConnection = useCallback(() => {
+        stepsDisplayRef.current?.retry?.();
     }, []);
 
     const getWeeklyAvgSteps = useCallback(() => {
@@ -371,13 +382,8 @@ export const FoodProvider = ({ children, initialUserData }) => {
         setLoading(true);
         setError(null);
 
-        const t0 = Date.now();
-        console.log('[FoodContext] init start');
-
         try {
-            const tCacheStart = Date.now();
             const cachedMeals = await loadPersistedMealCache(user.uid);
-            console.log(`[FoodContext] cache read: ${Date.now() - tCacheStart}ms, hit=${!!cachedMeals}`);
 
             if (cachedMeals && mountedRef.current) {
                 mealCache.current.buildFromMeals(cachedMeals);
@@ -385,12 +391,9 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 updateCurrentDayMeals(new Date());
                 setCacheVersion(v => v + 1);
                 setInitialLoadComplete(true);
-                console.log(`[FoodContext] initialLoadComplete from cache: ${Date.now() - t0}ms`);
             }
 
-            const tFirestore = Date.now();
             const last30DaysMeals = await fetchLast30DaysMeals(user.uid);
-            console.log(`[FoodContext] fetchLast30DaysMeals: ${Date.now() - tFirestore}ms, docs=${last30DaysMeals.length}`);
 
             if (mountedRef.current) {
                 setUserProfile(initialUserData);
@@ -398,13 +401,12 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 updateCurrentDayMeals(new Date());
                 setCacheVersion(v => v + 1);
                 if (!cachedMeals) setInitialLoadComplete(true);
-                console.log(`[FoodContext] initialLoadComplete from firestore: ${Date.now() - t0}ms`);
 
                 persistMealCache(user.uid, last30DaysMeals);
 
                 setTimeout(async () => {
                     if (!mountedRef.current) return;
-                    if (initialUserData && hasEnoughDataForAdjustment(initialUserData)) {
+                    if (initialUserData) {
                         const adjustment = await checkAndRunWeeklyEval(user.uid, initialUserData, mealCache.current);
                         if (adjustment && mountedRef.current) {
                             setUserProfile(prev => ({ ...prev, ...adjustment }));
@@ -420,10 +422,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 initializationRef.current = false;
             }
         } finally {
-            if (mountedRef.current) {
-                setLoading(false);
-                console.log(`[FoodContext] init complete: ${Date.now() - t0}ms total`);
-            }
+            if (mountedRef.current) setLoading(false);
         }
     }, [initialUserData, updateCurrentDayMeals, handleError, refreshUserData]);
 
@@ -461,6 +460,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 setStepsVersion(0);
                 setStepsLoading(false);
                 setStepsError(null);
+                setStepsConnected(null);
                 setCacheVersion(0);
                 setError(null);
                 setLoading(false);
@@ -516,6 +516,8 @@ export const FoodProvider = ({ children, initialUserData }) => {
         getStepsForDateRange,
         stepsLoading,
         stepsError,
+        stepsConnected,
+        retryStepsConnection,
     }), [
         mealState, selectedDate, handleDateChange, categoryData,
         userProfile, nutritionHookData.hasTargets, enhancedLearningData,
@@ -524,14 +526,17 @@ export const FoodProvider = ({ children, initialUserData }) => {
         getTrendData, dailySteps, updateDailySteps, getWeeklyAvgSteps,
         loading, error, initialLoadComplete, rollingWeekStats, getCaloriesForDateRange,
         getNutritionForDateRange, getStepsForDateRange, stepsLoading, stepsError,
+        stepsConnected, retryStepsConnection,
     ]);
 
     return (
         <FoodContext.Provider value={contextValue}>
             <GoogleFitStepDisplay
+                ref={stepsDisplayRef}
                 onStepsUpdate={updateDailySteps}
                 onStepsError={handleStepsError}
                 onStepsLoading={handleStepsLoading}
+                onConnectedChange={handleStepsConnectedChange}
             />
             {children}
         </FoodContext.Provider>
