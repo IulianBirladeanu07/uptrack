@@ -63,13 +63,20 @@ const PlanSummaryScreen = () => {
 
     try {
       await setDoc(doc(db, 'users', user.uid), userData, { merge: true });
-      await refreshUserData();
-      setProfileSetupComplete(true);
     } catch (error) {
       console.error('PlanSummaryScreen save error:', error);
       Alert.alert('Error', 'Failed to save your plan. Please try again.');
       setSaving(false);
+      return;
     }
+
+    try {
+      await refreshUserData();
+    } catch (error) {
+      console.error('PlanSummaryScreen refresh error:', error);
+    }
+
+    setProfileSetupComplete(true);
   };
 
   return (
