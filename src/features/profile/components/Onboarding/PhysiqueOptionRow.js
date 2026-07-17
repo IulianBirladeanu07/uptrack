@@ -18,8 +18,11 @@ const PHYSIQUE_IMAGES = {
   },
 };
 
+const CATEGORY_GAUGE_LEVEL = { shredded: 1, very_lean: 2, lean: 3, higher_bf: 4 };
+
 const PhysiqueOptionRow = ({ category, gender, selected, onPress }) => {
   const imageSource = PHYSIQUE_IMAGES[gender]?.[category.value] || null;
+  const gaugeLevel = CATEGORY_GAUGE_LEVEL[category.value] || 0;
 
   return (
     <TouchableOpacity
@@ -30,11 +33,15 @@ const PhysiqueOptionRow = ({ category, gender, selected, onPress }) => {
       <View style={styles.visual}>
         {imageSource
           ? <Image source={imageSource} style={styles.image} resizeMode="cover" />
-          : <View style={styles.fallback} />}
-      </View>
-      <View style={styles.textCol}>
-        <Text style={[styles.label, selected && styles.labelSelected]}>{category.label}</Text>
-        <Text style={styles.desc}>{category.desc}</Text>
+          : (
+            <View style={styles.fallback}>
+              <View style={styles.gaugeRow}>
+                {[1, 2, 3, 4].map(i => (
+                  <View key={i} style={[styles.gaugeDot, i <= gaugeLevel && styles.gaugeDotFilled]} />
+                ))}
+              </View>
+            </View>
+          )}
       </View>
       {selected && <Ionicons name="checkmark-circle" size={20} color={colors.accent.primary} />}
     </TouchableOpacity>

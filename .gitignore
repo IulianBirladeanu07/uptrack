@@ -85,4 +85,5 @@ yarn-error.*
 # @end expo-cli
 .qodo
 
+.vscode
 service-account-key.json

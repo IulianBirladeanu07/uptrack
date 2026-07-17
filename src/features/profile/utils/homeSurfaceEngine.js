@@ -70,8 +70,8 @@ export const getBfRecheckNotice = (userData, snoozedUntil = null) => {
   };
 };
 
-export const getStepsPermissionNotice = (stepsConnected, dismissedAt = null) => {
-  if (stepsConnected) return null;
+export const getStepsPermissionNotice = (stepsConnected, dismissedAt = null, stepsLoading = false) => {
+  if (stepsConnected || stepsLoading) return null;
   if (dismissedAt && daysBetween(dismissedAt) < STEPS_PERMISSION_RENAG_DAYS) return null;
 
   return {
@@ -85,6 +85,7 @@ export const getStepsPermissionNotice = (stepsConnected, dismissedAt = null) => 
 export const getHomeNotices = ({
   userData,
   stepsConnected,
+  stepsLoading,
   dismissedAdjustmentTimestamps,
   bfRecheckSnoozedUntil,
   stepsPermissionDismissedAt,
@@ -103,7 +104,7 @@ export const getHomeNotices = ({
   const bfRecheck = getBfRecheckNotice(userData, bfRecheckSnoozedUntil);
   if (bfRecheck) notices.push(bfRecheck);
 
-  const stepsPermission = getStepsPermissionNotice(stepsConnected, stepsPermissionDismissedAt);
+  const stepsPermission = getStepsPermissionNotice(stepsConnected, stepsPermissionDismissedAt, stepsLoading);
   if (stepsPermission) notices.push(stepsPermission);
 
   return notices;

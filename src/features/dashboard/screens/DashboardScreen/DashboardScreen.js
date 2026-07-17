@@ -473,9 +473,8 @@ const DashboardScreen = () => {
                     })()}</Text>
                     <Text style={styles.greetingDate}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
                 </View>
-                {dashboardReady ? (
+{dashboardReady ? (
                     <View style={styles.content}>
-                        {/* Home notices temporarily disabled
                         {notices.map(notice => (
                             <HomeNoticeCard
                                 key={notice.id}
@@ -493,7 +492,6 @@ const DashboardScreen = () => {
                                 onDismiss={() => handleDismissNotice(notice)}
                             />
                         ))}
-                        */}
                         <TodayWorkout
                             workout={todayScheduledWorkout}
                             activeWorkout={activeWorkout}

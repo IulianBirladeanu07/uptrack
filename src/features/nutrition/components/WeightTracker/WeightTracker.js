@@ -20,6 +20,7 @@ import {
     getLocalWeekStart,
 } from '../../helpers/weightTrackerUtils';
 import WeightChart from './WeightChart';
+import { isSuspiciousWeightEntry, getCurrentTrendWeight } from '../../../profile/utils/weightTrendEngine';
 
 const WEEK_DAYS          = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const DAY_LABELS         = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -391,12 +392,11 @@ const WeightTracker = () => {
         setIsSelected(true);
     }, [allEntries]);
 
-    const handleSave = async () => {
-        if (!validateWeight(weightInput)) return;
+const commitWeightSave = async (parsedWeight) => {
         setSaving(true);
         try {
             await handleSaveLogic(
-                userId, parseFloat(weightInput), modalDate,
+                userId, parsedWeight, modalDate,
                 setCurrentWeight, setWeeklyAverage, loadData,
             );
             setModalVisible(false);
@@ -405,6 +405,27 @@ const WeightTracker = () => {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleSave = async () => {
+        if (!validateWeight(weightInput)) return;
+
+        const parsedWeight = parseFloat(weightInput);
+        const currentTrendWeight = getCurrentTrendWeight(weightIns);
+
+        if (isSuspiciousWeightEntry(parsedWeight, currentTrendWeight)) {
+            Alert.alert(
+                'Double-check this entry',
+                `${parsedWeight}kg is a big jump from your recent trend (${currentTrendWeight.toFixed(1)}kg). Save anyway?`,
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Save Anyway', style: 'destructive', onPress: () => commitWeightSave(parsedWeight) },
+                ]
+            );
+            return;
+        }
+
+        await commitWeightSave(parsedWeight);
     };
 
     const openModal = () => {

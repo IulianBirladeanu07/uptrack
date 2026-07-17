@@ -237,6 +237,7 @@ export const calculateWeightChangePlan = (formData) => {
 export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   const plan = userData?.weightChangePlan;
   if (!plan || plan.type === 'maintenance' || !plan.ratePerWeek) return null;
+  if (userData.autoAdjustEnabled === false) return null;
 
   const isLoss = plan.type === 'weight_loss';
   const expLevel = userData.experienceLevel || 'intermediate';
