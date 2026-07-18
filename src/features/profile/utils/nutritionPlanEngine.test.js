@@ -424,4 +424,14 @@ describe('calculatePlanAdjustment - fix: hold-resync now applies the min-calorie
     expect(result.suggestion).toBe('hold');
     expect(result.syncedCalories).toBe(3105);
   });
+
+  test('regression: calculateMinCalories floor never falls below the protein + reduced-fat macro floor', () => {
+    const weight = 128;
+    const bmr = calculateBMR('female', weight, 175, 78);
+    const tdee = calculateTDEE(bmr, 'sedentary');
+    const minCal = calculateMinCalories(bmr, tdee, weight, 'sedentary');
+    const macros = calculateMacros('weight_loss', minCal, weight);
+    const actualCalories = macros.protein * 4 + macros.carbs * 4 + macros.fats * 9;
+    expect(actualCalories).toBeLessThanOrEqual(minCal);
+ });
 });

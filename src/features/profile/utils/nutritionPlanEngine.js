@@ -77,6 +77,9 @@ const MIN_WEEKS_OF_DATA = 2;
 const STEPS_INCREASE_SUGGESTION = 1500;
 const HOLD_SYNC_MIN_DELTA = 25;
 
+const WEIGHT_LOSS_PROTEIN_PER_KG = 2.4;
+const REDUCED_FAT_PER_KG = 0.8;
+
 export const validateInput = (key, value, fieldType) => {
   if (fieldType === 'picker' || fieldType === 'physique') return !!value;
 
@@ -118,7 +121,8 @@ export const calculateRealTDEE = (avgDailyCalories, weeklyWeightChangeKg) => {
 export const calculateMinCalories = (bmr, tdee, currentWeight, activityLevel) => {
   const perKgFloor = MIN_CALORIES_PER_KG_BY_ACTIVITY[activityLevel] || 24;
   const weightFloor = Math.min(currentWeight * perKgFloor, tdee * 0.9);
-  return Math.round(Math.max(bmr * 1.1, tdee * 0.75, weightFloor));
+  const macroFloor = currentWeight * WEIGHT_LOSS_PROTEIN_PER_KG * 4 + currentWeight * REDUCED_FAT_PER_KG * 9;
+  return Math.round(Math.max(bmr * 1.1, tdee * 0.75, weightFloor, macroFloor));
 };
 
 export const getTargetROLPercent = (bfCategory, stressLevel) => {
@@ -133,7 +137,7 @@ export const getTargetWeeklyRateKg = (bfCategory, stressLevel, currentWeight) =>
 };
 
 export const calculateMacros = (goal, calories, weight) => {
-  const proteinPerKg = goal === 'weight_loss' ? 2.4 : goal === 'muscle_gain' ? 2.2 : 1.8;
+  const proteinPerKg = goal === 'weight_loss' ? WEIGHT_LOSS_PROTEIN_PER_KG : goal === 'muscle_gain' ? 2.2 : 1.8;
   const fatPerKg = 1.0;
 
   const proteinGrams = Math.round(weight * proteinPerKg);
@@ -144,7 +148,7 @@ export const calculateMacros = (goal, calories, weight) => {
   const remaining = calories - proteinKcal - fatKcal;
 
   if (remaining < 50 * 4) {
-    const reducedFat = Math.round(weight * 0.8);
+    const reducedFat = Math.round(weight * REDUCED_FAT_PER_KG);
     const reducedFatKcal = reducedFat * 9;
     const carbsFromReduced = Math.max(0, Math.round((calories - proteinKcal - reducedFatKcal) / 4));
     return { protein: proteinGrams, carbs: carbsFromReduced, fats: reducedFat };
