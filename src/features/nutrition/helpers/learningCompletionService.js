@@ -1,6 +1,6 @@
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
-import { calculatePlanAdjustment } from '../../profile/utils/nutritionPlanEngine';
+import { calculatePlanAdjustment, calculateWeightChangePlan } from '../../profile/utils/nutritionPlanEngine';
 
 export const calculateDailyNutritionFromMeals = (meals) =>
   Object.values(meals || {})
@@ -247,6 +247,59 @@ export const calculateLearningStats = (mealCache, currentDate, requiredDays = 7)
   };
 
   return { daysLogged: nutritionDays.length, isComplete, averages };
+};
+
+const STEPS_BONUS_WINDOW_DAYS = 14;
+const STEPS_BONUS_MIN_DAYS = 7;
+
+export const checkAndBackfillStepsBonus = async (userId, userData, mealCache, currentDate) => {
+  if (!userData?.weightChangePlan) return null;
+  if (userData.planConfidence !== 'estimated') return null;
+  if (userData.lastCalorieAdjustment) return null;
+  if (userData.stepsBonusAppliedAt) return null;
+
+  const end = new Date(currentDate);
+  end.setHours(23, 59, 59, 999);
+  const start = new Date(end);
+  start.setDate(end.getDate() - STEPS_BONUS_WINDOW_DAYS);
+
+  const todayKey = mealCache.formatDate(new Date(currentDate));
+  const stepDays = mealCache.getStepsRange(start, end)
+    .filter(d => d.date !== todayKey && d.steps > 0);
+
+  if (stepDays.length < STEPS_BONUS_MIN_DAYS) return null;
+
+  const avgDailySteps = avg(stepDays, 'steps');
+  const plan = calculateWeightChangePlan({ ...userData, avgDailySteps });
+  const now = new Date().toISOString();
+  const adjustment = plan.goalCalories - userData.targetCalories;
+
+  const targets = {
+    weightChangePlan:     plan,
+    targetCalories:       plan.goalCalories,
+    targetProtein:        plan.macros.protein,
+    targetCarbs:          plan.macros.carbs,
+    targetFats:           plan.macros.fats,
+    maintenanceCalories:  plan.tdee,
+    avgDailySteps,
+    stepsBonusAppliedAt:  now,
+    ...(adjustment !== 0 ? {
+      lastCalorieAdjustment: {
+        reason:            'steps_calibrated',
+        adjustment,
+        newTargetCalories: plan.goalCalories,
+        adjustedAt:        now,
+      },
+    } : {}),
+  };
+
+  try {
+    await setDoc(doc(db, 'users', userId), targets, { merge: true });
+    return targets;
+  } catch (error) {
+    console.error('checkAndBackfillStepsBonus error:', error);
+    return null;
+  }
 };
 
 export const checkAndCompleteLearning = async (userId, mealCache, currentDate, hasTargets) => {

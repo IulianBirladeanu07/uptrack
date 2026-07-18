@@ -14,6 +14,7 @@ const ADJUSTMENT_REASON_COPY = {
   too_slow: 'Your rate of progress slowed down, so we adjusted your calories to help.',
   too_fast: 'You were progressing faster than your target pace, so we eased your calories back.',
   plateau_at_min_calories: 'Progress has stalled and calories are already at the safe minimum.',
+  steps_calibrated: 'We calibrated your calories using your actual step count.',
 };
 
 export const getCalorieAdjustmentNotice = (userData, dismissedAdjustmentTimestamps = []) => {

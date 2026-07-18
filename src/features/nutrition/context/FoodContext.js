@@ -7,7 +7,7 @@ import GoogleFitStepDisplay from '../../../shared/components/GoogleFitStepDispla
 
 import { addMeal, deleteMealItem, updateMealItem, fetchLast30DaysMeals } from '../services/mealService';
 import { getLocalWeekStart } from '../helpers/weightTrackerUtils';
-import { getRollingWeekStats, checkAndCompleteLearning, calculateLearningStats, checkAndRunWeeklyEval } from '../helpers/learningCompletionService';
+import { getRollingWeekStats, checkAndCompleteLearning, calculateLearningStats, checkAndRunWeeklyEval, checkAndBackfillStepsBonus } from '../helpers/learningCompletionService';
 import useDailyNutrition from '../helpers/useDailyNutrition';
 import MealCache from './cache/MealCache';
 import { formatDate } from '../utils/dateUtils';
@@ -151,6 +151,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
     const pendingOps        = useRef(new Set());
     const selectedDateRef   = useRef(selectedDate);
     const stepsDisplayRef   = useRef(null);
+    const stepsBonusCheckedRef = useRef(false);
 
     const { userData, refreshUserData } = useContext(AuthContext);
 
@@ -444,6 +445,26 @@ export const FoodProvider = ({ children, initialUserData }) => {
     }, [currentUser, enhancedLearningData.isLearningComplete, nutritionHookData.hasTargets, selectedDate, handleError]);
 
     useEffect(() => {
+        if (!currentUser || !stepsConnected || !userData || stepsBonusCheckedRef.current) return;
+        stepsBonusCheckedRef.current = true;
+
+        const runStepsBonusBackfill = async () => {
+            try {
+                const result = await checkAndBackfillStepsBonus(
+                    currentUser.uid, userData, mealCache.current, new Date()
+                );
+                if (result && mountedRef.current) {
+                    setUserProfile(prev => ({ ...prev, ...result }));
+                    await refreshUserData();
+                }
+            } catch (error) {
+                console.error('Failed to backfill steps bonus:', error);
+            }
+        };
+        runStepsBonusBackfill();
+    }, [currentUser, stepsConnected, userData, refreshUserData]);
+
+    useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (!mountedRef.current) return;
             setCurrentUser(user);
@@ -452,6 +473,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
             } else if (!user) {
                 if (currentUser) clearPersistedMealCache(currentUser.uid);
                 initializationRef.current = false;
+                stepsBonusCheckedRef.current = false;
                 mealCache.current.clear();
                 setCategoryData({ recentMeals: [], frequentFoods: [], favoriteFoods: [] });
                 setUserProfile(null);

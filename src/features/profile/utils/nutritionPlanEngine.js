@@ -1,3 +1,11 @@
+import {
+  buildWeightTrendSeries,
+  calculateWeeklyRateOfChange,
+  detectPlateau,
+  isGoalReached,
+  getPlanConfidence,
+} from './weightTrendEngine';
+
 export const KCAL_PER_KG = 7700;
 const WEEKS_PER_MONTH = 4.34524;
 
