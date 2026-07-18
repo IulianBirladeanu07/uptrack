@@ -18,6 +18,7 @@ const INITIAL_FORM_DATA = {
   stressLevel:     'moderate',
   experienceLevel: 'intermediate',
   activityLevel:   'moderately_active',
+  avgDailySteps:   0,
 };
 
 const OnboardingFlow = () => {

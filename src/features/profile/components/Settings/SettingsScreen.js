@@ -90,6 +90,10 @@ const SettingsScreen = ({ navigation }) => {
                 targetFats:          newPlan.macros.fats,
                 maintenanceCalories: newPlan.tdee,
                 lastNutritionUpdate: now,
+                planConfidence:      'estimated',
+                lastCalorieAdjustment: null,
+                lastAdjustmentDate:  null,
+                stepsBonusAppliedAt: null,
                 ...(goalChanged ? {
                   goalSwitchDate:     now,
                   weeksSinceCutStart: 0,

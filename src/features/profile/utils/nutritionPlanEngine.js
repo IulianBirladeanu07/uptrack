@@ -81,6 +81,8 @@ export const validateInput = (key, value, fieldType) => {
   if (fieldType === 'picker' || fieldType === 'physique') return !!value;
 
   const parsed = parseFloat(value);
+  if (key === 'avgDailySteps') return !isNaN(parsed) && parsed >= 0;
+
   if (!value || isNaN(parsed) || parsed <= 0) return false;
   if (key === 'height') return parsed >= 120 && parsed <= 250;
   return true;
@@ -272,23 +274,25 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   const actualMagnitude = isLoss ? -actualRateKgPerWeek : actualRateKgPerWeek;
   const progressRatio = actualMagnitude / targetRate;
 
+  const realTDEE = calculateRealTDEE(avgLoggedCalories, actualRateKgPerWeek) || plan.tdee;
+  const bmr = calculateBMR(userData.gender, currentTrendWeight, parseFloat(userData.height), parseFloat(userData.age));
+  const minCal = isLoss ? calculateMinCalories(bmr, realTDEE, currentTrendWeight, userData.activityLevel) : null;
+
   if (progressRatio >= 1 - RATE_TOLERANCE_PERCENT && progressRatio <= 1 + RATE_TOLERANCE_PERCENT) {
     const caloriesDrift = avgLoggedCalories - userData.targetCalories;
     if (Math.abs(caloriesDrift) < HOLD_SYNC_MIN_DELTA) {
       return { suggestion: 'hold', planConfidence };
     }
+    const syncedCalories = isLoss ? Math.max(avgLoggedCalories, minCal) : avgLoggedCalories;
     return {
       suggestion: 'hold',
-      syncedCalories: avgLoggedCalories,
-      syncedMacros: calculateMacros(plan.type, avgLoggedCalories, currentTrendWeight),
+      syncedCalories,
+      syncedMacros: calculateMacros(plan.type, syncedCalories, currentTrendWeight),
       planConfidence,
     };
   }
 
   const tooSlow = progressRatio < 1 - RATE_TOLERANCE_PERCENT;
-
-  const realTDEE = calculateRealTDEE(avgLoggedCalories, actualRateKgPerWeek) || plan.tdee;
-  const bmr = calculateBMR(userData.gender, currentTrendWeight, parseFloat(userData.height), parseFloat(userData.age));
 
   const dailyDeltaTarget = (targetRate * KCAL_PER_KG) / 7;
   const maxDeltaFraction = isLoss
@@ -299,7 +303,6 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   let newTargetCalories = Math.round(isLoss ? realTDEE - dailyDelta : realTDEE + dailyDelta);
 
   if (isLoss) {
-    const minCal = calculateMinCalories(bmr, realTDEE, currentTrendWeight, userData.activityLevel);
     const alreadyAtFloor = userData.targetCalories <= minCal;
     newTargetCalories = Math.max(newTargetCalories, minCal);
 

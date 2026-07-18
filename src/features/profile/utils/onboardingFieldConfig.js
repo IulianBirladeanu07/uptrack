@@ -86,6 +86,16 @@ const onboardingFieldConfig = [
     title: 'Activity Level',
     description: 'How would you describe your usual activity level?',
   },
+  {
+    key: 'avgDailySteps',
+    type: 'stepper',
+    unit: 'steps',
+    min: 0,
+    max: 25000,
+    step: 500,
+    title: 'Daily Steps',
+    description: 'Roughly how many steps do you average per day? This helps set your calorie target accurately.',
+  },
 ];
 
 export default onboardingFieldConfig;
