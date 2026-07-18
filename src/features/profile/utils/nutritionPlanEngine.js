@@ -3,6 +3,7 @@ import {
   calculateWeeklyRateOfChange,
   detectPlateau,
   isGoalReached,
+  getPlanConfidence,
 } from './weightTrendEngine';
 
 export const KCAL_PER_KG = 7700;
@@ -74,6 +75,7 @@ const STEPS_THRESHOLDS = {
 const RATE_TOLERANCE_PERCENT = 0.3;
 const MIN_WEEKS_OF_DATA = 2;
 const STEPS_INCREASE_SUGGESTION = 1500;
+const HOLD_SYNC_MIN_DELTA = 25;
 
 export const validateInput = (key, value, fieldType) => {
   if (fieldType === 'picker' || fieldType === 'physique') return !!value;
@@ -113,7 +115,8 @@ export const calculateRealTDEE = (avgDailyCalories, weeklyWeightChangeKg) => {
 
 export const calculateMinCalories = (bmr, tdee, currentWeight, activityLevel) => {
   const perKgFloor = MIN_CALORIES_PER_KG_BY_ACTIVITY[activityLevel] || 24;
-  return Math.round(Math.max(bmr * 1.1, tdee * 0.75, currentWeight * perKgFloor));
+  const weightFloor = Math.min(currentWeight * perKgFloor, tdee * 0.9);
+  return Math.round(Math.max(bmr * 1.1, tdee * 0.75, weightFloor));
 };
 
 export const getTargetROLPercent = (bfCategory, stressLevel) => {
@@ -246,9 +249,10 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   const trendSeries = buildWeightTrendSeries(userData.weightIns);
   if (!trendSeries.length) return null;
   const currentTrendWeight = trendSeries[trendSeries.length - 1].trendWeight;
+  const planConfidence = getPlanConfidence(trendSeries, weeklyCalorieData);
 
   if (isGoalReached(currentTrendWeight, targetWeight)) {
-    return { suggestion: 'goal_reached' };
+    return { suggestion: 'goal_reached', planConfidence };
   }
 
   const actualRateKgPerWeek = calculateWeeklyRateOfChange(trendSeries);
@@ -269,7 +273,16 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   const progressRatio = actualMagnitude / targetRate;
 
   if (progressRatio >= 1 - RATE_TOLERANCE_PERCENT && progressRatio <= 1 + RATE_TOLERANCE_PERCENT) {
-    return { suggestion: 'hold' };
+    const caloriesDrift = avgLoggedCalories - userData.targetCalories;
+    if (Math.abs(caloriesDrift) < HOLD_SYNC_MIN_DELTA) {
+      return { suggestion: 'hold', planConfidence };
+    }
+    return {
+      suggestion: 'hold',
+      syncedCalories: avgLoggedCalories,
+      syncedMacros: calculateMacros(plan.type, avgLoggedCalories, currentTrendWeight),
+      planConfidence,
+    };
   }
 
   const tooSlow = progressRatio < 1 - RATE_TOLERANCE_PERCENT;
@@ -292,21 +305,22 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
 
     if (tooSlow && alreadyAtFloor) {
       if (detectPlateau(actualRateKgPerWeek, currentTrendWeight)) {
-        return { suggestion: 'increase_steps', suggestedStepsIncrease: STEPS_INCREASE_SUGGESTION };
+        return { suggestion: 'increase_steps', suggestedStepsIncrease: STEPS_INCREASE_SUGGESTION, planConfidence };
       }
       return {
         suggestion: 'calorie_adjustment',
         reason: 'plateau_at_min_calories',
-        adjustment: 0,
+        adjustment: minCal - userData.targetCalories,
         newTargetCalories: minCal,
         newMacros: calculateMacros(plan.type, minCal, currentTrendWeight),
         adjustedAt: new Date().toISOString(),
+        planConfidence,
       };
     }
   }
 
   const adjustment = newTargetCalories - userData.targetCalories;
-  if (adjustment === 0) return { suggestion: 'hold' };
+  if (adjustment === 0) return { suggestion: 'hold', planConfidence };
 
   return {
     suggestion: 'calorie_adjustment',
@@ -315,5 +329,6 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
     newTargetCalories,
     newMacros: calculateMacros(plan.type, newTargetCalories, currentTrendWeight),
     adjustedAt: new Date().toISOString(),
+    planConfidence,
   };
 };

@@ -150,11 +150,27 @@ export const evaluateWeeklyProgress = async (userId, userData, mealCache, curren
     updateData = {
       lastCalorieAdjustment: { reason: 'goal_reached', adjustedAt: now },
       lastAdjustmentDate: now,
+      planConfidence: adjustment.planConfidence,
     };
-  } else if (adjustment.suggestion === 'increase_steps' || adjustment.suggestion === 'hold') {
+  } else if (adjustment.suggestion === 'increase_steps') {
     updateData = {
       lastAdjustmentDate: now,
+      planConfidence: adjustment.planConfidence,
     };
+  } else if (adjustment.suggestion === 'hold') {
+    updateData = adjustment.syncedCalories != null
+      ? {
+          targetCalories: adjustment.syncedCalories,
+          targetProtein:  adjustment.syncedMacros.protein,
+          targetCarbs:    adjustment.syncedMacros.carbs,
+          targetFats:     adjustment.syncedMacros.fats,
+          lastAdjustmentDate: now,
+          planConfidence: adjustment.planConfidence,
+        }
+      : {
+          lastAdjustmentDate: now,
+          planConfidence: adjustment.planConfidence,
+        };
   } else {
     updateData = {
       targetCalories: adjustment.newTargetCalories,
@@ -163,6 +179,7 @@ export const evaluateWeeklyProgress = async (userId, userData, mealCache, curren
       targetFats:     adjustment.newMacros.fats,
       lastCalorieAdjustment: adjustment,
       lastAdjustmentDate:    now,
+      planConfidence: adjustment.planConfidence,
     };
   }
 
