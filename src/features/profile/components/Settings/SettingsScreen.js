@@ -6,7 +6,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { db } from '../../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../../auth/context/AuthContext';
-import { calculateWeightChangePlan } from '../../utils/nutritionPlanEngine';
+import { calculateWeightChangePlan, deriveFitnessGoal } from '../../utils/nutritionPlanEngine';
 import { OptionRow, NumberStepper } from '../../../../shared/components/FormControls/FormControls';
 import { ACTIVITY_OPTIONS, EXPERIENCE_OPTIONS, STRESS_OPTIONS } from '../../utils/profileOptions';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
@@ -50,11 +50,7 @@ const SettingsScreen = ({ navigation }) => {
     setHasChanges(true);
   }, []);
 
-  const deriveGoal = (f) => {
-    if (f.targetWeight < f.currentWeight) return 'weight_loss';
-    if (f.targetWeight > f.currentWeight) return 'muscle_gain';
-    return 'maintenance';
-  };
+  const deriveGoal = (f) => deriveFitnessGoal(f.currentWeight, f.targetWeight);
 
   const handleSave = () => {
     if (!hasChanges) return;

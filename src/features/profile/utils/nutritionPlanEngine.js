@@ -157,6 +157,13 @@ export const calculateMacros = (goal, calories, weight) => {
   return { protein: proteinGrams, carbs: Math.round(remaining / 4), fats: fatGrams };
 };
 
+export const deriveFitnessGoal = (currentWeight, targetWeight) => {
+  const current = parseFloat(currentWeight);
+  const target = parseFloat(targetWeight);
+  if (!isFinite(current) || !isFinite(target) || current === target) return 'maintenance';
+  return current > target ? 'weight_loss' : 'muscle_gain';
+};
+
 export const calculateWeightChangePlan = (formData) => {
   const {
     currentWeight, targetWeight, fitnessGoals,
@@ -169,10 +176,7 @@ export const calculateWeightChangePlan = (formData) => {
   const weightDiff = Math.abs(weight - target);
   const expLevel = experienceLevel || 'intermediate';
 
-  const goal = fitnessGoals || (
-    weight > target ? 'weight_loss' :
-    weight < target ? 'muscle_gain' : 'maintenance'
-  );
+  const goal = fitnessGoals || deriveFitnessGoal(weight, target);
 
   const bmr = calculateBMR(gender, weight, parseFloat(height), parseFloat(age));
   const tdeeMifflin = calculateTDEE(bmr, activityLevel);
@@ -320,6 +324,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
         adjustment: minCal - userData.targetCalories,
         newTargetCalories: minCal,
         newMacros: calculateMacros(plan.type, minCal, currentTrendWeight),
+        suggestedStepsIncrease: STEPS_INCREASE_SUGGESTION,
         adjustedAt: new Date().toISOString(),
         planConfidence,
       };

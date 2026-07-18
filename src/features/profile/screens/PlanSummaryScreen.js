@@ -7,7 +7,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { db } from '../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../auth/context/AuthContext';
-import { calculateWeightChangePlan } from '../utils/nutritionPlanEngine';
+import { calculateWeightChangePlan, deriveFitnessGoal } from '../utils/nutritionPlanEngine';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../shared/theme';
 import { createStyles } from '../../../shared/theme/createStyles';
 
@@ -20,9 +20,7 @@ const PlanSummaryScreen = () => {
 
   const formData = route.params?.formData || {};
 
-  const derivedGoal = formData.currentWeight > formData.targetWeight ? 'weight_loss'
-    : formData.currentWeight < formData.targetWeight ? 'muscle_gain'
-    : 'maintenance';
+  const derivedGoal = deriveFitnessGoal(formData.currentWeight, formData.targetWeight);
 
   const plan = calculateWeightChangePlan({ ...formData, fitnessGoals: derivedGoal });
   const isGaining = derivedGoal === 'muscle_gain';
