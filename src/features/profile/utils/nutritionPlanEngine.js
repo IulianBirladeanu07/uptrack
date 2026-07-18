@@ -54,8 +54,6 @@ export const STRESS_MULTIPLIERS = {
 
 export const BF_CATEGORY_ROL_PERCENT = {
   shredded:  0.25,
-  very_lean: 0.75,
-  lean:      1.0,
   higher_bf: 1.5,
 };
 
@@ -126,7 +124,7 @@ export const calculateMinCalories = (bmr, tdee, currentWeight, activityLevel) =>
 };
 
 export const getTargetROLPercent = (bfCategory, stressLevel) => {
-  const baseROL = BF_CATEGORY_ROL_PERCENT[bfCategory] ?? BF_CATEGORY_ROL_PERCENT.lean;
+  const baseROL = BF_CATEGORY_ROL_PERCENT[bfCategory] ?? BF_CATEGORY_ROL_PERCENT.higher_bf;
   const stressMultiplier = STRESS_MULTIPLIERS[stressLevel] || STRESS_MULTIPLIERS.moderate;
   return baseROL * stressMultiplier;
 };
@@ -184,7 +182,7 @@ export const calculateWeightChangePlan = (formData) => {
   const tdee = Math.round(tdeeMifflin + stepsBonus);
 
   const stressMultiplier = STRESS_MULTIPLIERS[stressLevel] || STRESS_MULTIPLIERS.moderate;
-  const effectiveBfCategory = bfCategory || 'lean';
+  const effectiveBfCategory = bfCategory || 'higher_bf';
 
   let goalCalories;
   let ratePerWeek = 0;

@@ -6,19 +6,15 @@ import { createStyles } from '../../../../shared/theme/createStyles';
 const PHYSIQUE_IMAGES = {
   male: {
     shredded: null,
-    very_lean: null,
-    lean: null,
     higher_bf: null,
   },
   female: {
     shredded: null,
-    very_lean: null,
-    lean: null,
     higher_bf: null,
   },
 };
 
-const CATEGORY_GAUGE_LEVEL = { shredded: 1, very_lean: 2, lean: 3, higher_bf: 4 };
+const CATEGORY_GAUGE_LEVEL = { shredded: 1, higher_bf: 2 };
 
 const PhysiqueOptionRow = ({ category, gender, selected, onPress }) => {
   const imageSource = PHYSIQUE_IMAGES[gender]?.[category.value] || null;
@@ -36,7 +32,7 @@ const PhysiqueOptionRow = ({ category, gender, selected, onPress }) => {
           : (
             <View style={styles.fallback}>
               <View style={styles.gaugeRow}>
-                {[1, 2, 3, 4].map(i => (
+                {[1, 2].map(i => (
                   <View key={i} style={[styles.gaugeDot, i <= gaugeLevel && styles.gaugeDotFilled]} />
                 ))}
               </View>

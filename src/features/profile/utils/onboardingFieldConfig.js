@@ -62,7 +62,7 @@ const onboardingFieldConfig = [
     skipIf: (formData) => {
       const current = parseFloat(formData.currentWeight);
       const target  = parseFloat(formData.targetWeight);
-      return !current || !target || current === target;
+      return !current || !target || current <= target;
     },
   },
   {

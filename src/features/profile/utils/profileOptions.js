@@ -31,8 +31,6 @@ export const STRESS_OPTIONS = [
 ];
 
 export const BF_CATEGORY_OPTIONS = [
-  { label: 'Shredded',        value: 'shredded',  desc: 'Visible abs, vascularity, contest-level leanness' },
-  { label: 'Very Lean',       value: 'very_lean', desc: 'Abs visible most of the time, low body fat' },
-  { label: 'Lean',            value: 'lean',      desc: 'Some ab definition, moderate body fat' },
-  { label: 'Higher Body Fat', value: 'higher_bf', desc: 'Little to no ab definition' },
+  { label: 'Already Lean',        value: 'shredded',  desc: 'Visible abs, vascularity, contest-level leanness' },
+  { label: 'Still Have Fat to Lose', value: 'higher_bf', desc: 'Some fat to lose before you get lean' },
 ];
