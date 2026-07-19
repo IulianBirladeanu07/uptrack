@@ -4,6 +4,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebaseConfigService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { deriveStartWeight } from '../../nutrition/helpers/learningCompletionService';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 export const AuthContext = createContext();
 

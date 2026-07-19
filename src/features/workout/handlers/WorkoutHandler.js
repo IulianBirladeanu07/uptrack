@@ -171,7 +171,7 @@ export const countTotalPRs = (lastWorkoutData) => {
       total++;
     }
   });
-  setTotalPRs(total);
+  return total;
 };
 
 export const findBestSet = (sets) => {

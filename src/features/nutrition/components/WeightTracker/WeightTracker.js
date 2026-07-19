@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     View, Text, TouchableOpacity, ScrollView, Modal, Pressable,
-    ActivityIndicator, Platform, Vibration, Animated,
+    ActivityIndicator, Platform, Vibration, Animated, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
