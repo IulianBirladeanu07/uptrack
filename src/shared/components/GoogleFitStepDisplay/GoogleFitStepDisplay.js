@@ -33,20 +33,28 @@ const getLocalISOString = (date) => {
         ':' + pad(Math.abs(tzo) % 60);
 };
 
-const pickPreferredSource = (result) => {
-    if (!result?.length) return null;
+const getStepsForDate = (result, dateKey) => {
     for (const sourceName of PREFERRED_SOURCES) {
         const source = result.find(d => d.source === sourceName);
-        if (source?.steps?.length > 0) return source;
+        const entry = source?.steps?.find(s => s.date === dateKey);
+        if (entry) return entry.value || 0;
     }
-    return result.find(d => d.steps?.length > 0) || null;
+    let best = null;
+    result.forEach(source => {
+        const entry = source.steps?.find(s => s.date === dateKey);
+        if (entry && (best === null || (entry.value || 0) > best)) best = entry.value || 0;
+    });
+    return best;
 };
 
-const sumStepsByDate = (steps) => {
+const mergeStepsAcrossSources = (result) => {
     const byDate = new Map();
-    steps.forEach(s => {
-        const key = formatDate(new Date(s.date));
-        byDate.set(key, (byDate.get(key) || 0) + (s.value || 0));
+    if (!result?.length) return byDate;
+    const dateKeys = new Set();
+    result.forEach(source => (source.steps || []).forEach(s => dateKeys.add(s.date)));
+    dateKeys.forEach(dateKey => {
+        const value = getStepsForDate(result, dateKey);
+        if (value !== null) byDate.set(dateKey, value);
     });
     return byDate;
 };
@@ -103,7 +111,7 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsError, onStepsL
             return new Promise((resolve) => {
                 AppleHealthKit.getStepCount(
                     { startDate: today.toISOString() },
-                    (err, results) => resolve(err ? 0 : (results.value || 0))
+                    (err, results) => resolve(err ? null : (results.value || 0))
                 );
             });
         }
@@ -113,12 +121,11 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsError, onStepsL
                 startDate: getLocalISOString(today),
                 endDate: getLocalISOString(now),
             });
-            const source = pickPreferredSource(result);
-            if (!source) return 0;
-            return source.steps.reduce((sum, s) => sum + (s.value || 0), 0);
+            const todayKey = formatDate(today);
+            return getStepsForDate(result, todayKey);
         } catch (err) {
             console.log('[Steps] fetchToday error:', err);
-            return 0;
+            return null;
         }
     };
 
@@ -149,9 +156,8 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsError, onStepsL
                 startDate: getLocalISOString(startDate),
                 endDate: getLocalISOString(now),
             });
-            const source = pickPreferredSource(stepsData);
-            if (source?.steps && onStepsUpdate) {
-                const byDate = sumStepsByDate(source.steps);
+            if (onStepsUpdate) {
+                const byDate = mergeStepsAcrossSources(stepsData);
                 byDate.forEach((totalSteps, dateKey) => onStepsUpdate(totalSteps, dateKey));
             }
         } catch (err) {
@@ -162,6 +168,7 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsError, onStepsL
 
     const updateTodaySteps = async () => {
         const steps = await fetchTodaySteps();
+        if (steps === null) return;
         const todayKey = formatDate(new Date());
         if (onStepsUpdate) onStepsUpdate(steps, todayKey);
     };

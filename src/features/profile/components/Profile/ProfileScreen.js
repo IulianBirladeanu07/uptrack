@@ -10,33 +10,20 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { getFirestore, doc, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getAuth } from 'firebase/auth';
+import { getAuth, updateEmail } from 'firebase/auth';
 import { fetchUserProfile } from '../../../auth/services/firebaseAuthService';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
-const PLACEHOLDER_URI = 'https://via.placeholder.com/150';
-
-const StatTile = ({ label, value, unit, isEditing, onChangeText }) => (
+const StatTile = ({ value, unit }) => (
   <View style={styles.statTile}>
-    {isEditing ? (
-      <TextInput
-        style={styles.statInput}
-        value={value}
-        onChangeText={onChangeText}
-        keyboardType="numeric"
-        placeholder="0"
-        placeholderTextColor={colors.text.quaternary}
-        textAlign="center"
-      />
-    ) : (
-      <Text style={styles.statValue}>{value || '-'}</Text>
-    )}
+    <Text style={styles.statValue}>{value || '-'}</Text>
     <Text style={styles.statUnit}>{unit}</Text>
   </View>
 );
@@ -59,17 +46,18 @@ const SectionHeader = ({ title }) => (
 const ProfileScreen = ({ navigation }) => {
   const { setUserSettings, userSettings } = useContext(WorkoutContext);
   const { logout } = useContext(AuthContext);
+  const insets = useSafeAreaInsets();
 
   const auth = getAuth();
   const db = getFirestore();
   const storage = getStorage();
 
-  const [profilePicture, setProfilePicture] = useState(userSettings?.profilePicture || PLACEHOLDER_URI);
+  const [profilePicture, setProfilePicture] = useState(userSettings?.profilePicture || null);
   const [pendingImageUri, setPendingImageUri] = useState(null);
   const [username, setUsername] = useState(userSettings?.username || '');
   const [email, setEmail] = useState(userSettings?.email || '');
   const [age, setAge] = useState(String(userSettings?.age || ''));
-  const [weight, setWeight] = useState(String(userSettings?.weight || ''));
+  const [weight, setWeight] = useState(String(userSettings?.currentWeight || ''));
   const [height, setHeight] = useState(String(userSettings?.height || ''));
   const [targetCalories, setTargetCalories] = useState(userSettings?.targetCalories || 0);
   const [targetProtein, setTargetProtein] = useState(userSettings?.targetProtein || 0);
@@ -92,11 +80,11 @@ const ProfileScreen = ({ navigation }) => {
       try {
         const data = await fetchUserProfile(user.uid);
         if (data) {
-          setProfilePicture(data.profilePicture || PLACEHOLDER_URI);
+          setProfilePicture(data.profilePicture || null);
           setUsername(data.username || '');
           setEmail(data.email || '');
           setAge(String(data.age || ''));
-          setWeight(String(data.weight || ''));
+          setWeight(String(data.currentWeight || ''));
           setHeight(String(data.height || ''));
           setTargetCalories(data.targetCalories || 0);
           setTargetProtein(data.targetProtein || 0);
@@ -117,9 +105,6 @@ const ProfileScreen = ({ navigation }) => {
     const e = {};
     if (!username.trim()) e.username = 'Required';
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Valid email required';
-    if (!age.trim() || isNaN(age) || Number(age) <= 0) e.age = 'Invalid';
-    if (!weight.trim() || isNaN(weight) || Number(weight) <= 0) e.weight = 'Invalid';
-    if (!height.trim() || isNaN(height) || Number(height) <= 0) e.height = 'Invalid';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -147,13 +132,23 @@ const ProfileScreen = ({ navigation }) => {
         finalProfilePicture = await uploadProfilePicture(user.uid, pendingImageUri);
       }
 
+      if (email !== user.email) {
+        try {
+          await updateEmail(user, email);
+        } catch (err) {
+          if (err.code === 'auth/requires-recent-login') {
+            Alert.alert('Re-authentication required', 'Log out and back in, then change your email again.');
+            setSaving(false);
+            return;
+          }
+          throw err;
+        }
+      }
+
       const profileData = {
         profilePicture: finalProfilePicture,
         username,
         email,
-        age: Number(age),
-        weight: Number(weight),
-        height: Number(height),
       };
 
       await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
@@ -170,13 +165,10 @@ const ProfileScreen = ({ navigation }) => {
 
   const handleCancel = useCallback(() => {
     const s = userSettings || {};
-    setProfilePicture(s.profilePicture || PLACEHOLDER_URI);
+    setProfilePicture(s.profilePicture || null);
     setPendingImageUri(null);
     setUsername(s.username || '');
     setEmail(s.email || '');
-    setAge(String(s.age || ''));
-    setWeight(String(s.weight || ''));
-    setHeight(String(s.height || ''));
     setErrors({});
     setIsEditing(false);
   }, [userSettings]);
@@ -201,6 +193,15 @@ const ProfileScreen = ({ navigation }) => {
     ]);
   };
 
+  const renderAvatarContent = () =>
+    profilePicture ? (
+      <Image source={{ uri: profilePicture }} style={styles.avatar} />
+    ) : (
+      <View style={[styles.avatar, styles.avatarFallback]}>
+        <Ionicons name="person" size={spacing.iconLg} color={colors.text.tertiary} />
+      </View>
+    );
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -212,7 +213,7 @@ const ProfileScreen = ({ navigation }) => {
   return (
     <View style={styles.screen}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing[2] }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -235,7 +236,7 @@ const ProfileScreen = ({ navigation }) => {
             activeOpacity={isEditing ? 0.7 : 1}
             style={styles.avatarWrapper}
           >
-            <Image source={{ uri: profilePicture }} style={styles.avatar} />
+            {renderAvatarContent()}
             {isEditing && (
               <View style={styles.avatarEditBadge}>
                 <Ionicons name="camera" size={spacing.iconSm} color={colors.text.primary} />
@@ -247,13 +248,11 @@ const ProfileScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.statRow}>
-          <StatTile label="Age" value={age} unit="yrs" isEditing={isEditing} onChangeText={setAge} />
-          <StatTile label="Weight" value={weight} unit="kg" isEditing={isEditing} onChangeText={setWeight} />
-          <StatTile label="Height" value={height} unit="cm" isEditing={isEditing} onChangeText={setHeight} />
+          <StatTile value={age} unit="yrs" />
+          <StatTile value={weight} unit="kg" />
+          <StatTile value={height} unit="cm" />
         </View>
-        {(errors.age || errors.weight || errors.height) && (
-          <Text style={styles.statError}>Check age, weight, and height</Text>
-        )}
+        <Text style={styles.statNote}>Physical stats managed in Settings</Text>
 
         <SectionHeader title="Personal Info" />
 
@@ -360,7 +359,6 @@ const styles = createStyles(() => ({
   scrollContent: {
     paddingHorizontal: spacing[5],
     paddingBottom: spacing[12],
-    paddingTop: spacing[5],
   },
   header: {
     flexDirection: 'row',
@@ -408,6 +406,11 @@ const styles = createStyles(() => ({
     borderWidth: 2,
     borderColor: colors.border.primary,
   },
+  avatarFallback: {
+    backgroundColor: colors.background.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   avatarEditBadge: {
     position: 'absolute',
     bottom: 0,
@@ -427,7 +430,7 @@ const styles = createStyles(() => ({
     color: colors.text.primary,
   },
   avatarEmail: {
-    fontSize: fontSize[13],
+    fontSize: fontSize[12],
     color: colors.text.tertiary,
     marginTop: spacing[1],
   },
@@ -450,21 +453,14 @@ const styles = createStyles(() => ({
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
   },
-  statInput: {
-    fontSize: fontSize[18],
-    fontWeight: fontWeight.bold,
-    color: colors.text.primary,
-    width: '100%',
-    padding: 0,
-  },
   statUnit: {
-    fontSize: fontSize[11],
+    fontSize: fontSize[10],
     color: colors.text.quaternary,
     marginTop: spacing[1],
   },
-  statError: {
+  statNote: {
     fontSize: fontSize[12],
-    color: colors.accent.error,
+    color: colors.text.quaternary,
     marginBottom: spacing[6],
   },
   sectionHeader: {
@@ -557,17 +553,17 @@ const styles = createStyles(() => ({
     alignItems: 'center',
   },
   nutritionMacroLabel: {
-    fontSize: fontSize[11],
+    fontSize: fontSize[10],
     color: colors.text.quaternary,
     marginBottom: spacing[1],
   },
   nutritionMacroValue: {
-    fontSize: fontSize[15],
+    fontSize: fontSize[16],
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
   },
   settingsLink: {
-    fontSize: fontSize[13],
+    fontSize: fontSize[12],
     color: colors.accent.cyan,
     fontWeight: fontWeight.semibold,
     textAlign: 'center',
