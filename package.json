@@ -9,7 +9,7 @@
     "web": "dotenv -e .env.dev expo start --web",
     "build": "dotenv -e .env.prod expo build",
     "eas-build": "dotenv -e .env.prod eas build",
-    "postinstall": "",
+    "postinstall": "patch-package",
     "android:build:prod": "dotenv -e .env.prod -- eas build --platform android"
   },
   "dependencies": {
@@ -91,7 +91,8 @@
     "babel-preset-expo": "~54.0.10",
     "baseline-browser-mapping": "^2.9.15",
     "dotenv-cli": "^10.0.0",
-    "jest": "29.7.0"
+    "jest": "29.7.0",
+    "patch-package": "^8.0.1"
   },
   "overrides": {
     "@expo/fingerprint": "0.15.5"
