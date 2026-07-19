@@ -54,18 +54,6 @@ const onboardingFieldConfig = [
     convertToMetric: true,
   },
   {
-    key: 'bfCategory',
-    type: 'physique',
-    optionsKey: 'BF_CATEGORY_OPTIONS',
-    title: 'Physique',
-    description: 'Which best matches how you look right now?',
-    skipIf: (formData) => {
-      const current = parseFloat(formData.currentWeight);
-      const target  = parseFloat(formData.targetWeight);
-      return !current || !target || current <= target;
-    },
-  },
-  {
     key: 'stressLevel',
     type: 'picker',
     optionsKey: 'STRESS_OPTIONS',

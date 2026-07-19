@@ -29,8 +29,3 @@ export const STRESS_OPTIONS = [
   { label: 'Moderate', value: 'moderate', desc: 'Occasional work stress' },
   { label: 'High',     value: 'high',     desc: 'Constant pressure daily' },
 ];
-
-export const BF_CATEGORY_OPTIONS = [
-  { label: 'Already Lean',        value: 'shredded',  desc: 'Visible abs, vascularity, contest-level leanness' },
-  { label: 'Still Have Fat to Lose', value: 'higher_bf', desc: 'Some fat to lose before you get lean' },
-];

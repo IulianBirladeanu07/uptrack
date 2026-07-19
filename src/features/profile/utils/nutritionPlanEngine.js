@@ -52,10 +52,9 @@ export const STRESS_MULTIPLIERS = {
   high:     0.7,
 };
 
-export const BF_CATEGORY_ROL_PERCENT = {
-  shredded:  0.25,
-  higher_bf: 1.5,
-};
+const LEAN_REMAINING_RATIO_THRESHOLD = 0.05;
+const LEAN_ROL_PERCENT = 0.25;
+const STANDARD_ROL_PERCENT = 1.5;
 
 const STEPS_TDEE_BONUS_PER_KG = {
   very_high: 3.0,
@@ -79,7 +78,7 @@ const WEIGHT_LOSS_PROTEIN_PER_KG = 2.4;
 const REDUCED_FAT_PER_KG = 0.8;
 
 export const validateInput = (key, value, fieldType) => {
-  if (fieldType === 'picker' || fieldType === 'physique') return !!value;
+  if (fieldType === 'picker') return !!value;
 
   const parsed = parseFloat(value);
   if (key === 'avgDailySteps') return !isNaN(parsed) && parsed >= 0;
@@ -123,14 +122,15 @@ export const calculateMinCalories = (bmr, tdee, currentWeight, activityLevel) =>
   return Math.round(Math.max(bmr * 1.1, tdee * 0.75, weightFloor, macroFloor));
 };
 
-export const getTargetROLPercent = (bfCategory, stressLevel) => {
-  const baseROL = BF_CATEGORY_ROL_PERCENT[bfCategory] ?? BF_CATEGORY_ROL_PERCENT.higher_bf;
+export const getTargetROLPercent = (remainingRatio, stressLevel) => {
+  const baseROL = remainingRatio < LEAN_REMAINING_RATIO_THRESHOLD ? LEAN_ROL_PERCENT : STANDARD_ROL_PERCENT;
   const stressMultiplier = STRESS_MULTIPLIERS[stressLevel] || STRESS_MULTIPLIERS.moderate;
   return baseROL * stressMultiplier;
 };
 
-export const getTargetWeeklyRateKg = (bfCategory, stressLevel, currentWeight) => {
-  const rolPercent = getTargetROLPercent(bfCategory, stressLevel);
+export const getTargetWeeklyRateKg = (currentWeight, targetWeight, stressLevel) => {
+  const remainingRatio = currentWeight > 0 ? Math.abs(currentWeight - targetWeight) / currentWeight : 0;
+  const rolPercent = getTargetROLPercent(remainingRatio, stressLevel);
   return (currentWeight * rolPercent) / 100;
 };
 
@@ -166,7 +166,7 @@ export const calculateWeightChangePlan = (formData) => {
   const {
     currentWeight, targetWeight, fitnessGoals,
     activityLevel, gender, height, age,
-    bfCategory, stressLevel, avgDailySteps, experienceLevel,
+    stressLevel, avgDailySteps, experienceLevel,
   } = formData;
 
   const weight = parseFloat(currentWeight);
@@ -182,7 +182,6 @@ export const calculateWeightChangePlan = (formData) => {
   const tdee = Math.round(tdeeMifflin + stepsBonus);
 
   const stressMultiplier = STRESS_MULTIPLIERS[stressLevel] || STRESS_MULTIPLIERS.moderate;
-  const effectiveBfCategory = bfCategory || 'higher_bf';
 
   let goalCalories;
   let ratePerWeek = 0;
@@ -190,7 +189,7 @@ export const calculateWeightChangePlan = (formData) => {
   let weeksToGoal = 0;
 
   if (goal === 'weight_loss') {
-    const targetRatePerWeek = getTargetWeeklyRateKg(effectiveBfCategory, stressLevel, weight);
+    const targetRatePerWeek = getTargetWeeklyRateKg(weight, target, stressLevel);
     const deficitPct = DEFICIT_PERCENT[expLevel] || 0.18;
     const dailyDeltaTarget = (targetRatePerWeek * KCAL_PER_KG) / 7;
     const maxDailyDelta = tdee * deficitPct;

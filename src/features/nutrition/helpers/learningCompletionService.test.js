@@ -333,7 +333,6 @@ describe('checkAndBackfillStepsBonus', () => {
     gender: 'male',
     height: '180',
     age: '28',
-    bfCategory: 'lean',
     stressLevel: 'moderate',
     experienceLevel: 'intermediate',
   };

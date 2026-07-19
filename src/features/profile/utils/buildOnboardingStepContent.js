@@ -1,6 +1,5 @@
 import { View } from 'react-native';
 import { OptionRow, NumberStepper } from '../../../shared/components/FormControls/FormControls';
-import PhysiqueOptionRow from '../components/Onboarding/PhysiqueOptionRow';
 import * as ProfileOptions from './profileOptions';
 import onboardingFieldConfig from './onboardingFieldConfig';
 
@@ -20,24 +19,6 @@ const renderPicker = (field, formData, handleChange) => {
         <OptionRow
           key={opt.value}
           option={opt}
-          selected={formData[field.key] === opt.value}
-          onPress={(v) => handleChange(field.key, v)}
-        />
-      ))}
-    </View>
-  );
-};
-
-const renderPhysique = (field, formData, handleChange) => {
-  const options = ProfileOptions[field.optionsKey];
-  const gender = formData.gender || 'male';
-  return (
-    <View>
-      {options.map(opt => (
-        <PhysiqueOptionRow
-          key={opt.value}
-          category={opt}
-          gender={gender}
           selected={formData[field.key] === opt.value}
           onPress={(v) => handleChange(field.key, v)}
         />
@@ -131,7 +112,6 @@ const renderUnitInput = (field, formData, handleChange) => {
 
 const renderField = (field, formData, handleChange) => {
   if (field.type === 'picker')     return renderPicker(field, formData, handleChange);
-  if (field.type === 'physique')   return renderPhysique(field, formData, handleChange);
   if (field.type === 'stepper')    return renderStepper(field, formData, handleChange);
   if (field.type === 'unit_input') return renderUnitInput(field, formData, handleChange);
   return null;

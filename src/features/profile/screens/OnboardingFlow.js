@@ -14,7 +14,6 @@ const INITIAL_FORM_DATA = {
   height:          175,
   currentWeight:   80,
   targetWeight:    80,
-  bfCategory:      null,
   stressLevel:     'moderate',
   experienceLevel: 'intermediate',
   activityLevel:   'moderately_active',

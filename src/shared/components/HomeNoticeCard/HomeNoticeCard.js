@@ -6,7 +6,6 @@ import { createStyles } from '../../theme/createStyles';
 const ICONS = {
   calorie_adjustment: { name: 'flame-outline',  color: colors.accent.primary,   bg: colors.faded.primary },
   goal_reached:       { name: 'trophy-outline', color: colors.accent.success,   bg: colors.faded.success },
-  bf_recheck:         { name: 'body-outline',   color: colors.accent.purple,    bg: colors.faded.purple },
   steps_permission:   { name: 'walk-outline',   color: colors.accent.stepsRed,  bg: colors.faded.error },
 };
 

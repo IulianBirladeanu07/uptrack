@@ -16,7 +16,6 @@ import { getHomeNotices } from '../../../profile/utils/homeSurfaceEngine';
 import { styles } from './DashboardScreenStyles';
 
 const SPLITS_CACHE_TTL = 15 * 60 * 1000;
-const BF_RECHECK_SNOOZE_DAYS = 14;
 
 const DAYS_MAP = {
     0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday',
@@ -315,7 +314,6 @@ const DashboardScreen = () => {
 
     const [dismissedAdjustments, setDismissedAdjustments] = useState([]);
     const [goalReachedDismissed, setGoalReachedDismissed] = useState(false);
-    const [bfRecheckSnoozedUntil, setBfRecheckSnoozedUntil] = useState(null);
     const [stepsPermissionDismissedAt, setStepsPermissionDismissedAt] = useState(null);
     const [noticesLoaded, setNoticesLoaded] = useState(false);
 
@@ -330,15 +328,13 @@ const DashboardScreen = () => {
         if (!uid) return;
         const loadDismissalState = async () => {
             try {
-                const [adjRaw, goalRaw, bfRaw, stepsRaw] = await Promise.all([
+                const [adjRaw, goalRaw, stepsRaw] = await Promise.all([
                     AsyncStorage.getItem(`home_dismissed_adjustments_${uid}`),
                     AsyncStorage.getItem(`home_goal_reached_dismissed_${uid}`),
-                    AsyncStorage.getItem(`home_bf_recheck_snooze_${uid}`),
                     AsyncStorage.getItem(`home_steps_permission_dismissed_${uid}`),
                 ]);
                 setDismissedAdjustments(adjRaw ? JSON.parse(adjRaw) : []);
                 setGoalReachedDismissed(goalRaw === 'true');
-                setBfRecheckSnoozedUntil(bfRaw || null);
                 setStepsPermissionDismissedAt(stepsRaw || null);
             } catch (e) {
                 console.error('loadDismissalState error:', e);
@@ -356,11 +352,10 @@ const DashboardScreen = () => {
             stepsConnected,
             stepsLoading,
             dismissedAdjustmentTimestamps: dismissedAdjustments,
-            bfRecheckSnoozedUntil,
             stepsPermissionDismissedAt,
             goalReachedDismissed,
         });
-    }, [noticesLoaded, userData, initialLoadComplete, stepsConnected, stepsLoading, dismissedAdjustments, bfRecheckSnoozedUntil, stepsPermissionDismissedAt, goalReachedDismissed]);
+    }, [noticesLoaded, userData, initialLoadComplete, stepsConnected, stepsLoading, dismissedAdjustments, stepsPermissionDismissedAt, goalReachedDismissed]);
 
     const handleDismissNotice = useCallback(async (notice) => {
         try {
@@ -371,11 +366,6 @@ const DashboardScreen = () => {
             } else if (notice.type === 'goal_reached') {
                 setGoalReachedDismissed(true);
                 await AsyncStorage.setItem(`home_goal_reached_dismissed_${uid}`, 'true');
-            } else if (notice.type === 'bf_recheck') {
-                const snoozeUntil = new Date();
-                snoozeUntil.setDate(snoozeUntil.getDate() + BF_RECHECK_SNOOZE_DAYS);
-                setBfRecheckSnoozedUntil(snoozeUntil.toISOString());
-                await AsyncStorage.setItem(`home_bf_recheck_snooze_${uid}`, snoozeUntil.toISOString());
             } else if (notice.type === 'steps_permission') {
                 const now = new Date().toISOString();
                 setStepsPermissionDismissedAt(now);
@@ -387,7 +377,7 @@ const DashboardScreen = () => {
     }, [uid, dismissedAdjustments]);
 
     const handleNoticeAction = useCallback((notice) => {
-        if (notice.type === 'goal_reached' || notice.type === 'bf_recheck') {
+        if (notice.type === 'goal_reached') {
             navigation.navigate('Settings');
         } else if (notice.type === 'steps_permission') {
             retryStepsConnection();
@@ -480,14 +470,12 @@ const DashboardScreen = () => {
                                 key={notice.id}
                                 notice={notice}
                                 onAction={
-                                    (notice.type === 'goal_reached' || notice.type === 'bf_recheck' || notice.type === 'steps_permission')
+                                    (notice.type === 'goal_reached' || notice.type === 'steps_permission')
                                         ? () => handleNoticeAction(notice)
                                         : undefined
                                 }
                                 actionLabel={
-                                    notice.type === 'goal_reached' ? 'Update Goal'
-                                        : notice.type === 'steps_permission' ? 'Connect'
-                                        : 'Update'
+                                    notice.type === 'goal_reached' ? 'Update Goal' : 'Connect'
                                 }
                                 onDismiss={() => handleDismissNotice(notice)}
                             />

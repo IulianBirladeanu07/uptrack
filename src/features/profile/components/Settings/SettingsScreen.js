@@ -30,7 +30,6 @@ const SettingsScreen = ({ navigation }) => {
     experienceLevel:   userData?.experienceLevel    || 'intermediate',
     stressLevel:       userData?.stressLevel        || 'moderate',
     autoAdjustEnabled: userData?.autoAdjustEnabled  ?? true,
-    bfCategory:        userData?.bfCategory         || null,
     avgDailySteps:     userData?.avgDailySteps      || 0,
   });
 

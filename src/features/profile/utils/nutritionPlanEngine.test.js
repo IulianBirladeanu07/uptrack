@@ -15,9 +15,9 @@ import { buildWeightIns, buildDailyWeights, REALISTIC_DAILY_NOISE, buildWeeklyCa
 import { buildWeightTrendSeries, calculateWeeklyRateOfChange } from './weightTrendEngine';
 
 describe('validateInput', () => {
-  test('picker and physique fields just require truthiness', () => {
-    expect(validateInput('bfCategory', 'lean', 'physique')).toBe(true);
-    expect(validateInput('bfCategory', '', 'physique')).toBe(false);
+  test('picker fields just require truthiness', () => {
+    expect(validateInput('activityLevel', 'moderately_active', 'picker')).toBe(true);
+    expect(validateInput('activityLevel', '', 'picker')).toBe(false);
   });
 
   test('rejects non-numeric, zero, or negative values', () => {
@@ -135,18 +135,20 @@ describe('calculateMinCalories', () => {
 
 describe('getTargetROLPercent / getTargetWeeklyRateKg', () => {
   test('higher stress reduces the target rate of loss', () => {
-    const low = getTargetROLPercent('lean', 'low');
-    const high = getTargetROLPercent('lean', 'high');
+    const low = getTargetROLPercent(0.2, 'low');
+    const high = getTargetROLPercent(0.2, 'high');
     expect(high).toBeLessThan(low);
   });
 
-  test('unknown bf category falls back to lean baseline', () => {
-    expect(getTargetROLPercent('made_up', 'low')).toBe(getTargetROLPercent('lean', 'low'));
+  test('remaining ratio under the lean threshold uses the lower baseline', () => {
+    const lean = getTargetROLPercent(0.03, 'moderate');
+    const standard = getTargetROLPercent(0.2, 'moderate');
+    expect(lean).toBeLessThan(standard);
   });
 
-  test('weekly rate scales with bodyweight', () => {
-    const rateAt80 = getTargetWeeklyRateKg('lean', 'moderate', 80);
-    const rateAt160 = getTargetWeeklyRateKg('lean', 'moderate', 160);
+  test('weekly rate scales with bodyweight at a fixed remaining ratio', () => {
+    const rateAt80 = getTargetWeeklyRateKg(80, 64, 'moderate');
+    const rateAt160 = getTargetWeeklyRateKg(160, 128, 'moderate');
     expect(rateAt160).toBeCloseTo(rateAt80 * 2, 5);
   });
 });
@@ -200,7 +202,6 @@ const baseFormData = {
   gender: 'male',
   height: '180',
   age: '28',
-  bfCategory: 'lean',
   stressLevel: 'moderate',
   avgDailySteps: 0,
   experienceLevel: 'intermediate',
@@ -240,7 +241,6 @@ describe('calculateWeightChangePlan', () => {
       currentWeight: '150',
       targetWeight: '90',
       experienceLevel: 'novice',
-      bfCategory: 'higher_bf',
       stressLevel: 'low',
     });
     const minCal = calculateMinCalories(calculateBMR('male', 150, 180, 28), plan.tdee, 150, 'moderately_active');

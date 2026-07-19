@@ -10,7 +10,6 @@ export const AuthContext = createContext();
 
 const PROFILE_DEFAULTS = {
   autoAdjustEnabled:   true,
-  bfCategoryCollected: false,
   weeksSinceCutStart:  0,
 };
 

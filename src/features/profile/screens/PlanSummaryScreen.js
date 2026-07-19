@@ -52,9 +52,6 @@ const PlanSummaryScreen = () => {
       weeksSinceCutStart:    0,
       startWeight:           formData.currentWeight,
       goalSwitchDate:        now,
-      bfCategoryCollected:   !!formData.bfCategory,
-      bfCategorySetAt:       formData.bfCategory ? now : null,
-      bfCategoryWeightAtSet: formData.bfCategory ? formData.currentWeight : null,
       autoAdjustEnabled:     true,
       planConfidence:        'estimated',
     };

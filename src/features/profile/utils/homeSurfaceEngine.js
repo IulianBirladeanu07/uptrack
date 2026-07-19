@@ -1,7 +1,3 @@
-import { getCurrentTrendWeight } from './weightTrendEngine';
-
-const BF_RECHECK_WEIGHT_DELTA_PERCENT = 0.04;
-const BF_RECHECK_MAX_WEEKS = 6;
 const ADJUSTMENT_NOTICE_MAX_AGE_DAYS = 3;
 const STEPS_PERMISSION_RENAG_DAYS = 7;
 
@@ -48,29 +44,6 @@ export const getGoalReachedNotice = (userData, dismissed = false) => {
   };
 };
 
-export const getBfRecheckNotice = (userData, snoozedUntil = null) => {
-  if (!userData?.bfCategoryCollected) return null;
-  if (snoozedUntil && new Date(snoozedUntil).getTime() > Date.now()) return null;
-
-  const currentTrendWeight = getCurrentTrendWeight(userData.weightIns) ?? userData.currentWeight;
-  const weightAtSet = userData.bfCategoryWeightAtSet;
-  const setAt = userData.bfCategorySetAt;
-  if (currentTrendWeight == null || weightAtSet == null) return null;
-
-  const weightDelta = Math.abs(currentTrendWeight - weightAtSet);
-  const deltaThreshold = weightAtSet * BF_RECHECK_WEIGHT_DELTA_PERCENT;
-  const weeksSinceSet = daysBetween(setAt) / 7;
-
-  if (weightDelta < deltaThreshold && weeksSinceSet < BF_RECHECK_MAX_WEEKS) return null;
-
-  return {
-    id: 'bf_recheck',
-    type: 'bf_recheck',
-    title: 'Update your physique estimate?',
-    body: `You've changed by ${weightDelta.toFixed(1)}kg since your last check-in. A quick update keeps your plan accurate.`,
-  };
-};
-
 export const getStepsPermissionNotice = (stepsConnected, dismissedAt = null, stepsLoading = false) => {
   if (stepsConnected || stepsLoading) return null;
   if (dismissedAt && daysBetween(dismissedAt) < STEPS_PERMISSION_RENAG_DAYS) return null;
@@ -88,7 +61,6 @@ export const getHomeNotices = ({
   stepsConnected,
   stepsLoading,
   dismissedAdjustmentTimestamps,
-  bfRecheckSnoozedUntil,
   stepsPermissionDismissedAt,
   goalReachedDismissed,
 }) => {
@@ -101,9 +73,6 @@ export const getHomeNotices = ({
     const adjustment = getCalorieAdjustmentNotice(userData, dismissedAdjustmentTimestamps);
     if (adjustment) notices.push(adjustment);
   }
-
-  const bfRecheck = getBfRecheckNotice(userData, bfRecheckSnoozedUntil);
-  if (bfRecheck) notices.push(bfRecheck);
 
   const stepsPermission = getStepsPermissionNotice(stepsConnected, stepsPermissionDismissedAt, stepsLoading);
   if (stepsPermission) notices.push(stepsPermission);
