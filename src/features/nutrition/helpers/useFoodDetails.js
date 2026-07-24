@@ -120,7 +120,7 @@ export const handleFoodAddition = async ({
             params: { 
               selectedFoodDetail: updatedFoodDetails, 
               meal, 
-              selectedDate, 
+              selectedDate: selectedDate instanceof Date ? selectedDate.toISOString() : selectedDate,
               refresh: true ,
               remainingCalories: remainingCalories,
             }
