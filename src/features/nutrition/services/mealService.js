@@ -3,7 +3,7 @@ import { db } from '../../auth/services/firebaseConfigService';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snacks'];
 
-const consolidateFoodData = (existingFoods, newFoods) => {
+export const consolidateFoodData = (existingFoods, newFoods) => {
     const foods = [...existingFoods];
     newFoods.forEach(newFood => {
         const idx = foods.findIndex(item => item.id === newFood.id);
@@ -29,7 +29,40 @@ const consolidateFoodData = (existingFoods, newFoods) => {
     return foods;
 };
 
+export const buildAddUndo = (existingFoods, newFoods) => {
+    return newFoods.map(newFood => {
+        const previous = existingFoods.find(item => item.id === newFood.id) || null;
+        return { id: newFood.id, previous };
+    });
+};
+
+export const applyAddUndo = (currentFoods, undoSpecs) => {
+    let result = [...currentFoods];
+    undoSpecs.forEach(({ id, previous }) => {
+        result = previous
+            ? result.map(f => f.id === id ? previous : f)
+            : result.filter(f => f.id !== id);
+    });
+    return result;
+};
+
 const dayDocRef = (uid, date) => doc(db, 'meals', `${uid}_${date}`);
+
+export const writeMealType = async (uid, mealType, foods, date) => {
+    const ref  = dayDocRef(uid, date);
+    const snap = await getDoc(ref);
+    const now  = Timestamp.now();
+
+    if (snap.exists()) {
+        await updateDoc(ref, { [mealType]: foods, timestamp: now });
+        return foods;
+    }
+
+    const newDoc = { uid, date, breakfast: [], lunch: [], dinner: [], snacks: [], timestamp: now };
+    newDoc[mealType] = foods;
+    await setDoc(ref, newDoc);
+    return foods;
+};
 
 export const fetchMealsForDate = async (uid, date) => {
     const snap = await getDoc(dayDocRef(uid, date));
@@ -62,24 +95,6 @@ export const fetchLast30DaysMeals = async (uid) => {
             .filter(mealType => (data[mealType] || []).length > 0)
             .map(mealType => ({ date: data.date, mealType, foods: data[mealType] }));
     });
-};
-
-export const addMeal = async (uid, mealType, foods, date) => {
-    const ref  = dayDocRef(uid, date);
-    const snap = await getDoc(ref);
-    const now  = Timestamp.now();
-
-    if (snap.exists()) {
-        const existing    = snap.data()[mealType] || [];
-        const consolidated = consolidateFoodData(existing, foods);
-        await updateDoc(ref, { [mealType]: consolidated, timestamp: now });
-        return consolidated;
-    }
-
-    const newDoc = { uid, date, breakfast: [], lunch: [], dinner: [], snacks: [], timestamp: now };
-    newDoc[mealType] = consolidateFoodData([], foods);
-    await setDoc(ref, newDoc);
-    return newDoc[mealType];
 };
 
 export const deleteMealItem = async (uid, mealType, foodId, date) => {

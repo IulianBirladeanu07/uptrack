@@ -69,7 +69,7 @@ export const handleFoodAddition = async ({
 
   const currentFoodId = foodId || generateRandomHexId();
   const nutrients = calculateNutrientValue(food, quantity);
-  
+
   const updatedFoodDetails = {
     id: currentFoodId,
     productName: food.productName || 'Unknown',
@@ -83,54 +83,48 @@ export const handleFoodAddition = async ({
     lastUpdated: new Date().toISOString(),
   };
 
-  try {
-    if (isMultipleFoods) {
-      const updatedFoods = foods.map(foodItem => ({
-        ...foodItem,
-        quantity,
-        unit,
-        isFavorite: isFavorite,
-        mealType: foodItem.mealType || meal,
-        ...calculateNutrientValue(foodItem, quantity),
-      }));
-      
-      await addMultipleFoods(meal, updatedFoods);
-      return {
-        success: true,
-        navigation: {
-          screen: 'Nutrition',
-          params: { refresh: true, meal }
-        }
-      };
-    } else {
-      if (update) {
-        await updateMealInDatabase(meal, currentFoodId, updatedFoodDetails);
-        return {
-          success: true,
-          navigation: {
-            screen: 'Nutrition',
-            params: { refresh: true, meal }
-          }
-        };
-      } else {
-        return {
-          success: true,
-          navigation: {
-            screen: 'FoodSelection',
-            params: { 
-              selectedFoodDetail: updatedFoodDetails, 
-              meal, 
-              selectedDate: selectedDate instanceof Date ? selectedDate.toISOString() : selectedDate,
-              refresh: true ,
-              remainingCalories: remainingCalories,
-            }
-          }
-        };
+  if (isMultipleFoods) {
+    const updatedFoods = foods.map(foodItem => ({
+      ...foodItem,
+      quantity,
+      unit,
+      isFavorite: isFavorite,
+      mealType: foodItem.mealType || meal,
+      ...calculateNutrientValue(foodItem, quantity),
+    }));
+
+    addMultipleFoods(meal, updatedFoods).catch(() => {});
+    return {
+      success: true,
+      navigation: {
+        screen: 'Nutrition',
+        params: { refresh: true, meal }
+      }
+    };
+  }
+
+  if (update) {
+    updateMealInDatabase(meal, currentFoodId, updatedFoodDetails).catch(() => {});
+    return {
+      success: true,
+      navigation: {
+        screen: 'Nutrition',
+        params: { refresh: true, meal }
+      }
+    };
+  }
+
+  return {
+    success: true,
+    navigation: {
+      screen: 'FoodSelection',
+      params: {
+        selectedFoodDetail: updatedFoodDetails,
+        meal,
+        selectedDate: selectedDate instanceof Date ? selectedDate.toISOString() : selectedDate,
+        refresh: true,
+        remainingCalories: remainingCalories,
       }
     }
-  } catch (error) {
-    Alert.alert("Update Failed", "There was an error updating the food item.");
-    console.error('Update failed:', error);
-    return { success: false, error };
-  }
+  };
 };

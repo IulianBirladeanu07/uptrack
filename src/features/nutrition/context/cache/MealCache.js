@@ -3,12 +3,11 @@ class MealCache {
         this.data = new Map();
         this.stepsData = new Map();
         this.maxSize = maxSize;
-        this.defaultMeals = { breakfast: [], lunch: [], dinner: [], snacks: [] };
     }
 
     get(key) {
         if (this.data.has(key)) return this.data.get(key);
-        return { ...this.defaultMeals };
+        return { breakfast: [], lunch: [], dinner: [], snacks: [] };
     }
 
     set(key, value) {
@@ -40,7 +39,7 @@ class MealCache {
         const groupedMeals = new Map();
         meals.forEach(meal => {
             const dateKey = meal.date;
-            if (!groupedMeals.has(dateKey)) groupedMeals.set(dateKey, { ...this.defaultMeals });
+            if (!groupedMeals.has(dateKey)) groupedMeals.set(dateKey, { breakfast: [], lunch: [], dinner: [], snacks: [] });
             groupedMeals.get(dateKey)[meal.mealType] = meal.foods || [];
         });
         groupedMeals.forEach((meals, date) => this.set(date, meals));

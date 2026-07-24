@@ -37,6 +37,7 @@ const FoodSelectionScreen = () => {
 
     const searchTimeoutRef = useRef(null);
     const mountedRef = useRef(true);
+    const isSubmittingRef = useRef(false);
 
     const {
         handleAddMeal,
@@ -162,10 +163,12 @@ const FoodSelectionScreen = () => {
     }, [isSearching, searchQuery, handleSearchComplete]);
 
     const handleDone = useCallback(async () => {
+        if (isSubmittingRef.current) return;
         if (selectedFoods.length === 0) {
             Alert.alert("No Foods Selected", "Please select at least one food item.");
             return;
         }
+        isSubmittingRef.current = true;
         const validatedFoods = selectedFoods.map(food => ({
             ...food,
             id: food.id || `${Date.now()}_${Math.random()}`,
@@ -176,12 +179,8 @@ const FoodSelectionScreen = () => {
             quantity: food.quantity || 1,
             mealType: meal,
         }));
-        try {
-            await handleAddMeal(meal, validatedFoods, selectedDate);
-            navigation.navigate('Nutrition', { refresh: true });
-        } catch (error) {
-            Alert.alert("Error", `Failed to save meal: ${error.message}`);
-        }
+        handleAddMeal(meal, validatedFoods, selectedDate).catch(() => {});
+        navigation.navigate('Nutrition', { refresh: true });
     }, [selectedFoods, handleAddMeal, meal, selectedDate, navigation]);
 
     const handleEnterSearch = useCallback(() => {
