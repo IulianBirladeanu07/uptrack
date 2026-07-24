@@ -251,18 +251,8 @@ const WeightTracker = () => {
             userId, committedDate,
             setCurrentWeight, setWeightInput, setWeeklyData,
             setWeeklyAverage, setLastWeekAverage, setTrendData,
+            setWeightIns, setStartWeight, setGoalWeight,
         );
-        try {
-            const snap = await getDoc(doc(db, 'users', userId));
-            if (snap.exists()) {
-                const d = snap.data();
-                setWeightIns(d.weightIns || []);
-                setStartWeight(d.startWeight ?? null);
-                setGoalWeight(d.targetWeight ?? null);
-            }
-        } catch (e) {
-            console.error('WeightTracker loadData:', e);
-        }
         setLoading(false);
     }, [userId, committedDate]);
 
