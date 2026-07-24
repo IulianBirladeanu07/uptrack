@@ -26,7 +26,6 @@ export default createStyles(() => ({
   foodImage: {
     width: spacing[40],
     height: spacing[40],
-    resizeMode: 'contain',
     alignSelf: 'center',
   },
   floatingBackButton: {

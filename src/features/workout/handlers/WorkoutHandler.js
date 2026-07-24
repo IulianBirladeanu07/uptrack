@@ -14,7 +14,8 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService'
-import { Alert, Image } from 'react-native';
+import { Alert } from 'react-native';
+import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const SPLITS_CACHE_KEY = 'cached_splits';

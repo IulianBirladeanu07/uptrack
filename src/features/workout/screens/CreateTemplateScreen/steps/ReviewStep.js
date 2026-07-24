@@ -1,5 +1,6 @@
 import { useState, memo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { createStyles } from '../../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../../shared/theme';
@@ -342,7 +343,7 @@ const ReviewStep = memo(({
                                     <View style={styles.exerciseRow}>
                                         <View style={styles.exerciseImageContainer}>
                                             {imageSource ? (
-                                                <Image source={imageSource} style={styles.exerciseImage} resizeMode="cover" />
+                                                <Image source={imageSource} style={styles.exerciseImage} contentFit="cover" />
                                             ) : (
                                                 <Ionicons name="barbell" size={spacing.iconMd} color={colors.text.quaternary} />
                                             )}

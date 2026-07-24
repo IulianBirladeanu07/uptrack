@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Alert, StatusBar, Image, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StatusBar, ScrollView } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -123,7 +124,7 @@ const WorkoutDetails = ({ route, navigation }) => {
                 <ViewShot ref={workoutCardRef} style={{ backgroundColor: colors.background.primary }}>
                     <View style={styles.backgroundContainer}>
                         {selfieUri ? (
-                            <Image source={{ uri: selfieUri }} style={styles.backgroundImage} />
+                            <Image source={{ uri: selfieUri }} style={styles.backgroundImage} contentFit="cover" />
                         ) : (
                             <LinearGradient
                                 colors={['#1C2333', colors.background.primary]}
@@ -141,7 +142,7 @@ const WorkoutDetails = ({ route, navigation }) => {
                                         <Image
                                             source={require('../../../../../assets/uptrack-icon.png')}
                                             style={styles.logoImage}
-                                            resizeMode="contain"
+                                            contentFit="contain"
                                         />
                                     </View>
                                     <Text style={styles.brandText}>UPTRACK</Text>

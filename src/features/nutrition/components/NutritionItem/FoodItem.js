@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, memo } from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import Animated from 'react-native-reanimated';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -30,9 +31,9 @@ const FoodImage = memo(({ uri, icon, isScrolling, style }) => (
       <Image
         source={{ uri }}
         style={styles.imageContent}
-        resizeMode="cover"
-        fadeDuration={isScrolling ? 0 : 100}
-        cache="force-cache"
+        contentFit="cover"
+        transition={isScrolling ? 0 : 100}
+        cachePolicy="memory-disk"
       />
     ) : (
       <Text style={styles.imagePlaceholder}>{icon || 'No Image'}</Text>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -124,6 +125,7 @@ const FoodDetailScreen = () => {
           <Image
             source={typeof food.image === 'string' ? { uri: food.image } : food.image}
             style={styles.foodImage}
+            contentFit="contain"
           />
           <TouchableOpacity
             style={styles.floatingBackButton}

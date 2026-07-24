@@ -237,7 +237,6 @@ export const styles = createStyles(() => ({
   exerciseImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
 
   exerciseTextContainer: {

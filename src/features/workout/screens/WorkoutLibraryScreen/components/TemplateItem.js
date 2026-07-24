@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Image } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
     useAnimatedStyle,
@@ -97,7 +98,7 @@ const TemplateItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit
             <View style={[styles.exerciseItem, isLastItem && styles.exerciseItemLast]}>
                 <View style={styles.exerciseImageContainer}>
                     {imageURL ? (
-                        <Image source={{ uri: imageURL }} style={styles.exerciseImage} resizeMode="cover" />
+                        <Image source={{ uri: imageURL }} style={styles.exerciseImage} contentFit="cover" />
                     ) : (
                         <Ionicons name="barbell-outline" size={normalize(20)} color={colors.text.secondary} />
                     )}

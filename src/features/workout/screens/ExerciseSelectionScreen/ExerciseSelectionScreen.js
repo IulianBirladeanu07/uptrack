@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, memo, useMemo, useRef } from 'react';
-import { View, Text, Image, FlatList, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Animated, Easing, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Animated, Easing, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -112,6 +113,7 @@ const ExerciseItem = memo(({ exercise, isSelected, onToggle }) => {
                 <Image
                   source={{ uri: exercise.imageURL }}
                   style={styles.exerciseImage}
+                  contentFit="cover"
                   onError={() => setImageError(true)}
                 />
               ) : (

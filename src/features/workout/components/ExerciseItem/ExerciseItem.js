@@ -8,11 +8,11 @@ import {
   Easing,
   Modal,
   TouchableWithoutFeedback,
-  Image,
   Vibration,
   Platform,
   LayoutAnimation,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import styles, { COLORS } from './ExerciseItemStyle';
@@ -701,7 +701,7 @@ const ExerciseItem = React.memo(
                     <Image
                       source={{ uri: exercise.imageURL }}
                       style={styles.exerciseImage}
-                      resizeMode="cover"
+                      contentFit="cover"
                     />
                   ) : (
                     <View style={styles.exerciseImage}>

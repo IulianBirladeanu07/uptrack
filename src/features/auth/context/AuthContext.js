@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebaseConfigService';
@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
   const [profileSetupComplete, setProfileSetupComplete] = useState(false);
   const [userData, setUserData] = useState(null);
 
-  const refreshUserData = async () => {
+  const refreshUserData = useCallback(async () => {
     try {
       const user = auth.currentUser;
       if (!user) return;
@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('refreshUserData error:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await GoogleSignin.signOut();
       await signOut(auth);
@@ -94,19 +94,21 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('logout error:', error);
     }
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({
+    authenticated,
+    loading,
+    userData,
+    setAuthenticated,
+    profileSetupComplete,
+    setProfileSetupComplete,
+    logout,
+    refreshUserData,
+  }), [authenticated, loading, userData, profileSetupComplete, logout, refreshUserData]);
 
   return (
-    <AuthContext.Provider value={{
-      authenticated,
-      loading,
-      userData,
-      setAuthenticated,
-      profileSetupComplete,
-      setProfileSetupComplete,
-      logout,
-      refreshUserData,
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

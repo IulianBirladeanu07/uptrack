@@ -19,7 +19,6 @@ export const styles = createStyles(() => ({
     backgroundImage: {
         width: '100%',
         height: '100%',
-        resizeMode: 'cover',
     },
     backgroundOverlay: {
         position: 'absolute',
