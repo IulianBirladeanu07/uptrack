@@ -9,6 +9,7 @@ import {
   getRollingWeekStats,
   checkAndRunWeeklyEval,
 } from '../helpers/learningCompletionService';
+import WeightService from '../services/weightService';
 
 export const validateWeight = (value) => {
   const num = parseFloat(value);
@@ -220,7 +221,8 @@ export const handleSaveLogic = async (
       }
     }
 
-    await AsyncStorage.setItem(`user_${userId}`, JSON.stringify(updatedUserData));
+    // Keep WeightService memory + AsyncStorage in sync so readers never see stale data
+    await WeightService.setCachedUserData(userId, updatedUserData);
 
     if (isMostRecentEntry) {
       setCurrentWeight(weightValue);

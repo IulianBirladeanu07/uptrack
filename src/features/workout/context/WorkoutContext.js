@@ -2,14 +2,12 @@ import { createContext, useState, useEffect, useCallback, useRef, useMemo } from
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getDocs, collection, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
-import { countWorkoutsThisWeek, getLastWorkout, fetchTemplatesFromFirestore } from '../handlers/WorkoutHandler';
+import { fetchTemplatesFromFirestore } from '../handlers/WorkoutHandler';
 import { workoutService } from '../services/WorkoutService';
 
 export const WorkoutContext = createContext();
 
 export const WorkoutProvider = ({ children }) => {
-    const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0);
-    const [lastWorkout, setLastWorkout] = useState(null);
     const [workoutHistory, setWorkoutHistory] = useState([]);
     const [templates, setTemplates] = useState([]);
     const [activeWorkout, setActiveWorkout] = useState(null);
@@ -27,57 +25,46 @@ export const WorkoutProvider = ({ children }) => {
     }, []);
 
     const checkActiveWorkout = useCallback(async () => {
-        const workout = await workoutService.restoreWorkout();
-        setActiveWorkout(workout);
-    }, []);
-
-    const fetchData = useCallback(async () => {
         try {
-            const auth = getAuth();
-            const user = auth.currentUser;
-            if (!user) {
-                setWorkoutsThisWeek(0);
-                setLastWorkout(null);
-                return;
-            }
-            const [workoutCount, lastWorkoutData] = await Promise.all([
-                countWorkoutsThisWeek(),
-                getLastWorkout(),
-            ]);
-            setWorkoutsThisWeek(workoutCount);
-            setLastWorkout(lastWorkoutData);
+            const workout = await workoutService.restoreWorkout();
+            setActiveWorkout(workout);
         } catch (error) {
-            console.error('Error refreshing data:', error.message);
+            console.error('Error checking active workout:', error.message);
         }
     }, []);
 
     const fetchWorkoutHistory = useCallback(async () => {
-        const auth = getAuth();
-        const user = auth.currentUser;
-        if (!user) return;
+        try {
+            const auth = getAuth();
+            const user = auth.currentUser;
+            if (!user) return;
 
-        const uid = user.uid;
-        const workoutRef = collection(db, 'workoutHistory');
-        const workoutQuery = query(workoutRef, where('uid', '==', uid), orderBy('timestamp', 'desc'));
-        const querySnapshot = await getDocs(workoutQuery);
-        setWorkoutHistory(querySnapshot.docs.map(doc => doc.data()));
+            const uid = user.uid;
+            const workoutRef = collection(db, 'workoutHistory');
+            const workoutQuery = query(workoutRef, where('uid', '==', uid), orderBy('timestamp', 'desc'));
+            const querySnapshot = await getDocs(workoutQuery);
+            setWorkoutHistory(querySnapshot.docs.map(doc => doc.data()));
+        } catch (error) {
+            console.error('Error fetching workout history:', error.message);
+        }
     }, []);
 
     const fetchTemplates = useCallback(async () => {
-        const fetchedTemplates = await fetchTemplatesFromFirestore();
-        setTemplates(fetchedTemplates);
+        try {
+            const fetchedTemplates = await fetchTemplatesFromFirestore();
+            setTemplates(fetchedTemplates);
+        } catch (error) {
+            console.error('Error fetching templates:', error.message);
+        }
     }, []);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(getAuth(), (user) => {
             if (user) {
-                fetchData();
                 fetchWorkoutHistory();
                 fetchTemplates();
                 checkActiveWorkout();
             } else {
-                setWorkoutsThisWeek(0);
-                setLastWorkout(null);
                 setWorkoutHistory([]);
                 setTemplates([]);
                 setActiveWorkout(null);
@@ -85,21 +72,29 @@ export const WorkoutProvider = ({ children }) => {
         });
 
         return () => unsubscribe();
-    }, [fetchData, fetchWorkoutHistory, fetchTemplates, checkActiveWorkout]);
+    }, [fetchWorkoutHistory, fetchTemplates, checkActiveWorkout]);
 
-    const refreshAllData = useCallback(() => {
+    useEffect(() => {
+        return () => {
+            if (refreshTimeout.current) clearTimeout(refreshTimeout.current);
+        };
+    }, []);
+
+    const refreshAllData = useCallback((immediate = false) => {
         if (refreshTimeout.current) clearTimeout(refreshTimeout.current);
-        refreshTimeout.current = setTimeout(() => {
-            fetchData();
-            fetchWorkoutHistory();
-            fetchTemplates();
-            checkActiveWorkout();
-        }, 300);
-    }, [fetchData, fetchWorkoutHistory, fetchTemplates, checkActiveWorkout]);
+
+        if (immediate) {
+            return Promise.all([fetchWorkoutHistory(), fetchTemplates(), checkActiveWorkout()]);
+        }
+
+        return new Promise((resolve) => {
+            refreshTimeout.current = setTimeout(() => {
+                Promise.all([fetchWorkoutHistory(), fetchTemplates(), checkActiveWorkout()]).then(resolve);
+            }, 300);
+        });
+    }, [fetchWorkoutHistory, fetchTemplates, checkActiveWorkout]);
 
     const contextValue = useMemo(() => ({
-        workoutsThisWeek,
-        lastWorkout,
         workoutHistory,
         templates,
         activeWorkout,
@@ -107,7 +102,7 @@ export const WorkoutProvider = ({ children }) => {
         refreshAllData,
         userSettings,
         setUserSettings,
-    }), [workoutsThisWeek, lastWorkout, workoutHistory, templates, activeWorkout, refreshAllData, userSettings, setUserSettings]);
+    }), [workoutHistory, templates, activeWorkout, refreshAllData, userSettings, setUserSettings]);
 
     return (
         <WorkoutContext.Provider value={contextValue}>

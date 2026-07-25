@@ -97,7 +97,6 @@ async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMe
 
         const uid = user.uid;
         const timestamp = new Date();
-        const formattedTimestamp = `${timestamp.getFullYear()}_${timestamp.getMonth() + 1}_${timestamp.getDate()}_${timestamp.getHours()}_${timestamp.getMinutes()}_${uid}`;
 
         const exercisesWithPR = exerciseData.map(exercise => {
             const validSets = exercise.sets.filter(s => s.weight && s.reps);
@@ -144,7 +143,7 @@ async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMe
             })),
         };
 
-        const workoutDocRef = doc(collection(db, 'workoutHistory'), formattedTimestamp);
+        const workoutDocRef = doc(collection(db, 'workoutHistory'));
         await setDoc(workoutDocRef, workoutDataToSend);
 
         navigation.navigate('WorkoutDetails', {
@@ -166,14 +165,10 @@ export const calculate1RM = (weight, reps) => {
 };
 
 export const countTotalPRs = (lastWorkoutData) => {
-  let total = 0;
-  lastWorkoutData.exercises.forEach(exercise => {
-    const bestSet = findBestSet(exercise.sets);
-    if (bestSet) {
-      total++;
-    }
-  });
-  return total;
+  return lastWorkoutData.exercises.reduce(
+    (total, exercise) => total + exercise.sets.filter(set => set.isPR).length,
+    0
+  );
 };
 
 export const findBestSet = (sets) => {
@@ -404,16 +399,11 @@ export const sendMeasurementsToFirestore = async (measurements) => {
     const db = getFirestore();
     const uid = user.uid;
     const timestamp = new Date();
-    const formattedTimestamp = `${timestamp.getFullYear()}_
-                                ${timestamp.getMonth() + 1}_
-                                ${timestamp.getDate()}_
-                                ${timestamp.getHours()}_
-                                ${timestamp.getMinutes()}_${uid}`;
 
     const measurementsDataToSend = {...measurements, uid, timestamp};
 
     const userMeasurementsRef = collection(db, 'measurements');
-    const measurementDocRef = doc(userMeasurementsRef, formattedTimestamp);
+    const measurementDocRef = doc(userMeasurementsRef);
 
     await setDoc(measurementDocRef, measurementsDataToSend);
   } catch (error) {
@@ -852,8 +842,6 @@ export const addSplitToFirestore = async (splitData) => {
 
     const db = getFirestore();
     const uid = user.uid;
-    const timestamp = new Date();
-    const formattedTimestamp = `${timestamp.getFullYear()}_${timestamp.getMonth() + 1}_${timestamp.getDate()}_${timestamp.getHours()}_${timestamp.getMinutes()}_${uid}`;
 
     const sanitizedSchedule = {};
     Object.keys(splitData.schedule || {}).forEach(day => {
@@ -874,11 +862,11 @@ export const addSplitToFirestore = async (splitData) => {
     };
 
     const splitsCollectionRef = collection(db, 'workoutSplits');
-    const splitDocRef = doc(splitsCollectionRef, formattedTimestamp);
+    const splitDocRef = doc(splitsCollectionRef);
 
     await setDoc(splitDocRef, splitDataToSave);
     await clearSplitsCache();
-    return formattedTimestamp;
+    return splitDocRef.id;
   } catch (error) {
     console.error('Error saving split to Firestore:', error.message);
     throw error;

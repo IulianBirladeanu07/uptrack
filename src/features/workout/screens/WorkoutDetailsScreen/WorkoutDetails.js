@@ -119,7 +119,7 @@ const WorkoutDetails = ({ route, navigation }) => {
             {!isSharing && (
                 <TouchableOpacity
                     style={[styles.closeBtn, { top: insets.top + spacing[3] }]}
-                    onPress={() => navigation.navigate('Workout')}
+                    onPress={() => navigation.pop(2)}
                 >
                     <Ionicons name="close" size={spacing.iconMd} color={colors.text.primary} />
                 </TouchableOpacity>

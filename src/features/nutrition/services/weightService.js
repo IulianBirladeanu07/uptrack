@@ -25,19 +25,34 @@ export class WeightService {
         return this.formatDateKey(this.getWeekStartDate(date));
     }
 
+    static async invalidateCache(userId) {
+        memoryCache.delete(userId);
+        try {
+            await AsyncStorage.removeItem(`user_${userId}`);
+        } catch (error) {
+            console.error('Error clearing weight cache:', error);
+        }
+    }
+
+    static isFresh(data, maxAgeMs = 5 * 60 * 1000) {
+        if (!data) return false;
+        const cacheTime = new Date(data.lastWeightUpdate || 0).getTime();
+        if (!cacheTime) return false;
+        return Date.now() - cacheTime < maxAgeMs;
+    }
+
     static async getUserWeightData(userId) {
         try {
             const cached = memoryCache.get(userId);
-            if (cached) return cached;
+            if (cached && this.isFresh(cached)) return cached;
+            if (cached) memoryCache.delete(userId);
 
             const cacheKey = `user_${userId}`;
             const cachedData = await AsyncStorage.getItem(cacheKey);
 
             if (cachedData) {
                 const parsed = JSON.parse(cachedData);
-                const cacheTime = new Date(parsed.lastWeightUpdate || 0);
-                const now = new Date();
-                if (now - cacheTime < 5 * 60 * 1000) {
+                if (this.isFresh(parsed)) {
                     memoryCache.set(userId, parsed);
                     return parsed;
                 }
@@ -57,6 +72,17 @@ export class WeightService {
         } catch (error) {
             console.error('Error fetching user weight data:', error);
             throw error;
+        }
+    }
+
+    /** Push freshly written user data into both caches so readers see it immediately. */
+    static async setCachedUserData(userId, userData) {
+        if (!userId || !userData) return;
+        memoryCache.set(userId, userData);
+        try {
+            await AsyncStorage.setItem(`user_${userId}`, JSON.stringify(userData));
+        } catch (error) {
+            console.error('Error writing weight cache:', error);
         }
     }
 

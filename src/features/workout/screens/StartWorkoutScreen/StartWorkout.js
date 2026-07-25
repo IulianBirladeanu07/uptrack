@@ -321,7 +321,7 @@ const StartWorkout = ({ route, navigation }) => {
         await workoutService.clearWorkout();
         await workoutNotifications.clear();
         await refreshAllData(true);
-        navigation.navigate('Workout');
+        navigation.goBack();
     }, [navigation, refreshAllData]);
 
     const handleFinishWorkout = useCallback(async () => {
@@ -467,7 +467,7 @@ const StartWorkout = ({ route, navigation }) => {
             return true;
         }
         refreshAllData();
-        navigation.navigate('Workout');
+        navigation.goBack();
         return true;
     }, [navigation, activeExerciseMenu, refreshAllData]);
 
