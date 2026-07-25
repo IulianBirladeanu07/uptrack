@@ -234,7 +234,7 @@ class WorkoutService {
     updateWeight(exerciseIndex, setIndex, value) {
         if (!this.exerciseData[exerciseIndex]?.sets[setIndex]) return;
         if (value !== '') {
-            if (!/^\d+\.?\d?$/.test(value)) return;
+            if (!/^\d+\.?\d{0,2}$/.test(value)) return;
             if (parseFloat(value) > 500) return;
         }
         this.exerciseData = [...this.exerciseData];

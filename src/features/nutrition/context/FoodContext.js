@@ -156,6 +156,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
     const selectedDateRef   = useRef(selectedDate);
     const stepsDisplayRef   = useRef(null);
     const stepsBonusCheckedRef = useRef(false);
+    const currentUserRef    = useRef(null);
 
     const { userData, refreshUserData } = useContext(AuthContext);
 
@@ -516,11 +517,13 @@ export const FoodProvider = ({ children, initialUserData }) => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (!mountedRef.current) return;
+            const previousUser = currentUserRef.current;
+            currentUserRef.current = user;
             setCurrentUser(user);
             if (user && !initializationRef.current) {
                 initializeAppData(user);
             } else if (!user) {
-                if (currentUser) clearPersistedMealCache(currentUser.uid);
+                if (previousUser) clearPersistedMealCache(previousUser.uid);
                 initializationRef.current = false;
                 stepsBonusCheckedRef.current = false;
                 mealCache.current.clear();

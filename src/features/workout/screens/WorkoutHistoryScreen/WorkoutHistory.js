@@ -37,6 +37,7 @@ const getWorkoutLabel = (timestamp, templateName) => {
 };
 
 const getDurationInMinutes = (duration) => {
+    if (typeof duration !== 'string') return 0;
     const [hours, minutes] = duration.split(':').map(Number);
     if (isNaN(hours) || isNaN(minutes)) return 0;
     return hours * 60 + minutes;
@@ -169,7 +170,7 @@ const WorkoutHistoryScreen = ({ navigation }) => {
                 renderSectionHeader={({ section: { title } }) => (
                     <Text style={styles.monthDivider}>{title}</Text>
                 )}
-                keyExtractor={(item, index) => index.toString()}
+                keyExtractor={(item, index) => `${getMonthYear(item.timestamp)}_${index}`}
                 ListHeaderComponent={
                     <View style={styles.header}>
                         <Text style={styles.heading}>History</Text>

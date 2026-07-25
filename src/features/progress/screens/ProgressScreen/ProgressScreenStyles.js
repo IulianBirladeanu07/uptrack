@@ -13,8 +13,8 @@ const styles = createStyles(() => ({
         marginBottom: spacing[4],
     },
     pageTitle: {
-        fontSize: fontSize[24],
-        fontWeight: fontWeight.extrabold,
+        fontSize: fontSize[28],
+        fontWeight: fontWeight.bold,
         color: colors.text.primary,
         letterSpacing: -0.5,
     },
