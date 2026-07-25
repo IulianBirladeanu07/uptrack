@@ -86,6 +86,11 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(async () => {
     try {
       await GoogleSignin.signOut();
+    } catch (error) {
+      console.error('GoogleSignin signOut error:', error);
+    }
+
+    try {
       await signOut(auth);
       setAuthenticated(false);
       setProfileSetupComplete(false);

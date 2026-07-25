@@ -223,8 +223,8 @@ const CustomFoodScreen = () => {
 
   const otherNutrients = useMemo(() => [
     { field: 'fiber', label: 'Fiber', color: colors.accent.success, iconName: 'leaf', unit: 'g', width: '48%', nextField: 'sugar' },
-    { field: 'sugar', label: 'Sugar', color: colors.accent.purple, iconName: 'cube-outline', unit: 'g', width: '48%', nextField: 'saturatedFat' },
-    { field: 'saturatedFat', label: 'Sat Fat', color: colors.accent.cyan, iconName: 'water', unit: 'g', width: '48%', nextField: 'salt' },
+    { field: 'sugar', label: 'Sugar', color: colors.accent.purple, iconName: 'cube-outline', unit: 'g', width: '48%', nextField: 'saturatedFats' },
+    { field: 'saturatedFats', label: 'Sat Fat', color: colors.accent.cyan, iconName: 'water', unit: 'g', width: '48%', nextField: 'salt' },
     { field: 'salt', label: 'Salt', color: colors.accent.primary, iconName: 'shaker-outline', unit: 'g', width: '48%', nextField: null },
   ], []);
 

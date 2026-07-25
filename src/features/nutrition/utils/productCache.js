@@ -21,5 +21,10 @@ export const productCache = {
     this.lastFetched = now;
     
     return products;
+  },
+
+  invalidate() {
+    this.data = null;
+    this.lastFetched = null;
   }
 };

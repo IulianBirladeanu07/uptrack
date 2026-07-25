@@ -49,7 +49,7 @@ export const validateField = (field, value, type) => {
       case 'fats':
       case 'fiber':
       case 'sugar':
-      case 'saturatedFat':
+      case 'saturatedFats':
         if (value === '' || value === null || value === undefined) return null;
         if (numValue === null) return `${field.charAt(0).toUpperCase() + field.slice(1)} must be a number`;
         if (numValue < 0) return `${field.charAt(0).toUpperCase() + field.slice(1)} cannot be negative`;
@@ -82,7 +82,7 @@ export const validateFoodData = (foodData, type) => {
         requiredFields.push('barcode');
     }
     
-    const numericFields = ['calories', 'amount', 'carbohydrates', 'protein', 'fats', 'fiber', 'sugar', 'saturatedFat', 'salt'];
+    const numericFields = ['calories', 'amount', 'carbohydrates', 'protein', 'fats', 'fiber', 'sugar', 'saturatedFats', 'salt'];
     const parsedData = { ...foodData };
     
     numericFields.forEach(field => {
@@ -101,7 +101,7 @@ export const validateFoodData = (foodData, type) => {
         }
     }
     
-    const optionalFields = ['carbohydrates', 'protein', 'fats', 'fiber', 'sugar', 'saturatedFat', 'salt'];
+    const optionalFields = ['carbohydrates', 'protein', 'fats', 'fiber', 'sugar', 'saturatedFats', 'salt'];
     for (const field of optionalFields) {
         if (foodData[field] !== undefined && foodData[field] !== null && foodData[field] !== '') {
             const error = validateField(field, foodData[field], type);
@@ -126,8 +126,8 @@ export const validateFoodData = (foodData, type) => {
         errors.sugar = 'Sugar cannot exceed total carbohydrates';
     }
     
-    if (!isNaN(parsedData.saturatedFat) && !isNaN(parsedData.fats) && parsedData.saturatedFat > parsedData.fats) {
-        errors.saturatedFat = 'Saturated fat cannot exceed total fat';
+    if (!isNaN(parsedData.saturatedFats) && !isNaN(parsedData.fats) && parsedData.saturatedFats > parsedData.fats) {
+        errors.saturatedFats = 'Saturated fat cannot exceed total fat';
     }
     
     return {

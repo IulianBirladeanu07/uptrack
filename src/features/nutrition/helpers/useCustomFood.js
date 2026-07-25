@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Alert, Keyboard } from 'react-native';
 import { supabase } from '../../../shared/services/supabaseClient';
+import { productCache } from '../utils/productCache';
 import { validateFoodData } from '../utils/customFoodValidators';
 import { formatFoodDataForSubmission, getInitialFoodData, transformForBarcodeDB, transformForCustomFood } from '../utils/customFoodDataUtils';
 
@@ -124,6 +125,8 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
                     Alert.alert('Database Error', 'Failed to save food data to the database.');
                     return;
                 }
+                
+                productCache.invalidate();
                 
                 const foodForDetail = transformForCustomFood(formattedData);
                 

@@ -28,27 +28,16 @@ const FoodDetailScreen = () => {
   const { food, meal, update, foodId, selectedDate: rawSelectedDate } = route.params || {};
   const selectedDate = rawSelectedDate ? new Date(rawSelectedDate) : new Date();
 
-  if (!food) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.errorContainer}>
-          <MaterialCommunityIcons name="alert-circle" size={48} color={colors.accent.errorAlt} />
-          <Text style={styles.errorText}>No food data available</Text>
-        </View>
-      </View>
-    );
-  }
-
   const { updateMealInDatabase, addMultipleFoods } = useFoodContext();
   const scrollRef = useRef(null);
   
-  const [servingQuantity, setServingQuantity] = useState(food.quantity || DEFAULT_SERVING.quantity);
-  const [servingUnit, setServingUnit] = useState(food.unit || DEFAULT_SERVING.unit);
+  const [servingQuantity, setServingQuantity] = useState(food?.quantity || DEFAULT_SERVING.quantity);
+  const [servingUnit, setServingUnit] = useState(food?.unit || DEFAULT_SERVING.unit);
   const [unitPickerVisible, setUnitPickerVisible] = useState(false);
   const [isFavorite, setIsFavorite] = useState(food?.isFavorite || false);
 
   const isMultipleFoods = useMemo(() => Array.isArray(meal?.foods), [meal]);
-  const foods = useMemo(() => (isMultipleFoods ? meal.foods : [food]), [isMultipleFoods, meal, food]);
+  const foods = useMemo(() => (isMultipleFoods ? meal.foods : (food ? [food] : [])), [isMultipleFoods, meal, food]);
 
   const memoizedTotalNutrients = useMemo(() => 
     calculateTotalNutrients(foods, servingQuantity),
@@ -91,7 +80,7 @@ const FoodDetailScreen = () => {
       selectedDate,
       update,
       isFavorite,
-      remainingCalories: route.params.remainingCalories - food.calories,
+      remainingCalories: route.params.remainingCalories - (food?.calories || 0),
     });
 
     if (result.success) {
@@ -113,6 +102,17 @@ const FoodDetailScreen = () => {
     navigation,
     route.params?.remainingCalories,
   ]);
+
+  if (!food) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <MaterialCommunityIcons name="alert-circle" size={48} color={colors.accent.errorAlt} />
+          <Text style={styles.errorText}>No food data available</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

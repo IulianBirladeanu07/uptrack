@@ -8,6 +8,7 @@ export const useFoodSearch = () => {
 
   const debounceTimeout = useRef(null);
   const searchCache = useRef(new Map());
+  const latestRequestId = useRef(0);
   
   const getCachedResult = useCallback((key) => {
     const cached = searchCache.current.get(key);
@@ -45,6 +46,7 @@ export const useFoodSearch = () => {
       return;
     }
 
+    const requestId = ++latestRequestId.current;
     setLoading(true);
 
     try {
@@ -70,7 +72,7 @@ export const useFoodSearch = () => {
         fiber: food.fiber || 0,
         sugar: food.sugar || 0,
         salt: food.salt || 0,
-        saturatedFat: food.saturated_fats || 0,
+        saturatedFats: food.saturated_fats || 0,
         
         image: food.image,
         lastUpdated: food.last_updated ?? new Date().toISOString(),
@@ -84,13 +86,19 @@ export const useFoodSearch = () => {
       }));
 
       setCachedResult(cacheKey, processedResults);
-      setSearchResults(processedResults);
+      if (requestId === latestRequestId.current) {
+        setSearchResults(processedResults);
+      }
 
     } catch (error) {
       console.error('Search failed:', error);
-      setSearchResults([]);
+      if (requestId === latestRequestId.current) {
+        setSearchResults([]);
+      }
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestId.current) {
+        setLoading(false);
+      }
     }
   }, [getCachedResult, setCachedResult]);
 

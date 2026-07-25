@@ -100,14 +100,6 @@ const BarcodeScannerScreen = ({ navigation }) => {
   }, [currentProduct, isScanning, batchMode, navigation, meal, selectedDate]);
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      resumeScanning();
-    });
-
-    return unsubscribe;
-  }, [navigation, resumeScanning]);
-
-  useEffect(() => {
     const loadBarcodedProducts = async () => {
       try {
         setIsLoadingDatabase(true);
@@ -126,7 +118,14 @@ const BarcodeScannerScreen = ({ navigation }) => {
     };
 
     loadBarcodedProducts();
-  }, []);
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      resumeScanning();
+      loadBarcodedProducts();
+    });
+
+    return unsubscribe;
+  }, [navigation, resumeScanning]);
 
   useEffect(() => {
     if (isScanning) {
