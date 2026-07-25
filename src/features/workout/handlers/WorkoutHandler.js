@@ -161,7 +161,8 @@ async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMe
 }
 
 export const calculate1RM = (weight, reps) => {
-  return weight / (1.0278 - 0.0278 * reps);
+  const clampedReps = Math.min(Math.max(reps, 1), 12);
+  return weight / (1.0278 - 0.0278 * clampedReps);
 };
 
 export const countTotalPRs = (lastWorkoutData) => {

@@ -165,7 +165,8 @@ export const handleSaveLogic = async (
     }
 
     const startWeight = currentData.startWeight ?? deriveStartWeight(weightIns);
-    const isNewWeek   = sortedIndex > 0 && weightIns[sortedIndex - 1]?.weekStart !== currentData.lastSnapshotWeek;
+    const isCurrentWeek = weekStartDate === getLocalWeekStart(new Date());
+    const isNewWeek   = isCurrentWeek && sortedIndex > 0 && weightIns[sortedIndex - 1]?.weekStart !== currentData.lastSnapshotWeek;
 
     const dayKeyOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     let latestEntryDate = null;

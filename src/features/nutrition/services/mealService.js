@@ -1,5 +1,6 @@
 import { doc, setDoc, getDoc, updateDoc, Timestamp, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
+import { formatDate } from '../utils/dateUtils';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snacks'];
 
@@ -79,7 +80,7 @@ export const fetchMealsForDate = async (uid, date) => {
 export const fetchLast30DaysMeals = async (uid) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
+    const dateStr = formatDate(thirtyDaysAgo);
 
     const q = query(
         collection(db, 'meals'),

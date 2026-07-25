@@ -292,8 +292,8 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 date,
                 calories: foods.reduce((s, f) => s + (Number(f?.calories) || 0), 0),
                 protein:  foods.reduce((s, f) => s + (Number(f?.protein)  || 0), 0),
-                carbs:    foods.reduce((s, f) => s + (Number(f?.carbs)    || 0), 0),
-                fat:      foods.reduce((s, f) => s + (Number(f?.fat)      || 0), 0),
+                carbs:    foods.reduce((s, f) => s + (Number(f?.carbohydrates) || 0), 0),
+                fat:      foods.reduce((s, f) => s + (Number(f?.fats)     || 0), 0),
             };
         }),
     []);
@@ -301,6 +301,8 @@ export const FoodProvider = ({ children, initialUserData }) => {
     const getStepsForDateRange = useCallback((startDate, endDate) =>
         mealCache.current.getStepsRange(startDate, endDate),
     []);
+
+    const getMealCache = useCallback(() => mealCache.current, []);
 
     const serializeCacheForPersist = useCallback(() =>
         Array.from(mealCache.current.data.entries()).flatMap(([date, meals]) =>
@@ -584,6 +586,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
         getCaloriesForDateRange,
         getNutritionForDateRange,
         getStepsForDateRange,
+        getMealCache,
         stepsLoading,
         stepsError,
         stepsConnected,
@@ -595,7 +598,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
         handleAddMeal, handleDeleteMeal, updateMealInDatabase, updateMealState,
         getTrendData, dailySteps, updateDailySteps, getWeeklyAvgSteps,
         loading, error, initialLoadComplete, rollingWeekStats, getCaloriesForDateRange,
-        getNutritionForDateRange, getStepsForDateRange, stepsLoading, stepsError,
+        getNutritionForDateRange, getStepsForDateRange, getMealCache, stepsLoading, stepsError,
         stepsConnected, retryStepsConnection,
     ]);
 

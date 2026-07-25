@@ -8,6 +8,13 @@ const convertFtInToCm = (feet, inches) => {
   const totalInches = (parseFloat(feet) * 12) + parseFloat(inches || 0);
   return parseFloat((totalInches * 2.54).toFixed(1));
 };
+const convertKgToLbs = (kg) => parseFloat((parseFloat(kg) / 0.453592).toFixed(1));
+const convertCmToFtIn = (cm) => {
+  const totalInches = parseFloat(cm) / 2.54;
+  const feet = Math.floor(totalInches / 12);
+  const inches = Math.round(totalInches - feet * 12);
+  return { feet, inches };
+};
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -63,8 +70,9 @@ const renderUnitInput = (field, formData, handleChange) => {
   if (key === 'height') {
     const feetCfg   = field.imperial.feet;
     const inchesCfg = field.imperial.inches;
-    const feet   = formData[`${key}_feet`]   ?? 5;
-    const inches = formData[`${key}_inches`] ?? 6;
+    const derivedHeight = formData[key] != null ? convertCmToFtIn(formData[key]) : { feet: 5, inches: 6 };
+    const feet   = formData[`${key}_feet`]   ?? derivedHeight.feet;
+    const inches = formData[`${key}_inches`] ?? derivedHeight.inches;
 
     const updateHeight = (nextFeet, nextInches) => {
       handleChange(`${key}_feet`, nextFeet);
@@ -93,7 +101,8 @@ const renderUnitInput = (field, formData, handleChange) => {
   }
 
   const cfg = field.imperial;
-  const lbs = formData[`${key}_lbs`] ?? 165;
+  const derivedLbs = formData[key] != null ? convertKgToLbs(formData[key]) : 165;
+  const lbs = formData[`${key}_lbs`] ?? derivedLbs;
   const updateWeight = (nextLbs) => {
     handleChange(`${key}_lbs`, nextLbs);
     if (field.convertToMetric) handleChange(key, convertLbsToKg(nextLbs));

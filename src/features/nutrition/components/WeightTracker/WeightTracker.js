@@ -21,6 +21,7 @@ import {
 } from '../../helpers/weightTrackerUtils';
 import WeightChart from './WeightChart';
 import { isSuspiciousWeightEntry, getCurrentTrendWeight } from '../../../profile/utils/weightTrendEngine';
+import { useFoodContext } from '../../context/FoodContext';
 
 const WEEK_DAYS          = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const DAY_LABELS         = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -206,6 +207,7 @@ const Keypad = ({ onPress }) => (
 const WeightTracker = () => {
     const navigation  = useNavigation();
     const insets      = useSafeAreaInsets();
+    const { getMealCache } = useFoodContext();
 
     const [userId,         setUserId]         = useState(null);
     const [loading,        setLoading]        = useState(true);
@@ -388,6 +390,7 @@ const commitWeightSave = async (parsedWeight) => {
             await handleSaveLogic(
                 userId, parsedWeight, modalDate,
                 setCurrentWeight, setWeeklyAverage, loadData,
+                getMealCache(),
             );
             setModalVisible(false);
         } catch (e) {
