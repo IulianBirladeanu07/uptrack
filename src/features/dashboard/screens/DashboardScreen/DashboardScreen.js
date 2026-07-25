@@ -38,9 +38,10 @@ const getMonday = (date) => {
     return d;
 };
 
-const resolveWorkoutFromSplits = (splits) => {
+const resolveWorkoutFromSplits = (splits, activeSplitId) => {
     if (!splits?.length) return null;
-    const schedule = splits[0].schedule || splits[0].data?.schedule || {};
+    const activeSplit = (activeSplitId && splits.find(s => s.id === activeSplitId)) || splits[0];
+    const schedule = activeSplit.schedule || activeSplit.data?.schedule || {};
     const todayKey = DAYS_MAP[new Date().getDay()];
     const workout = schedule[todayKey];
     const exercises = workout?.exercises || [];
@@ -396,7 +397,7 @@ const DashboardScreen = () => {
                         const { splits, ts } = JSON.parse(cached);
                         if (Date.now() - ts < SPLITS_CACHE_TTL) {
                             if (!cancelled) {
-                                setTodayScheduledWorkout(resolveWorkoutFromSplits(splits));
+                                setTodayScheduledWorkout(resolveWorkoutFromSplits(splits, userData?.activeSplitId));
                                 setWorkoutLoading(false);
                                 return;
                             }
@@ -407,7 +408,7 @@ const DashboardScreen = () => {
                 try {
                     const splits = await fetchSplitsFromFirestore();
                     if (!cancelled) {
-                        setTodayScheduledWorkout(resolveWorkoutFromSplits(splits));
+                        setTodayScheduledWorkout(resolveWorkoutFromSplits(splits, userData?.activeSplitId));
                         AsyncStorage.setItem(SPLITS_CACHE_KEY, JSON.stringify({ splits, ts: Date.now() })).catch(() => {});
                     }
                 } catch {
@@ -419,7 +420,7 @@ const DashboardScreen = () => {
 
             loadWorkout();
             return () => { cancelled = true; };
-        }, [])
+        }, [userData?.activeSplitId])
     );
 
     const weeklyWorkoutsCount = useMemo(() => {

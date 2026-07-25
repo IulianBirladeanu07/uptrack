@@ -31,7 +31,7 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
     const [refreshing, setRefreshing] = useState(false);
     const [activeSegment, setActiveSegment] = useState(route.params?.initialSegment || 'Templates');
 
-    const { refreshUserData } = useContext(AuthContext);
+    const { userData, refreshUserData } = useContext(AuthContext);
     const hasFetchedRef = useRef(false);
 
     useEffect(() => {
@@ -60,7 +60,7 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
                     durationWeeks: split.durationWeeks || split.data?.durationWeeks || 8,
                 }));
                 setSplits(normalizedSplits);
-                setActiveSplitId(prev => prev ?? normalizedSplits[0]?.id ?? null);
+                setActiveSplitId(prev => prev ?? userData?.activeSplitId ?? normalizedSplits[0]?.id ?? null);
             }
 
             if (templatesData) {

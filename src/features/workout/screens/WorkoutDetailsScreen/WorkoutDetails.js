@@ -83,7 +83,15 @@ const WorkoutDetails = ({ route, navigation }) => {
         const result = useCamera
             ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [9, 16], quality: 0.8 })
             : await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [9, 16], quality: 0.8 });
-        if (!result.canceled) setSelfieUri(result.assets[0].uri);
+        if (!result.canceled) {
+            setSelfieUri(result.assets[0].uri);
+            translateX.value = 0;
+            translateY.value = 0;
+            scale.value = 1;
+            savedTranslateX.value = 0;
+            savedTranslateY.value = 0;
+            savedScale.value = 1;
+        }
     };
 
     const handleShare = async () => {

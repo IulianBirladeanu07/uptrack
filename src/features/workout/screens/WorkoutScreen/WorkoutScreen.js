@@ -11,6 +11,7 @@ import ApplicationCustomScreen from '../../../../shared/components/ApplicationCu
 import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
 import { fetchSplitsFromFirestore } from '../../handlers/WorkoutHandler';
 import { WorkoutContext } from '../../context/WorkoutContext';
+import { AuthContext } from '../../../auth/context/AuthContext';
 import { colors, spacing } from '../../../../shared/theme';
 import styles from './WorkoutScreenStyles';
 
@@ -349,6 +350,7 @@ const WorkoutScreen = () => {
     const hasLoadedOnceRef = useRef(false);
 
     const { activeWorkout, workoutHistory } = useContext(WorkoutContext);
+    const { userData } = useContext(AuthContext);
 
     const userStats = useMemo(() => {
         const completedDaysThisWeek = [];
@@ -410,7 +412,7 @@ const WorkoutScreen = () => {
             const splits = await fetchSplitsFromFirestore();
             if (!splits.length) { return; }
 
-            const raw = splits[0];
+            const raw = splits.find(s => (s.id ?? s.data?.id) === userData?.activeSplitId) ?? splits[0];
             const active = {
                 id: raw.id ?? raw.data?.id,
                 name: raw.name ?? raw.data?.name,
@@ -454,7 +456,7 @@ const WorkoutScreen = () => {
             hasLoadedOnceRef.current = true;
             setLoading(false);
         }
-    }, []);
+    }, [userData?.activeSplitId]);
 
     useFocusEffect(useCallback(() => { loadActiveSplit(); }, [loadActiveSplit]));
 

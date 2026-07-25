@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { fetchExercises, prefetchExercises, clearExercisesCache } from '../../handlers/WorkoutHandler';
+import { fetchExercises, clearExercisesCache } from '../../handlers/WorkoutHandler';
 import { colors, spacing } from '../../../../shared/theme';
 import { styles } from './ExerciseSelectionScreenStyle.js';
 
@@ -390,15 +390,14 @@ const ExerciseSelectionScreen = ({ route }) => {
     }
   }, [allGroupedExercises.length]);
 
-  useEffect(() => {
-    clearExercisesCache(true);
-    fetchExercises(true);
-    prefetchExercises().catch(() => {});
-    loadExercises();
-  }, [loadExercises]);
+  const hasClearedCacheRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
+      if (!hasClearedCacheRef.current) {
+        hasClearedCacheRef.current = true;
+        clearExercisesCache(true);
+      }
       loadExercises();
     }, [loadExercises])
   );
@@ -611,11 +610,6 @@ const ExerciseSelectionScreen = ({ route }) => {
         updateCellsBatchingPeriod={50}
         windowSize={21}
         removeClippedSubviews={Platform.OS === 'android'}
-        getItemLayout={(data, index) => ({
-          length: spacing[15],
-          offset: spacing[15] * index,
-          index,
-        })}
       />
 
       <Animated.View

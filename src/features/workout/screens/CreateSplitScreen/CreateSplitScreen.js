@@ -147,7 +147,7 @@ const CreateSplitScreen = ({ navigation, route }) => {
   const handleRemoveFromDay = useCallback((dayId) => {
     setSplitData(prev => {
       const newSchedule = { ...prev.schedule };
-      delete newSchedule[dayId];
+      newSchedule[dayId] = null;
       return {
         ...prev,
         schedule: newSchedule,
