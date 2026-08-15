@@ -8,10 +8,28 @@ import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
+import { processWeightInsForDisplay } from '../../../nutrition/helpers/weightTrackerUtils';
+import WeightChart from '../../../nutrition/components/WeightTracker/WeightChart';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import styles from './ProgressScreenStyles';
 
 const NUM_WEEKS_OPTIONS = [4, 8, 12];
+const PERIOD_BY_WEEKS = { 4: '4W', 8: '8W', 12: '12W' };
+
+const MUSCLE_GROUP_COLORS = {
+    Back: '#3B82F6',
+    Biceps: '#8B5CF6',
+    Calves: '#F59E0B',
+    Chest: '#EF4444',
+    Core: '#10B981',
+    Glutes: '#F97316',
+    Hamstring: '#84CC16',
+    Legs: '#06B6D4',
+    Quads: '#8B5CF6',
+    Shoulders: '#F59E0B',
+    Triceps: '#EF4444',
+    'Full Body': '#DC2626',
+};
 
 const getMonday = (date) => {
     const d = new Date(date);
@@ -99,6 +117,32 @@ const useWeeklyBuckets = (weightIns, getNutritionForDateRange, getStepsForDateRa
     }, [weightIns, getNutritionForDateRange, getStepsForDateRange, workoutHistory, numWeeks]);
 };
 
+const useTrainingVolume = (workoutHistory, buckets, numWeeks) => useMemo(() => {
+    if (!buckets.length) return [];
+    const rangeStart = buckets[0].monday;
+    const rangeEnd = buckets[buckets.length - 1].sunday;
+    const totals = {};
+
+    (workoutHistory ?? []).forEach(w => {
+        const d = w.timestamp?.toDate?.();
+        if (!d || d < rangeStart || d > rangeEnd) return;
+        (w.exercises ?? []).forEach(ex => {
+            const group = ex.muscleGroup || 'Other';
+            const setCount = ex.sets?.length ?? 0;
+            totals[group] = (totals[group] ?? 0) + setCount;
+        });
+    });
+
+    return Object.entries(totals)
+        .map(([group, totalSets]) => ({
+            group,
+            avgPerWeek: parseFloat((totalSets / numWeeks).toFixed(1)),
+            color: MUSCLE_GROUP_COLORS[group] ?? colors.text.quaternary,
+        }))
+        .filter(g => g.avgPerWeek > 0)
+        .sort((a, b) => b.avgPerWeek - a.avgPerWeek);
+}, [workoutHistory, buckets, numWeeks]);
+
 const useWeightStatus = (weightDelta, targetRate) => useMemo(() => {
     if (weightDelta == null || targetRate == null) return null;
 
@@ -162,23 +206,21 @@ const DeltaBadge = ({ value, positiveIsGood = true, suffix = '', decimals = 1, c
     );
 };
 
-const StatusBanner = ({ status }) => {
+const VerdictLine = ({ status }) => {
     if (!status) return null;
     const palette = {
-        good: { bg: colors.faded.successAlt, border: colors.border.successAlt, fg: colors.accent.success },
-        warn: { bg: colors.faded.primary, border: colors.border.primaryAlt, fg: colors.accent.warning },
-        bad: { bg: colors.faded.errorAlt, border: colors.border.error, fg: colors.accent.errorAlt },
+        good: { bg: colors.faded.successAlt, fg: colors.accent.success },
+        warn: { bg: colors.faded.primary, fg: colors.accent.warning },
+        bad: { bg: colors.faded.errorAlt, fg: colors.accent.errorAlt },
     }[status.type];
 
     return (
-        <View style={[styles.statusBanner, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-            <View style={styles.statusIconCircle}>
-                <Ionicons name={status.icon} size={spacing.iconMd} color={palette.fg} />
-            </View>
-            <View style={styles.statusTextWrap}>
-                <Text style={[styles.statusTitle, { color: palette.fg }]}>{status.title}</Text>
-                <Text style={styles.statusMessage}>{status.message}</Text>
-            </View>
+        <View style={[styles.verdictLine, { backgroundColor: palette.bg }]}>
+            <Ionicons name={status.icon} size={spacing.iconSm} color={palette.fg} />
+            <Text style={styles.verdictText}>
+                <Text style={[styles.verdictTitle, { color: palette.fg }]}>{status.title}</Text>
+                <Text style={styles.verdictMessage}>  {status.message}</Text>
+            </Text>
         </View>
     );
 };
@@ -267,7 +309,8 @@ const GoalTrack = ({ start, goal, current }) => {
     );
 };
 
-const WeightHeroCard = ({ buckets, current, prev, userData }) => {
+const WeightHeroCard = ({ current, prev, userData, weightStatus, weightTrendData, period }) => {
+    const [chartWidth, setChartWidth] = useState(0);
     const delta = deltaOf(current?.avgWeight, prev?.avgWeight);
     const targetRate = userData?.weightChangePlan?.ratePerWeek ?? null;
     const goalWeight = userData?.weightChangePlan?.goalWeight ?? null;
@@ -289,6 +332,7 @@ const WeightHeroCard = ({ buckets, current, prev, userData }) => {
                 accentColor={colors.accent.primary}
                 large
             />
+            <VerdictLine status={weightStatus} />
             {startWeight != null && goalWeight != null && current?.avgWeight != null ? (
                 <GoalTrack start={startWeight} goal={goalWeight} current={current.avgWeight} />
             ) : goalWeight != null && current?.avgWeight != null ? (
@@ -302,14 +346,16 @@ const WeightHeroCard = ({ buckets, current, prev, userData }) => {
                     </Text>
                 </View>
             ) : null}
-            <WeeklyBarChart
-                buckets={buckets}
-                getValue={b => b.avgWeight}
-                formatValue={v => v.toFixed(1)}
-                color={colors.accent.primary}
-                height={88}
-                showValues
-            />
+            <View onLayout={e => setChartWidth(e.nativeEvent.layout.width)}>
+                {chartWidth > 0 && (
+                    <WeightChart
+                        data={weightTrendData}
+                        period={period}
+                        goalWeight={goalWeight}
+                        width={chartWidth}
+                    />
+                )}
+            </View>
         </View>
     );
 };
@@ -496,6 +542,55 @@ const ActivityCard = ({ buckets, current, prev }) => {
     );
 };
 
+const TrainingVolumeCard = ({ volume }) => {
+    const [expanded, setExpanded] = useState(false);
+    if (!volume.length) return null;
+
+    const visible = expanded ? volume : volume.slice(0, 5);
+    const maxVal = volume[0]?.avgPerWeek ?? 0;
+
+    return (
+        <View style={styles.metricCard}>
+            <View style={styles.cardHeader}>
+                <View style={styles.cardHeaderLeft}>
+                    <View style={[styles.cardIconBox, { backgroundColor: colors.faded.purple }]}>
+                        <Ionicons name="body" size={spacing.iconSm} color={colors.accent.purple} />
+                    </View>
+                    <Text style={styles.cardTitle}>Training Volume</Text>
+                </View>
+                {volume.length > 5 && (
+                    <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7}>
+                        <Text style={styles.viewAllText}>{expanded ? 'Show less' : 'View all'}</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+            <Text style={styles.cardSubtext}>avg sets/week per muscle group</Text>
+            <View style={styles.volumeList}>
+                {visible.map(g => (
+                    <View key={g.group} style={styles.volumeRow}>
+                        <View style={styles.volumeLabelWrap}>
+                            <View style={[styles.volumeDot, { backgroundColor: g.color }]} />
+                            <Text style={styles.volumeLabel} numberOfLines={1}>{g.group}</Text>
+                        </View>
+                        <View style={styles.volumeBarTrack}>
+                            <View
+                                style={[
+                                    styles.volumeBarFill,
+                                    {
+                                        width: `${maxVal > 0 ? Math.max((g.avgPerWeek / maxVal) * 100, 6) : 0}%`,
+                                        backgroundColor: g.color,
+                                    },
+                                ]}
+                            />
+                        </View>
+                        <Text style={styles.volumeValue}>{g.avgPerWeek}</Text>
+                    </View>
+                ))}
+            </View>
+        </View>
+    );
+};
+
 const ProgressScreen = () => {
     const insets = useSafeAreaInsets();
     const { userData } = useContext(AuthContext);
@@ -517,6 +612,13 @@ const ProgressScreen = () => {
     const weightDelta = deltaOf(current?.avgWeight, prev?.avgWeight);
     const targetRate = userData?.weightChangePlan?.ratePerWeek ?? null;
     const weightStatus = useWeightStatus(weightDelta, targetRate);
+
+    const weightTrendData = useMemo(
+        () => processWeightInsForDisplay(userData?.weightIns, 100),
+        [userData?.weightIns],
+    );
+
+    const trainingVolume = useTrainingVolume(workoutHistory, buckets, numWeeks);
 
     return (
         <ApplicationCustomScreen>
@@ -547,11 +649,18 @@ const ProgressScreen = () => {
                     </View>
                 </View>
 
-                <StatusBanner status={weightStatus} />
-                <WeightHeroCard buckets={buckets} current={current} prev={prev} userData={userData} />
+                <WeightHeroCard
+                    current={current}
+                    prev={prev}
+                    userData={userData}
+                    weightStatus={weightStatus}
+                    weightTrendData={weightTrendData}
+                    period={PERIOD_BY_WEEKS[numWeeks]}
+                />
                 <QuickStatsRow current={current} prev={prev} />
                 <NutritionCard buckets={buckets} current={current} prev={prev} userData={userData} />
                 <ActivityCard buckets={buckets} current={current} prev={prev} />
+                <TrainingVolumeCard volume={trainingVolume} />
             </ScrollView>
             <BottomNav />
         </ApplicationCustomScreen>

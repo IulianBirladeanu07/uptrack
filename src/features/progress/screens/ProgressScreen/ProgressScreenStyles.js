@@ -44,32 +44,21 @@ const styles = createStyles(() => ({
         color: colors.accent.buttonText,
     },
 
-    statusBanner: {
+    verdictLine: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing[3],
-        borderRadius: radius[4],
-        borderWidth: 1,
-        padding: spacing[3],
+        gap: spacing[2],
         marginBottom: spacing[3],
     },
-    statusIconCircle: {
-        width: spacing[10],
-        height: spacing[10],
-        borderRadius: radius[5],
-        backgroundColor: colors.background.secondary,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    statusTextWrap: {
+    verdictText: {
         flex: 1,
+        flexWrap: 'wrap',
     },
-    statusTitle: {
-        fontSize: fontSize[14],
+    verdictTitle: {
+        fontSize: fontSize[12],
         fontWeight: fontWeight.bold,
-        marginBottom: 2,
     },
-    statusMessage: {
+    verdictMessage: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
         color: colors.text.secondary,
@@ -176,7 +165,7 @@ const styles = createStyles(() => ({
         borderRadius: radius[3],
     },
     cardTitle: {
-        fontSize: fontSize[13],
+        fontSize: fontSize[12],
         fontWeight: fontWeight.bold,
         color: colors.text.primary,
     },
@@ -202,7 +191,7 @@ const styles = createStyles(() => ({
         fontSize: fontSize[28],
     },
     cardSubtext: {
-        fontSize: fontSize[11],
+        fontSize: fontSize[10],
         fontWeight: fontWeight.medium,
         marginBottom: spacing[3],
         color: colors.text.quaternary,
@@ -372,6 +361,57 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.medium,
         color: colors.text.quaternary,
         marginTop: spacing[1],
+    },
+
+    viewAllText: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.accent.primary,
+    },
+
+    volumeList: {
+        gap: spacing[2],
+    },
+    volumeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[2],
+    },
+    volumeLabelWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[1],
+        width: spacing[20],
+    },
+    volumeDot: {
+        width: 5,
+        height: 5,
+        borderRadius: 3,
+    },
+    volumeLabel: {
+        flexShrink: 1,
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.secondary,
+    },
+    volumeBarTrack: {
+        flex: 1,
+        height: spacing[2],
+        borderRadius: radius[1],
+        overflow: 'hidden',
+        backgroundColor: colors.faded.surface,
+    },
+    volumeBarFill: {
+        height: '100%',
+        borderRadius: radius[1],
+        minWidth: 3,
+    },
+    volumeValue: {
+        width: spacing[7],
+        textAlign: 'right',
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.secondary,
     },
 }));
 

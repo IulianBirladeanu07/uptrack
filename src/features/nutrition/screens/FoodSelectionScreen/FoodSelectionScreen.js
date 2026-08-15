@@ -14,10 +14,11 @@ import FoodSelectionHeader from '../../components/FoodSelectionHeader/FoodSelect
 import styles from './FoodSelectionScreenStyle';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import useFoodCategories from '../../helpers/useFoodCategories';
+import { colors } from '../../../../shared/theme';
 
 const LoadingView = React.memo(() => (
     <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color={colors.accent.primary} />
         <Text style={styles.infoText}>Loading...</Text>
     </View>
 ));
@@ -35,8 +36,6 @@ const FoodSelectionScreen = () => {
     const insets = useSafeAreaInsets();
     const { meal, selectedDate, selectedFoodDetail } = route.params || {};
 
-    const searchTimeoutRef = useRef(null);
-    const mountedRef = useRef(true);
     const isSubmittingRef = useRef(false);
 
     const {
@@ -77,13 +76,6 @@ const FoodSelectionScreen = () => {
         handleSearch,
     } = useFoodSearch();
 
-    useEffect(() => {
-        return () => {
-            mountedRef.current = false;
-            if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-        };
-    }, []);
-
     const formattedDate = useMemo(() => {
         const date = selectedDate ? new Date(selectedDate) : new Date();
         return date.toLocaleDateString('en-US', {
@@ -108,22 +100,6 @@ const FoodSelectionScreen = () => {
             await addRecentSearch(trimmedQuery);
         }
     }, [addRecentSearch, hasRecentSearch]);
-
-    const debouncedSearch = useCallback((query) => {
-        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-        searchTimeoutRef.current = setTimeout(() => {
-            if (mountedRef.current && query && query.trim().length >= 2) {
-                handleSearch(query);
-            }
-        }, 300);
-    }, [handleSearch]);
-
-    useEffect(() => {
-        if (!isSearching) return;
-        if (searchQuery && searchQuery.trim().length >= 2) {
-            debouncedSearch(searchQuery);
-        }
-    }, [searchQuery, isSearching]);
 
     useFocusEffect(
         useCallback(() => {
@@ -189,7 +165,6 @@ const FoodSelectionScreen = () => {
     }, []);
 
     const handleExitSearch = useCallback(() => {
-        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
         setSearchQuery('');
         setIsSearching(false);
         Keyboard.dismiss();
@@ -204,9 +179,9 @@ const FoodSelectionScreen = () => {
     }, [searchQuery, handleSearchComplete]);
 
     const handleRecentSearchPress = useCallback(async (searchTerm) => {
-        setSearchQuery(searchTerm);
+        handleSearch(searchTerm);
         await addRecentSearch(searchTerm);
-    }, [setSearchQuery, addRecentSearch]);
+    }, [handleSearch, addRecentSearch]);
 
     const handleRemoveRecentSearch = useCallback(async (searchTerm) => {
         await removeRecentSearch(searchTerm);
@@ -283,7 +258,7 @@ const FoodSelectionScreen = () => {
 
             {isSearching && searchLoading && (
                 <View style={styles.searchLoadingContainer}>
-                    <ActivityIndicator size="small" color="#3b82f6" />
+                    <ActivityIndicator size="small" color={colors.accent.primary} />
                     <Text style={styles.searchLoadingText}>Searching foods...</Text>
                 </View>
             )}

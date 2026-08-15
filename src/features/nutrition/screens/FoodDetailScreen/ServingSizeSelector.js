@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import { colors, spacing, radius, fontSize, fontWeight } from '../../../../shared/theme';
@@ -11,25 +11,36 @@ const ServingSizeSelector = ({
   predefinedSizes = [],
   onPredefinedSizePress,
 }) => {
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState(String(quantity));
   const [errorMessage, setErrorMessage] = useState('');
+  const lastPushedValue = useRef(quantity);
 
   useEffect(() => {
-    setInputValue(String(quantity));
+    if (quantity !== lastPushedValue.current) {
+      setInputValue(String(quantity));
+      lastPushedValue.current = quantity;
+    }
   }, [quantity]);
 
-  useEffect(() => {
-    const parsedValue = parseInt(inputValue, 10);
+  const handleChangeText = useCallback((text) => {
+    setInputValue(text);
 
-    if (inputValue === '') {
+    if (text === '') {
       setErrorMessage('Quantity cannot be empty.');
-    } else if (isNaN(parsedValue) || parsedValue <= 0) {
-      setErrorMessage('Please enter a valid positive integer.');
-    } else {
-      setErrorMessage('');
-      onQuantityChange(parsedValue);
+      return;
     }
-  }, [inputValue, onQuantityChange]);
+
+    const parsedValue = parseFloat(text);
+
+    if (isNaN(parsedValue) || parsedValue <= 0) {
+      setErrorMessage('Please enter a valid positive number.');
+      return;
+    }
+
+    setErrorMessage('');
+    lastPushedValue.current = parsedValue;
+    onQuantityChange(parsedValue);
+  }, [onQuantityChange]);
 
   const isQuantityPredefined = predefinedSizes.includes(quantity);
 
@@ -44,7 +55,7 @@ const ServingSizeSelector = ({
           ]}
           value={inputValue}
           keyboardType="numeric"
-          onChangeText={setInputValue}
+          onChangeText={handleChangeText}
           placeholder="Enter quantity"
           placeholderTextColor={colors.text.quaternary}
           accessible

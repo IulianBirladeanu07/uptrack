@@ -1,14 +1,23 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { fetchNonBarcodedProducts } from '../handlers/NutritionHandler';
 
 export const useFoodSearch = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQueryState] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const debounceTimeout = useRef(null);
   const searchCache = useRef(new Map());
   const latestRequestId = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    };
+  }, []);
   
   const getCachedResult = useCallback((key) => {
     const cached = searchCache.current.get(key);
@@ -86,41 +95,44 @@ export const useFoodSearch = () => {
       }));
 
       setCachedResult(cacheKey, processedResults);
-      if (requestId === latestRequestId.current) {
+      if (requestId === latestRequestId.current && mountedRef.current) {
         setSearchResults(processedResults);
       }
 
     } catch (error) {
       console.error('Search failed:', error);
-      if (requestId === latestRequestId.current) {
+      if (requestId === latestRequestId.current && mountedRef.current) {
         setSearchResults([]);
       }
     } finally {
-      if (requestId === latestRequestId.current) {
+      if (requestId === latestRequestId.current && mountedRef.current) {
         setLoading(false);
       }
     }
   }, [getCachedResult, setCachedResult]);
 
-  const debouncedSearch = useCallback((query) => {
-    if (debounceTimeout.current) {
-      clearTimeout(debounceTimeout.current);
+  const setSearchQuery = useCallback((text) => {
+    const value = text || '';
+    setSearchQueryState(value);
+
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+
+    if (value.trim().length < 2) {
+      setSearchResults([]);
+      return;
     }
 
     debounceTimeout.current = setTimeout(() => {
-      performSearch(query);
+      performSearch(value);
     }, 300);
   }, [performSearch]);
 
   const handleSearch = useCallback((query) => {
-    setSearchQuery(query || '');
-    
-    if (query && query.trim().length >= 2) {
-      debouncedSearch(query);
-    } else {
-      setSearchResults([]);
-    }
-  }, [debouncedSearch]);
+    const value = query || '';
+    setSearchQueryState(value);
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    performSearch(value);
+  }, [performSearch]);
 
   const getSuggestions = useCallback(async (partialQuery) => {
     if (!partialQuery || partialQuery.trim().length < 2) {
@@ -152,7 +164,7 @@ export const useFoodSearch = () => {
   }, [getCachedResult, setCachedResult]);
 
   const clearSearch = useCallback(() => {
-    setSearchQuery('');
+    setSearchQueryState('');
     setSearchResults([]);
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);

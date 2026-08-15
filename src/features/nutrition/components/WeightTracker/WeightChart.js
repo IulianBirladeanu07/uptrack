@@ -109,7 +109,7 @@ const WeightChart = ({ data, period, width }) => {
             return { points: pts, xLabels: labels };
         }
 
-        const weekCount = period === '4W' ? 4 : 8;
+        const weekCount = period === '4W' ? 4 : period === '12W' ? 12 : 8;
         const allSlots  = [];
 
         for (let i = weekCount - 1; i >= 0; i--) {
@@ -201,7 +201,11 @@ const WeightChart = ({ data, period, width }) => {
                 ))}
 
                 {xLabels
-                    .filter((_, i) => period !== '8W' || i % 2 === 0)
+                    .filter((_, i) => {
+                        if (period === '12W') return i % 3 === 0 || i === xLabels.length - 1;
+                        if (period === '8W') return i % 2 === 0;
+                        return true;
+                    })
                     .map(l => (
                         <SvgText
                             key={l.key}
