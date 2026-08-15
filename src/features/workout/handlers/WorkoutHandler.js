@@ -130,7 +130,7 @@ async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMe
             timestamp: serverTimestamp(),
             note: inputText,
             duration: formatTime(elapsedTime),
-            workoutName: templateName || 'Workout',
+            workoutName: templateName || null,
             exercises: exercisesWithPR.map(exercise => ({
                 ...exercise,
                 sets: exercise.sets.map(set => ({
@@ -151,7 +151,7 @@ async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMe
             notes: inputText,
             exercises: exercisesWithPR,
             timestamp: timestamp.toDateString() + ' ' + timestamp.toLocaleTimeString(),
-            workoutName: templateName || 'Workout',
+            workoutName: templateName || null,
         });
     } catch (error) {
         console.error('Error finishing workout:', error.message);
@@ -824,6 +824,25 @@ export const fetchSplitsFromFirestore = async () => {
       id: doc.id,
       data: doc.data()
     }));
+
+    const templates = await fetchTemplatesFromFirestore();
+    const templateMap = new Map(templates.map(t => [t.id, t.data]));
+
+    splits.forEach(split => {
+      const schedule = split.data.schedule || {};
+      Object.keys(schedule).forEach(day => {
+        const dayData = schedule[day];
+        const template = dayData?.templateId && templateMap.get(dayData.templateId);
+        if (template) {
+          schedule[day] = {
+            ...dayData,
+            templateName: template.templateName || dayData.templateName,
+            exercises: template.exercises || dayData.exercises,
+            duration: template.duration ?? dayData.duration,
+          };
+        }
+      });
+    });
 
     return splits;
   } catch (error) {

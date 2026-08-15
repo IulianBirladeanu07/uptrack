@@ -65,11 +65,13 @@ const styles = createStyles(() => ({
     },
     startAgainButton: {
         borderRadius: radius[3],
-        paddingVertical: spacing[3],
+        paddingVertical: spacing[4],
         borderWidth: 1,
         borderColor: colors.border.default,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        gap: spacing[2],
     },
     startAgainButtonText: {
         fontSize: fontSize[14],

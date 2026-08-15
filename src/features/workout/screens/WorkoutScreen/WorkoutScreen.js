@@ -162,6 +162,7 @@ const MainWorkoutCard = React.memo(({
                     </TouchableOpacity>
                 )}
                 <TouchableOpacity style={styles.startAgainButton} onPress={onStartAgain} activeOpacity={0.7}>
+                    <Ionicons name="refresh" size={14} color={colors.text.secondary} />
                     <Text style={styles.startAgainButtonText}>Do It Again</Text>
                 </TouchableOpacity>
             </View>
@@ -223,8 +224,8 @@ const MainWorkoutCard = React.memo(({
     }
 
     const totalSets = workoutData.exercises?.reduce((acc, ex) => acc + (parseInt(ex.numSets) || 0), 0) ?? 0;
-    const visibleExercises = allExercises.slice(0, 4);
-    const extraCount = allExercises.length - 4;
+    const visibleExercises = allExercises.slice(0, 3);
+    const extraCount = allExercises.length - 3;
 
     return (
         <View style={styles.workoutCard}>
@@ -395,10 +396,19 @@ const ComingUpCard = React.memo(({ upcomingWorkouts, onPreview, onViewAll }) => 
     );
 });
 
+const getFallbackWorkoutName = (entry) => {
+    const hour = entry.timestamp?.toDate?.()?.getHours();
+    if (hour === undefined) return 'Workout';
+    if (hour >= 5 && hour < 12) return 'Morning Workout';
+    if (hour >= 12 && hour < 17) return 'Afternoon Workout';
+    if (hour >= 17 && hour < 21) return 'Evening Workout';
+    return 'Night Workout';
+};
+
 const summarizeWorkoutEntry = (entry) => {
     const exercises = entry.exercises ?? [];
     return {
-        name: entry.workoutName ?? entry.templateName ?? null,
+        name: entry.workoutName || entry.templateName || getFallbackWorkoutName(entry),
         duration: entry.duration ?? '0:00',
         totalSets: exercises.reduce((acc, ex) => acc + (ex.sets?.length ?? 0), 0),
         exerciseCount: exercises.length,
@@ -506,7 +516,7 @@ const WorkoutScreen = () => {
             } : null);
 
             const upcoming = [];
-            for (let i = 1; i <= 13 && upcoming.length < 2; i++) {
+            for (let i = 1; i <= 13 && upcoming.length < 3; i++) {
                 const futureDay = (todayIdx + i) % 7;
                 const futureKey = DAYS_MAP[futureDay];
                 const w = schedule?.[futureKey];
@@ -554,6 +564,11 @@ const WorkoutScreen = () => {
     const allExercises = useMemo(
         () => primaryWorkout?.workout?.exercises?.map(e => e.exerciseName) ?? [],
         [primaryWorkout]
+    );
+
+    const comingUpWorkouts = useMemo(
+        () => (primaryWorkout?.isToday ? upcomingWorkouts.slice(0, 2) : upcomingWorkouts.slice(1, 3)),
+        [primaryWorkout, upcomingWorkouts]
     );
 
     const handleStartWorkout = useCallback(() => {
@@ -635,7 +650,7 @@ const WorkoutScreen = () => {
                 />
 
                 <ComingUpCard
-                    upcomingWorkouts={upcomingWorkouts.slice(0, 2)}
+                    upcomingWorkouts={comingUpWorkouts}
                     onPreview={handlePreviewWorkout}
                     onViewAll={handleLibraryPress}
                 />
