@@ -63,6 +63,21 @@ const toY = (w, yMin, yMax, top, bottom) =>
 const labelAnchor = (i, total) =>
     i === 0 ? 'start' : i === total - 1 ? 'end' : 'middle';
 
+const getLabelAbove = (pts, i) => {
+    const p    = pts[i];
+    const prev = pts[i - 1];
+    const next = pts[i + 1];
+
+    if (prev && next) {
+        if (p.y <= prev.y && p.y <= next.y) return true;
+        if (p.y >= prev.y && p.y >= next.y) return false;
+        return p.y < (prev.y + next.y) / 2;
+    }
+    if (next) return p.y <= next.y;
+    if (prev) return p.y <= prev.y;
+    return true;
+};
+
 const WeightChart = ({ data, period, width }) => {
     const drawW   = width - PAD_SIDE * 2;
     const drawTop = PAD_TOP;
@@ -97,10 +112,10 @@ const WeightChart = ({ data, period, width }) => {
                 y:      toY(s.weight, yMin, yMax, drawTop, drawBot),
                 key:    s.key,
                 weight: s.weight,
-                above:  idx % 2 === 0,
                 idx,
                 total:  present.length,
             }));
+            pts.forEach((p, i) => { p.above = getLabelAbove(pts, i); });
 
             const labels = slots.map((s, i) => ({
                 x: (s.i / n) * drawW, label: s.label, key: s.key, index: i, total: slots.length,
@@ -147,10 +162,10 @@ const WeightChart = ({ data, period, width }) => {
             y:      toY(w.avg, yMin, yMax, drawTop, drawBot),
             key:    w.key,
             weight: w.avg,
-            above:  idx % 2 === 0,
             idx,
             total:  present.length,
         }));
+        pts.forEach((p, i) => { p.above = getLabelAbove(pts, i); });
 
         const labels = allSlots.map((w, i) => ({
             x: (w.slot / n) * drawW, label: w.label, key: w.key, index: i, total: allSlots.length,

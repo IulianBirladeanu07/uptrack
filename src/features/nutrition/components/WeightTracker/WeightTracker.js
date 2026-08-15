@@ -17,14 +17,13 @@ import {
     handleSaveLogic,
     processWeightInsForDisplay,
     adjustWeight,
-    getLocalWeekStart,
 } from '../../helpers/weightTrackerUtils';
 import WeightChart from './WeightChart';
 import { isSuspiciousWeightEntry, getCurrentTrendWeight } from '../../../profile/utils/weightTrendEngine';
 import { useFoodContext } from '../../context/FoodContext';
 
-const WEEK_DAYS          = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-const DAY_LABELS         = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEK_DAYS          = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const DAY_LABELS         = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DATE_OPTIONS_COUNT = 7;
 
 const KEYPAD_ROWS = [
@@ -72,8 +71,8 @@ const buildWeeklyGroups = (weightIns) => {
                     const date = new Date(y, m - 1, d + i);
                     return {
                         key,
-                        weight:  parseFloat(val),
-                        dateStr: date.toISOString().split('T')[0],
+                        weight: parseFloat(val),
+                        date,
                     };
                 })
                 .filter(Boolean);
@@ -152,19 +151,15 @@ const WeekRow = ({ group, isBulking, expanded, onToggle }) => {
 
             {expanded && group.days.length > 0 && (
                 <View style={styles.dayList}>
-                    {group.days.map((day, i) => {
-                        const [y, m, d] = day.dateStr.split('-').map(Number);
-                        const date = new Date(y, m - 1, d);
-                        return (
-                            <View key={day.key} style={[styles.dayRow, i === group.days.length - 1 && styles.dayRowLast]}>
-                                <Text style={styles.dayLabel}>{formatDate(date)}</Text>
-                                <View style={styles.dayWeightRow}>
-                                    <Text style={styles.dayWeight}>{day.weight.toFixed(1)}</Text>
-                                    <Text style={styles.dayWeightUnit}> kg</Text>
-                                </View>
+                    {group.days.map((day, i) => (
+                        <View key={day.key} style={[styles.dayRow, i === group.days.length - 1 && styles.dayRowLast]}>
+                            <Text style={styles.dayLabel}>{formatDate(day.date)}</Text>
+                            <View style={styles.dayWeightRow}>
+                                <Text style={styles.dayWeight}>{day.weight.toFixed(1)}</Text>
+                                <Text style={styles.dayWeightUnit}> kg</Text>
                             </View>
-                        );
-                    })}
+                        </View>
+                    ))}
                 </View>
             )}
         </View>
@@ -282,20 +277,6 @@ const WeightTracker = () => {
     }, [isSelected, modalVisible, cursorOpacity]);
 
     const allEntries = useMemo(() => processWeightInsForDisplay(weightIns, 60), [weightIns]);
-
-    const streak = useMemo(() => {
-        if (!allEntries.length) return 0;
-        const set = new Set(allEntries.map(e => e.dateKey));
-        const cur = new Date();
-        cur.setHours(0, 0, 0, 0);
-        if (!set.has(cur.toISOString().split('T')[0])) cur.setDate(cur.getDate() - 1);
-        let n = 0;
-        while (n < 365) {
-            if (set.has(cur.toISOString().split('T')[0])) { n++; cur.setDate(cur.getDate() - 1); }
-            else break;
-        }
-        return n;
-    }, [allEntries]);
 
     const thisWeekDays = useMemo(() =>
         DAY_LABELS.map((label, i) => ({
@@ -548,9 +529,9 @@ const commitWeightSave = async (parsedWeight) => {
                         <Text style={styles.cardTitle}>Progress</Text>
                         <View style={styles.periodPills}>
                             {[
-                                { key: '7',  label: 'Week' },
-                                { key: '4W', label: '4W'   },
-                                { key: '8W', label: '8W'   },
+                                { key: '7',   label: 'Week' },
+                                { key: '8W',  label: '8W'   },
+                                { key: '12W', label: '12W'  },
                             ].map(p => (
                                 <TouchableOpacity
                                     key={p.key}
