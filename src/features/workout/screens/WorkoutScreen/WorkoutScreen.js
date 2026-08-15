@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState, useContext, useRef } from 'react';
 import {
     View, Text, TouchableOpacity, Modal, Pressable,
-    ScrollView, ActivityIndicator, Animated,
+    ScrollView, ActivityIndicator, Animated, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -95,8 +95,8 @@ const WorkoutStatsMeta = ({ duration, exerciseCount, totalSets }) => (
 );
 
 const MainWorkoutCard = React.memo(({
-    workoutData, onStart, onResume, onPreview,
-    allExercises, isRestDay, activeWorkout, isToday, lastWorkoutStats,
+    workoutData, onStart, onStartAgain, onResume, onPreview,
+    allExercises, isRestDay, activeWorkout, isToday, lastWorkoutStats, todayCompletedStats,
 }) => {
     if (activeWorkout) {
         return (
@@ -106,6 +106,63 @@ const MainWorkoutCard = React.memo(({
                     <PulseDot />
                     <Text style={styles.resumeButtonText}>Resume Workout</Text>
                     <Text style={styles.resumeTimer}>· <LiveTimer startTime={activeWorkout.startTime} /></Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    if (isToday && todayCompletedStats) {
+        const stats = todayCompletedStats;
+        const extraCount = (stats.exercises?.length ?? 0) - 3;
+
+        return (
+            <View style={styles.workoutCard}>
+                <View style={styles.workoutTitleRow}>
+                    <Text style={styles.workoutCardTitle}>{stats.name ?? 'Workout'}</Text>
+                    <View style={styles.doneBadge}>
+                        <Ionicons name="checkmark" size={11} color={colors.accent.success} />
+                        <Text style={styles.doneBadgeText}>Done</Text>
+                    </View>
+                </View>
+                <View style={styles.workoutMeta}>
+                    <Text style={styles.metaText}>{stats.duration}</Text>
+                    <Text style={styles.metaSep}>·</Text>
+                    <Text style={styles.metaText}>{stats.exerciseCount} exercises</Text>
+                    <Text style={styles.metaSep}>·</Text>
+                    <Text style={styles.metaText}>{stats.totalSets} sets</Text>
+                </View>
+                <View style={styles.exerciseList}>
+                    {stats.exercises.slice(0, 3).map((ex, i) => (
+                        <ExerciseRow
+                            key={i}
+                            sets={ex.sets}
+                            name={ex.name}
+                            reps={ex.bestSet}
+                            isLast={i === Math.min(2, stats.exercises.length - 1)}
+                        />
+                    ))}
+                </View>
+                {extraCount > 0 && (
+                    <TouchableOpacity
+                        onPress={() => onPreview({
+                            name: stats.name ?? 'Workout',
+                            duration: stats.duration,
+                            exercises: stats.exercises.map(ex => ({
+                                exerciseName: ex.name,
+                                numSets: ex.sets,
+                                repRange: ex.bestSet ?? '',
+                            })),
+                        })}
+                        activeOpacity={0.7}
+                        style={styles.exerciseMoreRow}
+                    >
+                        <View style={styles.exerciseMoreLine} />
+                        <Text style={styles.exerciseMore}>+{extraCount} more exercises</Text>
+                        <View style={styles.exerciseMoreLine} />
+                    </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.startAgainButton} onPress={onStartAgain} activeOpacity={0.7}>
+                    <Text style={styles.startAgainButtonText}>Do It Again</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -338,6 +395,29 @@ const ComingUpCard = React.memo(({ upcomingWorkouts, onPreview, onViewAll }) => 
     );
 });
 
+const summarizeWorkoutEntry = (entry) => {
+    const exercises = entry.exercises ?? [];
+    return {
+        name: entry.workoutName ?? entry.templateName ?? null,
+        duration: entry.duration ?? '0:00',
+        totalSets: exercises.reduce((acc, ex) => acc + (ex.sets?.length ?? 0), 0),
+        exerciseCount: exercises.length,
+        exercises: exercises.map(ex => {
+            const sets = ex.sets ?? [];
+            const bestSet = sets.reduce((best, s) => {
+                return (parseFloat(s.weight) || 0) > (parseFloat(best.weight) || 0) ? s : best;
+            }, sets[0] ?? {});
+            const weight = parseFloat(bestSet?.weight);
+            const reps = parseInt(bestSet?.reps);
+            return {
+                name: ex.exerciseName ?? ex.name ?? '',
+                sets: sets.length,
+                bestSet: weight && reps ? `${weight}kg × ${reps}` : reps ? `${reps} reps` : null,
+            };
+        }),
+    };
+};
+
 const WorkoutScreen = () => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
@@ -371,26 +451,7 @@ const WorkoutScreen = () => {
 
             const last = sorted[0];
             if (last) {
-                const exercises = last.exercises ?? [];
-                lastWorkoutStats = {
-                    name: last.workoutName ?? last.templateName ?? null,
-                    duration: last.duration ?? '0:00',
-                    totalSets: exercises.reduce((acc, ex) => acc + (ex.sets?.length ?? 0), 0),
-                    exerciseCount: exercises.length,
-                    exercises: exercises.map(ex => {
-                        const sets = ex.sets ?? [];
-                        const bestSet = sets.reduce((best, s) => {
-                            return (parseFloat(s.weight) || 0) > (parseFloat(best.weight) || 0) ? s : best;
-                        }, sets[0] ?? {});
-                        const weight = parseFloat(bestSet?.weight);
-                        const reps = parseInt(bestSet?.reps);
-                        return {
-                            name: ex.exerciseName ?? ex.name ?? '',
-                            sets: sets.length,
-                            bestSet: weight && reps ? `${weight}kg × ${reps}` : reps ? `${reps} reps` : null,
-                        };
-                    }),
-                };
+                lastWorkoutStats = summarizeWorkoutEntry(last);
             }
 
             sorted.forEach(w => {
@@ -402,6 +463,19 @@ const WorkoutScreen = () => {
         }
 
         return { completedDaysThisWeek, lastWorkoutStats };
+    }, [workoutHistory]);
+
+    const todayCompletedStats = useMemo(() => {
+        if (!workoutHistory?.length) return null;
+        const todayStr = new Date().toDateString();
+        const todaysEntries = workoutHistory.filter(w => w.timestamp?.toDate?.()?.toDateString() === todayStr);
+        if (!todaysEntries.length) return null;
+        const sorted = [...todaysEntries].sort((a, b) => {
+            const at = a.timestamp?.toDate?.()?.getTime() ?? 0;
+            const bt = b.timestamp?.toDate?.()?.getTime() ?? 0;
+            return bt - at;
+        });
+        return summarizeWorkoutEntry(sorted[0]);
     }, [workoutHistory]);
 
     const loadActiveSplit = useCallback(async () => {
@@ -494,6 +568,17 @@ const WorkoutScreen = () => {
 
     const handleResumeWorkout = useCallback(() => navigation.navigate('StartWorkout'), [navigation]);
 
+    const handleStartAgain = useCallback(() => {
+        Alert.alert(
+            'Log Another Session?',
+            `You already logged "${todayCompletedStats?.name ?? 'a workout'}" today. Starting again will add a second entry for today.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Start Again', onPress: handleStartWorkout },
+            ]
+        );
+    }, [todayCompletedStats, handleStartWorkout]);
+
     const handlePreviewWorkout = useCallback((workout) => {
         setPreviewWorkout(workout);
         setIsModalVisible(true);
@@ -532,6 +617,7 @@ const WorkoutScreen = () => {
                 <MainWorkoutCard
                     workoutData={primaryWorkout.workout}
                     onStart={handleStartWorkout}
+                    onStartAgain={handleStartAgain}
                     onResume={handleResumeWorkout}
                     onPreview={handlePreviewWorkout}
                     allExercises={allExercises}
@@ -539,6 +625,7 @@ const WorkoutScreen = () => {
                     activeWorkout={activeWorkout}
                     isToday={primaryWorkout.isToday}
                     lastWorkoutStats={userStats.lastWorkoutStats}
+                    todayCompletedStats={todayCompletedStats}
                 />
 
                 <ThisWeekCard

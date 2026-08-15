@@ -455,6 +455,8 @@ const StartWorkout = ({ route, navigation }) => {
         isKeyboardVisibleRef.current = false;
     }, []);
 
+    const hasNavigatedBackRef = useRef(false);
+
     const handleBackPress = useCallback(() => {
         if (activeExerciseMenu) {
             setActiveExerciseMenu(null);
@@ -466,6 +468,10 @@ const StartWorkout = ({ route, navigation }) => {
             isKeyboardVisibleRef.current = false;
             return true;
         }
+        if (hasNavigatedBackRef.current || !navigation.canGoBack()) {
+            return true;
+        }
+        hasNavigatedBackRef.current = true;
         refreshAllData();
         navigation.goBack();
         return true;

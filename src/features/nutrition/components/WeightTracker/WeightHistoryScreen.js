@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -63,17 +63,21 @@ const TrendChip = ({ value, isBulking }) => {
     );
 };
 
-const WeekCard = ({ week, prevWeek, isBulking, expanded, onToggle }) => {
-    const days = DAY_KEY_ORDER
-        .map((key, i) => {
-            const val = week.days?.[key];
-            if (val == null) return null;
-            return { key, weight: parseFloat(val), label: formatDayLabel(week.weekStart, i) };
-        })
-        .filter(Boolean);
+const WeekCard = React.memo(({ week, prevAverage, isBulking, expanded, onToggle }) => {
+    const days = useMemo(() => (
+        DAY_KEY_ORDER
+            .map((key, i) => {
+                const val = week.days?.[key];
+                if (val == null) return null;
+                return { key, weight: parseFloat(val), label: formatDayLabel(week.weekStart, i) };
+            })
+            .filter(Boolean)
+    ), [week]);
 
-    const trend = (week.average != null && prevWeek?.average != null)
-        ? parseFloat((week.average - prevWeek.average).toFixed(2))
+    const weekRange = useMemo(() => formatWeekRange(week.weekStart), [week.weekStart]);
+
+    const trend = (week.average != null && prevAverage != null)
+        ? parseFloat((week.average - prevAverage).toFixed(2))
         : null;
 
     return (
@@ -84,7 +88,7 @@ const WeekCard = ({ week, prevWeek, isBulking, expanded, onToggle }) => {
                 activeOpacity={0.7}
             >
                 <View style={styles.weekCardLeft}>
-                    <Text style={styles.weekRange}>{formatWeekRange(week.weekStart)}</Text>
+                    <Text style={styles.weekRange}>{weekRange}</Text>
                     <Text style={styles.weekDaysLogged}>{days.length} day{days.length !== 1 ? 's' : ''} logged</Text>
                 </View>
                 <View style={styles.weekCardRight}>
@@ -115,7 +119,7 @@ const WeekCard = ({ week, prevWeek, isBulking, expanded, onToggle }) => {
             )}
         </View>
     );
-};
+});
 
 const WeightHistoryScreen = ({ route }) => {
     const navigation = useNavigation();
@@ -127,6 +131,14 @@ const WeightHistoryScreen = ({ route }) => {
     const sortedAll = useMemo(() =>
         [...weightIns].sort((a, b) => new Date(a.weekStart) - new Date(b.weekStart)),
     [weightIns]);
+
+    const prevAverageMap = useMemo(() => {
+        const map = {};
+        for (let i = 1; i < sortedAll.length; i++) {
+            map[sortedAll[i].weekStart] = sortedAll[i - 1].average;
+        }
+        return map;
+    }, [sortedAll]);
 
     const totalWeeks    = weightIns.length;
     const latestAverage = sortedAll[sortedAll.length - 1]?.average ?? null;
@@ -141,9 +153,9 @@ const WeightHistoryScreen = ({ route }) => {
         ? (isBulking ? totalChange > 0 : totalChange < 0)
         : null;
 
-    const toggleWeek = (weekStart) => {
+    const toggleWeek = useCallback((weekStart) => {
         setExpandedWeeks(prev => ({ ...prev, [weekStart]: !prev[weekStart] }));
-    };
+    }, []);
 
     return (
         <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -211,20 +223,16 @@ const WeightHistoryScreen = ({ route }) => {
                     <View key={group.label} style={styles.monthSection}>
                         <Text style={styles.monthLabel}>{group.label}</Text>
                         <View style={styles.monthCards}>
-                            {group.weeks.map((week) => {
-                                const prevIdx = sortedAll.findIndex(w => w.weekStart === week.weekStart) - 1;
-                                const prevWeek = prevIdx >= 0 ? sortedAll[prevIdx] : null;
-                                return (
-                                    <WeekCard
-                                        key={week.weekStart}
-                                        week={week}
-                                        prevWeek={prevWeek}
-                                        isBulking={isBulking}
-                                        expanded={!!expandedWeeks[week.weekStart]}
-                                        onToggle={() => toggleWeek(week.weekStart)}
-                                    />
-                                );
-                            })}
+                            {group.weeks.map((week) => (
+                                <WeekCard
+                                    key={week.weekStart}
+                                    week={week}
+                                    prevAverage={prevAverageMap[week.weekStart] ?? null}
+                                    isBulking={isBulking}
+                                    expanded={!!expandedWeeks[week.weekStart]}
+                                    onToggle={() => toggleWeek(week.weekStart)}
+                                />
+                            ))}
                         </View>
                     </View>
                 ))}
