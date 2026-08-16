@@ -58,7 +58,6 @@ const CreateSplitScreen = ({ navigation, route }) => {
             templateName: templateData.templateName || `Workout ${index + 1}`,
             duration: templateData.duration || 0,
             exercises: Array.isArray(templateData.exercises) ? templateData.exercises : [],
-            colorIndex: index,
           };
         });
         setWorkouts(normalizedWorkouts);

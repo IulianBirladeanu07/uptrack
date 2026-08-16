@@ -3,13 +3,11 @@ import { View, Text, TouchableOpacity, Animated, LayoutAnimation, Haptics } from
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../../../../../shared/theme';
 import styles from './WorkoutPreviewCardStyles';
-import { workoutColors } from '../constants/CreateSplitScreenConstants';
 
 const WorkoutPreviewCard = React.memo(({
   workout,
   onSelect,
   selectedDay,
-  colorIndex,
   splitData,
   onRemove,
 }) => {
@@ -17,31 +15,6 @@ const WorkoutPreviewCard = React.memo(({
   const [showAllExercises, setShowAllExercises] = useState(false);
   const rotateAnimation = useRef(new Animated.Value(0)).current;
   const buttonScaleAnimation = useRef(new Animated.Value(1)).current;
-
-  const getWorkoutVisualization = useCallback((wk) => {
-    const isRest = wk.templateName?.toLowerCase() === 'rest';
-    if (isRest) {
-      return workoutColors.find(c => c.category === 'rest') || { bg: colors.faded.surfaceMedium, text: colors.text.quaternary, icon: 'bed' };
-    }
-    const workoutName = (wk.templateName || '').toLowerCase();
-    const muscleGroups = (wk.exercises || []).map(ex => (ex.muscleGroup || '').toLowerCase()).join(' ');
-
-    if (workoutName.includes('cardio') || muscleGroups.includes('cardio')) {
-      return workoutColors.find(c => c.category === 'cardio') || { bg: colors.accent.blue, text: colors.text.primary, icon: 'bicycle' };
-    }
-    if (workoutName.includes('hiit') || workoutName.includes('circuit')) {
-      return workoutColors.find(c => c.category === 'hiit') || { bg: colors.accent.amber, text: colors.text.primary, icon: 'flame' };
-    }
-    if (workoutName.includes('yoga') || workoutName.includes('stretch')) {
-      return workoutColors.find(c => c.category === 'recovery') || { bg: colors.accent.success, text: colors.text.primary, icon: 'yoga' };
-    }
-    if (workoutName.includes('functional') || muscleGroups.includes('functional')) {
-      return workoutColors.find(c => c.category === 'functional') || { bg: colors.accent.purple, text: colors.text.primary, icon: 'walk' };
-    }
-    return workoutColors[colorIndex % workoutColors.length] || { bg: colors.accent.primary, text: colors.text.primary, icon: 'barbell' };
-  }, [colorIndex]);
-
-  const workoutVisualization = useMemo(() => getWorkoutVisualization(workout), [getWorkoutVisualization, workout]);
 
   const isAssigned = useMemo(() => {
     if (!splitData?.schedule) return null;
@@ -152,13 +125,6 @@ const WorkoutPreviewCard = React.memo(({
         style={styles.cardHeader}
       >
         <View style={styles.headerLeft}>
-          <View style={[styles.workoutIcon, { backgroundColor: workoutVisualization.bg }]}>
-            <Ionicons
-              name={workoutVisualization.icon}
-              size={spacing.iconMd}
-              color={workoutVisualization.text}
-            />
-          </View>
           <View style={styles.headerContent}>
             <View style={styles.titleRow}>
               <Text style={styles.workoutName} numberOfLines={1}>
@@ -201,19 +167,19 @@ const WorkoutPreviewCard = React.memo(({
           {canAdd && (
             <Animated.View style={{ transform: [{ scale: buttonScaleAnimation }] }}>
               <TouchableOpacity
-                style={styles.addButton}
+                style={[styles.selectionButton, styles.addButton]}
                 onPress={handleQuickAdd}
                 activeOpacity={0.8}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="add" size={spacing.iconMd} color={colors.accent.primary} />
+                <Ionicons name="add" size={spacing.iconMd} color={colors.text.tertiary} />
               </TouchableOpacity>
             </Animated.View>
           )}
           {isAssigned && (
             <Animated.View style={{ transform: [{ scale: buttonScaleAnimation }] }}>
               <TouchableOpacity
-                style={styles.removeButton}
+                style={[styles.selectionButton, styles.removeButton]}
                 onPress={handleRemoveFromDay}
                 activeOpacity={0.8}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

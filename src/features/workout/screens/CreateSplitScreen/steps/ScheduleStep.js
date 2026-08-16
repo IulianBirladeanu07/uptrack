@@ -290,14 +290,13 @@ const ScheduleStep = ({
       >
         <View style={styles.workoutsList}>
           {workouts.length > 0 ? (
-            workouts.map((workout, index) => (
+            workouts.map((workout) => (
               <WorkoutPreviewCard
                 key={workout.id}
                 workout={workout}
                 onSelect={workout => handleDayAssignment(workout, selectedDay)}
                 onRemove={handleWorkoutRemoval}
                 selectedDay={selectedDay}
-                colorIndex={index}
                 splitData={splitData}
               />
             ))

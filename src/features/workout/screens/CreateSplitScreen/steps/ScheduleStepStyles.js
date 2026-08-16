@@ -64,16 +64,19 @@ const styles = createStyles(() => ({
     borderRadius: radius[5],
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background.tertiary,
     borderWidth: 1,
     borderColor: colors.border.default,
   },
-  dayCircleSelected: {
-    backgroundColor: colors.accent.primary,
-    borderColor: colors.accent.primary,
-  },
   dayCircleHasWorkout: {
     backgroundColor: colors.faded.primary,
+    borderColor: colors.border.primaryAlt,
+  },
+  dayCircleSelected: {
+    backgroundColor: colors.faded.primaryLight,
+    borderColor: colors.accent.primary,
+  },
+  dayCircleSelectedHasWorkout: {
+    backgroundColor: colors.accent.primary,
     borderColor: colors.accent.primary,
   },
   dayCircleText: {
@@ -81,11 +84,11 @@ const styles = createStyles(() => ({
     fontWeight: fontWeight.bold,
     color: colors.text.quaternary,
   },
-  dayCircleTextSelected: {
-    color: colors.accent.buttonText,
-  },
   dayCircleTextHasWorkout: {
     color: colors.accent.primary,
+  },
+  dayCircleTextSelected: {
+    color: colors.accent.buttonText,
   },
   dayLabel: {
     fontSize: fontSize[10],

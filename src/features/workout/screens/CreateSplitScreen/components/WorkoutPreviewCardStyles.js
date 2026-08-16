@@ -4,36 +4,27 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../../../../sh
 const styles = createStyles(() => ({
   workoutCard: {
     backgroundColor: colors.background.secondary,
-    borderRadius: radius[4],
-    marginBottom: spacing[3],
+    borderRadius: radius[3],
+    marginBottom: spacing[2],
     borderWidth: 1,
     borderColor: colors.border.default,
   },
   workoutCardAssigned: {
-    borderColor: colors.accent.primary,
+    borderColor: colors.border.primarySelected,
     borderWidth: 1.5,
+    backgroundColor: colors.background.selectedCard,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[3],
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     marginRight: spacing[3],
-  },
-  workoutIcon: {
-    width: spacing[12],
-    height: spacing[12],
-    borderRadius: radius[3],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing[3],
-    borderWidth: 1,
-    borderColor: colors.border.default,
   },
   headerContent: {
     flex: 1,
@@ -98,25 +89,22 @@ const styles = createStyles(() => ({
     alignItems: 'center',
     gap: spacing[2],
   },
-  addButton: {
-    width: spacing[10],
-    height: spacing[10],
+  selectionButton: {
+    alignSelf: 'center',
+    padding: spacing[2],
     borderRadius: radius[5],
-    backgroundColor: colors.faded.primaryLight,
-    borderWidth: 1,
-    borderColor: colors.border.primaryAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  addButton: {
+    backgroundColor: colors.faded.surfaceMedium,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
   removeButton: {
-    width: spacing[10],
-    height: spacing[10],
-    borderRadius: radius[5],
     backgroundColor: colors.faded.successAlt,
     borderWidth: 1,
     borderColor: colors.border.successAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   chevronButton: {
     width: spacing[8],
@@ -127,7 +115,7 @@ const styles = createStyles(() => ({
   expandedContent: {
     borderTopWidth: 1,
     borderTopColor: colors.border.light,
-    paddingHorizontal: spacing[4],
+    paddingHorizontal: spacing[3],
     paddingBottom: spacing[3],
   },
   exerciseRow: {
