@@ -180,8 +180,7 @@ const ScheduleStep = ({
               {currentScheduleDays.map(day => {
                 const dayId = day.id;
                 const isSelected = selectedDay === dayId;
-                const hasWorkout = splitData.schedule[dayId];
-
+                const hasWorkout = !!splitData.schedule[dayId];
                 return (
                   <TouchableOpacity
                     key={dayId}
@@ -191,12 +190,12 @@ const ScheduleStep = ({
                   >
                     <View style={[
                       styles.dayCircle,
-                      hasWorkout && styles.dayCircleHasWorkout,
+                      hasWorkout && !isSelected && styles.dayCircleHasWorkout,
                       isSelected && styles.dayCircleSelected,
                     ]}>
                       <Text style={[
                         styles.dayCircleText,
-                        hasWorkout && styles.dayCircleTextHasWorkout,
+                        hasWorkout && !isSelected && styles.dayCircleTextHasWorkout,
                         isSelected && styles.dayCircleTextSelected,
                       ]}>
                         {day.shortLabel}
@@ -221,8 +220,7 @@ const ScheduleStep = ({
               {currentScheduleDays.map(day => {
                 const dayId = day.number;
                 const isSelected = selectedDay === dayId;
-                const hasWorkout = splitData.schedule[dayId];
-
+                const hasWorkout = !!splitData.schedule[dayId];
                 return (
                   <TouchableOpacity
                     key={dayId}
@@ -232,12 +230,12 @@ const ScheduleStep = ({
                   >
                     <View style={[
                       styles.dayCircle,
-                      hasWorkout && styles.dayCircleHasWorkout,
+                      hasWorkout && !isSelected && styles.dayCircleHasWorkout,
                       isSelected && styles.dayCircleSelected,
                     ]}>
                       <Text style={[
                         styles.dayCircleText,
-                        hasWorkout && styles.dayCircleTextHasWorkout,
+                        hasWorkout && !isSelected && styles.dayCircleTextHasWorkout,
                         isSelected && styles.dayCircleTextSelected,
                       ]}>
                         {day.shortLabel}
@@ -267,11 +265,12 @@ const ScheduleStep = ({
                 : `${getCurrentDayName()} • Rest Day`
               }
             </Text>
-            {!currentDayWorkout && (
-              <Text style={styles.contextSubtext}>
-                Select a workout below to schedule for this day
-              </Text>
-            )}
+            <Text style={styles.contextSubtext}>
+              {currentDayWorkout
+                ? `${currentDayWorkout.exercises?.length || 0} exercise${currentDayWorkout.exercises?.length === 1 ? '' : 's'} scheduled`
+                : 'Select a workout below to schedule for this day'
+              }
+            </Text>
           </View>
           <View style={styles.contextRight}>
             {workoutStats.unassigned > 0 && (

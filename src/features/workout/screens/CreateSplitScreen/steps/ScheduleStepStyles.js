@@ -68,14 +68,10 @@ const styles = createStyles(() => ({
     borderColor: colors.border.default,
   },
   dayCircleHasWorkout: {
-    backgroundColor: colors.faded.primary,
-    borderColor: colors.border.primaryAlt,
-  },
-  dayCircleSelected: {
     backgroundColor: colors.faded.primaryLight,
     borderColor: colors.accent.primary,
   },
-  dayCircleSelectedHasWorkout: {
+  dayCircleSelected: {
     backgroundColor: colors.accent.primary,
     borderColor: colors.accent.primary,
   },

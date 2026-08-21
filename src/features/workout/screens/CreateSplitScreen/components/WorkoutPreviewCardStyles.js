@@ -42,19 +42,6 @@ const styles = createStyles(() => ({
     letterSpacing: -0.1,
     flexShrink: 1,
   },
-  assignedBadge: {
-    backgroundColor: colors.accent.primary,
-    paddingHorizontal: spacing[2],
-    paddingVertical: spacing[1],
-    borderRadius: radius[2],
-  },
-  assignedText: {
-    fontSize: fontSize[8],
-    fontWeight: fontWeight.bold,
-    color: colors.accent.buttonText,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -91,10 +78,14 @@ const styles = createStyles(() => ({
   },
   selectionButton: {
     alignSelf: 'center',
-    padding: spacing[2],
-    borderRadius: radius[5],
+    padding: spacing[1],
+    borderRadius: radius[4],
     alignItems: 'center',
     justifyContent: 'center',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
   addButton: {
     backgroundColor: colors.faded.surfaceMedium,
@@ -105,12 +96,7 @@ const styles = createStyles(() => ({
     backgroundColor: colors.faded.successAlt,
     borderWidth: 1,
     borderColor: colors.border.successAlt,
-  },
-  chevronButton: {
-    width: spacing[8],
-    height: spacing[8],
-    alignItems: 'center',
-    justifyContent: 'center',
+    shadowColor: colors.accent.success,
   },
   expandedContent: {
     borderTopWidth: 1,

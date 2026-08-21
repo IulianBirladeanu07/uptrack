@@ -13,7 +13,6 @@ const WorkoutPreviewCard = React.memo(({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showAllExercises, setShowAllExercises] = useState(false);
-  const rotateAnimation = useRef(new Animated.Value(0)).current;
   const buttonScaleAnimation = useRef(new Animated.Value(1)).current;
 
   const isAssigned = useMemo(() => {
@@ -41,13 +40,7 @@ const WorkoutPreviewCard = React.memo(({
     if (isExpanded) {
       setShowAllExercises(false);
     }
-
-    Animated.timing(rotateAnimation, {
-      toValue: isExpanded ? 0 : 1,
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-  }, [isExpanded, rotateAnimation, workout.exercises?.length]);
+  }, [isExpanded, workout.exercises?.length]);
 
   const handleQuickAdd = useCallback((event) => {
     event.stopPropagation();
@@ -104,11 +97,6 @@ const WorkoutPreviewCard = React.memo(({
   const canAdd = !isAssigned && selectedDay && !isRestDay;
   const hasExercises = workout.exercises?.length > 0;
 
-  const chevronRotation = rotateAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
-
   const exercisesToShow = useMemo(() => {
     if (!workout.exercises?.length) return [];
     if (showAllExercises) return workout.exercises;
@@ -130,11 +118,6 @@ const WorkoutPreviewCard = React.memo(({
               <Text style={styles.workoutName} numberOfLines={1}>
                 {workout.templateName || 'Unnamed Workout'}
               </Text>
-              {isAssigned && (
-                <View style={styles.assignedBadge}>
-                  <Text style={styles.assignedText}>Assigned</Text>
-                </View>
-              )}
             </View>
             {!isRestDay ? (
               <View style={styles.metaRow}>
@@ -172,7 +155,7 @@ const WorkoutPreviewCard = React.memo(({
                 activeOpacity={0.8}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="add" size={spacing.iconMd} color={colors.text.tertiary} />
+                <Ionicons name="add" size={spacing.iconSm} color={colors.text.tertiary} />
               </TouchableOpacity>
             </Animated.View>
           )}
@@ -187,13 +170,6 @@ const WorkoutPreviewCard = React.memo(({
                 <Ionicons name="checkmark" size={spacing.iconSm} color={colors.accent.success} />
               </TouchableOpacity>
             </Animated.View>
-          )}
-          {hasExercises && (
-            <View style={styles.chevronButton}>
-              <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
-                <Ionicons name="chevron-down" size={spacing.iconSm} color={colors.text.quaternary} />
-              </Animated.View>
-            </View>
           )}
         </View>
       </TouchableOpacity>
