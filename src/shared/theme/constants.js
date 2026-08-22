@@ -34,3 +34,23 @@ export const SEARCH = {
   MAX_RECENT: 5,
   STORAGE_KEY: '@recent_searches',
 };
+
+export const MUSCLE_GROUP_COLORS = {
+  Back: '#3B82F6',
+  Biceps: '#8B5CF6',
+  Calves: '#F59E0B',
+  Chest: '#EF4444',
+  Core: '#10B981',
+  Glutes: '#F97316',
+  Hamstring: '#84CC16',
+  Legs: '#06B6D4',
+  Quads: '#8B5CF6',
+  Shoulders: '#F59E0B',
+  Triceps: '#EF4444',
+  'Full Body': '#DC2626',
+};
+
+export const FALLBACK_MUSCLE_COLORS = [
+  '#FF8535', '#00D4FF', '#10B981', '#F59E0B',
+  '#EF4444', '#3B82F6', '#A3E635', '#F97316', '#BE185D',
+];
