@@ -1,7 +1,6 @@
 // src/features/workout/screens/CreateSplitScreen/steps/ReviewStep.js
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Animated, ScrollView } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { colors, spacing, fontSize } from '../../../../../shared/theme';
 import { MUSCLE_GROUP_COLORS, FALLBACK_MUSCLE_COLORS } from '../../../../../shared/theme/constants';
@@ -11,20 +10,10 @@ import { daysOfWeek } from '../constants/CreateSplitScreenConstants';
 const MAJOR_MUSCLE_GROUPS = ['Chest', 'Back', 'Biceps', 'Quads', 'Hamstring', 'Delts', 'Triceps'];
 
 const ReviewStep = ({ splitData, setCurrentStep }) => {
-  const [animatedValue] = useState(new Animated.Value(0));
   const [selectedDay, setSelectedDay] = useState(null);
 
   const isWeeklySchedule = splitData.type === 'weekly';
   const isRotationSchedule = splitData.type === 'rotation';
-
-  useEffect(() => {
-    Animated.spring(animatedValue, {
-      toValue: 1,
-      tension: 80,
-      friction: 8,
-      useNativeDriver: true,
-    }).start();
-  }, []);
 
   const scheduleDays = useMemo(() => {
     if (isWeeklySchedule) {
@@ -94,56 +83,39 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
   }, [stats]);
 
   const renderHeader = () => (
-    <Animated.View style={[styles.headerCard, {
-      opacity: animatedValue,
-      transform: [{
-        translateY: animatedValue.interpolate({
-          inputRange: [0, 1],
-          outputRange: [20, 0]
-        })
-      }]
-    }]}>
-      <LinearGradient
-        colors={[colors.faded.primary, colors.faded.cyan, 'transparent']}
-        start={[0, 0]}
-        end={[1, 1]}
-        style={styles.gradientOverlay}
-      />
-
-      <View style={styles.headerContent}>
-        <View style={styles.headerTop}>
-          <View style={styles.titleSection}>
-            <Text style={styles.splitName}>{splitData.name || 'Your Training Split'}</Text>
-            <Text style={styles.splitType}>
-              {isWeeklySchedule ? 'Weekly Schedule' : isRotationSchedule ? 'Rotation Schedule' : 'Training Plan'}
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => setCurrentStep(0)}
-            activeOpacity={0.8}
-          >
-            <Feather name="edit-3" size={spacing.iconMd} color={colors.text.primary} />
-          </TouchableOpacity>
+    <View style={styles.headerCard}>
+      <View style={styles.headerTop}>
+        <View style={styles.titleSection}>
+          <Text style={styles.splitName}>{splitData.name || 'Your Training Split'}</Text>
+          <Text style={styles.splitType}>
+            {isWeeklySchedule ? 'Weekly Schedule' : isRotationSchedule ? 'Rotation Schedule' : 'Training Plan'}
+          </Text>
         </View>
 
-        <View style={styles.quickStats}>
-          <View style={styles.statPill}>
-            <Ionicons name="fitness" size={spacing.iconSm} color={colors.accent.primary} />
-            <Text style={styles.statText}>{stats.workoutDays} workouts</Text>
-          </View>
-          <View style={styles.statPill}>
-            <Ionicons name="time" size={spacing.iconSm} color={colors.accent.cyan} />
-            <Text style={styles.statText}>{Math.round((stats.totalDuration) / 60 * 10) / 10}h total</Text>
-          </View>
-          <View style={styles.statPill}>
-            <Ionicons name="barbell" size={spacing.iconSm} color={colors.accent.successAlt} />
-            <Text style={styles.statText}>{stats.totalSets} sets</Text>
-          </View>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => setCurrentStep(0)}
+          activeOpacity={0.8}
+        >
+          <Feather name="edit-3" size={spacing.iconMd} color={colors.text.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.quickStats}>
+        <View style={styles.statPill}>
+          <Ionicons name="fitness" size={spacing.iconSm} color={colors.accent.primary} />
+          <Text style={styles.statText}>{stats.workoutDays} workouts</Text>
+        </View>
+        <View style={styles.statPill}>
+          <Ionicons name="time" size={spacing.iconSm} color={colors.accent.cyan} />
+          <Text style={styles.statText}>{Math.round((stats.totalDuration) / 60 * 10) / 10}h total</Text>
+        </View>
+        <View style={styles.statPill}>
+          <Ionicons name="barbell" size={spacing.iconSm} color={colors.accent.successAlt} />
+          <Text style={styles.statText}>{stats.totalSets} sets</Text>
         </View>
       </View>
-    </Animated.View>
+    </View>
   );
 
   const renderSchedule = () => {
@@ -175,22 +147,21 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
             {scheduleDays.map((day) => {
               const isActive = day.id === selectedDay;
               const dayWorkout = schedule[day.id];
-              const dayIsRest = !dayWorkout;
+              const dayHasWorkout = !!dayWorkout;
               return (
                 <TouchableOpacity
                   key={day.id}
-                  style={styles.dayPillWrapper}
                   onPress={() => setSelectedDay(day.id)}
                 >
                   <View style={[
                     styles.dayPill,
-                    isActive && styles.dayPillActive,
-                    dayIsRest && !isActive && styles.restDayPill
+                    dayHasWorkout && !isActive && styles.dayPillHasWorkout,
+                    isActive && styles.dayPillSelected,
                   ]}>
                     <Text style={[
                       styles.dayPillText,
-                      isActive && styles.dayPillTextActive,
-                      dayIsRest && !isActive && styles.dayPillTextRest
+                      dayHasWorkout && !isActive && styles.dayPillTextHasWorkout,
+                      isActive && styles.dayPillTextSelected,
                     ]}>
                       {day.shortLabel}
                     </Text>
@@ -278,10 +249,10 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
       <View style={styles.volumeCard}>
         <View style={styles.cardHeader}>
           <View style={styles.cardHeaderLeft}>
-            <View style={[styles.cardIconBox, { backgroundColor: colors.faded.purple }]}>
-              <Ionicons name="body" size={spacing.iconSm} color={colors.accent.purple} />
+            <View style={styles.cardIconBox}>
+              <Ionicons name="bar-chart" size={spacing.iconSm} color={colors.accent.purple} />
             </View>
-            <Text style={styles.cardTitle}>Muscle Balance</Text>
+            <Text style={styles.cardTitle}>Muscle Coverage</Text>
           </View>
         </View>
         <Text style={styles.cardSubtext}>sets per muscle group this split</Text>

@@ -66,6 +66,7 @@ const styles = createStyles(() => ({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border.default,
+    backgroundColor: colors.faded.surface,
   },
   dayCircleHasWorkout: {
     backgroundColor: colors.faded.primaryLight,

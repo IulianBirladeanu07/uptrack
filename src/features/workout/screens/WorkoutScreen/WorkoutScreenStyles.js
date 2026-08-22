@@ -281,6 +281,7 @@ const styles = createStyles(() => ({
     dayCircleRest: {
         borderWidth: 1,
         borderColor: colors.border.default,
+        backgroundColor: colors.faded.surface,
     },
     dayCircleMissed: {
         backgroundColor: colors.faded.error,
