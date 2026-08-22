@@ -1,10 +1,10 @@
-// src/features/workout/screens/CreateSplitScreen/steps/ReviewStep.js
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { colors, spacing, fontSize } from '../../../../../shared/theme';
-import { MUSCLE_GROUP_COLORS, FALLBACK_MUSCLE_COLORS } from '../../../../../shared/theme/constants';
 import styles from './ReviewStepStyles';
+import DaySelector from '../components/DaySelector';
+import MuscleCoverageCard from '../components/MuscleCoverageCard';
 import { daysOfWeek } from '../constants/CreateSplitScreenConstants';
 
 const MAJOR_MUSCLE_GROUPS = ['Chest', 'Back', 'Biceps', 'Quads', 'Hamstring', 'Delts', 'Triceps'];
@@ -143,33 +143,16 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
         </View>
 
         <View style={styles.dayPillsContainer}>
-          <View style={styles.dayPills}>
-            {scheduleDays.map((day) => {
-              const isActive = day.id === selectedDay;
-              const dayWorkout = schedule[day.id];
-              const dayHasWorkout = !!dayWorkout;
-              return (
-                <TouchableOpacity
-                  key={day.id}
-                  onPress={() => setSelectedDay(day.id)}
-                >
-                  <View style={[
-                    styles.dayPill,
-                    dayHasWorkout && !isActive && styles.dayPillHasWorkout,
-                    isActive && styles.dayPillSelected,
-                  ]}>
-                    <Text style={[
-                      styles.dayPillText,
-                      dayHasWorkout && !isActive && styles.dayPillTextHasWorkout,
-                      isActive && styles.dayPillTextSelected,
-                    ]}>
-                      {day.shortLabel}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <DaySelector
+            days={scheduleDays.map(day => ({
+              id: day.id,
+              shortLabel: day.shortLabel,
+              hasWorkout: !!schedule[day.id],
+            }))}
+            selectedDayId={selectedDay}
+            onSelectDay={setSelectedDay}
+            layout="wrap"
+          />
         </View>
 
         {isRestDay ? (
@@ -242,63 +225,6 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
     );
   };
 
-  const renderMuscleBalance = () => {
-    const maxSets = Math.max(...stats.muscleGroupSets.map(item => item.sets), 1);
-
-    return (
-      <View style={styles.volumeCard}>
-        <View style={styles.cardHeader}>
-          <View style={styles.cardHeaderLeft}>
-            <View style={styles.cardIconBox}>
-              <Ionicons name="bar-chart" size={spacing.iconSm} color={colors.accent.purple} />
-            </View>
-            <Text style={styles.cardTitle}>Muscle Coverage</Text>
-          </View>
-        </View>
-        <Text style={styles.cardSubtext}>sets per muscle group this split</Text>
-
-        {stats.muscleGroupSets.length > 0 ? (
-          <View style={styles.volumeList}>
-            {stats.muscleGroupSets.map((item, index) => {
-              const color = MUSCLE_GROUP_COLORS[item.muscle] ?? FALLBACK_MUSCLE_COLORS[index % FALLBACK_MUSCLE_COLORS.length];
-              return (
-                <View key={item.muscle} style={styles.volumeRow}>
-                  <View style={styles.volumeLabelWrap}>
-                    <View style={[styles.volumeDot, { backgroundColor: color }]} />
-                    <Text style={styles.volumeLabel} numberOfLines={1}>{item.muscle}</Text>
-                  </View>
-                  <View style={styles.volumeBarTrack}>
-                    <View
-                      style={[
-                        styles.volumeBarFill,
-                        {
-                          width: `${Math.max((item.sets / maxSets) * 100, 6)}%`,
-                          backgroundColor: color,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.volumeValue}>{item.sets}</Text>
-                </View>
-              );
-            })}
-          </View>
-        ) : (
-          <Text style={styles.volumeEmptyText}>No exercises added yet</Text>
-        )}
-
-        {uncoveredMuscles.length > 0 && (
-          <View style={styles.coverageNote}>
-            <Ionicons name="alert-circle-outline" size={spacing.iconSm} color={colors.accent.warning} />
-            <Text style={styles.coverageNoteText}>
-              Not targeted: {uncoveredMuscles.join(', ')}
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  };
-
   return (
     <ScrollView
       style={styles.container}
@@ -307,7 +233,11 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
     >
       {renderHeader()}
       {renderSchedule()}
-      {renderMuscleBalance()}
+      <MuscleCoverageCard
+        muscleGroupSets={stats.muscleGroupSets}
+        uncoveredMuscles={uncoveredMuscles}
+        subtitle="sets per muscle group this split"
+      />
     </ScrollView>
   );
 };

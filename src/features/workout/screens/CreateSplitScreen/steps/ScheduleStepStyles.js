@@ -46,56 +46,6 @@ const styles = createStyles(() => ({
     marginHorizontal: spacing[4],
     marginVertical: spacing[4],
   },
-  dayPillsContainer: {
-    paddingHorizontal: spacing[1],
-  },
-  dayPills: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing[3],
-  },
-  dayColumn: {
-    alignItems: 'center',
-    gap: spacing[1],
-  },
-  dayCircle: {
-    width: spacing[10],
-    height: spacing[10],
-    borderRadius: radius[5],
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    backgroundColor: colors.faded.surface,
-  },
-  dayCircleHasWorkout: {
-    backgroundColor: colors.faded.primaryLight,
-    borderColor: colors.accent.primary,
-  },
-  dayCircleSelected: {
-    backgroundColor: colors.accent.primary,
-    borderColor: colors.accent.primary,
-  },
-  dayCircleText: {
-    fontSize: fontSize[14],
-    fontWeight: fontWeight.bold,
-    color: colors.text.quaternary,
-  },
-  dayCircleTextHasWorkout: {
-    color: colors.accent.primary,
-  },
-  dayCircleTextSelected: {
-    color: colors.accent.buttonText,
-  },
-  dayLabel: {
-    fontSize: fontSize[10],
-    fontWeight: fontWeight.medium,
-    color: colors.text.quaternary,
-  },
-  dayLabelSelected: {
-    color: colors.accent.primary,
-    fontWeight: fontWeight.semibold,
-  },
   settingsButton: {
     width: spacing[10],
     height: spacing[10],

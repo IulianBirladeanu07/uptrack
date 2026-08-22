@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import styles from './ScheduleStepStyles';
 import { colors, spacing } from '../../../../../shared/theme';
 import WorkoutPreviewCard from '../components/WorkoutPreviewCard';
+import DaySelector from '../components/DaySelector';
 import { daysOfWeek } from '../constants/CreateSplitScreenConstants';
 
 const ScheduleStep = ({
@@ -176,85 +177,42 @@ const ScheduleStep = ({
 
         {isWeeklySchedule ? (
           <View style={[styles.dayPillsScrollView, { marginHorizontal: spacing[5] }]}>
-            <View style={styles.dayPills}>
-              {currentScheduleDays.map(day => {
-                const dayId = day.id;
-                const isSelected = selectedDay === dayId;
-                const hasWorkout = !!splitData.schedule[dayId];
-                return (
-                  <TouchableOpacity
-                    key={dayId}
-                    style={styles.dayColumn}
-                    onPress={() => setSelectedDay(dayId)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[
-                      styles.dayCircle,
-                      hasWorkout && !isSelected && styles.dayCircleHasWorkout,
-                      isSelected && styles.dayCircleSelected,
-                    ]}>
-                      <Text style={[
-                        styles.dayCircleText,
-                        hasWorkout && !isSelected && styles.dayCircleTextHasWorkout,
-                        isSelected && styles.dayCircleTextSelected,
-                      ]}>
-                        {day.shortLabel}
-                      </Text>
-                    </View>
-                    <Text style={[styles.dayLabel, isSelected && styles.dayLabelSelected]}>
-                      {day.name.slice(0, 3)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <DaySelector
+              days={currentScheduleDays.map(day => ({
+                id: day.id,
+                shortLabel: day.shortLabel,
+                name: day.name,
+                hasWorkout: !!splitData.schedule[day.id],
+              }))}
+              selectedDayId={selectedDay}
+              onSelectDay={setSelectedDay}
+              layout="row"
+              showLabels
+            />
           </View>
         ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.dayPillsContainer}
-            style={styles.dayPillsScrollView}
-          >
-            <View style={styles.dayPills}>
-              {currentScheduleDays.map(day => {
-                const dayId = day.number;
-                const isSelected = selectedDay === dayId;
-                const hasWorkout = !!splitData.schedule[dayId];
-                return (
-                  <TouchableOpacity
-                    key={dayId}
-                    style={styles.dayColumn}
-                    onPress={() => setSelectedDay(dayId)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[
-                      styles.dayCircle,
-                      hasWorkout && !isSelected && styles.dayCircleHasWorkout,
-                      isSelected && styles.dayCircleSelected,
-                    ]}>
-                      <Text style={[
-                        styles.dayCircleText,
-                        hasWorkout && !isSelected && styles.dayCircleTextHasWorkout,
-                        isSelected && styles.dayCircleTextSelected,
-                      ]}>
-                        {day.shortLabel}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-
-              <TouchableOpacity
-                style={styles.settingsButton}
-                onPress={handleOpenModal}
-                activeOpacity={0.7}
-                accessibilityLabel="Configure number of rotation days"
-              >
-                <Ionicons name="settings-outline" size={spacing.iconSm} color={colors.accent.primary} />
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
+          <View style={styles.dayPillsScrollView}>
+            <DaySelector
+              days={currentScheduleDays.map(day => ({
+                id: day.number,
+                shortLabel: day.shortLabel,
+                hasWorkout: !!splitData.schedule[day.number],
+              }))}
+              selectedDayId={selectedDay}
+              onSelectDay={setSelectedDay}
+              layout="scroll"
+              trailingContent={
+                <TouchableOpacity
+                  style={styles.settingsButton}
+                  onPress={handleOpenModal}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Configure number of rotation days"
+                >
+                  <Ionicons name="settings-outline" size={spacing.iconSm} color={colors.accent.primary} />
+                </TouchableOpacity>
+              }
+            />
+          </View>
         )}
 
         <View style={styles.contextBar}>
