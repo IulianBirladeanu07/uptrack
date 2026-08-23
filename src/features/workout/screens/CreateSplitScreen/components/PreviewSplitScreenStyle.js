@@ -48,10 +48,6 @@ const styles = createStyles(() => ({
     borderRadius: radius[4],
     padding: spacing[4],
   },
-  heroCardActive: {
-    borderWidth: 2,
-    borderColor: colors.accent.primary,
-  },
   heroTop: {
     flexDirection: 'row',
     alignItems: 'center',
