@@ -1,6 +1,5 @@
 import { useState, memo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { createStyles } from '../../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../../shared/theme';
@@ -8,88 +7,57 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../../../../sh
 const styles = createStyles(() => ({
     container: {
         paddingHorizontal: spacing[3],
+        paddingTop: spacing[2],
         paddingBottom: spacing[24],
     },
-    headerSection: {
-        marginTop: spacing[2],
-        marginBottom: spacing[5],
-    },
-    headerRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    iconContainer: {
-        width: spacing[12],
-        height: spacing[12],
-        borderRadius: radius[3],
-        backgroundColor: colors.faded.primary,
-        borderWidth: 1,
-        borderColor: colors.border.primary,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: spacing[3],
-    },
-    headerTitle: {
-        fontSize: fontSize[20],
-        fontWeight: fontWeight.bold,
-        color: colors.text.primary,
-        marginBottom: spacing[1],
-    },
-    headerSubtitle: {
-        fontSize: fontSize[12],
-        color: colors.text.secondary,
-        fontWeight: fontWeight.medium,
-    },
-    statsCard: {
+    card: {
         backgroundColor: colors.background.secondary,
-        borderRadius: radius[3],
+        borderRadius: radius[4],
         padding: spacing[4],
         borderWidth: 1,
         borderColor: colors.border.default,
-        marginBottom: spacing[3],
     },
-    statsRow: {
+    titleRow: {
         flexDirection: 'row',
+        alignItems: 'flex-start',
         justifyContent: 'space-between',
     },
-    statBox: {
-        alignItems: 'center',
+    title: {
         flex: 1,
-    },
-    statValue: {
-        fontSize: fontSize[18],
-        fontWeight: fontWeight.bold,
+        fontSize: fontSize[24],
+        fontWeight: fontWeight.extrabold,
         color: colors.text.primary,
-        marginTop: spacing[2],
-        marginBottom: spacing[1],
+        letterSpacing: -0.5,
     },
-    statLabel: {
-        fontSize: fontSize[10],
+    editLink: {
+        fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
-        color: colors.text.quaternary,
-        textTransform: 'uppercase',
-        letterSpacing: 0.3,
+        color: colors.accent.primary,
+        marginLeft: spacing[3],
+        marginTop: spacing[1],
     },
-    muscleGroupsCard: {
-        backgroundColor: colors.background.secondary,
-        borderRadius: radius[3],
-        padding: spacing[4],
-        borderWidth: 1,
-        borderColor: colors.border.default,
+    statsMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[3],
+        marginTop: spacing[2],
         marginBottom: spacing[3],
     },
-    sectionLabel: {
-        fontSize: fontSize[10],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.secondary,
-        letterSpacing: 0.4,
-        textTransform: 'uppercase',
-        marginBottom: spacing[2],
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[1],
+    },
+    metaText: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.quaternary,
     },
     muscleGroupsList: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: spacing[2],
+        marginBottom: spacing[3],
     },
     muscleChip: {
         backgroundColor: colors.faded.surface,
@@ -102,120 +70,70 @@ const styles = createStyles(() => ({
     muscleChipText: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
-        color: colors.text.primary,
+        color: colors.text.secondary,
     },
-    noteCard: {
-        backgroundColor: colors.background.secondary,
-        borderRadius: radius[3],
-        padding: spacing[4],
-        borderWidth: 1,
-        borderColor: colors.border.default,
-        marginBottom: spacing[3],
+    noteLabel: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.quaternary,
+        letterSpacing: 0.4,
+        textTransform: 'uppercase',
+        marginBottom: spacing[1],
     },
     noteText: {
         fontSize: fontSize[14],
         color: colors.text.primary,
         lineHeight: 20,
-    },
-    exercisesSection: {
-        marginTop: spacing[2],
-    },
-    exercisesHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: spacing[3],
-    },
-    exercisesTitle: {
-        fontSize: fontSize[16],
-        fontWeight: fontWeight.bold,
-        color: colors.text.primary,
-    },
-    editButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing[1],
-        backgroundColor: colors.faded.surface,
-        paddingVertical: spacing[1],
-        paddingHorizontal: spacing[3],
-        borderRadius: radius[2],
-        borderWidth: 1,
-        borderColor: colors.border.default,
-    },
-    editButtonText: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.semibold,
-        color: colors.accent.primary,
-    },
-    emptyState: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: spacing[15],
-        backgroundColor: colors.background.secondary,
-        borderRadius: radius[3],
-        borderWidth: 1,
-        borderColor: colors.border.default,
-    },
-    emptyText: {
-        fontSize: fontSize[14],
-        color: colors.text.secondary,
-        marginTop: spacing[3],
-    },
-    exercisesList: {
-        gap: spacing[2],
-    },
-    exerciseCard: {
-        backgroundColor: colors.background.secondary,
-        borderRadius: radius[3],
-        padding: spacing[3],
-        borderWidth: 1,
-        borderColor: colors.border.default,
+        marginBottom: spacing[4],
     },
     exerciseRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        paddingVertical: spacing[2],
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border.light,
+        gap: spacing[2],
     },
-    exerciseImageContainer: {
-        width: spacing[10],
-        height: spacing[10],
-        borderRadius: radius[2],
-        backgroundColor: colors.faded.surface,
-        justifyContent: 'center',
+    exerciseRowLast: {
+        borderBottomWidth: 0,
+    },
+    exerciseSets: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.bold,
+        color: colors.accent.primary,
+        width: spacing[6],
+    },
+    exerciseInfo: {
+        flex: 1,
+        gap: 2,
+    },
+    exerciseNameRow: {
+        flexDirection: 'row',
         alignItems: 'center',
-        marginRight: spacing[3],
-        padding: spacing[1],
-    },
-    exerciseImage: {
-        width: '100%',
-        height: '100%',
-        borderRadius: radius[2],
+        justifyContent: 'space-between',
+        gap: spacing[2],
     },
     exerciseName: {
+        flex: 1,
         fontSize: fontSize[14],
         fontWeight: fontWeight.bold,
         color: colors.text.primary,
-        marginBottom: spacing[1],
     },
-    exerciseMeta: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-    },
-    exerciseMetaText: {
+    exerciseReps: {
         fontSize: fontSize[12],
-        fontWeight: fontWeight.semibold,
+        fontWeight: fontWeight.medium,
         color: colors.text.quaternary,
     },
-    metaSeparator: {
-        width: 4,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: colors.text.quaternary,
-        marginHorizontal: spacing[1],
+    exerciseSubMeta: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.quaternary,
     },
     exerciseNoteContainer: {
-        marginTop: spacing[3],
-        paddingTop: spacing[3],
+        marginTop: spacing[2],
+        marginBottom: spacing[2],
+        paddingTop: spacing[2],
+        paddingLeft: spacing[8],
         borderTopWidth: 1,
         borderTopColor: colors.border.light,
     },
@@ -223,6 +141,16 @@ const styles = createStyles(() => ({
         fontSize: fontSize[12],
         color: colors.text.primary,
         lineHeight: 18,
+    },
+    emptyState: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: spacing[10],
+    },
+    emptyText: {
+        fontSize: fontSize[14],
+        color: colors.text.secondary,
+        marginTop: spacing[3],
     },
 }));
 
@@ -242,55 +170,36 @@ const ReviewStep = memo(({
     duration = 0,
 }) => {
     const totalSets = exercises.reduce((sum, ex) => sum + parseInt(ex?.numSets || 0), 0);
-    const avgRestTime = exercises.length
-        ? Math.round(exercises.reduce((sum, ex) => sum + parseInt(ex?.restTime || 180), 0) / exercises.length)
-        : 180;
     const muscleGroups = [...new Set(exercises.map(ex => ex?.muscleGroup || '').filter(Boolean))];
 
     const [expandedExercise, setExpandedExercise] = useState(null);
 
     return (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.container}>
-            <View style={styles.headerSection}>
-                <View style={styles.headerRow}>
-                    <View style={styles.iconContainer}>
-                        <Ionicons name="checkmark-circle" size={spacing.iconLg} color={colors.accent.primary} />
+            <View style={styles.card}>
+                <View style={styles.titleRow}>
+                    <Text style={styles.title}>{templateName}</Text>
+                    <TouchableOpacity onPress={() => setCurrentStep(1)} activeOpacity={0.7}>
+                        <Text style={styles.editLink}>Edit</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.statsMeta}>
+                    <View style={styles.metaItem}>
+                        <Ionicons name="barbell-outline" size={12} color={colors.text.quaternary} />
+                        <Text style={styles.metaText}>{exercises.length} exercises</Text>
                     </View>
-                    <View>
-                        <Text style={styles.headerTitle}>{templateName}</Text>
-                        <Text style={styles.headerSubtitle}>Review your workout</Text>
+                    <View style={styles.metaItem}>
+                        <Ionicons name="layers-outline" size={12} color={colors.text.quaternary} />
+                        <Text style={styles.metaText}>{totalSets} sets</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                        <Ionicons name="time-outline" size={12} color={colors.text.quaternary} />
+                        <Text style={styles.metaText}>{duration}m</Text>
                     </View>
                 </View>
-            </View>
 
-            <View style={styles.statsCard}>
-                <View style={styles.statsRow}>
-                    <View style={styles.statBox}>
-                        <Ionicons name="fitness" size={spacing.iconMd} color={colors.accent.primary} />
-                        <Text style={styles.statValue}>{exercises.length}</Text>
-                        <Text style={styles.statLabel}>Exercises</Text>
-                    </View>
-                    <View style={styles.statBox}>
-                        <Ionicons name="repeat" size={spacing.iconMd} color={colors.accent.cyan} />
-                        <Text style={styles.statValue}>{totalSets}</Text>
-                        <Text style={styles.statLabel}>Total Sets</Text>
-                    </View>
-                    <View style={styles.statBox}>
-                        <Ionicons name="time" size={spacing.iconMd} color={colors.accent.successAlt} />
-                        <Text style={styles.statValue}>{duration}m</Text>
-                        <Text style={styles.statLabel}>Duration</Text>
-                    </View>
-                    <View style={styles.statBox}>
-                        <Ionicons name="timer" size={spacing.iconMd} color={colors.accent.purple} />
-                        <Text style={styles.statValue}>{formatRestTime(avgRestTime)}</Text>
-                        <Text style={styles.statLabel}>Avg Rest</Text>
-                    </View>
-                </View>
-            </View>
-
-            {muscleGroups.length > 0 && (
-                <View style={styles.muscleGroupsCard}>
-                    <Text style={styles.sectionLabel}>Target Muscles</Text>
+                {muscleGroups.length > 0 && (
                     <View style={styles.muscleGroupsList}>
                         {muscleGroups.map((muscle, idx) => (
                             <View key={idx} style={styles.muscleChip}>
@@ -298,92 +207,61 @@ const ReviewStep = memo(({
                             </View>
                         ))}
                     </View>
-                </View>
-            )}
+                )}
 
-            {note ? (
-                <View style={styles.noteCard}>
-                    <Text style={styles.sectionLabel}>Workout Note</Text>
-                    <Text style={styles.noteText}>{note}</Text>
-                </View>
-            ) : null}
-
-            <View style={styles.exercisesSection}>
-                <View style={styles.exercisesHeader}>
-                    <Text style={styles.exercisesTitle}>Exercise List</Text>
-                    <TouchableOpacity style={styles.editButton} onPress={() => setCurrentStep(1)} activeOpacity={0.7}>
-                        <Ionicons name="create-outline" size={spacing.iconSm} color={colors.accent.primary} />
-                        <Text style={styles.editButtonText}>Edit</Text>
-                    </TouchableOpacity>
-                </View>
+                {note ? (
+                    <View>
+                        <Text style={styles.noteLabel}>Note</Text>
+                        <Text style={styles.noteText}>{note}</Text>
+                    </View>
+                ) : null}
 
                 {exercises.length === 0 ? (
                     <View style={styles.emptyState}>
-                        <Ionicons name="barbell-outline" size={spacing[12]} color={colors.text.quaternary} />
+                        <Ionicons name="barbell-outline" size={spacing[9]} color={colors.text.quaternary} />
                         <Text style={styles.emptyText}>No exercises added yet</Text>
                     </View>
                 ) : (
-                    <View style={styles.exercisesList}>
-                        {exercises.map((exercise, index) => {
-                            const name = exercise?.name || exercise?.exerciseName || 'Unnamed Exercise';
-                            const muscleGroup = exercise?.muscleGroup || 'N/A';
-                            const imageSource = exercise?.imageURL || exercise?.image
-                                ? { uri: exercise.imageURL || exercise.image }
-                                : null;
-                            const isExpanded = expandedExercise === index;
-                            const hasNote = exercise?.note || exercise?.notes;
+                    exercises.map((exercise, index) => {
+                        const name = exercise?.name || exercise?.exerciseName || 'Unnamed Exercise';
+                        const muscleGroup = exercise?.muscleGroup || 'N/A';
+                        const isExpanded = expandedExercise === index;
+                        const hasNote = exercise?.note || exercise?.notes;
+                        const isLast = index === exercises.length - 1;
 
-                            return (
-                                <TouchableOpacity
-                                    key={index}
-                                    style={styles.exerciseCard}
-                                    onPress={() => hasNote && setExpandedExercise(isExpanded ? null : index)}
-                                    activeOpacity={hasNote ? 0.7 : 1}
-                                >
-                                    <View style={styles.exerciseRow}>
-                                        <View style={styles.exerciseImageContainer}>
-                                            {imageSource ? (
-                                                <Image source={imageSource} style={styles.exerciseImage} contentFit="cover" />
-                                            ) : (
-                                                <Ionicons name="barbell" size={spacing.iconMd} color={colors.text.quaternary} />
-                                            )}
-                                        </View>
-                                        <View style={{ flex: 1 }}>
+                        return (
+                            <TouchableOpacity
+                                key={index}
+                                onPress={() => hasNote && setExpandedExercise(isExpanded ? null : index)}
+                                activeOpacity={hasNote ? 0.7 : 1}
+                            >
+                                <View style={[styles.exerciseRow, isLast && !isExpanded && styles.exerciseRowLast]}>
+                                    <Text style={styles.exerciseSets}>{exercise?.numSets || 0}x</Text>
+                                    <View style={styles.exerciseInfo}>
+                                        <View style={styles.exerciseNameRow}>
                                             <Text style={styles.exerciseName} numberOfLines={1}>{name}</Text>
-                                            <View style={styles.exerciseMeta}>
-                                                <Text style={styles.exerciseMetaText}>{muscleGroup}</Text>
-                                                {exercise?.numSets && exercise?.repRange && (
-                                                    <>
-                                                        <View style={styles.metaSeparator} />
-                                                        <Text style={styles.exerciseMetaText}>{exercise.numSets} × {exercise.repRange}</Text>
-                                                    </>
-                                                )}
-                                                {exercise?.restTime && (
-                                                    <>
-                                                        <View style={styles.metaSeparator} />
-                                                        <Text style={styles.exerciseMetaText}>{formatRestTime(exercise.restTime)} rest</Text>
-                                                    </>
-                                                )}
-                                            </View>
+                                            <Text style={styles.exerciseReps}>{exercise?.repRange || ''}</Text>
                                         </View>
-                                        {hasNote && (
-                                            <Ionicons
-                                                name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                                                size={spacing.iconSm}
-                                                color={colors.text.secondary}
-                                            />
-                                        )}
+                                        <Text style={styles.exerciseSubMeta}>
+                                            {muscleGroup} · {formatRestTime(exercise?.restTime)} rest
+                                        </Text>
                                     </View>
-                                    {isExpanded && hasNote && (
-                                        <View style={styles.exerciseNoteContainer}>
-                                            <Text style={styles.sectionLabel}>Note</Text>
-                                            <Text style={styles.exerciseNoteText}>{exercise.note || exercise.notes}</Text>
-                                        </View>
+                                    {hasNote && (
+                                        <Ionicons
+                                            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                                            size={spacing.iconSm}
+                                            color={colors.text.secondary}
+                                        />
                                     )}
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
+                                </View>
+                                {isExpanded && hasNote && (
+                                    <View style={styles.exerciseNoteContainer}>
+                                        <Text style={styles.exerciseNoteText}>{exercise.note || exercise.notes}</Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        );
+                    })
                 )}
             </View>
         </ScrollView>
