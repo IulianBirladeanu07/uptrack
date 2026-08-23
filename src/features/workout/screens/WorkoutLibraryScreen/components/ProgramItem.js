@@ -5,7 +5,7 @@ import { normalize } from '../../../../../shared/hooks/useResponsive';
 import { colors, fontSize } from '../../../../../shared/theme';
 import styles from '../WorkoutLibraryScreenStyle';
 
-const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit, onActivate, onViewSchedule, isActive }) => {
+const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit, onActivate, onPreviewSplit, isActive }) => {
     const split = item;
     const splitId = split.id;
     const isExpanded = expandedCards[splitId];
@@ -100,9 +100,9 @@ const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit,
                     <Text style={styles.editButtonText}>Edit</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.editButton} onPress={() => onViewSchedule(split)}>
-                    <Ionicons name="calendar-outline" size={normalize(fontSize[16])} color={colors.text.secondary} />
-                    <Text style={styles.editButtonText}>Schedule</Text>
+                <TouchableOpacity style={styles.editButton} onPress={() => onPreviewSplit(split)}>
+                    <Ionicons name="eye-outline" size={normalize(fontSize[16])} color={colors.text.secondary} />
+                    <Text style={styles.editButtonText}>Preview</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.startButton} onPress={() => onActivate(split)}>

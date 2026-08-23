@@ -32,7 +32,7 @@ import CustomFoodScreen from './src/features/nutrition/screens/FoodSelectionScre
 import BarcodeScannerScreen from './src/features/nutrition/screens/BarcodeScannerScreen/BarcodeScannerScreen';
 import CreateSplitScreen from './src/features/workout/screens/CreateSplitScreen/CreateSplitScreen'; 
 import WeightTracker from './src/features/nutrition/components/WeightTracker/WeightTracker';
-import ViewSplitScreen from './src/features/workout/screens/CreateSplitScreen/components/ViewSplitScreen';
+import PreviewSplitScreen from './src/features/workout/screens/CreateSplitScreen/components/PreviewSplitScreen';
 import CreateExerciseScreen from './src/features/workout/screens/CreateExerciseScreen/CreateExerciseScreen';
 import WeightHistoryScreen from './src/features/nutrition/components/WeightTracker/WeightHistoryScreen';
 import ExerciseHistoryScreen from './src/features/workout/components/ExerciseHistoryScreen/ExerciseHistoryScreen';
@@ -70,7 +70,7 @@ const AuthenticatedScreens = React.memo(() => (
         <Stack.Screen name="FoodDetail" component={FoodDetailScreen} options={{ headerShown: false }} />
         <Stack.Screen name="CreateSplit" component={CreateSplitScreen} options={{ headerShown: false }} />
         <Stack.Screen name="WeightTracker" component={WeightTracker} options={{ headerShown: false }} />
-        <Stack.Screen name="ViewSplit" component={ViewSplitScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="PreviewSplit" component={PreviewSplitScreen} options={{ headerShown: false }} />
         <Stack.Screen name="CreateExercise" component={CreateExerciseScreen} options={{ headerShown: false }} />
         <Stack.Screen name="WeightHistory" component={WeightHistoryScreen} options= {{ headerShown: false}} />
         <Stack.Screen name="ExerciseHistory" component={ExerciseHistoryScreen} options= {{ headerShown: false}} />

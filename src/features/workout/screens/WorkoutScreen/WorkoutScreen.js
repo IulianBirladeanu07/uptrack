@@ -13,6 +13,7 @@ import { fetchSplitsFromFirestore } from '../../handlers/WorkoutHandler';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { colors, spacing } from '../../../../shared/theme';
+import { ExercisePreviewList } from '../../components/WorkoutExercisePreview/WorkoutExercisePreview';
 import styles from './WorkoutScreenStyles';
 
 const DAYS_MAP = {
@@ -708,18 +709,7 @@ const WorkoutScreen = () => {
                         </View>
 
                         <ScrollView style={styles.modalExList} showsVerticalScrollIndicator={false}>
-                            <View style={styles.modalExercisesList}>
-                                {previewWorkout?.exercises?.map((ex, i) => (
-                                    <View
-                                        key={i}
-                                        style={[styles.modalExRow, i === (previewWorkout.exercises.length - 1) && styles.modalExRowLast]}
-                                    >
-                                        <Text style={styles.modalExSets}>{ex.numSets}x</Text>
-                                        <Text style={styles.modalExName} numberOfLines={1}>{ex.exerciseName}</Text>
-                                        <Text style={styles.modalExReps}>{ex.repRange}</Text>
-                                    </View>
-                                ))}
-                            </View>
+                            <ExercisePreviewList exercises={previewWorkout?.exercises} />
                         </ScrollView>
 
                         <TouchableOpacity

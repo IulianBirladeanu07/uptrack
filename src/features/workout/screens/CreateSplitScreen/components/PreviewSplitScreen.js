@@ -8,20 +8,22 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { colors, spacing } from '../../../../../shared/theme';
 import { db } from '../../../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../../../auth/context/AuthContext';
+import { WorkoutContext } from '../../../context/WorkoutContext';
 import { fetchSplitsFromFirestore } from '../../../handlers/WorkoutHandler';
-import styles from './ViewSplitScreenStyle';
+import styles from './PreviewSplitScreenStyle';
 import DaySelector from './DaySelector';
 import MuscleCoverageCard from './MuscleCoverageCard';
+import WorkoutExercisePreview from '../../../components/WorkoutExercisePreview/WorkoutExercisePreview';
 
 const MAJOR_MUSCLE_GROUPS = ['Chest', 'Back', 'Biceps', 'Quads', 'Hamstring', 'Delts', 'Triceps'];
 
-const ViewSplitScreen = ({ route, navigation }) => {
+const PreviewSplitScreen = ({ route, navigation }) => {
   const { splitData } = route.params || {};
   const [split, setSplit] = useState(splitData);
 
@@ -30,6 +32,7 @@ const ViewSplitScreen = ({ route, navigation }) => {
   const [activating, setActivating] = useState(false);
 
   const { userData, refreshUserData } = useContext(AuthContext);
+  const { activeWorkout } = useContext(WorkoutContext);
   const isActiveSplit = !!split?.id && userData?.activeSplitId === split.id;
 
   useEffect(() => {
@@ -145,17 +148,16 @@ const ViewSplitScreen = ({ route, navigation }) => {
   }, [split?.id, refreshUserData]);
 
   const handleStartWorkout = useCallback((workout) => {
-    if (!workout) return;
+    if (!workout || activeWorkout) return;
     navigation.navigate('StartWorkout', {
       selectedWorkout: workout,
     });
-  }, [navigation]);
+  }, [navigation, activeWorkout]);
 
   const handleEditSplit = useCallback(() => {
     navigation.navigate('CreateSplit', {
       splitId: split.id,
       isEditing: true,
-      returnScreen: 'ViewSplit',
     });
   }, [navigation, split]);
 
@@ -199,83 +201,7 @@ const ViewSplitScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.background.secondary} />
-        <View style={styles.headerContent}>
-          <View style={styles.headerTop}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="chevron-back" size={spacing.iconMd} color={colors.text.primary} />
-            </TouchableOpacity>
-            <View style={styles.headerTitleContainer}>
-              <Text style={styles.splitType}>{typeLabel} · {cycleLabel}</Text>
-              <Text style={styles.splitName} numberOfLines={1}>
-                {split?.name || 'Training Split'}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.headerAction}
-              onPress={handleEditSplit}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="create-outline" size={spacing.iconMd} color={colors.text.primary} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.statsCard}>
-            <View style={styles.statItem}>
-              <View style={[styles.statIconCircle, { backgroundColor: colors.faded.primary }]}>
-                <Ionicons name="barbell" size={spacing.iconSm} color={colors.accent.primary} />
-              </View>
-              <Text style={styles.statValue}>{compositionStats.workoutDays}</Text>
-              <Text style={styles.statLabel}>Workout Days</Text>
-            </View>
-            <View style={styles.statItem}>
-              <View style={[styles.statIconCircle, { backgroundColor: colors.faded.surface }]}>
-                <Ionicons name="moon" size={spacing.iconSm} color={colors.text.secondary} />
-              </View>
-              <Text style={styles.statValue}>{compositionStats.restDays}</Text>
-              <Text style={styles.statLabel}>Rest Days</Text>
-            </View>
-            <View style={styles.statItem}>
-              <View style={[styles.statIconCircle, { backgroundColor: colors.faded.cyan }]}>
-                <Ionicons name="repeat" size={spacing.iconSm} color={colors.accent.cyan} />
-              </View>
-              <Text style={styles.statValue}>{compositionStats.totalSets}</Text>
-              <Text style={styles.statLabel}>Total Sets</Text>
-            </View>
-            <View style={styles.statItem}>
-              <View style={[styles.statIconCircle, { backgroundColor: colors.faded.error }]}>
-                <Ionicons name="time" size={spacing.iconSm} color={colors.accent.warning} />
-              </View>
-              <Text style={styles.statValue}>{Math.round((compositionStats.totalDuration / 60) * 10) / 10}h</Text>
-              <Text style={styles.statLabel}>Per Cycle</Text>
-            </View>
-          </View>
-
-          {isActiveSplit ? (
-            <View style={styles.activeBadge}>
-              <Ionicons name="checkmark-circle" size={spacing.iconMd} color={colors.accent.primary} />
-              <Text style={styles.activeBadgeText}>This is your active split</Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.activateButton}
-              onPress={handleActivateSplit}
-              activeOpacity={0.8}
-              disabled={activating}
-            >
-              <Ionicons name="flash" size={spacing.iconMd} color={colors.accent.buttonText} />
-              <Text style={styles.activateButtonText}>
-                {activating ? 'Activating…' : 'Set as Active Split'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+      <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
 
       <ScrollView
         style={styles.scrollContainer}
@@ -290,6 +216,73 @@ const ViewSplitScreen = ({ route, navigation }) => {
         }
       >
         <View style={styles.contentContainer}>
+          <View style={[styles.heroCard, isActiveSplit && styles.heroCardActive]}>
+            <View style={styles.heroTop}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={spacing.iconMd} color={colors.text.primary} />
+              </TouchableOpacity>
+
+              <View style={styles.titleSection}>
+                <Text style={styles.splitType}>{typeLabel} · {cycleLabel}</Text>
+                <Text style={styles.splitName} numberOfLines={1}>
+                  {split?.name || 'Training Split'}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={handleEditSplit}
+                activeOpacity={0.7}
+              >
+                <Feather name="edit-3" size={spacing.iconMd} color={colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <Ionicons name="calendar-outline" size={spacing.iconSm} color={colors.text.quaternary} />
+                <Text style={styles.metaText}>{compositionStats.workoutDays} workout days</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Ionicons name="moon-outline" size={spacing.iconSm} color={colors.text.quaternary} />
+                <Text style={styles.metaText}>{compositionStats.restDays} rest days</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Ionicons name="layers-outline" size={spacing.iconSm} color={colors.text.quaternary} />
+                <Text style={styles.metaText}>{compositionStats.totalSets} sets</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Ionicons name="time-outline" size={spacing.iconSm} color={colors.text.quaternary} />
+                <Text style={styles.metaText}>
+                  {Math.round((compositionStats.totalDuration / 60) * 10) / 10}h per cycle
+                </Text>
+              </View>
+            </View>
+
+            {isActiveSplit ? (
+              <View style={styles.activeBadge}>
+                <Ionicons name="checkmark-circle" size={spacing.iconMd} color={colors.accent.primary} />
+                <Text style={styles.activeBadgeText}>This is your active split</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.activateButton}
+                onPress={handleActivateSplit}
+                activeOpacity={0.8}
+                disabled={activating}
+              >
+                <Ionicons name="flash" size={spacing.iconMd} color={colors.accent.buttonText} />
+                <Text style={styles.activateButtonText}>
+                  {activating ? 'Activating…' : 'Set as Active Split'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           <MuscleCoverageCard
             muscleGroupSets={muscleGroupSets}
             uncoveredMuscles={uncoveredMuscles}
@@ -312,49 +305,18 @@ const ViewSplitScreen = ({ route, navigation }) => {
           {selectedDayWorkout ? (
             <View style={styles.workoutCard}>
               <View style={styles.workoutHeader}>
-                <View style={styles.workoutIconContainer}>
-                  <Ionicons name="fitness" size={spacing.iconMd} color={colors.accent.primary} />
-                </View>
-                <View style={styles.workoutInfo}>
-                  <Text style={styles.workoutTitle}>{selectedDayWorkout.templateName || 'Workout'}</Text>
-                  <View style={styles.workoutMeta}>
-                    <View style={styles.workoutMetaItem}>
-                      <Ionicons name="time-outline" size={spacing.iconSm} color={colors.text.quaternary} />
-                      <Text style={styles.workoutMetaText}>{selectedDayWorkout.duration || 45}m</Text>
-                    </View>
-                    <View style={styles.workoutMetaItem}>
-                      <Ionicons name="barbell-outline" size={spacing.iconSm} color={colors.text.quaternary} />
-                      <Text style={styles.workoutMetaText}>{selectedDayWorkout.exercises?.length || 0} exercises</Text>
-                    </View>
-                  </View>
-                </View>
+                <Text style={styles.workoutTitle}>{selectedDayWorkout.templateName || 'Workout'}</Text>
+                <Text style={styles.workoutMetaText}>
+                  {selectedDayWorkout.duration || 45}m · {selectedDayWorkout.exercises?.length || 0} exercises
+                </Text>
               </View>
 
-              {selectedDayWorkout.exercises && selectedDayWorkout.exercises.length > 0 && (
-                <View style={styles.exercisesList}>
-                  {selectedDayWorkout.exercises.slice(0, 5).map((exercise, index, arr) => (
-                    <View
-                      key={index}
-                      style={[styles.exerciseRow, index === arr.length - 1 && styles.exerciseRowLast]}
-                    >
-                      <Text style={styles.exerciseSetsInline}>{exercise.numSets}x</Text>
-                      <Text style={styles.exerciseName} numberOfLines={1}>{exercise.exerciseName || 'Exercise'}</Text>
-                      <Text style={styles.exerciseReps}>{exercise.repRange || 'N/A'}</Text>
-                    </View>
-                  ))}
-                  {selectedDayWorkout.exercises.length > 5 && (
-                    <View style={styles.moreExercisesRow}>
-                      <View style={styles.moreExercisesLine} />
-                      <Text style={styles.moreExercisesText}>+{selectedDayWorkout.exercises.length - 5} more exercises</Text>
-                      <View style={styles.moreExercisesLine} />
-                    </View>
-                  )}
-                </View>
-              )}
-              <TouchableOpacity style={styles.startWorkoutButton} onPress={() => handleStartWorkout(selectedDayWorkout)} activeOpacity={0.8}>
-                <Ionicons name="play" size={spacing.iconMd} color={colors.accent.buttonText} />
-                <Text style={styles.startWorkoutText}>Start Workout</Text>
-              </TouchableOpacity>
+              <WorkoutExercisePreview
+                exercises={selectedDayWorkout.exercises || []}
+                limit={5}
+                onStart={() => handleStartWorkout(selectedDayWorkout)}
+                disabled={!!activeWorkout}
+              />
             </View>
           ) : (
             <View style={styles.restDayCard}>
@@ -369,4 +331,4 @@ const ViewSplitScreen = ({ route, navigation }) => {
   );
 };
 
-export default ViewSplitScreen;
+export default PreviewSplitScreen;

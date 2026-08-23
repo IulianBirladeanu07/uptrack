@@ -9,29 +9,11 @@ const styles = createStyles(() => ({
     borderColor: colors.border.default,
     padding: spacing[4],
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing[3],
-  },
-  cardHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-  },
-  cardIconBox: {
-    width: spacing[8],
-    height: spacing[8],
-    borderRadius: radius[2],
-    backgroundColor: colors.faded.purple,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   cardTitle: {
     fontSize: fontSize[12],
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
+    marginBottom: spacing[1],
   },
   cardSubtext: {
     fontSize: fontSize[10],
@@ -47,19 +29,9 @@ const styles = createStyles(() => ({
     alignItems: 'center',
     gap: spacing[2],
   },
-  volumeLabelWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-    width: spacing[20],
-  },
-  volumeDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-  },
   volumeLabel: {
-    flexShrink: 1,
+    width: spacing[20],
+    flexShrink: 0,
     fontSize: fontSize[10],
     fontWeight: fontWeight.semibold,
     color: colors.text.secondary,
@@ -75,6 +47,7 @@ const styles = createStyles(() => ({
     height: '100%',
     borderRadius: radius[1],
     minWidth: 3,
+    backgroundColor: colors.accent.primary,
   },
   volumeValue: {
     width: spacing[7],

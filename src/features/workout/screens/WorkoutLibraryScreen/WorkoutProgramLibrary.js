@@ -19,12 +19,11 @@ const WorkoutProgramLibrary = ({
     navigation.navigate('CreateSplit', { 
       split: split,
       isEditing: true,
-      returnScreen: 'WorkoutLibrary'
     }); 
   }, [navigation]);
 
-  const handleViewSchedule = useCallback((split) => {
-    navigation.navigate('ViewSplit', { splitData: split });
+  const handlePreviewSplit = useCallback((split) => {
+    navigation.navigate('PreviewSplit', { splitData: split });
   }, [navigation]);
 
   const handleDeleteSplit = useCallback(async (split) => {
@@ -68,11 +67,11 @@ const WorkoutProgramLibrary = ({
       onToggleExpanded={toggleExpanded}
       onEdit={handleEditSplit}
       onActivate={onActivateSplit}
-      onViewSchedule={handleViewSchedule}
+      onPreviewSplit={handlePreviewSplit}
       onDelete={handleDeleteSplit}
       isActive={item.id === activeSplitId}
     />
-  ), [expandedCards, toggleExpanded, handleEditSplit, onActivateSplit, handleViewSchedule, handleDeleteSplit, activeSplitId]);
+  ), [expandedCards, toggleExpanded, handleEditSplit, onActivateSplit, handlePreviewSplit, handleDeleteSplit, activeSplitId]);
 
   const keyExtractor = useCallback((item, index) => item.id || `split-${index}`, []);
 

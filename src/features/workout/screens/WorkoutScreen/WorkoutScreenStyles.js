@@ -474,38 +474,6 @@ const styles = createStyles(() => ({
     modalExList: {
         marginBottom: spacing[4],
     },
-    modalExercisesList: {
-        paddingVertical: spacing[1],
-    },
-    modalExRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: spacing[3],
-        paddingHorizontal: spacing[3],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
-        gap: spacing[2],
-    },
-    modalExRowLast: {
-        borderBottomWidth: 0,
-    },
-    modalExSets: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.bold,
-        color: colors.accent.primary,
-        width: spacing[5],
-    },
-    modalExName: {
-        flex: 1,
-        fontSize: fontSize[14],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.primary,
-    },
-    modalExReps: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.medium,
-        color: colors.text.secondary,
-    },
 }));
 
 export default styles;

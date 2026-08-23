@@ -5,6 +5,7 @@ const styles = createStyles(() => ({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: spacing[3],
   },
   rowWrap: {
@@ -46,6 +47,9 @@ const styles = createStyles(() => ({
     fontSize: fontSize[14],
     fontWeight: fontWeight.bold,
     color: colors.text.quaternary,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+    lineHeight: fontSize[14],
   },
   dayCircleTextHasWorkout: {
     color: colors.accent.primary,
