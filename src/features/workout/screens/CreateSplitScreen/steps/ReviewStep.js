@@ -103,15 +103,15 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
 
       <View style={styles.quickStats}>
         <View style={styles.statPill}>
-          <Ionicons name="fitness" size={spacing.iconSm} color={colors.accent.primary} />
+          <Ionicons name="fitness" size={spacing.iconSm} color={colors.text.quaternary} />
           <Text style={styles.statText}>{stats.workoutDays} workouts</Text>
         </View>
         <View style={styles.statPill}>
-          <Ionicons name="time" size={spacing.iconSm} color={colors.accent.cyan} />
+          <Ionicons name="time" size={spacing.iconSm} color={colors.text.quaternary} />
           <Text style={styles.statText}>{Math.round((stats.totalDuration) / 60 * 10) / 10}h total</Text>
         </View>
         <View style={styles.statPill}>
-          <Ionicons name="barbell" size={spacing.iconSm} color={colors.accent.successAlt} />
+          <Ionicons name="barbell" size={spacing.iconSm} color={colors.text.quaternary} />
           <Text style={styles.statText}>{stats.totalSets} sets</Text>
         </View>
       </View>
@@ -127,16 +127,9 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
       ? [...new Set(selectedWorkout.exercises.map(ex => ex.muscleGroup))]
       : [];
 
-    const totalDays = scheduleDays.length;
-    const restDays = totalDays - stats.workoutDays;
-    const trainingFrequency = totalDays > 0 ? Math.round((stats.workoutDays / totalDays) * 100) : 0;
-
     return (
       <View style={styles.scheduleCard}>
         <View style={styles.scheduleHeader}>
-          <Text style={styles.scheduleTitle}>
-            {isWeeklySchedule ? 'Weekly Schedule' : 'Training Split'}
-          </Text>
           <Text style={styles.scheduleSubtitle}>
             {isWeeklySchedule ? 'Mon - Sun Cycle' : `${scheduleDays.length} Day Cycle`}
           </Text>
@@ -168,7 +161,7 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
                 <Text style={styles.restMetricText}>Light Activity</Text>
               </View>
               <View style={styles.restMetric}>
-                <Ionicons name="body" size={spacing.iconSm} color={colors.text.quaternary} />
+                <Ionicons name="moon" size={spacing.iconSm} color={colors.text.quaternary} />
                 <Text style={styles.restMetricText}>Recovery Focus</Text>
               </View>
             </View>
@@ -206,21 +199,6 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
             </View>
           </View>
         )}
-
-        <View style={styles.summaryStats}>
-          <View style={styles.summaryStatItem}>
-            <Text style={styles.summaryStatValue}>{stats.workoutDays}</Text>
-            <Text style={styles.summaryStatLabel}>Workout Days</Text>
-          </View>
-          <View style={styles.summaryStatItem}>
-            <Text style={styles.summaryStatValue}>{restDays}</Text>
-            <Text style={styles.summaryStatLabel}>Rest Days</Text>
-          </View>
-          <View style={styles.summaryStatItem}>
-            <Text style={styles.summaryStatValue}>{trainingFrequency}%</Text>
-            <Text style={styles.summaryStatLabel}>Frequency</Text>
-          </View>
-        </View>
       </View>
     );
   };

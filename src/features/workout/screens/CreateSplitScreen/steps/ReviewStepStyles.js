@@ -84,12 +84,6 @@ const styles = createStyles(() => ({
     marginBottom: spacing[4],
     alignItems: 'center',
   },
-  scheduleTitle: {
-    fontSize: fontSize[20],
-    fontWeight: fontWeight.extrabold,
-    color: colors.text.primary,
-    letterSpacing: -0.5,
-  },
   scheduleSubtitle: {
     fontSize: fontSize[12],
     color: colors.text.secondary,
@@ -102,7 +96,7 @@ const styles = createStyles(() => ({
     alignItems: 'center',
   },
   currentWorkoutCard: {
-    backgroundColor: colors.background.tertiary,
+    backgroundColor: colors.background.primary,
     borderRadius: radius[4],
     padding: spacing[4],
     borderWidth: 1,
@@ -110,7 +104,7 @@ const styles = createStyles(() => ({
     marginBottom: spacing[5],
   },
   restDayCard: {
-    backgroundColor: colors.background.tertiary,
+    backgroundColor: colors.background.primary,
     borderRadius: radius[4],
     padding: spacing[4],
     borderWidth: 1,
@@ -181,30 +175,6 @@ const styles = createStyles(() => ({
     fontSize: fontSize[10],
     color: colors.text.secondary,
     fontWeight: fontWeight.semibold,
-  },
-  summaryStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: spacing[4],
-    borderTopWidth: 1,
-    borderTopColor: colors.border.light,
-    paddingHorizontal: spacing[5],
-  },
-  summaryStatItem: {
-    alignItems: 'center',
-  },
-  summaryStatValue: {
-    fontSize: fontSize[20],
-    fontWeight: fontWeight.extrabold,
-    color: colors.accent.primary,
-    letterSpacing: -0.5,
-  },
-  summaryStatLabel: {
-    fontSize: fontSize[10],
-    color: colors.text.quaternary,
-    fontWeight: fontWeight.medium,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
 }));
 
