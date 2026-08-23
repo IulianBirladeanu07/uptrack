@@ -9,6 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAuth } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { colors, spacing } from '../../../../../shared/theme';
@@ -19,9 +20,10 @@ import { fetchSplitsFromFirestore } from '../../../handlers/WorkoutHandler';
 import styles from './PreviewSplitScreenStyle';
 import DaySelector from './DaySelector';
 import MuscleCoverageCard from './MuscleCoverageCard';
-import WorkoutExercisePreview from '../../../components/WorkoutExercisePreview/WorkoutExercisePreview';
+import WorkoutExercisePreview, { ExercisePreviewList } from '../../../components/WorkoutExercisePreview/WorkoutExercisePreview';
 
 const MAJOR_MUSCLE_GROUPS = ['Chest', 'Back', 'Biceps', 'Quads', 'Hamstring', 'Delts', 'Triceps'];
+const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 const PreviewSplitScreen = ({ route, navigation }) => {
   const { splitData } = route.params || {};
@@ -34,13 +36,14 @@ const PreviewSplitScreen = ({ route, navigation }) => {
   const { userData, refreshUserData } = useContext(AuthContext);
   const { activeWorkout } = useContext(WorkoutContext);
   const isActiveSplit = !!split?.id && userData?.activeSplitId === split.id;
+  const insets = useSafeAreaInsets();
+
+  const todayKey = useMemo(() => DAY_NAMES[new Date().getDay()], []);
 
   useEffect(() => {
     if (split && !selectedDay) {
       if (split.type === 'weekly') {
-        const today = new Date();
-        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        setSelectedDay(dayNames[today.getDay()]);
+        setSelectedDay(todayKey);
       } else if (split.type === 'rotation') {
         const rotationDays = Object.keys(split.schedule).sort((a, b) => parseInt(a) - parseInt(b));
         if (rotationDays.length > 0) {
@@ -48,7 +51,7 @@ const PreviewSplitScreen = ({ route, navigation }) => {
         }
       }
     }
-  }, [split, selectedDay]);
+  }, [split, selectedDay, todayKey]);
 
   const scheduleDays = useMemo(() => {
     if (split?.type === 'weekly') {
@@ -76,12 +79,22 @@ const PreviewSplitScreen = ({ route, navigation }) => {
     return selectedDay ? split?.schedule?.[selectedDay] : null;
   }, [selectedDay, split]);
 
+  const selectedDayStats = useMemo(() => {
+    if (!selectedDayWorkout) return null;
+    const totalSets = selectedDayWorkout.exercises?.reduce(
+      (acc, ex) => acc + (parseInt(ex.numSets) || parseInt(ex.sets) || 0),
+      0
+    ) || 0;
+    return {
+      duration: selectedDayWorkout.duration || 45,
+      exerciseCount: selectedDayWorkout.exercises?.length || 0,
+      totalSets,
+    };
+  }, [selectedDayWorkout]);
+
   const compositionStats = useMemo(() => {
     const schedule = split?.schedule || {};
     const workouts = Object.values(schedule).filter(w => w !== null);
-    const workoutDays = workouts.length;
-    const totalDays = scheduleDays.length;
-    const restDays = Math.max(totalDays - workoutDays, 0);
 
     let totalSets = 0;
     let totalDuration = 0;
@@ -92,8 +105,8 @@ const PreviewSplitScreen = ({ route, navigation }) => {
       });
     });
 
-    return { workoutDays, restDays, totalSets, totalDuration };
-  }, [split, scheduleDays]);
+    return { workoutDays: workouts.length, totalSets, totalDuration };
+  }, [split]);
 
   const muscleGroupSets = useMemo(() => {
     const schedule = split?.schedule || {};
@@ -119,6 +132,9 @@ const PreviewSplitScreen = ({ route, navigation }) => {
       muscle => !muscleGroupSets.some(item => item.muscle === muscle)
     );
   }, [muscleGroupSets]);
+
+  const isViewingToday = split?.type === 'weekly' && selectedDay === todayKey;
+  const canStartFromHere = isActiveSplit && isViewingToday;
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -215,7 +231,7 @@ const PreviewSplitScreen = ({ route, navigation }) => {
           />
         }
       >
-        <View style={styles.contentContainer}>
+        <View style={[styles.contentContainer, { paddingBottom: spacing[7] + insets.bottom }]}>
           <View style={[styles.heroCard, isActiveSplit && styles.heroCardActive]}>
             <View style={styles.heroTop}>
               <TouchableOpacity
@@ -246,10 +262,6 @@ const PreviewSplitScreen = ({ route, navigation }) => {
               <View style={styles.metaItem}>
                 <Ionicons name="calendar-outline" size={spacing.iconSm} color={colors.text.quaternary} />
                 <Text style={styles.metaText}>{compositionStats.workoutDays} workout days</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons name="moon-outline" size={spacing.iconSm} color={colors.text.quaternary} />
-                <Text style={styles.metaText}>{compositionStats.restDays} rest days</Text>
               </View>
               <View style={styles.metaItem}>
                 <Ionicons name="layers-outline" size={spacing.iconSm} color={colors.text.quaternary} />
@@ -283,22 +295,17 @@ const PreviewSplitScreen = ({ route, navigation }) => {
             )}
           </View>
 
-          <MuscleCoverageCard
-            muscleGroupSets={muscleGroupSets}
-            uncoveredMuscles={uncoveredMuscles}
-            subtitle="sets per muscle group this split"
-          />
-
           <DaySelector
             days={scheduleDays.map(day => ({
               id: day.id,
               shortLabel: day.shortLabel,
               name: day.name,
               hasWorkout: !!split?.schedule?.[day.id],
+              isToday: day.id === todayKey,
             }))}
             selectedDayId={selectedDay}
             onSelectDay={setSelectedDay}
-            layout="scroll"
+            layout={split?.type === 'weekly' ? 'row' : 'scroll'}
             showLabels={split?.type === 'weekly'}
           />
 
@@ -306,17 +313,31 @@ const PreviewSplitScreen = ({ route, navigation }) => {
             <View style={styles.workoutCard}>
               <View style={styles.workoutHeader}>
                 <Text style={styles.workoutTitle}>{selectedDayWorkout.templateName || 'Workout'}</Text>
-                <Text style={styles.workoutMetaText}>
-                  {selectedDayWorkout.duration || 45}m · {selectedDayWorkout.exercises?.length || 0} exercises
-                </Text>
+                <View style={styles.workoutMetaRow}>
+                  <View style={styles.workoutMetaItem}>
+                    <Ionicons name="time-outline" size={spacing.iconSm} color={colors.text.quaternary} />
+                    <Text style={styles.workoutMetaText}>{selectedDayStats.duration}m</Text>
+                  </View>
+                  <View style={styles.workoutMetaItem}>
+                    <Ionicons name="barbell-outline" size={spacing.iconSm} color={colors.text.quaternary} />
+                    <Text style={styles.workoutMetaText}>{selectedDayStats.exerciseCount} exercises</Text>
+                  </View>
+                  <View style={styles.workoutMetaItem}>
+                    <Ionicons name="layers-outline" size={spacing.iconSm} color={colors.text.quaternary} />
+                    <Text style={styles.workoutMetaText}>{selectedDayStats.totalSets} sets</Text>
+                  </View>
+                </View>
               </View>
 
-              <WorkoutExercisePreview
-                exercises={selectedDayWorkout.exercises || []}
-                limit={5}
-                onStart={() => handleStartWorkout(selectedDayWorkout)}
-                disabled={!!activeWorkout}
-              />
+              {canStartFromHere ? (
+                <WorkoutExercisePreview
+                  exercises={selectedDayWorkout.exercises || []}
+                  activeWorkout={activeWorkout}
+                  onStart={() => handleStartWorkout(selectedDayWorkout)}
+                />
+              ) : (
+                <ExercisePreviewList exercises={selectedDayWorkout.exercises || []} />
+              )}
             </View>
           ) : (
             <View style={styles.restDayCard}>
@@ -325,6 +346,12 @@ const PreviewSplitScreen = ({ route, navigation }) => {
               <Text style={styles.restDayDescription}>Time to recover and let your muscles repair</Text>
             </View>
           )}
+
+          <MuscleCoverageCard
+            muscleGroupSets={muscleGroupSets}
+            uncoveredMuscles={uncoveredMuscles}
+            subtitle="sets per muscle group this split"
+          />
         </View>
       </ScrollView>
     </View>

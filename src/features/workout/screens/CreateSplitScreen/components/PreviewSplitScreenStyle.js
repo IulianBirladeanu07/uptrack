@@ -41,7 +41,6 @@ const styles = createStyles(() => ({
   contentContainer: {
     paddingHorizontal: spacing[5],
     paddingTop: spacing[16],
-    paddingBottom: spacing[7],
     gap: spacing[4],
   },
   heroCard: {
@@ -155,10 +154,21 @@ const styles = createStyles(() => ({
     color: colors.text.primary,
     letterSpacing: -0.1,
   },
+  workoutMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: spacing[3],
+    rowGap: spacing[1],
+  },
+  workoutMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+  },
   workoutMetaText: {
     fontSize: fontSize[12],
-    color: colors.text.quaternary,
     fontWeight: fontWeight.medium,
+    color: colors.text.quaternary,
   },
   restDayCard: {
     backgroundColor: colors.background.secondary,

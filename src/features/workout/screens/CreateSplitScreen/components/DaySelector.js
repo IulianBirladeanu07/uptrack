@@ -35,7 +35,7 @@ const DaySelector = ({
           </Text>
         </View>
         {showLabels && (
-          <Text style={[styles.dayLabel, isSelected && styles.dayLabelSelected]}>
+          <Text style={[styles.dayLabel, (isSelected || day.isToday) && styles.dayLabelSelected]}>
             {day.name.slice(0, 3)}
           </Text>
         )}
