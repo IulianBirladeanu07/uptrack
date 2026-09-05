@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Path, Circle, Line, Text as SvgText, G } from 'react-native-svg';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -7,12 +7,10 @@ import { colors, spacing, fontSize, fontWeight } from '../../../../shared/theme'
 import { createStyles } from '../../../../shared/theme/createStyles';
 
 export const PERIODS = [
-    { key: '7',   label: 'Week' },
-    { key: '8W',  label: '8W'   },
-    { key: '12W', label: '12W'  },
-    { key: '6M',  label: '6M'   },
-    { key: '1Y',  label: '1Y'   },
-    { key: 'ALL', label: 'All'  },
+    { key: '7',     label: 'Week'  },
+    { key: 'PHASE', label: 'Phase' },
+    { key: '6M',    label: '6M'    },
+    { key: 'ALL',   label: 'All'   },
 ];
 
 const CHART_H       = 160;
@@ -27,10 +25,41 @@ const WEEK_MS    = 7 * 24 * 60 * 60 * 1000;
 const MAX_POINTS = 20;
 
 const PERIOD_SPAN_WEEKS = {
-    '8W':  8,
-    '12W': 12,
-    '6M':  26,
-    '1Y':  52,
+    '6M': 26,
+};
+
+const getEarliestDate = (data) =>
+    data.reduce((min, e) => {
+        const d = new Date(e.date);
+        return d < min ? d : min;
+    }, new Date());
+
+const getDataWeeks = (data) =>
+    Math.max(1, Math.ceil((Date.now() - getEarliestDate(data).getTime()) / WEEK_MS));
+
+const getPhaseSpanWeeks = (goalSwitchDate) => {
+    if (!goalSwitchDate) return null;
+    const switchDate = new Date(goalSwitchDate);
+    if (isNaN(switchDate.getTime())) return null;
+    const diffMs = Date.now() - switchDate.getTime();
+    if (diffMs <= 0) return null;
+    return Math.max(1, Math.ceil(diffMs / WEEK_MS));
+};
+
+export const getAvailablePeriods = (data, goalSwitchDate) => {
+    const phaseWeeks = getPhaseSpanWeeks(goalSwitchDate);
+    const showPhase  = phaseWeeks != null && phaseWeeks >= 2;
+    const base       = PERIODS.filter(p => p.key !== 'PHASE' || showPhase);
+
+    if (!data?.length) return base.filter(p => p.key === '7' || p.key === 'PHASE' || p.key === 'ALL');
+
+    const dataWeeks = getDataWeeks(data);
+
+    return base.filter(p => {
+        if (p.key === 'PHASE') return true;
+        const span = PERIOD_SPAN_WEEKS[p.key];
+        return span == null || dataWeeks >= span / 2;
+    });
 };
 
 const toDateKey = (d) => d.toISOString().split('T')[0];
@@ -94,20 +123,24 @@ const getLabelAbove = (pts, i) => {
     return true;
 };
 
-const resolveGranularity = (spanWeeks) => {
-    if (spanWeeks <= MAX_POINTS) return { unit: 'week', count: spanWeeks };
+const PHASE_WEEKLY_CAP = { cut: 24, bulk: 12 };
+
+const resolveGranularity = (spanWeeks, weeklyCap = MAX_POINTS) => {
+    if (spanWeeks <= weeklyCap) return { unit: 'week', count: spanWeeks };
     const months = Math.ceil(spanWeeks / 4.345);
     if (months <= MAX_POINTS) return { unit: 'month', count: months };
     return { unit: 'quarter', count: Math.ceil(spanWeeks / 13) };
 };
 
-const getSpanWeeks = (period, data) => {
+const getSpanWeeks = (period, data, goalSwitchDate) => {
+    const dataWeeks = getDataWeeks(data);
+
+    if (period === 'PHASE') {
+        const phaseWeeks = getPhaseSpanWeeks(goalSwitchDate) ?? dataWeeks;
+        return Math.min(phaseWeeks, dataWeeks);
+    }
+
     const maxWeeks = PERIOD_SPAN_WEEKS[period] ?? Infinity;
-    const earliest = data.reduce((min, e) => {
-        const d = new Date(e.date);
-        return d < min ? d : min;
-    }, new Date());
-    const dataWeeks = Math.max(1, Math.ceil((Date.now() - earliest.getTime()) / WEEK_MS));
     return Math.min(maxWeeks, dataWeeks);
 };
 
@@ -146,7 +179,7 @@ const pickEvenLabels = (labels, max) => {
     return labels.filter((_, i) => idxSet.has(i));
 };
 
-const WeightChart = ({ data, period, width }) => {
+const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitchDate }) => {
     const drawW   = width - PAD_SIDE * 2;
     const drawTop = PAD_TOP;
     const drawBot = CHART_H - PAD_BOTTOM;
@@ -193,8 +226,9 @@ const WeightChart = ({ data, period, width }) => {
             return { points: pts, xLabels: labels };
         }
 
-        const spanWeeks       = getSpanWeeks(period, data);
-        const { unit, count } = resolveGranularity(spanWeeks);
+        const spanWeeks       = getSpanWeeks(period, data, goalSwitchDate);
+        const weeklyCap       = period === 'PHASE' ? (isBulking ? PHASE_WEEKLY_CAP.bulk : PHASE_WEEKLY_CAP.cut) : MAX_POINTS;
+        const { unit, count } = resolveGranularity(spanWeeks, weeklyCap);
         const allSlots        = [];
 
         for (let i = count - 1; i >= 0; i--) {
@@ -240,7 +274,7 @@ const WeightChart = ({ data, period, width }) => {
         }));
 
         return { points: pts, xLabels: labels };
-    }, [data, period, drawW, drawTop, drawBot]);
+    }, [data, period, drawW, drawTop, drawBot, goalSwitchDate, isBulking]);
 
     const linePath = useMemo(() => buildLinePath(points), [points]);
     const areaPath = useMemo(() => buildAreaPath(linePath, points, drawBot), [linePath, points, drawBot]);
@@ -284,6 +318,21 @@ const WeightChart = ({ data, period, width }) => {
     const tooltipLeft = active
         ? Math.min(Math.max(active.x + PAD_SIDE - TOOLTIP_WIDTH / 2, 0), width - TOOLTIP_WIDTH)
         : 0;
+
+    const periodDelta = (period !== '7' && points.length > 1)
+        ? points[points.length - 1].weight - points[0].weight
+        : null;
+
+    const deltaColor = periodDelta == null
+        ? colors.text.primary
+        : (isBulking ? (periodDelta >= 0 ? colors.accent.success : colors.accent.error)
+                     : (periodDelta <= 0 ? colors.accent.success : colors.accent.error));
+
+    useEffect(() => {
+        onDeltaChange?.(periodDelta != null
+            ? { value: periodDelta, color: deltaColor, since: points[0]?.label }
+            : null);
+    }, [periodDelta, deltaColor, points, onDeltaChange]);
 
     if (!points.length) {
         return (
@@ -398,7 +447,7 @@ const styles = createStyles(() => ({
     tooltip: {
         position:          'absolute',
         top:               PAD_TOP - 4,
-        backgroundColor:   colors.background.tertiary,
+        backgroundColor:   colors.background.primary,
         borderWidth:       1,
         borderColor:       colors.border.default,
         borderRadius:      8,

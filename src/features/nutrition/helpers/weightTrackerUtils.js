@@ -62,7 +62,8 @@ export const loadUserWeightData = async (
   setTrendData,
   setWeightIns,
   setStartWeight,
-  setGoalWeight
+  setGoalWeight,
+  setGoalSwitchDate
 ) => {
   try {
     const userDoc = await getDoc(doc(db, 'users', userId));
@@ -76,6 +77,7 @@ export const loadUserWeightData = async (
     setWeightIns(weightIns);
     setStartWeight(data.startWeight ?? null);
     setGoalWeight(data.targetWeight ?? null);
+    setGoalSwitchDate(data.goalSwitchDate ?? null);
 
     const today         = new Date(currentDate);
     const weekStartDate = getLocalWeekStart(today);

@@ -18,7 +18,7 @@ import {
     processWeightInsForDisplay,
     adjustWeight,
 } from '../../helpers/weightTrackerUtils';
-import WeightChart, { PERIODS as CHART_PERIODS } from './WeightChart';
+import WeightChart, { getAvailablePeriods } from './WeightChart';
 import { isSuspiciousWeightEntry, getCurrentTrendWeight } from '../../../profile/utils/weightTrendEngine';
 import { useFoodContext } from '../../context/FoodContext';
 
@@ -211,6 +211,7 @@ const WeightTracker = () => {
     const [chartPeriod,    setChartPeriod]    = useState('7');
     const [expandedWeeks,  setExpandedWeeks]  = useState({});
     const [chartWidth,     setChartWidth]     = useState(0);
+    const [chartDelta,     setChartDelta]     = useState(null);
 
     const [weightInput, setWeightInput] = useState('');
     const [isValid,     setIsValid]     = useState(true);
@@ -231,6 +232,7 @@ const WeightTracker = () => {
     const [weightIns,       setWeightIns]       = useState([]);
     const [startWeight,     setStartWeight]     = useState(null);
     const [goalWeight,      setGoalWeight]      = useState(null);
+    const [goalSwitchDate,  setGoalSwitchDate]  = useState(null);
 
     const longPressTimer    = useRef(null);
     const longPressInterval = useRef(null);
@@ -240,6 +242,16 @@ const WeightTracker = () => {
 
     const isBulking    = goalWeight != null && startWeight != null && goalWeight > startWeight;
     const weeklyGroups = useMemo(() => buildWeeklyGroups(weightIns), [weightIns]);
+    const availablePeriods = useMemo(() => {
+        const periods = getAvailablePeriods(trendData, goalSwitchDate);
+        return periods.map(p => p.key === 'PHASE' ? { ...p, label: isBulking ? 'Bulk' : 'Cut' } : p);
+    }, [trendData, goalSwitchDate, isBulking]);
+
+    useEffect(() => {
+        if (!availablePeriods.some(p => p.key === chartPeriod)) {
+            setChartPeriod('7');
+        }
+    }, [availablePeriods, chartPeriod]);
 
     const loadData = useCallback(async () => {
         if (!userId) return;
@@ -249,6 +261,7 @@ const WeightTracker = () => {
             setCurrentWeight, setWeightInput, setWeeklyData,
             setWeeklyAverage, setLastWeekAverage, setTrendData,
             setWeightIns, setStartWeight, setGoalWeight,
+            setGoalSwitchDate,
         );
         setLoading(false);
     }, [userId, committedDate]);
@@ -527,14 +540,24 @@ const commitWeightSave = async (parsedWeight) => {
                 >
                     <View style={styles.cardHeader}>
                         <Text style={styles.cardTitle}>Progress</Text>
+                        {chartDelta && (
+                            <Text style={[styles.progressDelta, { color: chartDelta.color }]}>
+                                {chartDelta.value > 0 ? '+' : ''}{chartDelta.value.toFixed(1)} kg since {chartDelta.since}
+                            </Text>
+                        )}
                     </View>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.periodScroll}
-                        contentContainerStyle={styles.periodPills}
-                    >
-                        {CHART_PERIODS.map(p => (
+                    {chartWidth > 0 && (
+                        <WeightChart
+                            data={trendData}
+                            period={chartPeriod}
+                            isBulking={isBulking}
+                            width={chartWidth}
+                            onDeltaChange={setChartDelta}
+                            goalSwitchDate={goalSwitchDate}
+                        />
+                    )}
+                    <View style={styles.periodTrack}>
+                        {availablePeriods.map(p => (
                             <TouchableOpacity
                                 key={p.key}
                                 style={[styles.periodPill, chartPeriod === p.key && styles.periodPillActive]}
@@ -546,10 +569,7 @@ const commitWeightSave = async (parsedWeight) => {
                                 </Text>
                             </TouchableOpacity>
                         ))}
-                    </ScrollView>
-                    {chartWidth > 0 && (
-                        <WeightChart data={trendData} period={chartPeriod} goalWeight={goalWeight} width={chartWidth} />
-                    )}
+                    </View>
                 </View>
 
                 {weeklyGroups.length > 0 && (
@@ -796,17 +816,22 @@ const styles = createStyles(() => ({
     },
     cardTitle:   { fontSize: fontSize[16], fontWeight: fontWeight.bold, color: colors.text.primary },
     viewAllText: { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.accent.primary },
+    progressDelta: { fontSize: fontSize[12], fontWeight: fontWeight.semibold },
 
-    periodScroll: { marginBottom: spacing[3] },
-    periodPills:  { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
-    periodPill: {
-        paddingHorizontal: spacing[2],
-        paddingVertical:   spacing[1],
-        borderRadius:      radius[2],
-        borderWidth:       1,
-        borderColor:       colors.border.default,
+    periodTrack: {
+        flexDirection:   'row',
+        backgroundColor: colors.faded.surface,
+        borderRadius:    radius[2],
+        padding:         2,
+        marginTop:       spacing[6],
     },
-    periodPillActive:     { backgroundColor: colors.accent.primary, borderColor: colors.accent.primary },
+    periodPill: {
+        flex:            1,
+        paddingVertical: spacing[1],
+        borderRadius:    radius[1],
+        alignItems:      'center',
+    },
+    periodPillActive:     { backgroundColor: colors.accent.primary },
     periodPillText:       { fontSize: fontSize[10], fontWeight: fontWeight.semibold, color: colors.text.quaternary },
     periodPillTextActive: { color: colors.accent.buttonText, fontWeight: fontWeight.bold },
 
