@@ -179,7 +179,13 @@ const pickEvenLabels = (labels, max) => {
     return labels.filter((_, i) => idxSet.has(i));
 };
 
-const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitchDate }) => {
+const formatExactDate = (dateStr) => {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitchDate, startWeight }) => {
     const drawW   = width - PAD_SIDE * 2;
     const drawTop = PAD_TOP;
     const drawBot = CHART_H - PAD_BOTTOM;
@@ -319,9 +325,15 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
         ? Math.min(Math.max(active.x + PAD_SIDE - TOOLTIP_WIDTH / 2, 0), width - TOOLTIP_WIDTH)
         : 0;
 
-    const periodDelta = (period !== '7' && points.length > 1)
-        ? points[points.length - 1].weight - points[0].weight
-        : null;
+    const periodDelta = period === 'PHASE' && startWeight != null && points.length > 0
+        ? points[points.length - 1].weight - startWeight
+        : points.length > 1
+            ? points[points.length - 1].weight - points[0].weight
+            : null;
+
+    const deltaSince = period === 'PHASE' && goalSwitchDate
+        ? (formatExactDate(goalSwitchDate) ?? points[0]?.label)
+        : points[0]?.label;
 
     const deltaColor = periodDelta == null
         ? colors.text.primary
@@ -330,9 +342,9 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
 
     useEffect(() => {
         onDeltaChange?.(periodDelta != null
-            ? { value: periodDelta, color: deltaColor, since: points[0]?.label }
+            ? { value: periodDelta, color: deltaColor, since: deltaSince }
             : null);
-    }, [periodDelta, deltaColor, points, onDeltaChange]);
+    }, [periodDelta, deltaColor, deltaSince, onDeltaChange]);
 
     if (!points.length) {
         return (

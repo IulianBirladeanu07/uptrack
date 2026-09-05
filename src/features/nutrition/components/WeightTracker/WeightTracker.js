@@ -538,24 +538,6 @@ const commitWeightSave = async (parsedWeight) => {
                     style={styles.card}
                     onLayout={e => setChartWidth(e.nativeEvent.layout.width - spacing[5] * 2)}
                 >
-                    <View style={styles.cardHeader}>
-                        <Text style={styles.cardTitle}>Progress</Text>
-                        {chartDelta && (
-                            <Text style={[styles.progressDelta, { color: chartDelta.color }]}>
-                                {chartDelta.value > 0 ? '+' : ''}{chartDelta.value.toFixed(1)} kg since {chartDelta.since}
-                            </Text>
-                        )}
-                    </View>
-                    {chartWidth > 0 && (
-                        <WeightChart
-                            data={trendData}
-                            period={chartPeriod}
-                            isBulking={isBulking}
-                            width={chartWidth}
-                            onDeltaChange={setChartDelta}
-                            goalSwitchDate={goalSwitchDate}
-                        />
-                    )}
                     <View style={styles.periodTrack}>
                         {availablePeriods.map(p => (
                             <TouchableOpacity
@@ -570,6 +552,24 @@ const commitWeightSave = async (parsedWeight) => {
                             </TouchableOpacity>
                         ))}
                     </View>
+
+                    <Text style={[styles.progressDelta, chartDelta && { color: chartDelta.color }]}>
+                        {chartDelta
+                            ? `${chartDelta.value > 0 ? '+' : ''}${chartDelta.value.toFixed(1)} kg since ${chartDelta.since}`
+                            : 'Not enough data yet'}
+                    </Text>
+
+                    {chartWidth > 0 && (
+                        <WeightChart
+                            data={trendData}
+                            period={chartPeriod}
+                            isBulking={isBulking}
+                            width={chartWidth}
+                            onDeltaChange={setChartDelta}
+                            goalSwitchDate={goalSwitchDate}
+                            startWeight={startWeight}
+                        />
+                    )}
                 </View>
 
                 {weeklyGroups.length > 0 && (
@@ -808,32 +808,28 @@ const styles = createStyles(() => ({
         borderColor:     colors.border.default,
         padding:         spacing[5],
     },
-    cardHeader: {
-        flexDirection:  'row',
-        alignItems:     'center',
-        justifyContent: 'space-between',
-        marginBottom:   spacing[2],
-    },
     cardTitle:   { fontSize: fontSize[16], fontWeight: fontWeight.bold, color: colors.text.primary },
     viewAllText: { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.accent.primary },
-    progressDelta: { fontSize: fontSize[12], fontWeight: fontWeight.semibold },
+    progressDelta: {
+        fontSize:     fontSize[12],
+        fontWeight:   fontWeight.semibold,
+        color:        colors.text.quaternary,
+        marginBottom: spacing[3],
+    },
 
     periodTrack: {
-        flexDirection:   'row',
-        backgroundColor: colors.faded.surface,
-        borderRadius:    radius[2],
-        padding:         2,
-        marginTop:       spacing[6],
+        flexDirection: 'row',
+        gap:           spacing[5],
+        marginBottom:  spacing[4],
     },
     periodPill: {
-        flex:            1,
-        paddingVertical: spacing[1],
-        borderRadius:    radius[1],
-        alignItems:      'center',
+        paddingBottom:     spacing[2],
+        borderBottomWidth: 2,
+        borderBottomColor: 'transparent',
     },
-    periodPillActive:     { backgroundColor: colors.accent.primary },
-    periodPillText:       { fontSize: fontSize[10], fontWeight: fontWeight.semibold, color: colors.text.quaternary },
-    periodPillTextActive: { color: colors.accent.buttonText, fontWeight: fontWeight.bold },
+    periodPillActive:     { borderBottomColor: colors.accent.primary },
+    periodPillText:       { fontSize: fontSize[12], fontWeight: fontWeight.semibold, color: colors.text.quaternary },
+    periodPillTextActive: { color: colors.text.primary, fontWeight: fontWeight.bold },
 
     historyCard: {
         backgroundColor: colors.background.secondary,

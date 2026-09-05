@@ -20,15 +20,17 @@ export const flattenWeightInsChronological = (weightIns) => {
   return entries.sort((a, b) => a.date - b.date);
 };
 
-export const buildWeightTrendSeries = (weightIns, alpha = EMA_ALPHA) => {
-  const chronological = flattenWeightInsChronological(weightIns);
+export const computeEmaSeries = (chronologicalEntries, alpha = EMA_ALPHA) => {
   let trend = null;
 
-  return chronological.map(entry => {
+  return chronologicalEntries.map(entry => {
     trend = trend == null ? entry.weight : trend + alpha * (entry.weight - trend);
     return { date: entry.date, rawWeight: entry.weight, trendWeight: parseFloat(trend.toFixed(2)) };
   });
 };
+
+export const buildWeightTrendSeries = (weightIns, alpha = EMA_ALPHA) =>
+  computeEmaSeries(flattenWeightInsChronological(weightIns), alpha);
 
 export const getCurrentTrendWeight = (weightIns) => {
   const series = buildWeightTrendSeries(weightIns);
