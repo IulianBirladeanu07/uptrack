@@ -41,13 +41,6 @@ const CreateTemplate = ({ navigation, route }) => {
       id: ex.id || generateExerciseId(),
     }))
   );
-  const [exerciseFadeAnims, setExerciseFadeAnims] = useState(() => {
-    const anims = {};
-    exercises.forEach((ex) => {
-      anims[ex.id] = new Animated.Value(1);
-    });
-    return anims;
-  });
   const [note, setNote] = useState(existingTemplate?.note || '');
   const [duration, setDuration] = useState(existingTemplate?.duration || 60);
   const [workoutType, setWorkoutType] = useState(existingTemplate?.workoutType || 'Strength');
@@ -152,34 +145,16 @@ const CreateTemplate = ({ navigation, route }) => {
     };
   }, [handleBackPress, fabAnim]);
 
-  const safelyRunAnimation = (animValue, toValue, duration = 300) => {
-    if (!animValue) return;
-    try {
-      return Animated.timing(animValue, {
-        toValue,
-        duration,
-        useNativeDriver: true,
-      }).start();
-    } catch (error) {
-      console.error('Animation error:', error);
-    }
-  };
-
   const undoDeleteExercise = useCallback(() => {
     setUndoState((currentUndoState) => {
       if (!currentUndoState.isActive || currentUndoState.type !== 'delete') return currentUndoState;
       const { exercise, index } = currentUndoState;
       if (exercise && index !== null) {
-        const newAnim = new Animated.Value(0);
         setExercises((prev) => {
           const newExercises = [...prev];
           newExercises.splice(index, 0, exercise);
           return newExercises;
         });
-        setExerciseFadeAnims((prev) => ({ ...prev, [exercise.id]: newAnim }));
-        setTimeout(() => {
-          safelyRunAnimation(newAnim, 1);
-        }, 50);
         showNotification('Exercise restored successfully!');
       }
       return {
@@ -197,7 +172,6 @@ const CreateTemplate = ({ navigation, route }) => {
       if (!currentUndoState.isActive || currentUndoState.type !== 'replace') return currentUndoState;
       const { exercise, replacedWithId } = currentUndoState;
       if (exercise && replacedWithId) {
-        const newAnim = new Animated.Value(0);
         setExercises((prev) => {
           const currentIdx = prev.findIndex((ex) => ex.id === replacedWithId);
           if (currentIdx === -1) return prev;
@@ -205,15 +179,6 @@ const CreateTemplate = ({ navigation, route }) => {
           next[currentIdx] = exercise;
           return next;
         });
-        setExerciseFadeAnims((prev) => {
-          const next = { ...prev };
-          delete next[replacedWithId];
-          next[exercise.id] = newAnim;
-          return next;
-        });
-        setTimeout(() => {
-          safelyRunAnimation(newAnim, 1);
-        }, 50);
         showNotification('Exercise restored successfully!');
       }
       return {
@@ -246,12 +211,7 @@ const CreateTemplate = ({ navigation, route }) => {
       return;
     }
     const newId = generateExerciseId();
-    const newAnim = new Animated.Value(0);
     setExercises((prev) => [...prev, { ...exercise, id: newId }]);
-    setExerciseFadeAnims((prev) => ({ ...prev, [newId]: newAnim }));
-    setTimeout(() => {
-      safelyRunAnimation(newAnim, 1);
-    }, 50);
   }, [exercises, showNotification]);
 
   useEffect(() => {
@@ -290,20 +250,10 @@ const CreateTemplate = ({ navigation, route }) => {
             index: currentIndex,
             isActive: true,
           });
-          const newAnim = new Animated.Value(0);
           setExercises((prev) => prev.map((ex) => ex.id === replaceExerciseId
             ? { ...exerciseToReplace, id: newId, restTime: ex.restTime || 180 }
             : ex
           ));
-          setExerciseFadeAnims((prev) => {
-            const next = { ...prev };
-            delete next[replaceExerciseId];
-            next[newId] = newAnim;
-            return next;
-          });
-          setTimeout(() => {
-            safelyRunAnimation(newAnim, 1);
-          }, 100);
           const originalExerciseName = originalExercise?.exerciseName || originalExercise?.name || 'Exercise';
           const newExerciseName = exerciseToReplace.exerciseName || exerciseToReplace.name || 'Exercise';
           showNotification(
@@ -375,11 +325,6 @@ const CreateTemplate = ({ navigation, route }) => {
       isActive: true,
     });
     setExercises((prev) => prev.filter((ex) => ex.id !== id));
-    setExerciseFadeAnims((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
     const exerciseName = exerciseToDelete?.exerciseName || exerciseToDelete?.name || 'Exercise';
     showNotification(
       `Exercise "${exerciseName}" deleted.`,
@@ -464,7 +409,6 @@ const CreateTemplate = ({ navigation, route }) => {
         return (
           <ExercisesStep
             exercises={exercises}
-            exerciseFadeAnims={exerciseFadeAnims || {}}
             handleAddExercise={handleAddExercise}
             handleSetsChange={handleSetsChange}
             handleRepsChange={handleRepsChange}

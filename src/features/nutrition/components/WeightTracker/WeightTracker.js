@@ -18,7 +18,7 @@ import {
     processWeightInsForDisplay,
     adjustWeight,
 } from '../../helpers/weightTrackerUtils';
-import WeightChart from './WeightChart';
+import WeightChart, { PERIODS as CHART_PERIODS } from './WeightChart';
 import { isSuspiciousWeightEntry, getCurrentTrendWeight } from '../../../profile/utils/weightTrendEngine';
 import { useFoodContext } from '../../context/FoodContext';
 
@@ -527,25 +527,26 @@ const commitWeightSave = async (parsedWeight) => {
                 >
                     <View style={styles.cardHeader}>
                         <Text style={styles.cardTitle}>Progress</Text>
-                        <View style={styles.periodPills}>
-                            {[
-                                { key: '7',   label: 'Week' },
-                                { key: '8W',  label: '8W'   },
-                                { key: '12W', label: '12W'  },
-                            ].map(p => (
-                                <TouchableOpacity
-                                    key={p.key}
-                                    style={[styles.periodPill, chartPeriod === p.key && styles.periodPillActive]}
-                                    onPress={() => setChartPeriod(p.key)}
-                                    activeOpacity={0.7}
-                                >
-                                    <Text style={[styles.periodPillText, chartPeriod === p.key && styles.periodPillTextActive]}>
-                                        {p.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
                     </View>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.periodScroll}
+                        contentContainerStyle={styles.periodPills}
+                    >
+                        {CHART_PERIODS.map(p => (
+                            <TouchableOpacity
+                                key={p.key}
+                                style={[styles.periodPill, chartPeriod === p.key && styles.periodPillActive]}
+                                onPress={() => setChartPeriod(p.key)}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={[styles.periodPillText, chartPeriod === p.key && styles.periodPillTextActive]}>
+                                    {p.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
                     {chartWidth > 0 && (
                         <WeightChart data={trendData} period={chartPeriod} goalWeight={goalWeight} width={chartWidth} />
                     )}
@@ -791,12 +792,13 @@ const styles = createStyles(() => ({
         flexDirection:  'row',
         alignItems:     'center',
         justifyContent: 'space-between',
-        marginBottom:   spacing[3],
+        marginBottom:   spacing[2],
     },
     cardTitle:   { fontSize: fontSize[16], fontWeight: fontWeight.bold, color: colors.text.primary },
     viewAllText: { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.accent.primary },
 
-    periodPills: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+    periodScroll: { marginBottom: spacing[3] },
+    periodPills:  { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
     periodPill: {
         paddingHorizontal: spacing[2],
         paddingVertical:   spacing[1],

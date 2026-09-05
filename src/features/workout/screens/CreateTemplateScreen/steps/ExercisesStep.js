@@ -17,7 +17,6 @@ const EmptyState = () => (
 
 export const ExercisesStep = ({
     exercises,
-    exerciseFadeAnims = {},
     handleAddExercise,
     handleSetsChange,
     handleRepsChange,
@@ -40,7 +39,6 @@ export const ExercisesStep = ({
                 onReplace={handleReplaceExercise}
                 onDelete={handleDeleteExercise}
                 onRestBetweenSetsChange={handleRestBetweenSetsChange}
-                fadeAnim={exerciseFadeAnims[item.id]}
                 onDrag={exercises.length > 1 ? drag : undefined}
                 isDragging={isActive}
             />
@@ -52,7 +50,6 @@ export const ExercisesStep = ({
         handleReplaceExercise,
         handleDeleteExercise,
         handleRestBetweenSetsChange,
-        exerciseFadeAnims,
         exercises.length,
     ]);
 
