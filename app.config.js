@@ -11,6 +11,7 @@ module.exports = {
       "expo-font",
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
+      "./plugins/withGoogleFitVersions",
       [
         "expo-build-properties",
         {
