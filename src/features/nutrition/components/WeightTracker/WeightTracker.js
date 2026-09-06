@@ -79,8 +79,10 @@ const buildWeeklyGroups = (weightIns) => {
                 .filter(Boolean);
 
             const prevWeek = arr[idx + 1];
-            const trend = (week.average != null && prevWeek?.average != null)
-                ? parseFloat((week.average - prevWeek.average).toFixed(2))
+            const weekAvgDisplay = week.average != null ? parseFloat(week.average.toFixed(1)) : null;
+            const prevAvgDisplay = prevWeek?.average != null ? parseFloat(prevWeek.average.toFixed(1)) : null;
+            const trend = (weekAvgDisplay != null && prevAvgDisplay != null)
+                ? parseFloat((weekAvgDisplay - prevAvgDisplay).toFixed(1))
                 : null;
 
             return {
@@ -444,14 +446,17 @@ const commitWeightSave = async (parsedWeight) => {
         setExpandedWeeks(prev => ({ ...prev, [weekStart]: !prev[weekStart] }));
     }, []);
 
-    const weekChangeColor = weeklyAverage != null && lastWeekAverage != null
+    const lastWeekAvgDisplay = lastWeekAverage != null ? parseFloat(lastWeekAverage.toFixed(1)) : null;
+    const weeklyAvgDisplay   = weeklyAverage != null ? parseFloat(weeklyAverage.toFixed(1)) : null;
+
+    const weekChangeColor = weeklyAvgDisplay != null && lastWeekAvgDisplay != null
         ? (isBulking
-            ? (weeklyAverage >= lastWeekAverage ? colors.accent.success : colors.accent.error)
-            : (weeklyAverage <= lastWeekAverage ? colors.accent.success : colors.accent.error))
+            ? (weeklyAvgDisplay >= lastWeekAvgDisplay ? colors.accent.success : colors.accent.error)
+            : (weeklyAvgDisplay <= lastWeekAvgDisplay ? colors.accent.success : colors.accent.error))
         : colors.text.primary;
 
-    const weekChangeDelta = weeklyAverage != null && lastWeekAverage != null
-        ? parseFloat((weeklyAverage - lastWeekAverage).toFixed(1))
+    const weekChangeDelta = weeklyAvgDisplay != null && lastWeekAvgDisplay != null
+        ? parseFloat((weeklyAvgDisplay - lastWeekAvgDisplay).toFixed(1))
         : null;
 
     if (loading) return (
@@ -561,7 +566,7 @@ const commitWeightSave = async (parsedWeight) => {
                         {chartDelta && (
                             <View style={[styles.deltaPill, { backgroundColor: chartDelta.bg }]}>
                                 <Text style={[styles.deltaPillText, { color: chartDelta.color }]}>
-                                    {chartDelta.value > 0 ? '+' : ''}{chartDelta.value.toFixed(1)} kg since {chartDelta.since}
+                                    {chartDelta.value > 0 ? '+' : ''}{chartDelta.value.toFixed(1)} kg {chartDelta.caption}
                                 </Text>
                             </View>
                         )}

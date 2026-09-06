@@ -239,6 +239,7 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
         const allSlots        = [];
 
         const anchor = period === 'PHASE' && goalSwitchDate ? new Date(goalSwitchDate) : null;
+        if (anchor) anchor.setHours(0, 0, 0, 0);
         const hasAnchor = anchor && !isNaN(anchor.getTime()) && startWeight != null;
 
         if (hasAnchor) {
@@ -389,9 +390,9 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
                 ? points[points.length - 1].weight - points[0].weight
                 : null;
 
-    const deltaSince = period === 'PHASE' && goalSwitchDate
-        ? (formatExactDate(goalSwitchDate) ?? points[0]?.label)
-        : points[0]?.label;
+    const deltaCaption = period === '7'
+        ? 'trend this week'
+        : `since ${period === 'PHASE' && goalSwitchDate ? (formatExactDate(goalSwitchDate) ?? points[0]?.label) : points[0]?.label}`;
 
     const isGoodDelta = periodDelta != null && (isBulking ? periodDelta >= 0 : periodDelta <= 0);
 
@@ -405,9 +406,9 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
 
     useEffect(() => {
         onDeltaChange?.(periodDelta != null
-            ? { value: periodDelta, color: deltaColor, bg: deltaBg, since: deltaSince }
+            ? { value: periodDelta, color: deltaColor, bg: deltaBg, caption: deltaCaption }
             : null);
-    }, [periodDelta, deltaColor, deltaBg, deltaSince, onDeltaChange]);
+    }, [periodDelta, deltaColor, deltaBg, deltaCaption, onDeltaChange]);
 
     if (!points.length) {
         return (
