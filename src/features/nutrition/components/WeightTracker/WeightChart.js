@@ -5,7 +5,6 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { colors, spacing, fontSize, fontWeight } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
-import { computeEmaSeries } from '../../../profile/utils/weightTrendEngine';
 
 export const PERIODS = [
     { key: '7',     label: 'Week'  },
@@ -365,25 +364,8 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
         ? Math.min(Math.max(active.x + PAD_SIDE - TOOLTIP_WIDTH / 2, 0), width - TOOLTIP_WIDTH)
         : 0;
 
-    const trendSeries = useMemo(() => {
-        if (!data?.length) return [];
-        const chronological = data
-            .filter(e => e.weight > 0)
-            .map(e => ({ date: new Date(e.date), weight: e.weight }))
-            .sort((a, b) => a.date - b.date);
-        return computeEmaSeries(chronological);
-    }, [data]);
-
-    const weekTrendDelta = useMemo(() => {
-        if (period !== '7' || !trendSeries.length) return null;
-        const weekStart = getLast7Days()[0];
-        const atStart = trendSeries.find(e => e.date >= weekStart) ?? trendSeries[trendSeries.length - 1];
-        const now = trendSeries[trendSeries.length - 1];
-        return parseFloat((now.trendWeight - atStart.trendWeight).toFixed(2));
-    }, [period, trendSeries]);
-
     const periodDelta = period === '7'
-        ? weekTrendDelta
+        ? null
         : period === 'PHASE' && startWeight != null && points.length > 0
             ? points[points.length - 1].weight - startWeight
             : points.length > 1

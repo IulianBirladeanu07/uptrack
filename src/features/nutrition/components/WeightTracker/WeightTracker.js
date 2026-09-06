@@ -581,6 +581,7 @@ const commitWeightSave = async (parsedWeight) => {
                             onDeltaChange={setChartDelta}
                             goalSwitchDate={goalSwitchDate}
                             startWeight={startWeight}
+                            weekChangeDelta={weekChangeDelta}
                         />
                     )}
                 </View>
