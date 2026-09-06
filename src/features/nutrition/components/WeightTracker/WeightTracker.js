@@ -17,6 +17,7 @@ import {
     handleSaveLogic,
     processWeightInsForDisplay,
     adjustWeight,
+    getRollingAverageWeight,
 } from '../../helpers/weightTrackerUtils';
 import WeightChart, { getAvailablePeriods } from './WeightChart';
 import { isSuspiciousWeightEntry, getCurrentTrendWeight } from '../../../profile/utils/weightTrendEngine';
@@ -301,8 +302,8 @@ const WeightTracker = () => {
 
     const loggedCount = thisWeekDays.filter(d => d.logged).length;
 
-    const trendWeight = useMemo(() => getCurrentTrendWeight(weightIns), [weightIns]);
-    const progressWeight = trendWeight ?? currentWeight;
+    const rollingAverageWeight = useMemo(() => getRollingAverageWeight(weightIns, 7), [weightIns]);
+    const progressWeight = rollingAverageWeight ?? currentWeight;
 
     const progressPercent = useMemo(() => {
         if (progressWeight == null || startWeight == null || goalWeight == null) return 0;
@@ -480,10 +481,6 @@ const commitWeightSave = async (parsedWeight) => {
                         </Text>
                         <Text style={styles.heroUnit}>kg</Text>
                     </View>
-
-                    {trendWeight != null && (
-                        <Text style={styles.trendSubtitle}>Trend {trendWeight.toFixed(1)} kg</Text>
-                    )}
 
                     {startWeight != null && goalWeight != null ? (
                         <View style={styles.progressSection}>
@@ -785,11 +782,10 @@ const styles = createStyles(() => ({
     },
     loggedCount: { fontSize: fontSize[10], fontWeight: fontWeight.semibold, color: colors.text.quaternary },
 
-    heroWeightRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: spacing[1], marginBottom: spacing[1] },
+    heroWeightRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: spacing[1], marginBottom: spacing[4] },
     heroWeight:    { fontSize: fontSize[56], fontWeight: fontWeight.black, color: colors.text.primary, letterSpacing: -4, lineHeight: 64, includeFontPadding: false },
     heroUnit:      { fontSize: fontSize[20], fontWeight: fontWeight.semibold, color: colors.text.secondary, marginBottom: spacing[2] },
-    trendSubtitle: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary, textAlign: 'center', marginBottom: spacing[4] },
-    emptyHeroText: { fontSize: fontSize[12], color: colors.text.quaternary, marginTop: spacing[3], marginBottom: spacing[4], textAlign: 'center' },
+    emptyHeroText: { fontSize: fontSize[12], color: colors.text.quaternary, marginBottom: spacing[4], textAlign: 'center' },
 
     progressSection: { marginBottom: spacing[2] },
     progressTrack:   { height: 8, backgroundColor: colors.background.tertiary, borderRadius: radius[1], overflow: 'hidden', marginBottom: spacing[2] },

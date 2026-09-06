@@ -268,6 +268,31 @@ export const processWeightInsForDisplay = (weightIns, limit = 20) => {
   return entries.sort((a, b) => b.date - a.date).slice(0, limit);
 };
 
+export const getRollingAverageWeight = (weightIns, days = 7) => {
+  const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const entries = [];
+
+  (weightIns || []).forEach(week => {
+    if (!week.days || !week.weekStart) return;
+    const [y, m, d] = week.weekStart.split('-').map(Number);
+    dayKeys.forEach((dayKey, dayIndex) => {
+      const weight = week.days[dayKey];
+      if (weight == null || isNaN(weight)) return;
+      entries.push({
+        date:   new Date(y, m - 1, d + dayIndex),
+        weight: parseFloat(weight),
+      });
+    });
+  });
+
+  if (!entries.length) return null;
+
+  entries.sort((a, b) => a.date - b.date);
+  const recent = entries.slice(-days);
+
+  return parseFloat((recent.reduce((sum, e) => sum + e.weight, 0) / recent.length).toFixed(2));
+};
+
 const formatDisplayDate = (date) => {
   const today     = new Date();
   const yesterday = new Date(today);

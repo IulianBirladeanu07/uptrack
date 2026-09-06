@@ -87,4 +87,4 @@ export const getPlanConfidence = (trendSeries, weeklyCalorieData) => {
   const recentCalorieDays = (weeklyCalorieData || []).reduce((sum, w) => sum + (w.daysLogged || 0), 0);
 
   return (recentWeightDays >= MIN_LOGGED_DAYS && recentCalorieDays >= MIN_LOGGED_DAYS) ? 'calibrated' : 'estimated';
-};
+};  
