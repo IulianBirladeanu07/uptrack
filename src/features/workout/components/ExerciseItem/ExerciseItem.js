@@ -10,8 +10,8 @@ import {
   TouchableWithoutFeedback,
   Vibration,
   Platform,
-  LayoutAnimation,
 } from 'react-native';
+import Reanimated, { LinearTransition, FadeIn, FadeOut } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,24 +34,7 @@ const REST_TIME_OPTIONS = [
 
 const SWIPE_THRESHOLD = 60;
 
-const NATIVE_ANIMATION_CONFIG = {
-  duration: 300,
-  easing: Easing.inOut(Easing.ease),
-  useNativeDriver: true,
-};
-
 const BUTTON_HIT_SLOP = { top: 10, right: 10, bottom: 10, left: 10 };
-
-const runAnimation = (anim, toValue, customConfig = {}) => {
-  const config = customConfig.useNativeDriver !== undefined
-    ? { ...customConfig }
-    : { ...NATIVE_ANIMATION_CONFIG, ...customConfig };
-
-  return Animated.timing(anim, {
-    toValue,
-    ...config,
-  }).start();
-};
 
 const formatRestTime = (seconds) => {
   if (!seconds) return '3m';
@@ -484,6 +467,7 @@ const RestTimeSelector = ({ selectedValue, onSelect, onCustomPress, hasUserSelec
 const areEqual = (prevProps, nextProps) => {
   return (
     prevProps.exercise === nextProps.exercise &&
+    prevProps.isExpanded === nextProps.isExpanded &&
     prevProps.fadeAnim === nextProps.fadeAnim &&
     prevProps.isDragging === nextProps.isDragging &&
     prevProps.onDrag === nextProps.onDrag &&
@@ -497,16 +481,11 @@ const areEqual = (prevProps, nextProps) => {
 };
 
 const ExerciseItem = React.memo(
-  ({ exercise, index, onSetsChange, onRepsChange, onNoteChange, onRestBetweenSetsChange, onDelete, onReplace, fadeAnim, onDrag, isDragging }) => {
-    const [showDetails, setShowDetails] = useState(index === 0);
+  ({ exercise, isExpanded, onToggle, onSetsChange, onRepsChange, onNoteChange, onRestBetweenSetsChange, onDelete, onReplace, fadeAnim, onDrag, isDragging }) => {
     const [modalState, setModalState] = useState({
       customRep: { visible: false, value: exercise?.repRange || '' },
       customRest: { visible: false },
     });
-
-    const detailsOpacity = useRef(new Animated.Value(index === 0 ? 1 : 0)).current;
-    const detailsTranslateY = useRef(new Animated.Value(index === 0 ? 0 : -20)).current;
-    const buttonsOpacity = useRef(new Animated.Value(index === 0 ? 1 : 0)).current;
 
     const swipeTranslateX = useRef(new Animated.Value(0)).current;
     const swipeOpacity = useRef(new Animated.Value(1)).current;
@@ -593,27 +572,12 @@ const ExerciseItem = React.memo(
       });
 
     const toggleDetails = useCallback(() => {
-      LayoutAnimation.configureNext({
-        duration: 300,
-        update: {
-          type: LayoutAnimation.Types.easeInEaseOut,
-        },
-      });
-
-      const newValue = !showDetails;
-      setShowDetails(newValue);
-
-      runAnimation(detailsOpacity, newValue ? 1 : 0, { duration: 300 });
-      runAnimation(detailsTranslateY, newValue ? 0 : -20, { duration: 300 });
-      runAnimation(buttonsOpacity, newValue ? 1 : 0, {
-        delay: newValue ? 150 : 0,
-        duration: 200,
-      });
+      onToggle(exercise.id);
 
       if (Platform.OS === 'ios') {
         Vibration.vibrate(5);
       }
-    }, [showDetails, detailsOpacity, detailsTranslateY, buttonsOpacity]);
+    }, [onToggle, exercise.id]);
 
     const handleModalChange = useCallback((modal, field, value) => {
       setModalState((prev) => ({
@@ -647,23 +611,11 @@ const ExerciseItem = React.memo(
       onRestBetweenSetsChange(totalSeconds, exercise.id);
     }, [onRestBetweenSetsChange, exercise.id]);
 
-    useEffect(() => {
-      runAnimation(buttonsOpacity, showDetails ? 1 : 0, {
-        delay: showDetails ? 150 : 0,
-        duration: 200,
-      });
-    }, [showDetails, buttonsOpacity]);
-
     const backgroundColorInterpolate = backgroundColorAnim.interpolate({
       inputRange: [-1, 0, 1],
       outputRange: [COLORS.error, COLORS.transparent, COLORS.primary],
       extrapolate: 'clamp',
     });
-
-    const animatedDetailsStyle = {
-      opacity: detailsOpacity,
-      transform: [{ translateY: detailsTranslateY }],
-    };
 
     const animatedCardStyle = {
       opacity: swipeOpacity,
@@ -681,148 +633,151 @@ const ExerciseItem = React.memo(
         <Animated.View style={[styles.swipeBackground, animatedBackgroundStyle]} />
 
         <GestureDetector gesture={panGesture}>
-          <Animated.View
-            style={[
-              styles.exerciseCard,
-              showDetails && styles.cardExpanded,
-              animatedCardStyle,
-              isDragging && styles.draggingCard,
-              { opacity: fadeAnim || 1 },
-            ]}
-          >
-            <View style={styles.exerciseHeader}>
-              <CustomButton
-                onPress={toggleDetails}
-                style={styles.exerciseHeaderButton}
-                activeOpacity={0.9}
-              >
-                <View style={styles.imageContainer}>
-                  {exercise.imageURL ? (
-                    <Image
-                      source={{ uri: exercise.imageURL }}
-                      style={styles.exerciseImage}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <View style={styles.exerciseImage}>
-                      <Ionicons name="barbell" size={20} color={COLORS.textMuted} />
-                    </View>
-                  )}
-                </View>
-                <View style={styles.exerciseTextContainer}>
-                  <View style={styles.nameAndSetsContainer}>
-                    <Text style={styles.exerciseName} numberOfLines={1} ellipsizeMode="tail">
-                      {exerciseName}
-                    </Text>
-                  </View>
-                  {(exercise.numSets || exercise.repRange || muscleGroup) && (
-                    <View style={styles.setsRepsSummary}>
-                      {(exercise.numSets || exercise.repRange) && (
-                        <Text style={styles.setsRepsText}>
-                          {exercise.numSets && exercise.repRange
-                            ? `${exercise.numSets} x ${exercise.repRange}`
-                            : exercise.numSets
-                            ? `${exercise.numSets} sets`
-                            : exercise.repRange
-                            ? `${exercise.repRange} reps`
-                            : ''}
-                        </Text>
-                      )}
-                      {muscleGroup && (exercise.numSets || exercise.repRange) && (
-                        <View style={styles.circleSeparator} />
-                      )}
-                      {muscleGroup && <Text style={styles.setsRepsText}>{muscleGroup}</Text>}
-                    </View>
-                  )}
-                </View>
-              </CustomButton>
-
-              <View style={styles.headerButtonsContainer}>
+          <Animated.View style={[animatedCardStyle, { opacity: fadeAnim || 1 }]}>
+            <Reanimated.View
+              layout={LinearTransition.duration(300)}
+              style={[
+                styles.exerciseCard,
+                isExpanded && styles.cardExpanded,
+                isDragging && styles.draggingCard,
+              ]}
+            >
+              <View style={styles.exerciseHeader}>
                 <CustomButton
-                  onPressIn={onDrag}
-                  disabled={!onDrag}
-                  style={styles.dragHandleButton}
-                  icon={
-                    <Ionicons
-                      name="reorder-three-outline"
-                      size={18}
-                      color={COLORS.textSecondary}
-                    />
-                  }
-                  accessibilityLabel="Drag to reorder exercise"
-                />
-              </View>
-            </View>
+                  onPress={toggleDetails}
+                  style={styles.exerciseHeaderButton}
+                  activeOpacity={0.9}
+                >
+                  <View style={styles.imageContainer}>
+                    {exercise.imageURL ? (
+                      <Image
+                        source={{ uri: exercise.imageURL }}
+                        style={styles.exerciseImage}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={styles.exerciseImage}>
+                        <Ionicons name="barbell" size={20} color={COLORS.textMuted} />
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.exerciseTextContainer}>
+                    <View style={styles.nameAndSetsContainer}>
+                      <Text style={styles.exerciseName} numberOfLines={1} ellipsizeMode="tail">
+                        {exerciseName}
+                      </Text>
+                    </View>
+                    {(exercise.numSets || exercise.repRange || muscleGroup) && (
+                      <View style={styles.setsRepsSummary}>
+                        {(exercise.numSets || exercise.repRange) && (
+                          <Text style={styles.setsRepsText}>
+                            {exercise.numSets && exercise.repRange
+                              ? `${exercise.numSets} x ${exercise.repRange}`
+                              : exercise.numSets
+                              ? `${exercise.numSets} sets`
+                              : exercise.repRange
+                              ? `${exercise.repRange} reps`
+                              : ''}
+                          </Text>
+                        )}
+                        {muscleGroup && (exercise.numSets || exercise.repRange) && (
+                          <View style={styles.circleSeparator} />
+                        )}
+                        {muscleGroup && <Text style={styles.setsRepsText}>{muscleGroup}</Text>}
+                      </View>
+                    )}
+                  </View>
+                </CustomButton>
 
-            {showDetails && (
-              <Animated.View
-                style={[styles.detailsContainer, animatedDetailsStyle, styles.detailsContainerPadding]}
-              >
-                <View>
-                  <View style={styles.detailRow}>
-                    <View style={styles.setsAndRestRow}>
-                      <View style={styles.setsSection}>
-                        <Text style={styles.detailLabel}>SETS</Text>
-                        <View style={styles.chipsContainer}>
-                          {SET_OPTIONS.map((setNum) => (
-                            <Chip
-                              key={`set-${setNum}`}
-                              label={setNum.toString()}
-                              isSelected={Number(exercise.numSets) === setNum}
-                              onPress={() => onSetsChange(setNum.toString(), exercise.id)}
-                            />
-                          ))}
+                <View style={styles.headerButtonsContainer}>
+                  <CustomButton
+                    onPressIn={onDrag}
+                    disabled={!onDrag}
+                    style={styles.dragHandleButton}
+                    icon={
+                      <Ionicons
+                        name="reorder-three-outline"
+                        size={18}
+                        color={COLORS.textSecondary}
+                      />
+                    }
+                    accessibilityLabel="Drag to reorder exercise"
+                  />
+                </View>
+              </View>
+
+              {isExpanded && (
+                <Reanimated.View
+                  entering={FadeIn.duration(220)}
+                  exiting={FadeOut.duration(160)}
+                  style={[styles.detailsContainer, styles.detailsContainerPadding]}
+                >
+                  <View>
+                    <View style={styles.detailRow}>
+                      <View style={styles.setsAndRestRow}>
+                        <View style={styles.setsSection}>
+                          <Text style={styles.detailLabel}>SETS</Text>
+                          <View style={styles.chipsContainer}>
+                            {SET_OPTIONS.map((setNum) => (
+                              <Chip
+                                key={`set-${setNum}`}
+                                label={setNum.toString()}
+                                isSelected={Number(exercise.numSets) === setNum}
+                                onPress={() => onSetsChange(setNum.toString(), exercise.id)}
+                              />
+                            ))}
+                          </View>
+                        </View>
+
+                        <View style={styles.restSection}>
+                          <Text style={styles.detailLabel}>REST </Text>
+                          <RestTimeSelector
+                            selectedValue={exercise.restTime}
+                            onSelect={handleRestTimeSelect}
+                            onCustomPress={handleCustomRestPress}
+                          />
                         </View>
                       </View>
+                    </View>
 
-                      <View style={styles.restSection}>
-                        <Text style={styles.detailLabel}>REST </Text>
-                        <RestTimeSelector
-                          selectedValue={exercise.restTime}
-                          onSelect={handleRestTimeSelect}
-                          onCustomPress={handleCustomRestPress}
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>REP RANGE</Text>
+                      <View style={styles.chipsContainer}>
+                        {REP_RANGE_OPTIONS.map((option) => (
+                          <Chip
+                            key={`rep-${option.value}`}
+                            label={option.label}
+                            isSelected={exercise.repRange === option.value}
+                            onPress={() => onRepsChange(option.value, exercise.id)}
+                          />
+                        ))}
+                        <Chip
+                          label={isCustomRepRange ? exercise.repRange : 'Custom'}
+                          isSelected={isCustomRepRange}
+                          onPress={() => handleModalChange('customRep', 'visible', true)}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={styles.noteContainer}>
+                      <Text style={styles.detailLabel}>NOTE</Text>
+                      <View style={styles.noteRow}>
+                        <TextInput
+                          style={styles.noteTextInput}
+                          value={exercise.note || ''}
+                          onChangeText={(text) => onNoteChange(text, exercise.id)}
+                          placeholder="Add notes for this exercise..."
+                          placeholderTextColor={COLORS.textMuted}
+                          multiline
+                          numberOfLines={2}
+                          textAlignVertical="top"
                         />
                       </View>
                     </View>
                   </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>REP RANGE</Text>
-                    <View style={styles.chipsContainer}>
-                      {REP_RANGE_OPTIONS.map((option) => (
-                        <Chip
-                          key={`rep-${option.value}`}
-                          label={option.label}
-                          isSelected={exercise.repRange === option.value}
-                          onPress={() => onRepsChange(option.value, exercise.id)}
-                        />
-                      ))}
-                      <Chip
-                        label={isCustomRepRange ? exercise.repRange : 'Custom'}
-                        isSelected={isCustomRepRange}
-                        onPress={() => handleModalChange('customRep', 'visible', true)}
-                      />
-                    </View>
-                  </View>
-
-                  <View style={styles.noteContainer}>
-                    <Text style={styles.detailLabel}>NOTE</Text>
-                    <View style={styles.noteRow}>
-                      <TextInput
-                        style={styles.noteTextInput}
-                        value={exercise.note || ''}
-                        onChangeText={(text) => onNoteChange(text, exercise.id)}
-                        placeholder="Add notes for this exercise..."
-                        placeholderTextColor={COLORS.textMuted}
-                        multiline
-                        numberOfLines={2}
-                        textAlignVertical="top"
-                      />
-                    </View>
-                  </View>
-                </View>
-              </Animated.View>
-            )}
+                </Reanimated.View>
+              )}
+            </Reanimated.View>
           </Animated.View>
         </GestureDetector>
 

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import DraggableFlatList from 'react-native-draggable-flatlist';
@@ -27,12 +27,26 @@ export const ExercisesStep = ({
     handleReorderExercises,
     scrollViewRef,
 }) => {
-    const renderItem = useCallback(({ item, getIndex, drag, isActive }) => {
-        const index = getIndex();
+    const [expandedId, setExpandedId] = useState(null);
+    const hasAutoExpandedRef = useRef(false);
+
+    useEffect(() => {
+        if (!hasAutoExpandedRef.current && exercises.length > 0) {
+            setExpandedId(exercises[0].id);
+            hasAutoExpandedRef.current = true;
+        }
+    }, [exercises]);
+
+    const handleToggleExpand = useCallback((id) => {
+        setExpandedId((prev) => (prev === id ? null : id));
+    }, []);
+
+    const renderItem = useCallback(({ item, drag, isActive }) => {
         return (
             <ExerciseItem
                 exercise={item}
-                index={index}
+                isExpanded={expandedId === item.id}
+                onToggle={handleToggleExpand}
                 onSetsChange={handleSetsChange}
                 onRepsChange={handleRepsChange}
                 onNoteChange={handleNoteChange}
@@ -44,6 +58,8 @@ export const ExercisesStep = ({
             />
         );
     }, [
+        expandedId,
+        handleToggleExpand,
         handleSetsChange,
         handleRepsChange,
         handleNoteChange,
