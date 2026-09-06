@@ -477,10 +477,12 @@ const StartWorkout = ({ route, navigation }) => {
         return true;
     }, [navigation, activeExerciseMenu, refreshAllData]);
 
-    useEffect(() => {
-        const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
-        return () => backHandler.remove();
-    }, [handleBackPress]);
+    useFocusEffect(
+        useCallback(() => {
+            const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+            return () => backHandler.remove();
+        }, [handleBackPress])
+    );
 
     useEffect(() => {
         const timeoutId = setTimeout(() => {

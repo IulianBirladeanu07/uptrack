@@ -400,12 +400,15 @@ const styles = createStyles(() => ({
         marginRight: spacing[1],
     },
     dragHandleButton: {
-        width: spacing[8],
-        height: spacing[8],
+        width: spacing[11],
+        height: spacing[11],
         borderRadius: radius[4],
         backgroundColor: colors.faded.surface,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    dragHandleButtonDisabled: {
+        opacity: 0.4,
     },
     draggingCard: {
         shadowColor: '#000',

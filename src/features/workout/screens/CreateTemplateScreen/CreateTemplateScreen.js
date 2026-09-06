@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useFocusEffect } from '@react-navigation/native';
 import styles from './CreateTemplateScreenStyle';
 import BasicInfoStep from './steps/BasicInfoStep';
 import ExercisesStep from './steps/ExercisesStep';
@@ -119,8 +120,14 @@ const CreateTemplate = ({ navigation, route }) => {
     return true;
   }, [navigation, currentStep, exercises.length, templateName, preferredDays]);
 
+  useFocusEffect(
+    useCallback(() => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+      return () => backHandler.remove();
+    }, [handleBackPress])
+  );
+
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
       setKeyboardVisible(true);
       Animated.timing(fabAnim, {
@@ -139,11 +146,10 @@ const CreateTemplate = ({ navigation, route }) => {
     });
 
     return () => {
-      backHandler.remove();
       keyboardDidShowListener.remove();
       keyboardDidHideListener.remove();
     };
-  }, [handleBackPress, fabAnim]);
+  }, [fabAnim]);
 
   const undoDeleteExercise = useCallback(() => {
     setUndoState((currentUndoState) => {

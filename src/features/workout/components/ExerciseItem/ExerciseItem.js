@@ -11,7 +11,17 @@ import {
   Vibration,
   Platform,
 } from 'react-native';
-import Reanimated, { LinearTransition, FadeIn, FadeOut } from 'react-native-reanimated';
+import Reanimated, {
+  LinearTransition,
+  FadeIn,
+  FadeOut,
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  interpolateColor,
+  runOnJS,
+} from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -487,9 +497,9 @@ const ExerciseItem = React.memo(
       customRest: { visible: false },
     });
 
-    const swipeTranslateX = useRef(new Animated.Value(0)).current;
-    const swipeOpacity = useRef(new Animated.Value(1)).current;
-    const backgroundColorAnim = useRef(new Animated.Value(0)).current;
+    const swipeTranslateX = useSharedValue(0);
+    const swipeOpacity = useSharedValue(1);
+    const swipeProgress = useSharedValue(0);
 
     const exerciseName = exercise?.exerciseName || exercise?.name || '';
     const muscleGroup = exercise?.muscleGroup || '';
@@ -503,73 +513,56 @@ const ExerciseItem = React.memo(
     }, [exercise.restTime, exercise.id, onRestBetweenSetsChange]);
 
     const panGesture = Gesture.Pan()
-      .runOnJS(true)
       .enabled(!isDragging)
       .activeOffsetX([-10, 10])
       .failOffsetY([-20, 20])
       .onUpdate((event) => {
-        swipeTranslateX.setValue(event.translationX);
-        const colorValue = event.translationX > 0 ? 1 : event.translationX < 0 ? -1 : 0;
-        backgroundColorAnim.setValue(colorValue);
+        swipeTranslateX.value = event.translationX;
+        swipeProgress.value = event.translationX > 0 ? 1 : event.translationX < 0 ? -1 : 0;
       })
       .onEnd((event) => {
         if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
           if (event.translationX > 0) {
-            Animated.parallel([
-              Animated.timing(swipeTranslateX, {
-                toValue: 200,
-                duration: 200,
-                useNativeDriver: true,
-              }),
-              Animated.timing(backgroundColorAnim, {
-                toValue: 1,
-                duration: 200,
-                useNativeDriver: false,
-              }),
-            ]).start(() => {
-              onReplace(exercise.id);
-              swipeTranslateX.setValue(0);
-              backgroundColorAnim.setValue(0);
-              Vibration.vibrate(20);
+            swipeTranslateX.value = withTiming(200, { duration: 200 }, (finished) => {
+              if (finished) {
+                swipeTranslateX.value = 0;
+                swipeProgress.value = 0;
+                runOnJS(onReplace)(exercise.id);
+                runOnJS(Vibration.vibrate)(20);
+              }
             });
+            swipeProgress.value = withTiming(1, { duration: 200 });
           } else {
-            Animated.parallel([
-              Animated.timing(swipeTranslateX, {
-                toValue: -200,
-                duration: 200,
-                useNativeDriver: true,
-              }),
-              Animated.timing(backgroundColorAnim, {
-                toValue: -1,
-                duration: 200,
-                useNativeDriver: false,
-              }),
-            ]).start(() => {
-              Animated.timing(swipeOpacity, {
-                toValue: 0,
-                duration: 200,
-                useNativeDriver: true,
-              }).start(() => {
-                onDelete(exercise.id);
-                Vibration.vibrate(40);
-              });
-            });
+            swipeTranslateX.value = withTiming(-200, { duration: 200 });
+            swipeProgress.value = withTiming(-1, { duration: 200 });
+            swipeOpacity.value = withDelay(
+              200,
+              withTiming(0, { duration: 200 }, (finished) => {
+                if (finished) {
+                  runOnJS(onDelete)(exercise.id);
+                  runOnJS(Vibration.vibrate)(40);
+                }
+              })
+            );
           }
         } else {
-          Animated.parallel([
-            Animated.timing(swipeTranslateX, {
-              toValue: 0,
-              duration: 200,
-              useNativeDriver: true,
-            }),
-            Animated.timing(backgroundColorAnim, {
-              toValue: 0,
-              duration: 200,
-              useNativeDriver: false,
-            }),
-          ]).start();
+          swipeTranslateX.value = withTiming(0, { duration: 200 });
+          swipeProgress.value = withTiming(0, { duration: 200 });
         }
       });
+
+    const animatedCardStyle = useAnimatedStyle(() => ({
+      opacity: swipeOpacity.value,
+      transform: [{ translateX: swipeTranslateX.value }],
+    }));
+
+    const animatedBackgroundStyle = useAnimatedStyle(() => ({
+      backgroundColor: interpolateColor(
+        swipeProgress.value,
+        [-1, 0, 1],
+        [COLORS.error, COLORS.transparent, COLORS.primary]
+      ),
+    }));
 
     const toggleDetails = useCallback(() => {
       onToggle(exercise.id);
@@ -611,29 +604,14 @@ const ExerciseItem = React.memo(
       onRestBetweenSetsChange(totalSeconds, exercise.id);
     }, [onRestBetweenSetsChange, exercise.id]);
 
-    const backgroundColorInterpolate = backgroundColorAnim.interpolate({
-      inputRange: [-1, 0, 1],
-      outputRange: [COLORS.error, COLORS.transparent, COLORS.primary],
-      extrapolate: 'clamp',
-    });
-
-    const animatedCardStyle = {
-      opacity: swipeOpacity,
-      transform: [{ translateX: swipeTranslateX }],
-    };
-
-    const animatedBackgroundStyle = {
-      backgroundColor: backgroundColorInterpolate,
-    };
-
     if (!exercise) return null;
 
     return (
       <View style={styles.exerciseItemContainer}>
-        <Animated.View style={[styles.swipeBackground, animatedBackgroundStyle]} />
+        <Reanimated.View style={[styles.swipeBackground, animatedBackgroundStyle]} />
 
         <GestureDetector gesture={panGesture}>
-          <Animated.View style={[animatedCardStyle, { opacity: fadeAnim || 1 }]}>
+          <Reanimated.View style={animatedCardStyle}>
             <Reanimated.View
               layout={LinearTransition.duration(300)}
               style={[
@@ -693,7 +671,7 @@ const ExerciseItem = React.memo(
                   <CustomButton
                     onPressIn={onDrag}
                     disabled={!onDrag}
-                    style={styles.dragHandleButton}
+                    style={[styles.dragHandleButton, !onDrag && styles.dragHandleButtonDisabled]}
                     icon={
                       <Ionicons
                         name="reorder-three-outline"
@@ -778,7 +756,7 @@ const ExerciseItem = React.memo(
                 </Reanimated.View>
               )}
             </Reanimated.View>
-          </Animated.View>
+          </Reanimated.View>
         </GestureDetector>
 
         <ModalWrapper
