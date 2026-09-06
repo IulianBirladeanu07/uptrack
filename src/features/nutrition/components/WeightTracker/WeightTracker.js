@@ -301,15 +301,18 @@ const WeightTracker = () => {
 
     const loggedCount = thisWeekDays.filter(d => d.logged).length;
 
+    const trendWeight = useMemo(() => getCurrentTrendWeight(weightIns), [weightIns]);
+    const progressWeight = trendWeight ?? currentWeight;
+
     const progressPercent = useMemo(() => {
-        if (currentWeight == null || startWeight == null || goalWeight == null) return 0;
+        if (progressWeight == null || startWeight == null || goalWeight == null) return 0;
         const total = Math.abs(goalWeight - startWeight);
         if (total === 0) return 100;
-        return Math.min(Math.max((Math.abs(currentWeight - startWeight) / total) * 100, 0), 100);
-    }, [currentWeight, startWeight, goalWeight]);
+        return Math.min(Math.max((Math.abs(progressWeight - startWeight) / total) * 100, 0), 100);
+    }, [progressWeight, startWeight, goalWeight]);
 
-    const remaining = (currentWeight != null && goalWeight != null)
-        ? parseFloat(Math.abs(currentWeight - goalWeight).toFixed(1)) : null;
+    const remaining = (progressWeight != null && goalWeight != null)
+        ? parseFloat(Math.abs(progressWeight - goalWeight).toFixed(1)) : null;
 
     const isExistingEntry = useMemo(() => {
         const key = modalDate.toISOString().split('T')[0];
@@ -478,6 +481,10 @@ const commitWeightSave = async (parsedWeight) => {
                         <Text style={styles.heroUnit}>kg</Text>
                     </View>
 
+                    {trendWeight != null && (
+                        <Text style={styles.trendSubtitle}>Trend {trendWeight.toFixed(1)} kg</Text>
+                    )}
+
                     {startWeight != null && goalWeight != null ? (
                         <View style={styles.progressSection}>
                             <View style={styles.progressTrack}>
@@ -539,25 +546,29 @@ const commitWeightSave = async (parsedWeight) => {
                     onLayout={e => setChartWidth(e.nativeEvent.layout.width - spacing[5] * 2)}
                 >
                     <View style={styles.periodTrack}>
-                        {availablePeriods.map(p => (
-                            <TouchableOpacity
-                                key={p.key}
-                                style={[styles.periodPill, chartPeriod === p.key && styles.periodPillActive]}
-                                onPress={() => setChartPeriod(p.key)}
-                                activeOpacity={0.7}
-                            >
-                                <Text style={[styles.periodPillText, chartPeriod === p.key && styles.periodPillTextActive]}>
-                                    {p.label}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
+                        <View style={styles.periodTabs}>
+                            {availablePeriods.map(p => (
+                                <TouchableOpacity
+                                    key={p.key}
+                                    style={[styles.periodPill, chartPeriod === p.key && styles.periodPillActive]}
+                                    onPress={() => setChartPeriod(p.key)}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={[styles.periodPillText, chartPeriod === p.key && styles.periodPillTextActive]}>
+                                        {p.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
 
-                    <Text style={[styles.progressDelta, chartDelta && { color: chartDelta.color }]}>
-                        {chartDelta
-                            ? `${chartDelta.value > 0 ? '+' : ''}${chartDelta.value.toFixed(1)} kg since ${chartDelta.since}`
-                            : 'Not enough data yet'}
-                    </Text>
+                        {chartDelta && (
+                            <View style={[styles.deltaPill, { backgroundColor: chartDelta.bg }]}>
+                                <Text style={[styles.deltaPillText, { color: chartDelta.color }]}>
+                                    {chartDelta.value > 0 ? '+' : ''}{chartDelta.value.toFixed(1)} kg since {chartDelta.since}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
 
                     {chartWidth > 0 && (
                         <WeightChart
@@ -774,10 +785,11 @@ const styles = createStyles(() => ({
     },
     loggedCount: { fontSize: fontSize[10], fontWeight: fontWeight.semibold, color: colors.text.quaternary },
 
-    heroWeightRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: spacing[1], marginBottom: spacing[4] },
+    heroWeightRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: spacing[1], marginBottom: spacing[1] },
     heroWeight:    { fontSize: fontSize[56], fontWeight: fontWeight.black, color: colors.text.primary, letterSpacing: -4, lineHeight: 64, includeFontPadding: false },
     heroUnit:      { fontSize: fontSize[20], fontWeight: fontWeight.semibold, color: colors.text.secondary, marginBottom: spacing[2] },
-    emptyHeroText: { fontSize: fontSize[12], color: colors.text.quaternary, marginBottom: spacing[4], textAlign: 'center' },
+    trendSubtitle: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary, textAlign: 'center', marginBottom: spacing[4] },
+    emptyHeroText: { fontSize: fontSize[12], color: colors.text.quaternary, marginTop: spacing[3], marginBottom: spacing[4], textAlign: 'center' },
 
     progressSection: { marginBottom: spacing[2] },
     progressTrack:   { height: 8, backgroundColor: colors.background.tertiary, borderRadius: radius[1], overflow: 'hidden', marginBottom: spacing[2] },
@@ -810,17 +822,16 @@ const styles = createStyles(() => ({
     },
     cardTitle:   { fontSize: fontSize[16], fontWeight: fontWeight.bold, color: colors.text.primary },
     viewAllText: { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.accent.primary },
-    progressDelta: {
-        fontSize:     fontSize[12],
-        fontWeight:   fontWeight.semibold,
-        color:        colors.text.quaternary,
-        marginBottom: spacing[3],
-    },
 
     periodTrack: {
+        flexDirection:  'row',
+        alignItems:     'center',
+        justifyContent: 'space-between',
+        marginBottom:   spacing[4],
+    },
+    periodTabs: {
         flexDirection: 'row',
         gap:           spacing[5],
-        marginBottom:  spacing[4],
     },
     periodPill: {
         paddingBottom:     spacing[2],
@@ -830,6 +841,14 @@ const styles = createStyles(() => ({
     periodPillActive:     { borderBottomColor: colors.accent.primary },
     periodPillText:       { fontSize: fontSize[12], fontWeight: fontWeight.semibold, color: colors.text.quaternary },
     periodPillTextActive: { color: colors.text.primary, fontWeight: fontWeight.bold },
+
+    deltaPill: {
+        paddingHorizontal: spacing[2],
+        paddingVertical:   3,
+        borderRadius:      radius[1],
+        alignItems:        'center',
+    },
+    deltaPillText: { fontSize: fontSize[10], fontWeight: fontWeight.bold },
 
     historyCard: {
         backgroundColor: colors.background.secondary,

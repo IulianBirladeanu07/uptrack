@@ -5,6 +5,7 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { colors, spacing, fontSize, fontWeight } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
+import { computeEmaSeries } from '../../../profile/utils/weightTrendEngine';
 
 export const PERIODS = [
     { key: '7',     label: 'Week'  },
@@ -237,32 +238,69 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
         const { unit, count } = resolveGranularity(spanWeeks, weeklyCap);
         const allSlots        = [];
 
-        for (let i = count - 1; i >= 0; i--) {
-            const { start, end } = getBucketRange(unit, i);
+        const anchor = period === 'PHASE' && goalSwitchDate ? new Date(goalSwitchDate) : null;
+        const hasAnchor = anchor && !isNaN(anchor.getTime()) && startWeight != null;
 
-            const entries = data.filter(e => {
-                if (!e.weight || e.weight <= 0) return false;
-                const d = new Date(e.date);
-                return d >= start && d <= end;
-            });
-
-            const avg = entries.length
-                ? entries.reduce((s, e) => s + e.weight, 0) / entries.length
-                : null;
+        if (hasAnchor) {
+            const bucketMs = unit === 'week' ? WEEK_MS : unit === 'month' ? WEEK_MS * 4.345 : WEEK_MS * 13;
 
             allSlots.push({
-                avg,
-                slot:  count - 1 - i,
-                label: formatBucketLabel(unit, start),
-                key:   toDateKey(start),
+                avg:   startWeight,
+                slot:  0,
+                label: formatExactDate(goalSwitchDate),
+                key:   toDateKey(anchor),
             });
+
+            for (let i = 0; i < count; i++) {
+                const start = new Date(anchor.getTime() + i * bucketMs);
+                if (start.getTime() > Date.now()) break;
+                const end = new Date(Math.min(anchor.getTime() + (i + 1) * bucketMs - 1, Date.now()));
+
+                const entries = data.filter(e => {
+                    if (!e.weight || e.weight <= 0) return false;
+                    const d = new Date(e.date);
+                    return d >= start && d <= end;
+                });
+
+                const avg = entries.length
+                    ? entries.reduce((s, e) => s + e.weight, 0) / entries.length
+                    : null;
+
+                allSlots.push({
+                    avg,
+                    slot:  i + 1,
+                    label: formatBucketLabel(unit, end),
+                    key:   toDateKey(end),
+                });
+            }
+        } else {
+            for (let i = count - 1; i >= 0; i--) {
+                const { start, end } = getBucketRange(unit, i);
+
+                const entries = data.filter(e => {
+                    if (!e.weight || e.weight <= 0) return false;
+                    const d = new Date(e.date);
+                    return d >= start && d <= end;
+                });
+
+                const avg = entries.length
+                    ? entries.reduce((s, e) => s + e.weight, 0) / entries.length
+                    : null;
+
+                allSlots.push({
+                    avg,
+                    slot:  count - 1 - i,
+                    label: formatBucketLabel(unit, start),
+                    key:   toDateKey(start),
+                });
+            }
         }
 
         const present = allSlots.filter(s => s.avg != null);
         if (!present.length) return { points: [], xLabels: [] };
 
         const { yMin, yMax } = getYScale(present.map(s => s.avg));
-        const n = Math.max(count - 1, 1);
+        const n = Math.max(allSlots.length - 1, 1);
 
         const pts = present.map((s, idx) => ({
             x:      (s.slot / n) * drawW,
@@ -280,7 +318,7 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
         }));
 
         return { points: pts, xLabels: labels };
-    }, [data, period, drawW, drawTop, drawBot, goalSwitchDate, isBulking]);
+    }, [data, period, drawW, drawTop, drawBot, goalSwitchDate, isBulking, startWeight]);
 
     const linePath = useMemo(() => buildLinePath(points), [points]);
     const areaPath = useMemo(() => buildAreaPath(linePath, points, drawBot), [linePath, points, drawBot]);
@@ -293,7 +331,8 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
             if (p.weight < points[minIdx].weight) minIdx = i;
             if (p.weight > points[maxIdx].weight) maxIdx = i;
         });
-        return new Set([0, points.length - 1, minIdx, maxIdx]);
+        const midIdx = Math.floor((points.length - 1) / 2);
+        return new Set([0, points.length - 1, minIdx, maxIdx, midIdx]);
     }, [points, period]);
 
     const [activePoint, setActivePoint] = useState(null);
@@ -325,26 +364,50 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
         ? Math.min(Math.max(active.x + PAD_SIDE - TOOLTIP_WIDTH / 2, 0), width - TOOLTIP_WIDTH)
         : 0;
 
-    const periodDelta = period === 'PHASE' && startWeight != null && points.length > 0
-        ? points[points.length - 1].weight - startWeight
-        : points.length > 1
-            ? points[points.length - 1].weight - points[0].weight
-            : null;
+    const trendSeries = useMemo(() => {
+        if (!data?.length) return [];
+        const chronological = data
+            .filter(e => e.weight > 0)
+            .map(e => ({ date: new Date(e.date), weight: e.weight }))
+            .sort((a, b) => a.date - b.date);
+        return computeEmaSeries(chronological);
+    }, [data]);
+
+    const weekTrendDelta = useMemo(() => {
+        if (period !== '7' || !trendSeries.length) return null;
+        const weekStart = getLast7Days()[0];
+        const atStart = trendSeries.find(e => e.date >= weekStart) ?? trendSeries[trendSeries.length - 1];
+        const now = trendSeries[trendSeries.length - 1];
+        return parseFloat((now.trendWeight - atStart.trendWeight).toFixed(2));
+    }, [period, trendSeries]);
+
+    const periodDelta = period === '7'
+        ? weekTrendDelta
+        : period === 'PHASE' && startWeight != null && points.length > 0
+            ? points[points.length - 1].weight - startWeight
+            : points.length > 1
+                ? points[points.length - 1].weight - points[0].weight
+                : null;
 
     const deltaSince = period === 'PHASE' && goalSwitchDate
         ? (formatExactDate(goalSwitchDate) ?? points[0]?.label)
         : points[0]?.label;
 
+    const isGoodDelta = periodDelta != null && (isBulking ? periodDelta >= 0 : periodDelta <= 0);
+
     const deltaColor = periodDelta == null
         ? colors.text.primary
-        : (isBulking ? (periodDelta >= 0 ? colors.accent.success : colors.accent.error)
-                     : (periodDelta <= 0 ? colors.accent.success : colors.accent.error));
+        : (isGoodDelta ? colors.accent.success : colors.accent.error);
+
+    const deltaBg = periodDelta == null
+        ? colors.faded.surface
+        : (isGoodDelta ? colors.faded.successAlt : colors.faded.errorAlt);
 
     useEffect(() => {
         onDeltaChange?.(periodDelta != null
-            ? { value: periodDelta, color: deltaColor, since: deltaSince }
+            ? { value: periodDelta, color: deltaColor, bg: deltaBg, since: deltaSince }
             : null);
-    }, [periodDelta, deltaColor, deltaSince, onDeltaChange]);
+    }, [periodDelta, deltaColor, deltaBg, deltaSince, onDeltaChange]);
 
     if (!points.length) {
         return (
