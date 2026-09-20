@@ -990,7 +990,7 @@ export const getExerciseHistory = async (exerciseName) => {
             if (!exercise || !exercise.sets?.length) continue;
 
             const validSets = exercise.sets.filter(s =>
-                (parseFloat(s.weight) > 0 || parseInt(s.reps) > 0)
+                (parseFloat(s.weight) > 0 && parseInt(s.reps) > 0)
             );
             if (!validSets.length) continue;
 

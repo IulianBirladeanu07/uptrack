@@ -326,7 +326,7 @@ const WeightHeroCard = ({ current, prev, userData, weightStatus, weightTrendData
                 value={current?.avgWeight?.toFixed(1)}
                 unit=" kg"
                 delta={delta}
-                positiveIsGood={targetRate != null ? targetRate < 0 : false}
+                positiveIsGood={targetRate != null ? targetRate > 0 : false}
                 decimals={2}
                 daysLogged={current?.daysLoggedWeight}
                 accentColor={colors.accent.primary}

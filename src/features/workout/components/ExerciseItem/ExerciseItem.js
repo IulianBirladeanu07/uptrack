@@ -781,4 +781,4 @@ const ExerciseItem = React.memo(
   areEqual
 );
 
-export default ExerciseItem;
+export default ExerciseItem;  

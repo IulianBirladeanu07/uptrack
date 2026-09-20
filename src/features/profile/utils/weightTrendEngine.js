@@ -78,6 +78,86 @@ export const isSuspiciousWeightEntry = (newWeight, currentTrendWeight, maxPercen
   return delta > currentTrendWeight * maxPercentDelta;
 };
 
+const PHASE_LABEL = {
+  weight_loss: 'Cutting',
+  muscle_gain: 'Bulking',
+  maintenance: 'Maintaining',
+};
+
+export const getPhaseLabel = (planType) => PHASE_LABEL[planType] ?? 'Maintaining';
+
+export const getWeightPhaseStatus = (weightDeltaKg, targetRateKgPerWeek, toleranceBand = 0.15) => {
+  if (weightDeltaKg == null || targetRateKgPerWeek == null) return null;
+
+  const sameDirection =
+    (targetRateKgPerWeek < 0 && weightDeltaKg <= 0) ||
+    (targetRateKgPerWeek > 0 && weightDeltaKg >= 0) ||
+    (targetRateKgPerWeek === 0 && Math.abs(weightDeltaKg) < toleranceBand);
+
+  if (!sameDirection) {
+    return {
+      type: 'bad',
+      icon: 'alert-circle',
+      label: 'Off track',
+      message: `Trending opposite to your ${targetRateKgPerWeek > 0 ? '+' : ''}${targetRateKgPerWeek.toFixed(2)} kg/wk goal`,
+    };
+  }
+
+  const diff = Math.abs(weightDeltaKg) - Math.abs(targetRateKgPerWeek);
+
+  if (Math.abs(diff) < toleranceBand) {
+    return {
+      type: 'good',
+      icon: 'checkmark-circle',
+      label: 'On track',
+      message: `${weightDeltaKg > 0 ? '+' : ''}${weightDeltaKg.toFixed(2)} kg this week, right on pace`,
+    };
+  }
+
+  if (diff < 0) {
+    return {
+      type: 'warn',
+      icon: 'time',
+      label: 'Behind pace',
+      message: `Trending slower than your ${targetRateKgPerWeek > 0 ? '+' : ''}${targetRateKgPerWeek.toFixed(2)} kg/wk goal`,
+    };
+  }
+
+  return {
+    type: 'good',
+    icon: 'trending-up',
+    label: 'Ahead of pace',
+    message: `Trending faster than your ${targetRateKgPerWeek > 0 ? '+' : ''}${targetRateKgPerWeek.toFixed(2)} kg/wk goal`,
+  };
+};
+
+const STRENGTH_STATUS_TABLE = {
+  muscle_gain: {
+    up: { type: 'good', icon: 'trending-up', label: 'Working', message: 'Surplus is converting to strength' },
+    flat: { type: 'warn', icon: 'remove-circle', label: 'Stalling', message: 'Weight is up but strength is flat — mostly fat, not muscle' },
+    down: { type: 'bad', icon: 'trending-down', label: 'Losing strength', message: 'Losing strength on a surplus — check recovery and programming' },
+  },
+  weight_loss: {
+    up: { type: 'good', icon: 'trending-up', label: 'Bonus gains', message: 'Getting stronger on a deficit' },
+    flat: { type: 'good', icon: 'shield-checkmark', label: 'Holding', message: 'Strength holding steady through the cut' },
+    down: { type: 'bad', icon: 'trending-down', label: 'Losing muscle', message: 'Strength dropping fast — the deficit may be too aggressive' },
+  },
+  maintenance: {
+    up: { type: 'good', icon: 'trending-up', label: 'Free progress', message: 'Getting stronger while holding weight steady' },
+    flat: { type: 'good', icon: 'remove', label: 'Steady', message: 'Strength holding steady' },
+    down: { type: 'warn', icon: 'time', label: 'Slipping', message: 'Strength trending down while maintaining' },
+  },
+};
+
+export const getStrengthPhaseStatus = (e1rmDeltaKg, planType, currentE1rmKg = null, toleranceBand = 1.5) => {
+  if (e1rmDeltaKg == null) return null;
+
+  const band = currentE1rmKg != null ? Math.max(toleranceBand, currentE1rmKg * 0.02) : toleranceBand;
+  const direction = Math.abs(e1rmDeltaKg) < band ? 'flat' : e1rmDeltaKg > 0 ? 'up' : 'down';
+
+  return (STRENGTH_STATUS_TABLE[planType] ?? STRENGTH_STATUS_TABLE.maintenance)[direction];
+};
+
 export const getPlanConfidence = (trendSeries, weeklyCalorieData) => {
   const MIN_WINDOW_DAYS = 14;
   const MIN_LOGGED_DAYS = 10;
@@ -87,4 +167,4 @@ export const getPlanConfidence = (trendSeries, weeklyCalorieData) => {
   const recentCalorieDays = (weeklyCalorieData || []).reduce((sum, w) => sum + (w.daysLogged || 0), 0);
 
   return (recentWeightDays >= MIN_LOGGED_DAYS && recentCalorieDays >= MIN_LOGGED_DAYS) ? 'calibrated' : 'estimated';
-};  
+};

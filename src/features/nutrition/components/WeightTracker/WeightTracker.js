@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, useContext } from 'react';
 import {
     View, Text, TouchableOpacity, ScrollView, Modal, Pressable,
     ActivityIndicator, Platform, Vibration, Animated, Alert,
@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebaseConfigService';
+import { AuthContext } from '../../../auth/context/AuthContext';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import {
@@ -206,6 +207,7 @@ const WeightTracker = () => {
     const navigation  = useNavigation();
     const insets      = useSafeAreaInsets();
     const { getMealCache } = useFoodContext();
+    const { userData } = useContext(AuthContext);
 
     const [userId,         setUserId]         = useState(null);
     const [loading,        setLoading]        = useState(true);
@@ -243,7 +245,9 @@ const WeightTracker = () => {
     const cursorOpacity     = useRef(new Animated.Value(1)).current;
     const dateOptions       = useMemo(() => buildDateOptions(), []);
 
-    const isBulking    = goalWeight != null && startWeight != null && goalWeight > startWeight;
+    const planType      = userData?.weightChangePlan?.type ?? null;
+    const fallbackBulk  = goalWeight != null && startWeight != null && goalWeight > startWeight;
+    const isBulking     = planType != null ? planType === 'muscle_gain' : fallbackBulk;
     const weeklyGroups = useMemo(() => buildWeeklyGroups(weightIns), [weightIns]);
     const availablePeriods = useMemo(() => {
         const periods = getAvailablePeriods(trendData, goalSwitchDate);
