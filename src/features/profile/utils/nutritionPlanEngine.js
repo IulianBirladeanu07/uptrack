@@ -4,6 +4,7 @@ import {
   detectPlateau,
   isGoalReached,
   getPlanConfidence,
+  getRecentAverageWeight,
 } from './weightTrendEngine';
 
 export const KCAL_PER_KG = 7700;
@@ -52,9 +53,10 @@ export const STRESS_MULTIPLIERS = {
   high:     0.7,
 };
 
-const LEAN_REMAINING_RATIO_THRESHOLD = 0.05;
-const LEAN_ROL_PERCENT = 0.25;
+const LANDING_WEEKS = 3;
 const STANDARD_ROL_PERCENT = 1.5;
+const FAST_LOSS_CEILING_PERCENT = 1.0;
+const FAST_LOSS_WINDOW_DAYS = 28;
 
 const STEPS_TDEE_BONUS_PER_KG = {
   very_high: 3.0,
@@ -122,17 +124,13 @@ export const calculateMinCalories = (bmr, tdee, currentWeight, activityLevel) =>
   return Math.round(Math.max(bmr * 1.1, tdee * 0.75, weightFloor, macroFloor));
 };
 
-export const getTargetROLPercent = (remainingRatio, stressLevel) => {
-  const baseROL = remainingRatio < LEAN_REMAINING_RATIO_THRESHOLD ? LEAN_ROL_PERCENT : STANDARD_ROL_PERCENT;
+export const getTargetROLPercent = (stressLevel) => {
   const stressMultiplier = STRESS_MULTIPLIERS[stressLevel] || STRESS_MULTIPLIERS.moderate;
-  return baseROL * stressMultiplier;
+  return STANDARD_ROL_PERCENT * stressMultiplier;
 };
 
-export const getTargetWeeklyRateKg = (currentWeight, targetWeight, stressLevel) => {
-  const remainingRatio = currentWeight > 0 ? Math.abs(currentWeight - targetWeight) / currentWeight : 0;
-  const rolPercent = getTargetROLPercent(remainingRatio, stressLevel);
-  return (currentWeight * rolPercent) / 100;
-};
+export const getTargetWeeklyRateKg = (currentWeight, stressLevel) =>
+  (currentWeight * getTargetROLPercent(stressLevel)) / 100;
 
 export const calculateMacros = (goal, calories, weight) => {
   const proteinPerKg = goal === 'weight_loss' ? WEIGHT_LOSS_PROTEIN_PER_KG : goal === 'muscle_gain' ? 2.2 : 1.8;
@@ -189,7 +187,7 @@ export const calculateWeightChangePlan = (formData) => {
   let weeksToGoal = 0;
 
   if (goal === 'weight_loss') {
-    const targetRatePerWeek = getTargetWeeklyRateKg(weight, target, stressLevel);
+    const targetRatePerWeek = getTargetWeeklyRateKg(weight, stressLevel);
     const deficitPct = DEFICIT_PERCENT[expLevel] || 0.18;
     const dailyDeltaTarget = (targetRatePerWeek * KCAL_PER_KG) / 7;
     const maxDailyDelta = tdee * deficitPct;
@@ -257,8 +255,9 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   if (!trendSeries.length) return null;
   const currentTrendWeight = trendSeries[trendSeries.length - 1].trendWeight;
   const planConfidence = getPlanConfidence(trendSeries, weeklyCalorieData);
+  const recentAverageWeight = getRecentAverageWeight(userData.weightIns);
 
-  if (isGoalReached(currentTrendWeight, targetWeight)) {
+  if (isGoalReached(recentAverageWeight ?? currentTrendWeight, targetWeight, 0.5, plan.type)) {
     return { suggestion: 'goal_reached', planConfidence };
   }
 
@@ -275,18 +274,31 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
     loggedWeeks.reduce((sum, w) => sum + w.avgCalories, 0) / loggedWeeks.length
   );
 
-  const targetRate = plan.ratePerWeek;
+  const measuredTDEE = calculateRealTDEE(avgLoggedCalories, actualRateKgPerWeek);
+  const realTDEE = measuredTDEE || plan.tdee;
+
+  const referenceWeight = recentAverageWeight ?? currentTrendWeight;
+  const targetRate = isLoss
+    ? Math.min(
+        getTargetWeeklyRateKg(referenceWeight, userData.stressLevel),
+        (realTDEE * (DEFICIT_PERCENT[expLevel] || 0.18) * 7) / KCAL_PER_KG
+      )
+    : plan.ratePerWeek;
   const actualMagnitude = isLoss ? -actualRateKgPerWeek : actualRateKgPerWeek;
   const progressRatio = actualMagnitude / targetRate;
-
-  const realTDEE = calculateRealTDEE(avgLoggedCalories, actualRateKgPerWeek) || plan.tdee;
+  const ceilingRate = calculateWeeklyRateOfChange(trendSeries, FAST_LOSS_WINDOW_DAYS);
+  const exceedsCeiling = isLoss && ceilingRate != null &&
+    -ceilingRate > (referenceWeight * FAST_LOSS_CEILING_PERCENT) / 100;
   const bmr = calculateBMR(userData.gender, currentTrendWeight, parseFloat(userData.height), parseFloat(userData.age));
   const minCal = isLoss ? calculateMinCalories(bmr, realTDEE, currentTrendWeight, userData.activityLevel) : null;
 
-  if (progressRatio >= 1 - RATE_TOLERANCE_PERCENT && progressRatio <= 1 + RATE_TOLERANCE_PERCENT) {
+  const withinBand = progressRatio >= 1 - RATE_TOLERANCE_PERCENT &&
+    (progressRatio <= 1 + RATE_TOLERANCE_PERCENT || (isLoss && !exceedsCeiling));
+
+  if (withinBand) {
     const caloriesDrift = avgLoggedCalories - userData.targetCalories;
     if (Math.abs(caloriesDrift) < HOLD_SYNC_MIN_DELTA) {
-      return { suggestion: 'hold', planConfidence };
+      return { suggestion: 'hold', planConfidence, measuredTDEE };
     }
     const syncedCalories = isLoss ? Math.max(avgLoggedCalories, minCal) : avgLoggedCalories;
     return {
@@ -294,10 +306,18 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
       syncedCalories,
       syncedMacros: calculateMacros(plan.type, syncedCalories, currentTrendWeight),
       planConfidence,
+      measuredTDEE,
     };
   }
 
   const tooSlow = progressRatio < 1 - RATE_TOLERANCE_PERCENT;
+
+  if (!tooSlow) {
+    const remainingKg = isLoss ? referenceWeight - targetWeight : targetWeight - referenceWeight;
+    if (actualMagnitude > 0 && remainingKg / actualMagnitude <= LANDING_WEEKS) {
+      return { suggestion: 'hold', planConfidence, measuredTDEE };
+    }
+  }
 
   const dailyDeltaTarget = (targetRate * KCAL_PER_KG) / 7;
   const maxDeltaFraction = isLoss
@@ -313,7 +333,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
 
     if (tooSlow && alreadyAtFloor) {
       if (detectPlateau(actualRateKgPerWeek, currentTrendWeight)) {
-        return { suggestion: 'increase_steps', suggestedStepsIncrease: STEPS_INCREASE_SUGGESTION, planConfidence };
+        return { suggestion: 'increase_steps', suggestedStepsIncrease: STEPS_INCREASE_SUGGESTION, planConfidence, measuredTDEE };
       }
       return {
         suggestion: 'calorie_adjustment',
@@ -324,12 +344,17 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
         suggestedStepsIncrease: STEPS_INCREASE_SUGGESTION,
         adjustedAt: new Date().toISOString(),
         planConfidence,
+        measuredTDEE,
       };
+    }
+
+    if (tooSlow && !alreadyAtFloor && !userData.slowEvalPending) {
+      return { suggestion: 'hold', planConfidence, measuredTDEE, slowEvalPending: true };
     }
   }
 
   const adjustment = newTargetCalories - userData.targetCalories;
-  if (adjustment === 0) return { suggestion: 'hold', planConfidence };
+  if (adjustment === 0) return { suggestion: 'hold', planConfidence, measuredTDEE };
 
   return {
     suggestion: 'calorie_adjustment',
@@ -339,5 +364,6 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
     newMacros: calculateMacros(plan.type, newTargetCalories, currentTrendWeight),
     adjustedAt: new Date().toISOString(),
     planConfidence,
+    measuredTDEE,
   };
 };

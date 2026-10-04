@@ -37,6 +37,17 @@ export const getCurrentTrendWeight = (weightIns) => {
   return series.length ? series[series.length - 1].trendWeight : null;
 };
 
+export const getRecentAverageWeight = (weightIns, days = 7, minEntries = 3) => {
+  const entries = flattenWeightInsChronological(weightIns);
+  if (!entries.length) return null;
+
+  const cutoff = entries[entries.length - 1].date.getTime() - days * 86400000;
+  const recent = entries.filter(e => e.date.getTime() > cutoff);
+  if (recent.length < minEntries) return null;
+
+  return parseFloat((recent.reduce((sum, e) => sum + e.weight, 0) / recent.length).toFixed(2));
+};
+
 export const calculateWeeklyRateOfChange = (trendSeries, windowDays = 14) => {
   if (!trendSeries || trendSeries.length < 4) return null;
 
@@ -67,8 +78,10 @@ export const detectPlateau = (actualWeeklyRateKg, currentWeight) => {
   return Math.abs(actualWeeklyRateKg) < threshold;
 };
 
-export const isGoalReached = (currentTrendWeight, targetWeight, toleranceKg = 0.5) => {
+export const isGoalReached = (currentTrendWeight, targetWeight, toleranceKg = 0.5, planType = null) => {
   if (currentTrendWeight == null || targetWeight == null) return false;
+  if (planType === 'weight_loss') return currentTrendWeight <= targetWeight + toleranceKg;
+  if (planType === 'muscle_gain') return currentTrendWeight >= targetWeight - toleranceKg;
   return Math.abs(currentTrendWeight - targetWeight) <= toleranceKg;
 };
 

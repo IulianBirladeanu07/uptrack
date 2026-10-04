@@ -7,6 +7,7 @@ import {
   isGoalReached,
   isSuspiciousWeightEntry,
   getPlanConfidence,
+  getRecentAverageWeight,
 } from './weightTrendEngine';
 import { buildWeightIns, buildDailyWeights, REALISTIC_DAILY_NOISE } from './testFixtures';
 
@@ -140,6 +141,18 @@ describe('isGoalReached', () => {
     expect(isGoalReached(81, 80)).toBe(false);
   });
 
+  test('weight_loss counts any weight at or below target plus tolerance', () => {
+    expect(isGoalReached(78, 80, 0.5, 'weight_loss')).toBe(true);
+    expect(isGoalReached(80.5, 80, 0.5, 'weight_loss')).toBe(true);
+    expect(isGoalReached(80.6, 80, 0.5, 'weight_loss')).toBe(false);
+  });
+
+  test('muscle_gain counts any weight at or above target minus tolerance', () => {
+    expect(isGoalReached(82, 80, 0.5, 'muscle_gain')).toBe(true);
+    expect(isGoalReached(79.5, 80, 0.5, 'muscle_gain')).toBe(true);
+    expect(isGoalReached(79.4, 80, 0.5, 'muscle_gain')).toBe(false);
+  });
+
   test('false when either value is missing', () => {
     expect(isGoalReached(null, 80)).toBe(false);
     expect(isGoalReached(80, null)).toBe(false);
@@ -192,5 +205,31 @@ describe('getPlanConfidence', () => {
     const series = buildWeightTrendSeries(weightIns);
 
     expect(getPlanConfidence(series, [{ daysLogged: 2 }])).toBe('estimated');
+  });
+});
+describe('getRecentAverageWeight', () => {
+  test('averages entries in the 7 days ending at the latest weigh-in', () => {
+    const weightIns = buildWeightIns('2026-01-05', [90, 90, 90, 90, 90, 90, 90, 80, 80, 80, 80, 80, 80, 80]);
+    expect(getRecentAverageWeight(weightIns)).toBe(80);
+  });
+
+  test('returns null with fewer than the minimum entries in the window', () => {
+    const weightIns = [
+      { weekStart: '2026-01-05', days: { monday: 90, tuesday: 90 } },
+      { weekStart: '2026-01-19', days: { monday: 80 } },
+    ];
+    expect(getRecentAverageWeight(weightIns)).toBeNull();
+  });
+
+  test('returns null for empty input', () => {
+    expect(getRecentAverageWeight([])).toBeNull();
+    expect(getRecentAverageWeight(undefined)).toBeNull();
+  });
+
+  test('tracks a fast cut more closely than the EMA trend weight', () => {
+    const weightIns = buildWeightIns('2026-01-05', buildDailyWeights(95, -1 / 7, 56, [0]));
+    const recent = getRecentAverageWeight(weightIns);
+    const trend = getCurrentTrendWeight(weightIns);
+    expect(recent).toBeLessThan(trend);
   });
 });

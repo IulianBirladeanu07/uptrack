@@ -1,0 +1,578 @@
+diff --git a/src/features/nutrition/helpers/learningCompletionService.js b/src/features/nutrition/helpers/learningCompletionService.js
+index d577f1c..9686085 100644
+--- a/src/features/nutrition/helpers/learningCompletionService.js
++++ b/src/features/nutrition/helpers/learningCompletionService.js
+@@ -128,6 +128,11 @@ export const getWeeklyCalorieStats = (weeklyNutrition, weeks = 4) => {
+   }));
+ };
+ 
++const blendMaintenance = (stored, measured) => {
++  if (!measured) return null;
++  return stored ? Math.round((stored + measured) / 2) : measured;
++};
++
+ const daysSince = (isoDateStr) => {
+   if (!isoDateStr) return Infinity;
+   return (Date.now() - new Date(isoDateStr).getTime()) / (1000 * 60 * 60 * 24);
+@@ -183,6 +188,13 @@ export const evaluateWeeklyProgress = async (userId, userData, mealCache, curren
+     };
+   }
+ 
++  updateData.slowEvalPending = adjustment.slowEvalPending === true;
++
++  const maintenanceCalories = blendMaintenance(userData.maintenanceCalories, adjustment.measuredTDEE);
++  if (maintenanceCalories && adjustment.suggestion !== 'goal_reached') {
++    updateData.maintenanceCalories = maintenanceCalories;
++  }
++
+   try {
+     await setDoc(doc(db, 'users', userId), updateData, { merge: true });
+     return { suggestion: adjustment.suggestion, ...updateData };
+diff --git a/src/features/nutrition/helpers/learningCompletionService.test.js b/src/features/nutrition/helpers/learningCompletionService.test.js
+index 89a9166..9428eff 100644
+--- a/src/features/nutrition/helpers/learningCompletionService.test.js
++++ b/src/features/nutrition/helpers/learningCompletionService.test.js
+@@ -208,7 +208,7 @@ describe('evaluateWeeklyProgress', () => {
+   });
+ 
+   test('too_slow branch persists new targets, macros, and lastCalorieAdjustment', async () => {
+-    const userData = { ...baseUserData, weightIns: weeksOfDecline(95, 0.1, 5) };
++    const userData = { ...baseUserData, slowEvalPending: true, weightIns: weeksOfDecline(95, 0.1, 5) };
+     const result = await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date());
+     expect(result.suggestion).toBe('calorie_adjustment');
+     expect(setDoc).toHaveBeenCalledTimes(1);
+@@ -216,6 +216,16 @@ describe('evaluateWeeklyProgress', () => {
+     expect(payload.targetCalories).toBeLessThan(userData.targetCalories);
+     expect(payload.lastCalorieAdjustment.reason).toBe('too_slow');
+     expect(payload.planConfidence).toBeDefined();
++    expect(payload.slowEvalPending).toBe(false);
++  });
++
++  test('first slow evaluation holds targets and persists the pending slow flag', async () => {
++    const userData = { ...baseUserData, weightIns: weeksOfDecline(95, 0.1, 5) };
++    const result = await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date());
++    expect(result.suggestion).toBe('hold');
++    const [, payload] = setDoc.mock.calls[0];
++    expect(payload.targetCalories).toBeUndefined();
++    expect(payload.slowEvalPending).toBe(true);
+   });
+ 
+   test('hold branch with no drift persists only the adjustment date and confidence, not new targets', async () => {
+diff --git a/src/features/profile/utils/homeSurfaceEngine.js b/src/features/profile/utils/homeSurfaceEngine.js
+index be6e840..a9aadba 100644
+--- a/src/features/profile/utils/homeSurfaceEngine.js
++++ b/src/features/profile/utils/homeSurfaceEngine.js
+@@ -13,6 +13,13 @@ const ADJUSTMENT_REASON_COPY = {
+   steps_calibrated: 'We calibrated your calories using your actual step count.',
+ };
+ 
++const getCutRaiseBody = (adjustment) => {
++  const base = 'You were losing faster than planned, so we raised your target to slow the cut.';
++  const { measuredTDEE, newTargetCalories } = adjustment;
++  if (!measuredTDEE || measuredTDEE <= newTargetCalories) return base;
++  return `${base} It is still ${measuredTDEE - newTargetCalories} kcal under your measured maintenance of ${measuredTDEE}.`;
++};
++
+ export const getCalorieAdjustmentNotice = (userData, dismissedAdjustmentTimestamps = []) => {
+   const adjustment = userData?.lastCalorieAdjustment;
+   if (!adjustment?.adjustedAt) return null;
+@@ -21,6 +28,21 @@ export const getCalorieAdjustmentNotice = (userData, dismissedAdjustmentTimestam
+   if (daysBetween(adjustment.adjustedAt) > ADJUSTMENT_NOTICE_MAX_AGE_DAYS) return null;
+   if (dismissedAdjustmentTimestamps.includes(adjustment.adjustedAt)) return null;
+ 
++  const isCutRaise =
++    userData?.weightChangePlan?.type === 'weight_loss' &&
++    adjustment.reason === 'too_fast' &&
++    adjustment.adjustment > 0;
++
++  if (isCutRaise) {
++    return {
++      id: `calorie_adjustment_${adjustment.adjustedAt}`,
++      type: 'calorie_adjustment',
++      title: `Calories raised to ${adjustment.newTargetCalories} to slow your cut`,
++      body: getCutRaiseBody(adjustment),
++      dismissKey: adjustment.adjustedAt,
++    };
++  }
++
+   return {
+     id: `calorie_adjustment_${adjustment.adjustedAt}`,
+     type: 'calorie_adjustment',
+diff --git a/src/features/profile/utils/homeSurfaceEngine.test.js b/src/features/profile/utils/homeSurfaceEngine.test.js
+new file mode 100644
+index 0000000..42efa5b
+--- /dev/null
++++ b/src/features/profile/utils/homeSurfaceEngine.test.js
+@@ -0,0 +1,50 @@
++import { getCalorieAdjustmentNotice } from './homeSurfaceEngine';
++
++const recent = () => new Date(Date.now() - 3600000).toISOString();
++
++const cutUser = (over = {}) => ({
++  weightChangePlan: { type: 'weight_loss' },
++  lastCalorieAdjustment: {
++    reason: 'too_fast',
++    adjustment: 400,
++    newTargetCalories: 3638,
++    adjustedAt: recent(),
++    ...over,
++  },
++});
++
++describe('getCalorieAdjustmentNotice', () => {
++  test('uses cut-specific copy when a weight-loss plan raises calories for too_fast', () => {
++    const n = getCalorieAdjustmentNotice(cutUser());
++    expect(n.title).toBe('Calories raised to 3638 to slow your cut');
++    expect(n.body).toContain('slow the cut');
++  });
++
++  test('adds the gap to measured maintenance when it is known and higher than the target', () => {
++    const n = getCalorieAdjustmentNotice(cutUser({ measuredTDEE: 3883 }));
++    expect(n.body).toContain('245 kcal under your measured maintenance of 3883');
++  });
++
++  test('omits the maintenance gap when measured maintenance is not above the target', () => {
++    const n = getCalorieAdjustmentNotice(cutUser({ measuredTDEE: 3600 }));
++    expect(n.body).not.toContain('maintenance');
++  });
++
++  test('keeps the generic copy for a muscle-gain plan', () => {
++    const u = cutUser();
++    u.weightChangePlan = { type: 'muscle_gain' };
++    expect(getCalorieAdjustmentNotice(u).title).toBe('Calories increased to 3638');
++  });
++
++  test('keeps the generic copy for a calorie decrease on a cut', () => {
++    const n = getCalorieAdjustmentNotice(cutUser({ reason: 'too_slow', adjustment: -200 }));
++    expect(n.title).toBe('Calories adjusted to 3638');
++  });
++
++  test('returns null for goal_reached, stale and dismissed adjustments', () => {
++    expect(getCalorieAdjustmentNotice(cutUser({ reason: 'goal_reached' }))).toBeNull();
++    expect(getCalorieAdjustmentNotice(cutUser({ adjustedAt: '2020-01-01T00:00:00.000Z' }))).toBeNull();
++    const u = cutUser();
++    expect(getCalorieAdjustmentNotice(u, [u.lastCalorieAdjustment.adjustedAt])).toBeNull();
++  });
++});
+diff --git a/src/features/profile/utils/nutritionPlanEngine.js b/src/features/profile/utils/nutritionPlanEngine.js
+index 21dba59..1f12733 100644
+--- a/src/features/profile/utils/nutritionPlanEngine.js
++++ b/src/features/profile/utils/nutritionPlanEngine.js
+@@ -4,6 +4,7 @@ import {
+   detectPlateau,
+   isGoalReached,
+   getPlanConfidence,
++  getRecentAverageWeight,
+ } from './weightTrendEngine';
+ 
+ export const KCAL_PER_KG = 7700;
+@@ -52,9 +53,10 @@ export const STRESS_MULTIPLIERS = {
+   high:     0.7,
+ };
+ 
+-const LEAN_REMAINING_RATIO_THRESHOLD = 0.05;
+-const LEAN_ROL_PERCENT = 0.25;
++const LANDING_WEEKS = 3;
+ const STANDARD_ROL_PERCENT = 1.5;
++const FAST_LOSS_CEILING_PERCENT = 1.0;
++const FAST_LOSS_WINDOW_DAYS = 28;
+ 
+ const STEPS_TDEE_BONUS_PER_KG = {
+   very_high: 3.0,
+@@ -122,17 +124,13 @@ export const calculateMinCalories = (bmr, tdee, currentWeight, activityLevel) =>
+   return Math.round(Math.max(bmr * 1.1, tdee * 0.75, weightFloor, macroFloor));
+ };
+ 
+-export const getTargetROLPercent = (remainingRatio, stressLevel) => {
+-  const baseROL = remainingRatio < LEAN_REMAINING_RATIO_THRESHOLD ? LEAN_ROL_PERCENT : STANDARD_ROL_PERCENT;
++export const getTargetROLPercent = (stressLevel) => {
+   const stressMultiplier = STRESS_MULTIPLIERS[stressLevel] || STRESS_MULTIPLIERS.moderate;
+-  return baseROL * stressMultiplier;
++  return STANDARD_ROL_PERCENT * stressMultiplier;
+ };
+ 
+-export const getTargetWeeklyRateKg = (currentWeight, targetWeight, stressLevel) => {
+-  const remainingRatio = currentWeight > 0 ? Math.abs(currentWeight - targetWeight) / currentWeight : 0;
+-  const rolPercent = getTargetROLPercent(remainingRatio, stressLevel);
+-  return (currentWeight * rolPercent) / 100;
+-};
++export const getTargetWeeklyRateKg = (currentWeight, stressLevel) =>
++  (currentWeight * getTargetROLPercent(stressLevel)) / 100;
+ 
+ export const calculateMacros = (goal, calories, weight) => {
+   const proteinPerKg = goal === 'weight_loss' ? WEIGHT_LOSS_PROTEIN_PER_KG : goal === 'muscle_gain' ? 2.2 : 1.8;
+@@ -189,7 +187,7 @@ export const calculateWeightChangePlan = (formData) => {
+   let weeksToGoal = 0;
+ 
+   if (goal === 'weight_loss') {
+-    const targetRatePerWeek = getTargetWeeklyRateKg(weight, target, stressLevel);
++    const targetRatePerWeek = getTargetWeeklyRateKg(weight, stressLevel);
+     const deficitPct = DEFICIT_PERCENT[expLevel] || 0.18;
+     const dailyDeltaTarget = (targetRatePerWeek * KCAL_PER_KG) / 7;
+     const maxDailyDelta = tdee * deficitPct;
+@@ -257,8 +255,9 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
+   if (!trendSeries.length) return null;
+   const currentTrendWeight = trendSeries[trendSeries.length - 1].trendWeight;
+   const planConfidence = getPlanConfidence(trendSeries, weeklyCalorieData);
++  const recentAverageWeight = getRecentAverageWeight(userData.weightIns);
+ 
+-  if (isGoalReached(currentTrendWeight, targetWeight)) {
++  if (isGoalReached(recentAverageWeight ?? currentTrendWeight, targetWeight, 0.5, plan.type)) {
+     return { suggestion: 'goal_reached', planConfidence };
+   }
+ 
+@@ -275,18 +274,31 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
+     loggedWeeks.reduce((sum, w) => sum + w.avgCalories, 0) / loggedWeeks.length
+   );
+ 
+-  const targetRate = plan.ratePerWeek;
++  const measuredTDEE = calculateRealTDEE(avgLoggedCalories, actualRateKgPerWeek);
++  const realTDEE = measuredTDEE || plan.tdee;
++
++  const referenceWeight = recentAverageWeight ?? currentTrendWeight;
++  const targetRate = isLoss
++    ? Math.min(
++        getTargetWeeklyRateKg(referenceWeight, userData.stressLevel),
++        (realTDEE * (DEFICIT_PERCENT[expLevel] || 0.18) * 7) / KCAL_PER_KG
++      )
++    : plan.ratePerWeek;
+   const actualMagnitude = isLoss ? -actualRateKgPerWeek : actualRateKgPerWeek;
+   const progressRatio = actualMagnitude / targetRate;
+-
+-  const realTDEE = calculateRealTDEE(avgLoggedCalories, actualRateKgPerWeek) || plan.tdee;
++  const ceilingRate = calculateWeeklyRateOfChange(trendSeries, FAST_LOSS_WINDOW_DAYS);
++  const exceedsCeiling = isLoss && ceilingRate != null &&
++    -ceilingRate > (referenceWeight * FAST_LOSS_CEILING_PERCENT) / 100;
+   const bmr = calculateBMR(userData.gender, currentTrendWeight, parseFloat(userData.height), parseFloat(userData.age));
+   const minCal = isLoss ? calculateMinCalories(bmr, realTDEE, currentTrendWeight, userData.activityLevel) : null;
+ 
+-  if (progressRatio >= 1 - RATE_TOLERANCE_PERCENT && progressRatio <= 1 + RATE_TOLERANCE_PERCENT) {
++  const withinBand = progressRatio >= 1 - RATE_TOLERANCE_PERCENT &&
++    (progressRatio <= 1 + RATE_TOLERANCE_PERCENT || (isLoss && !exceedsCeiling));
++
++  if (withinBand) {
+     const caloriesDrift = avgLoggedCalories - userData.targetCalories;
+     if (Math.abs(caloriesDrift) < HOLD_SYNC_MIN_DELTA) {
+-      return { suggestion: 'hold', planConfidence };
++      return { suggestion: 'hold', planConfidence, measuredTDEE };
+     }
+     const syncedCalories = isLoss ? Math.max(avgLoggedCalories, minCal) : avgLoggedCalories;
+     return {
+@@ -294,11 +306,19 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
+       syncedCalories,
+       syncedMacros: calculateMacros(plan.type, syncedCalories, currentTrendWeight),
+       planConfidence,
++      measuredTDEE,
+     };
+   }
+ 
+   const tooSlow = progressRatio < 1 - RATE_TOLERANCE_PERCENT;
+ 
++  if (!tooSlow) {
++    const remainingKg = isLoss ? referenceWeight - targetWeight : targetWeight - referenceWeight;
++    if (actualMagnitude > 0 && remainingKg / actualMagnitude <= LANDING_WEEKS) {
++      return { suggestion: 'hold', planConfidence, measuredTDEE };
++    }
++  }
++
+   const dailyDeltaTarget = (targetRate * KCAL_PER_KG) / 7;
+   const maxDeltaFraction = isLoss
+     ? (DEFICIT_PERCENT[expLevel] || 0.18)
+@@ -313,7 +333,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
+ 
+     if (tooSlow && alreadyAtFloor) {
+       if (detectPlateau(actualRateKgPerWeek, currentTrendWeight)) {
+-        return { suggestion: 'increase_steps', suggestedStepsIncrease: STEPS_INCREASE_SUGGESTION, planConfidence };
++        return { suggestion: 'increase_steps', suggestedStepsIncrease: STEPS_INCREASE_SUGGESTION, planConfidence, measuredTDEE };
+       }
+       return {
+         suggestion: 'calorie_adjustment',
+@@ -324,12 +344,17 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
+         suggestedStepsIncrease: STEPS_INCREASE_SUGGESTION,
+         adjustedAt: new Date().toISOString(),
+         planConfidence,
++        measuredTDEE,
+       };
+     }
++
++    if (tooSlow && !alreadyAtFloor && !userData.slowEvalPending) {
++      return { suggestion: 'hold', planConfidence, measuredTDEE, slowEvalPending: true };
++    }
+   }
+ 
+   const adjustment = newTargetCalories - userData.targetCalories;
+-  if (adjustment === 0) return { suggestion: 'hold', planConfidence };
++  if (adjustment === 0) return { suggestion: 'hold', planConfidence, measuredTDEE };
+ 
+   return {
+     suggestion: 'calorie_adjustment',
+@@ -339,5 +364,6 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
+     newMacros: calculateMacros(plan.type, newTargetCalories, currentTrendWeight),
+     adjustedAt: new Date().toISOString(),
+     planConfidence,
++    measuredTDEE,
+   };
+ };
+\ No newline at end of file
+diff --git a/src/features/profile/utils/nutritionPlanEngine.test.js b/src/features/profile/utils/nutritionPlanEngine.test.js
+index 45e2729..45d6ae7 100644
+--- a/src/features/profile/utils/nutritionPlanEngine.test.js
++++ b/src/features/profile/utils/nutritionPlanEngine.test.js
+@@ -12,7 +12,7 @@ import {
+   calculatePlanAdjustment,
+ } from './nutritionPlanEngine';
+ import { buildWeightIns, buildDailyWeights, REALISTIC_DAILY_NOISE, buildWeeklyCalorieData } from './testFixtures';
+-import { buildWeightTrendSeries, calculateWeeklyRateOfChange } from './weightTrendEngine';
++import { buildWeightTrendSeries, calculateWeeklyRateOfChange, getCurrentTrendWeight, getRecentAverageWeight, isGoalReached } from './weightTrendEngine';
+ 
+ describe('validateInput', () => {
+   test('picker fields just require truthiness', () => {
+@@ -135,20 +135,18 @@ describe('calculateMinCalories', () => {
+ 
+ describe('getTargetROLPercent / getTargetWeeklyRateKg', () => {
+   test('higher stress reduces the target rate of loss', () => {
+-    const low = getTargetROLPercent(0.2, 'low');
+-    const high = getTargetROLPercent(0.2, 'high');
++    const low = getTargetROLPercent('low');
++    const high = getTargetROLPercent('high');
+     expect(high).toBeLessThan(low);
+   });
+ 
+-  test('remaining ratio under the lean threshold uses the lower baseline', () => {
+-    const lean = getTargetROLPercent(0.03, 'moderate');
+-    const standard = getTargetROLPercent(0.2, 'moderate');
+-    expect(lean).toBeLessThan(standard);
++  test('rate does not taper with distance to goal', () => {
++    expect(getTargetWeeklyRateKg(83, 'low')).toBeCloseTo(83 * 0.015, 5);
+   });
+ 
+-  test('weekly rate scales with bodyweight at a fixed remaining ratio', () => {
+-    const rateAt80 = getTargetWeeklyRateKg(80, 64, 'moderate');
+-    const rateAt160 = getTargetWeeklyRateKg(160, 128, 'moderate');
++  test('weekly rate scales with bodyweight', () => {
++    const rateAt80 = getTargetWeeklyRateKg(80, 'moderate');
++    const rateAt160 = getTargetWeeklyRateKg(160, 'moderate');
+     expect(rateAt160).toBeCloseTo(rateAt80 * 2, 5);
+   });
+ });
+@@ -309,6 +307,104 @@ describe('calculatePlanAdjustment - goal_reached', () => {
+   });
+ });
+ 
++describe('calculatePlanAdjustment - goal_reached on a fast cut', () => {
++  const fastCut = () => weeksOfDecline(95, 1, 8, [0]);
++
++  test('fires from the recent average when the lagging trend weight has not caught up', () => {
++    const weightIns = fastCut();
++    const trend = getCurrentTrendWeight(weightIns);
++    const recent = getRecentAverageWeight(weightIns);
++    const target = recent + 0.2;
++    expect(isGoalReached(trend, target)).toBe(false);
++    const userData = { ...baseUserData, targetWeight: String(target), weightIns };
++    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }]));
++    expect(result.suggestion).toBe('goal_reached');
++  });
++
++  test('fires when the recent average is already well below target on a cut', () => {
++    const weightIns = fastCut();
++    const recent = getRecentAverageWeight(weightIns);
++    const userData = { ...baseUserData, targetWeight: String(recent + 3), weightIns };
++    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }]));
++    expect(result.suggestion).toBe('goal_reached');
++  });
++
++  test('does not fire while the recent average is still outside tolerance', () => {
++    const weightIns = fastCut();
++    const recent = getRecentAverageWeight(weightIns);
++    const userData = { ...baseUserData, targetWeight: String(recent - 3), weightIns };
++    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }]));
++    expect(result.suggestion).not.toBe('goal_reached');
++  });
++});
++
++describe('calculatePlanAdjustment - measuredTDEE', () => {
++  test('is returned on a too_fast adjustment and matches calculateRealTDEE', () => {
++    const userData = { ...baseUserData, targetCalories: 2400, weightIns: weeksOfDecline(95, 1.2) };
++    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }]));
++    expect(result.reason).toBe('too_fast');
++    expect(result.measuredTDEE).toBeGreaterThan(2400);
++  });
++});
++
++describe('calculatePlanAdjustment - cut pace safety ceiling', () => {
++  const cal = buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }]);
++
++  test('a pace above the plan rate but under the ceiling does not trigger too_fast', () => {
++    const userData = { ...baseUserData, targetWeight: '80', weightIns: weeksOfDecline(95, 0.8, 5) };
++    const result = calculatePlanAdjustment(userData, cal);
++    expect(result.suggestion).toBe('hold');
++    expect(result.reason).toBeUndefined();
++  });
++
++  test('a pace above the ceiling still raises calories', () => {
++    const userData = { ...baseUserData, targetWeight: '80', targetCalories: 2400, weightIns: weeksOfDecline(95, 1.2, 5) };
++    const result = calculatePlanAdjustment(userData, cal);
++    expect(result.reason).toBe('too_fast');
++    expect(result.newTargetCalories).toBeGreaterThan(2400);
++  });
++
++  test('landing guard: pace above the ceiling with the goal under three weeks away holds', () => {
++    const weightIns = weeksOfDecline(95, 1.2, 8, [0]);
++    const recent = getRecentAverageWeight(weightIns);
++    const userData = { ...baseUserData, targetWeight: String(recent - 1.5), weightIns };
++    const result = calculatePlanAdjustment(userData, cal);
++    expect(result.suggestion).toBe('hold');
++    expect(result.syncedCalories).toBeUndefined();
++  });
++
++  test('gain plans still use the plan rate band for too_fast', () => {
++    const userData = {
++      ...baseUserData,
++      weightChangePlan: { type: 'muscle_gain', ratePerWeek: 0.25, tdee: 2900 },
++      targetWeight: '110',
++      targetCalories: 3200,
++      weightIns: weeksOfDecline(95, -0.8, 5),
++    };
++    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 3200 }, { avgCalories: 3200 }]));
++    expect(result.reason).toBe('too_fast');
++  });
++});
++
++describe('calculatePlanAdjustment - too_slow needs two consecutive evaluations', () => {
++  const cal = buildWeeklyCalorieData([{ avgCalories: 2600 }, { avgCalories: 2600 }]);
++  const slow = { ...baseUserData, targetCalories: 2600, weightIns: weeksOfDecline(95, 0.1) };
++
++  test('first slow evaluation holds and flags a pending slow streak', () => {
++    const result = calculatePlanAdjustment(slow, cal);
++    expect(result.suggestion).toBe('hold');
++    expect(result.slowEvalPending).toBe(true);
++    expect(result.syncedCalories).toBeUndefined();
++  });
++
++  test('second consecutive slow evaluation applies the calorie decrease', () => {
++    const result = calculatePlanAdjustment({ ...slow, slowEvalPending: true }, cal);
++    expect(result.reason).toBe('too_slow');
++    expect(result.newTargetCalories).toBeLessThan(2600);
++    expect(result.slowEvalPending).toBeUndefined();
++  });
++});
++
+ describe('calculatePlanAdjustment - hold', () => {
+   test('holds with no calorie sync when actual rate is within tolerance and logged calories track the target', () => {
+     const userData = { ...baseUserData, targetCalories: 2400, weightIns: weeksOfDecline(95, 0.5) };
+@@ -330,7 +426,7 @@ describe('calculatePlanAdjustment - hold', () => {
+ 
+ describe('calculatePlanAdjustment - too_slow / too_fast', () => {
+   test('suggests a calorie decrease when actual loss rate is well below target', () => {
+-    const userData = { ...baseUserData, targetCalories: 2600, weightIns: weeksOfDecline(95, 0.1) };
++    const userData = { ...baseUserData, slowEvalPending: true, targetCalories: 2600, weightIns: weeksOfDecline(95, 0.1) };
+     const weeklyCalorieData = buildWeeklyCalorieData([{ avgCalories: 2600 }, { avgCalories: 2600 }]);
+     const result = calculatePlanAdjustment(userData, weeklyCalorieData);
+     expect(result.suggestion).toBe('calorie_adjustment');
+@@ -348,7 +444,7 @@ describe('calculatePlanAdjustment - too_slow / too_fast', () => {
+   });
+ 
+   test('newTargetCalories for too_slow is clamped by the min-calorie floor', () => {
+-    const userData = { ...baseUserData, targetCalories: 2600, weightIns: weeksOfDecline(95, 0.05) };
++    const userData = { ...baseUserData, slowEvalPending: true, targetCalories: 2600, weightIns: weeksOfDecline(95, 0.05) };
+     const weeklyCalorieData = buildWeeklyCalorieData([{ avgCalories: 2600 }, { avgCalories: 2600 }]);
+ 
+     const series = buildWeightTrendSeries(userData.weightIns);
+diff --git a/src/features/profile/utils/weightTrendEngine.js b/src/features/profile/utils/weightTrendEngine.js
+index 91a8a06..bb5f080 100644
+--- a/src/features/profile/utils/weightTrendEngine.js
++++ b/src/features/profile/utils/weightTrendEngine.js
+@@ -37,6 +37,17 @@ export const getCurrentTrendWeight = (weightIns) => {
+   return series.length ? series[series.length - 1].trendWeight : null;
+ };
+ 
++export const getRecentAverageWeight = (weightIns, days = 7, minEntries = 3) => {
++  const entries = flattenWeightInsChronological(weightIns);
++  if (!entries.length) return null;
++
++  const cutoff = entries[entries.length - 1].date.getTime() - days * 86400000;
++  const recent = entries.filter(e => e.date.getTime() > cutoff);
++  if (recent.length < minEntries) return null;
++
++  return parseFloat((recent.reduce((sum, e) => sum + e.weight, 0) / recent.length).toFixed(2));
++};
++
+ export const calculateWeeklyRateOfChange = (trendSeries, windowDays = 14) => {
+   if (!trendSeries || trendSeries.length < 4) return null;
+ 
+@@ -67,8 +78,10 @@ export const detectPlateau = (actualWeeklyRateKg, currentWeight) => {
+   return Math.abs(actualWeeklyRateKg) < threshold;
+ };
+ 
+-export const isGoalReached = (currentTrendWeight, targetWeight, toleranceKg = 0.5) => {
++export const isGoalReached = (currentTrendWeight, targetWeight, toleranceKg = 0.5, planType = null) => {
+   if (currentTrendWeight == null || targetWeight == null) return false;
++  if (planType === 'weight_loss') return currentTrendWeight <= targetWeight + toleranceKg;
++  if (planType === 'muscle_gain') return currentTrendWeight >= targetWeight - toleranceKg;
+   return Math.abs(currentTrendWeight - targetWeight) <= toleranceKg;
+ };
+ 
+diff --git a/src/features/profile/utils/weightTrendEngine.test.js b/src/features/profile/utils/weightTrendEngine.test.js
+index 0ce00ce..f616afc 100644
+--- a/src/features/profile/utils/weightTrendEngine.test.js
++++ b/src/features/profile/utils/weightTrendEngine.test.js
+@@ -7,6 +7,7 @@ import {
+   isGoalReached,
+   isSuspiciousWeightEntry,
+   getPlanConfidence,
++  getRecentAverageWeight,
+ } from './weightTrendEngine';
+ import { buildWeightIns, buildDailyWeights, REALISTIC_DAILY_NOISE } from './testFixtures';
+ 
+@@ -140,6 +141,18 @@ describe('isGoalReached', () => {
+     expect(isGoalReached(81, 80)).toBe(false);
+   });
+ 
++  test('weight_loss counts any weight at or below target plus tolerance', () => {
++    expect(isGoalReached(78, 80, 0.5, 'weight_loss')).toBe(true);
++    expect(isGoalReached(80.5, 80, 0.5, 'weight_loss')).toBe(true);
++    expect(isGoalReached(80.6, 80, 0.5, 'weight_loss')).toBe(false);
++  });
++
++  test('muscle_gain counts any weight at or above target minus tolerance', () => {
++    expect(isGoalReached(82, 80, 0.5, 'muscle_gain')).toBe(true);
++    expect(isGoalReached(79.5, 80, 0.5, 'muscle_gain')).toBe(true);
++    expect(isGoalReached(79.4, 80, 0.5, 'muscle_gain')).toBe(false);
++  });
++
+   test('false when either value is missing', () => {
+     expect(isGoalReached(null, 80)).toBe(false);
+     expect(isGoalReached(80, null)).toBe(false);
+@@ -193,4 +206,30 @@ describe('getPlanConfidence', () => {
+ 
+     expect(getPlanConfidence(series, [{ daysLogged: 2 }])).toBe('estimated');
+   });
+-});
+\ No newline at end of file
++});
++describe('getRecentAverageWeight', () => {
++  test('averages entries in the 7 days ending at the latest weigh-in', () => {
++    const weightIns = buildWeightIns('2026-01-05', [90, 90, 90, 90, 90, 90, 90, 80, 80, 80, 80, 80, 80, 80]);
++    expect(getRecentAverageWeight(weightIns)).toBe(80);
++  });
++
++  test('returns null with fewer than the minimum entries in the window', () => {
++    const weightIns = [
++      { weekStart: '2026-01-05', days: { monday: 90, tuesday: 90 } },
++      { weekStart: '2026-01-19', days: { monday: 80 } },
++    ];
++    expect(getRecentAverageWeight(weightIns)).toBeNull();
++  });
++
++  test('returns null for empty input', () => {
++    expect(getRecentAverageWeight([])).toBeNull();
++    expect(getRecentAverageWeight(undefined)).toBeNull();
++  });
++
++  test('tracks a fast cut more closely than the EMA trend weight', () => {
++    const weightIns = buildWeightIns('2026-01-05', buildDailyWeights(95, -1 / 7, 56, [0]));
++    const recent = getRecentAverageWeight(weightIns);
++    const trend = getCurrentTrendWeight(weightIns);
++    expect(recent).toBeLessThan(trend);
++  });
++});

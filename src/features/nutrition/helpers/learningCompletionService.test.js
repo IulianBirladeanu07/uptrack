@@ -208,7 +208,7 @@ describe('evaluateWeeklyProgress', () => {
   });
 
   test('too_slow branch persists new targets, macros, and lastCalorieAdjustment', async () => {
-    const userData = { ...baseUserData, weightIns: weeksOfDecline(95, 0.1, 5) };
+    const userData = { ...baseUserData, slowEvalPending: true, weightIns: weeksOfDecline(95, 0.1, 5) };
     const result = await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date());
     expect(result.suggestion).toBe('calorie_adjustment');
     expect(setDoc).toHaveBeenCalledTimes(1);
@@ -216,6 +216,16 @@ describe('evaluateWeeklyProgress', () => {
     expect(payload.targetCalories).toBeLessThan(userData.targetCalories);
     expect(payload.lastCalorieAdjustment.reason).toBe('too_slow');
     expect(payload.planConfidence).toBeDefined();
+    expect(payload.slowEvalPending).toBe(false);
+  });
+
+  test('first slow evaluation holds targets and persists the pending slow flag', async () => {
+    const userData = { ...baseUserData, weightIns: weeksOfDecline(95, 0.1, 5) };
+    const result = await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date());
+    expect(result.suggestion).toBe('hold');
+    const [, payload] = setDoc.mock.calls[0];
+    expect(payload.targetCalories).toBeUndefined();
+    expect(payload.slowEvalPending).toBe(true);
   });
 
   test('hold branch with no drift persists only the adjustment date and confidence, not new targets', async () => {

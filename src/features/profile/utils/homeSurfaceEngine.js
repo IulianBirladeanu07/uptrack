@@ -13,6 +13,13 @@ const ADJUSTMENT_REASON_COPY = {
   steps_calibrated: 'We calibrated your calories using your actual step count.',
 };
 
+const getCutRaiseBody = (adjustment) => {
+  const base = 'You were losing faster than planned, so we raised your target to slow the cut.';
+  const { measuredTDEE, newTargetCalories } = adjustment;
+  if (!measuredTDEE || measuredTDEE <= newTargetCalories) return base;
+  return `${base} It is still ${measuredTDEE - newTargetCalories} kcal under your measured maintenance of ${measuredTDEE}.`;
+};
+
 export const getCalorieAdjustmentNotice = (userData, dismissedAdjustmentTimestamps = []) => {
   const adjustment = userData?.lastCalorieAdjustment;
   if (!adjustment?.adjustedAt) return null;
@@ -20,6 +27,21 @@ export const getCalorieAdjustmentNotice = (userData, dismissedAdjustmentTimestam
   if (!adjustment.newTargetCalories) return null;
   if (daysBetween(adjustment.adjustedAt) > ADJUSTMENT_NOTICE_MAX_AGE_DAYS) return null;
   if (dismissedAdjustmentTimestamps.includes(adjustment.adjustedAt)) return null;
+
+  const isCutRaise =
+    userData?.weightChangePlan?.type === 'weight_loss' &&
+    adjustment.reason === 'too_fast' &&
+    adjustment.adjustment > 0;
+
+  if (isCutRaise) {
+    return {
+      id: `calorie_adjustment_${adjustment.adjustedAt}`,
+      type: 'calorie_adjustment',
+      title: `Calories raised to ${adjustment.newTargetCalories} to slow your cut`,
+      body: getCutRaiseBody(adjustment),
+      dismissKey: adjustment.adjustedAt,
+    };
+  }
 
   return {
     id: `calorie_adjustment_${adjustment.adjustedAt}`,

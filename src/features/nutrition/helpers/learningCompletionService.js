@@ -128,6 +128,11 @@ export const getWeeklyCalorieStats = (weeklyNutrition, weeks = 4) => {
   }));
 };
 
+const blendMaintenance = (stored, measured) => {
+  if (!measured) return null;
+  return stored ? Math.round((stored + measured) / 2) : measured;
+};
+
 const daysSince = (isoDateStr) => {
   if (!isoDateStr) return Infinity;
   return (Date.now() - new Date(isoDateStr).getTime()) / (1000 * 60 * 60 * 24);
@@ -181,6 +186,13 @@ export const evaluateWeeklyProgress = async (userId, userData, mealCache, curren
       lastAdjustmentDate:    now,
       planConfidence: adjustment.planConfidence,
     };
+  }
+
+  updateData.slowEvalPending = adjustment.slowEvalPending === true;
+
+  const maintenanceCalories = blendMaintenance(userData.maintenanceCalories, adjustment.measuredTDEE);
+  if (maintenanceCalories && adjustment.suggestion !== 'goal_reached') {
+    updateData.maintenanceCalories = maintenanceCalories;
   }
 
   try {

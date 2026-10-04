@@ -12,7 +12,7 @@ import {
   calculatePlanAdjustment,
 } from './nutritionPlanEngine';
 import { buildWeightIns, buildDailyWeights, REALISTIC_DAILY_NOISE, buildWeeklyCalorieData } from './testFixtures';
-import { buildWeightTrendSeries, calculateWeeklyRateOfChange } from './weightTrendEngine';
+import { buildWeightTrendSeries, calculateWeeklyRateOfChange, getCurrentTrendWeight, getRecentAverageWeight, isGoalReached } from './weightTrendEngine';
 
 describe('validateInput', () => {
   test('picker fields just require truthiness', () => {
@@ -135,20 +135,18 @@ describe('calculateMinCalories', () => {
 
 describe('getTargetROLPercent / getTargetWeeklyRateKg', () => {
   test('higher stress reduces the target rate of loss', () => {
-    const low = getTargetROLPercent(0.2, 'low');
-    const high = getTargetROLPercent(0.2, 'high');
+    const low = getTargetROLPercent('low');
+    const high = getTargetROLPercent('high');
     expect(high).toBeLessThan(low);
   });
 
-  test('remaining ratio under the lean threshold uses the lower baseline', () => {
-    const lean = getTargetROLPercent(0.03, 'moderate');
-    const standard = getTargetROLPercent(0.2, 'moderate');
-    expect(lean).toBeLessThan(standard);
+  test('rate does not taper with distance to goal', () => {
+    expect(getTargetWeeklyRateKg(83, 'low')).toBeCloseTo(83 * 0.015, 5);
   });
 
-  test('weekly rate scales with bodyweight at a fixed remaining ratio', () => {
-    const rateAt80 = getTargetWeeklyRateKg(80, 64, 'moderate');
-    const rateAt160 = getTargetWeeklyRateKg(160, 128, 'moderate');
+  test('weekly rate scales with bodyweight', () => {
+    const rateAt80 = getTargetWeeklyRateKg(80, 'moderate');
+    const rateAt160 = getTargetWeeklyRateKg(160, 'moderate');
     expect(rateAt160).toBeCloseTo(rateAt80 * 2, 5);
   });
 });
@@ -309,6 +307,104 @@ describe('calculatePlanAdjustment - goal_reached', () => {
   });
 });
 
+describe('calculatePlanAdjustment - goal_reached on a fast cut', () => {
+  const fastCut = () => weeksOfDecline(95, 1, 8, [0]);
+
+  test('fires from the recent average when the lagging trend weight has not caught up', () => {
+    const weightIns = fastCut();
+    const trend = getCurrentTrendWeight(weightIns);
+    const recent = getRecentAverageWeight(weightIns);
+    const target = recent + 0.2;
+    expect(isGoalReached(trend, target)).toBe(false);
+    const userData = { ...baseUserData, targetWeight: String(target), weightIns };
+    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }]));
+    expect(result.suggestion).toBe('goal_reached');
+  });
+
+  test('fires when the recent average is already well below target on a cut', () => {
+    const weightIns = fastCut();
+    const recent = getRecentAverageWeight(weightIns);
+    const userData = { ...baseUserData, targetWeight: String(recent + 3), weightIns };
+    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }]));
+    expect(result.suggestion).toBe('goal_reached');
+  });
+
+  test('does not fire while the recent average is still outside tolerance', () => {
+    const weightIns = fastCut();
+    const recent = getRecentAverageWeight(weightIns);
+    const userData = { ...baseUserData, targetWeight: String(recent - 3), weightIns };
+    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }]));
+    expect(result.suggestion).not.toBe('goal_reached');
+  });
+});
+
+describe('calculatePlanAdjustment - measuredTDEE', () => {
+  test('is returned on a too_fast adjustment and matches calculateRealTDEE', () => {
+    const userData = { ...baseUserData, targetCalories: 2400, weightIns: weeksOfDecline(95, 1.2) };
+    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }]));
+    expect(result.reason).toBe('too_fast');
+    expect(result.measuredTDEE).toBeGreaterThan(2400);
+  });
+});
+
+describe('calculatePlanAdjustment - cut pace safety ceiling', () => {
+  const cal = buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }]);
+
+  test('a pace above the plan rate but under the ceiling does not trigger too_fast', () => {
+    const userData = { ...baseUserData, targetWeight: '80', weightIns: weeksOfDecline(95, 0.8, 5) };
+    const result = calculatePlanAdjustment(userData, cal);
+    expect(result.suggestion).toBe('hold');
+    expect(result.reason).toBeUndefined();
+  });
+
+  test('a pace above the ceiling still raises calories', () => {
+    const userData = { ...baseUserData, targetWeight: '80', targetCalories: 2400, weightIns: weeksOfDecline(95, 1.2, 5) };
+    const result = calculatePlanAdjustment(userData, cal);
+    expect(result.reason).toBe('too_fast');
+    expect(result.newTargetCalories).toBeGreaterThan(2400);
+  });
+
+  test('landing guard: pace above the ceiling with the goal under three weeks away holds', () => {
+    const weightIns = weeksOfDecline(95, 1.2, 8, [0]);
+    const recent = getRecentAverageWeight(weightIns);
+    const userData = { ...baseUserData, targetWeight: String(recent - 1.5), weightIns };
+    const result = calculatePlanAdjustment(userData, cal);
+    expect(result.suggestion).toBe('hold');
+    expect(result.syncedCalories).toBeUndefined();
+  });
+
+  test('gain plans still use the plan rate band for too_fast', () => {
+    const userData = {
+      ...baseUserData,
+      weightChangePlan: { type: 'muscle_gain', ratePerWeek: 0.25, tdee: 2900 },
+      targetWeight: '110',
+      targetCalories: 3200,
+      weightIns: weeksOfDecline(95, -0.8, 5),
+    };
+    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 3200 }, { avgCalories: 3200 }]));
+    expect(result.reason).toBe('too_fast');
+  });
+});
+
+describe('calculatePlanAdjustment - too_slow needs two consecutive evaluations', () => {
+  const cal = buildWeeklyCalorieData([{ avgCalories: 2600 }, { avgCalories: 2600 }]);
+  const slow = { ...baseUserData, targetCalories: 2600, weightIns: weeksOfDecline(95, 0.1) };
+
+  test('first slow evaluation holds and flags a pending slow streak', () => {
+    const result = calculatePlanAdjustment(slow, cal);
+    expect(result.suggestion).toBe('hold');
+    expect(result.slowEvalPending).toBe(true);
+    expect(result.syncedCalories).toBeUndefined();
+  });
+
+  test('second consecutive slow evaluation applies the calorie decrease', () => {
+    const result = calculatePlanAdjustment({ ...slow, slowEvalPending: true }, cal);
+    expect(result.reason).toBe('too_slow');
+    expect(result.newTargetCalories).toBeLessThan(2600);
+    expect(result.slowEvalPending).toBeUndefined();
+  });
+});
+
 describe('calculatePlanAdjustment - hold', () => {
   test('holds with no calorie sync when actual rate is within tolerance and logged calories track the target', () => {
     const userData = { ...baseUserData, targetCalories: 2400, weightIns: weeksOfDecline(95, 0.5) };
@@ -330,7 +426,7 @@ describe('calculatePlanAdjustment - hold', () => {
 
 describe('calculatePlanAdjustment - too_slow / too_fast', () => {
   test('suggests a calorie decrease when actual loss rate is well below target', () => {
-    const userData = { ...baseUserData, targetCalories: 2600, weightIns: weeksOfDecline(95, 0.1) };
+    const userData = { ...baseUserData, slowEvalPending: true, targetCalories: 2600, weightIns: weeksOfDecline(95, 0.1) };
     const weeklyCalorieData = buildWeeklyCalorieData([{ avgCalories: 2600 }, { avgCalories: 2600 }]);
     const result = calculatePlanAdjustment(userData, weeklyCalorieData);
     expect(result.suggestion).toBe('calorie_adjustment');
@@ -348,7 +444,7 @@ describe('calculatePlanAdjustment - too_slow / too_fast', () => {
   });
 
   test('newTargetCalories for too_slow is clamped by the min-calorie floor', () => {
-    const userData = { ...baseUserData, targetCalories: 2600, weightIns: weeksOfDecline(95, 0.05) };
+    const userData = { ...baseUserData, slowEvalPending: true, targetCalories: 2600, weightIns: weeksOfDecline(95, 0.05) };
     const weeklyCalorieData = buildWeeklyCalorieData([{ avgCalories: 2600 }, { avgCalories: 2600 }]);
 
     const series = buildWeightTrendSeries(userData.weightIns);
