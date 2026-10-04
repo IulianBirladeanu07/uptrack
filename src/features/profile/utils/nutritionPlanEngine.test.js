@@ -10,6 +10,9 @@ import {
   calculateMacros,
   calculateWeightChangePlan,
   calculatePlanAdjustment,
+  estimateMaintenance,
+  calculateMaintenanceEstimate,
+  refreshWeightChangePlan,
 } from './nutritionPlanEngine';
 import { buildWeightIns, buildDailyWeights, REALISTIC_DAILY_NOISE, buildWeeklyCalorieData } from './testFixtures';
 import { buildWeightTrendSeries, calculateWeeklyRateOfChange, getCurrentTrendWeight, getRecentAverageWeight, isGoalReached } from './weightTrendEngine';
@@ -554,5 +557,143 @@ describe('calculatePlanAdjustment - calorie window alignment', () => {
   test('reports the pace target it used for cuts', () => {
     const result = calculatePlanAdjustment(base, [wk('2026-01-19'), wk('2026-01-26')]);
     expect(result.targetRate).toBeGreaterThan(0);
+  });
+});
+
+describe('estimateMaintenance', () => {
+  const steady = () => ({ ...baseUserData, weightIns: weeksOfDecline(95, 0.5, 8, [0]) });
+  const wk = (weekStart, extra = {}) => ({ weekStart, daysLogged: 7, avgCalories: 2400, avgSteps: 8000, ...extra });
+  const four = ['2026-01-26', '2026-02-02', '2026-02-09', '2026-02-16'];
+
+  test('uses up to four contiguous weeks and matches calories plus the weight change', () => {
+    const result = estimateMaintenance(steady(), four.map(w => wk(w)));
+    expect(result.weeksUsed).toBe(4);
+    expect(result.windowed).toBe(true);
+    expect(Math.abs(result.maintenance - 2950)).toBeLessThan(40);
+  });
+
+  test('falls back to the two latest weeks when weekly steps shifted sharply', () => {
+    const weeks = four.map((w, i) => wk(w, { avgSteps: i === 3 ? 14000 : 8000 }));
+    expect(estimateMaintenance(steady(), weeks).weeksUsed).toBe(2);
+  });
+
+  test('keeps the wide window when steps are stable', () => {
+    const weeks = four.map((w, i) => wk(w, { avgSteps: [8000, 8100, 7900, 8000][i] }));
+    expect(estimateMaintenance(steady(), weeks).weeksUsed).toBe(4);
+  });
+
+  test('ignores weeks before a gap in the weekly history', () => {
+    const weeks = ['2026-01-12', '2026-01-19', '2026-02-02', '2026-02-09'].map(w => wk(w));
+    expect(estimateMaintenance(steady(), weeks).weeksUsed).toBe(2);
+  });
+
+  test('stops at a week with too few logged days', () => {
+    const weeks = [wk('2026-02-02', { daysLogged: 2 }), wk('2026-02-09'), wk('2026-02-16')];
+    expect(estimateMaintenance(steady(), weeks).weeksUsed).toBe(2);
+  });
+
+  test('returns null with fewer than two usable weeks', () => {
+    expect(estimateMaintenance(steady(), [wk('2026-02-09', { daysLogged: 2 }), wk('2026-02-16')])).toBeNull();
+    expect(estimateMaintenance(steady(), [])).toBeNull();
+  });
+
+  test('uses the fallback rate when weeks carry no dates', () => {
+    const weeks = [{ daysLogged: 6, avgCalories: 2400 }, { daysLogged: 6, avgCalories: 2400 }];
+    const result = estimateMaintenance(steady(), weeks, -0.5);
+    expect(result.maintenance).toBe(2950);
+    expect(result.windowed).toBe(false);
+    expect(estimateMaintenance(steady(), weeks, null)).toBeNull();
+  });
+
+  test('uses the fallback rate when the weight weeks around the window are missing', () => {
+    const weeks = [wk('2027-01-05'), wk('2027-01-12')];
+    const result = estimateMaintenance(steady(), weeks, -0.5);
+    expect(result.windowed).toBe(false);
+    expect(result.maintenance).toBe(2950);
+  });
+});
+
+describe('calculateMaintenanceEstimate', () => {
+  test('derives the fallback rate from the weight trend', () => {
+    const userData = { ...baseUserData, weightIns: weeksOfDecline(95, 0.5, 8, [0]) };
+    const weeks = [{ daysLogged: 7, avgCalories: 2400 }, { daysLogged: 7, avgCalories: 2400 }];
+    expect(Math.abs(calculateMaintenanceEstimate(userData, weeks).maintenance - 2950)).toBeLessThan(40);
+  });
+
+  test('returns null with no weight data', () => {
+    expect(calculateMaintenanceEstimate({ ...baseUserData, weightIns: [] }, [{ daysLogged: 7, avgCalories: 2400 }, { daysLogged: 7, avgCalories: 2400 }])).toBeNull();
+  });
+});
+
+describe('calculatePlanAdjustment - goal_reached carries measured maintenance', () => {
+  test('returns measuredTDEE alongside the goal_reached suggestion', () => {
+    const userData = { ...baseUserData, targetWeight: '84.9', weightIns: weeksOfDecline(88, 0.5, 8) };
+    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }]));
+    expect(result.suggestion).toBe('goal_reached');
+    expect(result.measuredTDEE).toBeGreaterThan(2400);
+  });
+});
+
+describe('refreshWeightChangePlan', () => {
+  const stalePlan = {
+    type: 'weight_loss',
+    ratePerWeek: 0.21,
+    ratePerMonth: 0.9,
+    goalCalories: 3381,
+    weeksToGoal: 15,
+    estimatedDate: '12/19/2026',
+    tdee: 3609,
+    bmr: 1900,
+    macros: { protein: 1, carbs: 1, fats: 1 },
+    isEstimate: true,
+    legacyField: 'keep me',
+  };
+  const weightIns = weeksOfDecline(95, 0.5, 5, [0]);
+  const userData = { ...baseUserData, targetWeight: '85', targetCalories: 3040, weightChangePlan: stalePlan, weightIns };
+
+  test('rewrites the derived fields from current weight, target and calories', () => {
+    const recent = getRecentAverageWeight(weightIns);
+    const result = refreshWeightChangePlan(userData, { targetCalories: 3040, maintenance: 3800, ratePerWeek: 0.5 });
+    expect(result.goalCalories).toBe(3040);
+    expect(result.tdee).toBe(3800);
+    expect(result.ratePerWeek).toBe(0.5);
+    expect(result.ratePerMonth).toBeCloseTo(2.2, 1);
+    expect(result.weeksToGoal).toBe(Math.ceil((recent - 85) / 0.5));
+    expect(result.macros.carbs).toBeGreaterThan(1);
+    expect(result.isEstimate).toBe(false);
+    expect(result.legacyField).toBe('keep me');
+    const expectedDate = new Date();
+    expectedDate.setDate(expectedDate.getDate() + result.weeksToGoal * 7);
+    expect(result.estimatedDate).toBe(expectedDate.toLocaleDateString());
+    expect(result.estimatedDate).not.toBe(new Date().toLocaleDateString());
+  });
+
+  test('keeps the stored rate and tdee when no new values are supplied', () => {
+    const result = refreshWeightChangePlan(userData, {});
+    expect(result.ratePerWeek).toBe(0.21);
+    expect(result.tdee).toBe(3609);
+    expect(result.goalCalories).toBe(3040);
+    expect(result.isEstimate).toBe(true);
+  });
+
+  test('reports zero weeks once the goal is reached', () => {
+    const reached = { ...userData, targetWeight: '120' };
+    expect(refreshWeightChangePlan(reached, { ratePerWeek: 0.5 }).weeksToGoal).toBe(0);
+  });
+
+  test('reports zero weeks when the rate is not positive', () => {
+    expect(refreshWeightChangePlan(userData, { ratePerWeek: 0 }).weeksToGoal).toBe(0);
+  });
+
+  test('refreshes only tdee on a maintenance plan', () => {
+    const maintenance = { ...userData, weightChangePlan: { type: 'maintenance', ratePerWeek: 0, tdee: 2900, goalCalories: 2900 } };
+    const result = refreshWeightChangePlan(maintenance, { targetCalories: 1000, maintenance: 2800 });
+    expect(result.tdee).toBe(2800);
+    expect(result.goalCalories).toBe(2900);
+    expect(result.type).toBe('maintenance');
+  });
+
+  test('returns null with no plan', () => {
+    expect(refreshWeightChangePlan({}, {})).toBeNull();
   });
 });

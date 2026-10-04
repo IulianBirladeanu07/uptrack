@@ -1,6 +1,11 @@
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
-import { calculatePlanAdjustment, calculateWeightChangePlan } from '../../profile/utils/nutritionPlanEngine';
+import {
+  calculatePlanAdjustment,
+  calculateWeightChangePlan,
+  calculateMaintenanceEstimate,
+  refreshWeightChangePlan,
+} from '../../profile/utils/nutritionPlanEngine';
 
 export const calculateDailyNutritionFromMeals = (meals) =>
   Object.values(meals || {})
@@ -139,6 +144,33 @@ const daysSince = (isoDateStr) => {
   return (Date.now() - new Date(isoDateStr).getTime()) / (1000 * 60 * 60 * 24);
 };
 
+const refreshMaintenanceOnly = async (userId, userData, weeklyCalorieData) => {
+  if (userData.autoAdjustEnabled === false) return null;
+  if (daysSince(userData.maintenanceUpdatedAt) < 6) return null;
+
+  const estimate = calculateMaintenanceEstimate(userData, weeklyCalorieData);
+  const maintenanceCalories = blendMaintenance(userData.maintenanceCalories, estimate?.maintenance);
+  if (!maintenanceCalories) return null;
+
+  const updateData = {
+    maintenanceCalories,
+    maintenanceUpdatedAt: new Date().toISOString(),
+  };
+  const weightChangePlan = refreshWeightChangePlan(userData, {
+    targetCalories: userData.targetCalories,
+    maintenance: maintenanceCalories,
+  });
+  if (weightChangePlan) updateData.weightChangePlan = weightChangePlan;
+
+  try {
+    await setDoc(doc(db, 'users', userId), updateData, { merge: true });
+    return { suggestion: 'maintenance_refresh', ...updateData };
+  } catch (error) {
+    console.error('refreshMaintenanceOnly error:', error);
+    return null;
+  }
+};
+
 export const evaluateWeeklyProgress = async (userId, userData, mealCache, currentDate) => {
   if (!userData?.weightChangePlan || !userData?.targetCalories) return null;
   if (daysSince(userData.lastAdjustmentDate) < 6) return null;
@@ -147,7 +179,7 @@ export const evaluateWeeklyProgress = async (userId, userData, mealCache, curren
   if (!weeklyCalorieData.length) return null;
 
   const adjustment = calculatePlanAdjustment(userData, weeklyCalorieData);
-  if (!adjustment) return null;
+  if (!adjustment) return refreshMaintenanceOnly(userId, userData, weeklyCalorieData);
 
   const now = new Date().toISOString();
   let updateData;
@@ -191,14 +223,18 @@ export const evaluateWeeklyProgress = async (userId, userData, mealCache, curren
 
   updateData.slowEvalPending = adjustment.slowEvalPending === true;
 
-  if (adjustment.targetRate && userData.weightChangePlan?.type === 'weight_loss') {
-    updateData.weightChangePlan = { ...userData.weightChangePlan, ratePerWeek: adjustment.targetRate };
+  const maintenanceCalories = blendMaintenance(userData.maintenanceCalories, adjustment.measuredTDEE);
+  if (maintenanceCalories) {
+    updateData.maintenanceCalories = maintenanceCalories;
+    updateData.maintenanceUpdatedAt = now;
   }
 
-  const maintenanceCalories = blendMaintenance(userData.maintenanceCalories, adjustment.measuredTDEE);
-  if (maintenanceCalories && adjustment.suggestion !== 'goal_reached') {
-    updateData.maintenanceCalories = maintenanceCalories;
-  }
+  const weightChangePlan = refreshWeightChangePlan(userData, {
+    targetCalories: updateData.targetCalories ?? userData.targetCalories,
+    maintenance: maintenanceCalories ?? undefined,
+    ratePerWeek: userData.weightChangePlan?.type === 'weight_loss' ? adjustment.targetRate : undefined,
+  });
+  if (weightChangePlan) updateData.weightChangePlan = weightChangePlan;
 
   try {
     await setDoc(doc(db, 'users', userId), updateData, { merge: true });

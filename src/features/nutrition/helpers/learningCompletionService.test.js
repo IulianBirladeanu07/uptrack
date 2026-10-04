@@ -408,3 +408,78 @@ describe('checkAndBackfillStepsBonus', () => {
     expect(setDoc).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('evaluateWeeklyProgress - continuous maintenance and plan refresh', () => {
+  const datedWeeks = (avgCalories) => [
+    { weekStart: '2026-01-19', avgCalories, daysLoggedNutrition: 7, avgSteps: 8000 },
+    { weekStart: '2026-01-26', avgCalories, daysLoggedNutrition: 7, avgSteps: 8000 },
+  ];
+
+  test('goal_reached still stores blended maintenance and a refreshed plan', async () => {
+    const userData = { ...baseUserData, targetWeight: '93.2', maintenanceCalories: 2700 };
+    const result = await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date());
+    expect(result.suggestion).toBe('goal_reached');
+    const [, payload] = setDoc.mock.calls[0];
+    expect(payload.maintenanceCalories).toBeGreaterThan(2700);
+    expect(payload.maintenanceUpdatedAt).toBeDefined();
+    expect(payload.weightChangePlan.weeksToGoal).toBe(0);
+    expect(payload.weightChangePlan.tdee).toBe(payload.maintenanceCalories);
+  });
+
+  test('hold persists a plan whose goal calories match the live target', async () => {
+    const userData = { ...baseUserData, weightChangePlan: { ...baseUserData.weightChangePlan, goalCalories: 3381, weeksToGoal: 99 } };
+    await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date());
+    const [, payload] = setDoc.mock.calls[0];
+    expect(payload.weightChangePlan.goalCalories).toBe(2400);
+    expect(payload.weightChangePlan.weeksToGoal).toBeLessThan(99);
+    expect(payload.weightChangePlan.weeksToGoal).toBeGreaterThan(0);
+  });
+
+  test('calorie adjustments persist the new target as the plan goal calories', async () => {
+    const userData = { ...baseUserData, slowEvalPending: true, weightIns: weeksOfDecline(95, 0.1, 5) };
+    await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date());
+    const [, payload] = setDoc.mock.calls[0];
+    expect(payload.weightChangePlan.goalCalories).toBe(payload.targetCalories);
+  });
+
+  describe('maintenance plans', () => {
+    const flat = buildWeightIns('2026-01-05', buildDailyWeights(88, 0, 35, [0]));
+    const maintenanceUser = {
+      weightChangePlan: { type: 'maintenance', ratePerWeek: 0, tdee: 2900, goalCalories: 2900 },
+      targetWeight: '88',
+      targetCalories: 2900,
+      maintenanceCalories: 2900,
+      autoAdjustEnabled: true,
+      weightIns: flat,
+      weeklyNutrition: datedWeeks(2800),
+    };
+
+    test('refreshes maintenance from calories and weight without touching targets', async () => {
+      const result = await evaluateWeeklyProgress('u1', maintenanceUser, new MealCache(), new Date());
+      expect(result.suggestion).toBe('maintenance_refresh');
+      const [, payload] = setDoc.mock.calls[0];
+      expect(payload.maintenanceCalories).toBe(2850);
+      expect(payload.weightChangePlan.tdee).toBe(2850);
+      expect(payload.targetCalories).toBeUndefined();
+      expect(payload.lastAdjustmentDate).toBeUndefined();
+    });
+
+    test('does not write again within six days of the last refresh', async () => {
+      const userData = { ...maintenanceUser, maintenanceUpdatedAt: new Date().toISOString() };
+      expect(await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date())).toBeNull();
+      expect(setDoc).not.toHaveBeenCalled();
+    });
+
+    test('respects auto-adjust being turned off', async () => {
+      const userData = { ...maintenanceUser, autoAdjustEnabled: false };
+      expect(await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date())).toBeNull();
+      expect(setDoc).not.toHaveBeenCalled();
+    });
+
+    test('writes nothing when there is not enough history to measure', async () => {
+      const userData = { ...maintenanceUser, weeklyNutrition: datedWeeks(2800).slice(0, 1) };
+      expect(await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date())).toBeNull();
+      expect(setDoc).not.toHaveBeenCalled();
+    });
+  });
+});

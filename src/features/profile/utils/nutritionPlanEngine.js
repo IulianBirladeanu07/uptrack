@@ -75,6 +75,9 @@ const STEPS_THRESHOLDS = {
 
 const RATE_TOLERANCE_PERCENT = 0.3;
 const MIN_WEEKS_OF_DATA = 2;
+const MAINTENANCE_MAX_WEEKS = 4;
+const MAINTENANCE_MIN_LOGGED_DAYS = 4;
+const MAINTENANCE_STEPS_SHIFT_FRACTION = 0.25;
 const STEPS_INCREASE_SUGGESTION = 1500;
 const HOLD_SYNC_MIN_DELTA = 25;
 
@@ -244,6 +247,101 @@ export const calculateWeightChangePlan = (formData) => {
   };
 };
 
+export const estimateMaintenance = (userData, weeklyCalorieData, fallbackRateKgPerWeek = null) => {
+  const weeks = weeklyCalorieData || [];
+  const isUsable = w => w && w.daysLogged >= MAINTENANCE_MIN_LOGGED_DAYS && w.avgCalories > 0;
+
+  const hasWeekStarts = weeks.length > 0 && weeks.every(w => w.weekStart);
+  if (!hasWeekStarts) {
+    const lastWeeks = weeks.slice(-MIN_WEEKS_OF_DATA);
+    if (lastWeeks.length < MIN_WEEKS_OF_DATA || !lastWeeks.every(isUsable) || fallbackRateKgPerWeek == null) return null;
+    const avgCalories = Math.round(lastWeeks.reduce((s, w) => s + w.avgCalories, 0) / lastWeeks.length);
+    const maintenance = calculateRealTDEE(avgCalories, fallbackRateKgPerWeek);
+    return maintenance ? { maintenance, weeksUsed: lastWeeks.length, avgCalories, rateKgPerWeek: fallbackRateKgPerWeek, windowed: false } : null;
+  }
+
+  let run = [];
+  for (let i = weeks.length - 1; i >= 0 && run.length < MAINTENANCE_MAX_WEEKS; i--) {
+    if (!isUsable(weeks[i])) break;
+    if (run.length && shiftWeekStart(weeks[i].weekStart, 1) !== run[0].weekStart) break;
+    run = [weeks[i], ...run];
+  }
+  if (run.length < MIN_WEEKS_OF_DATA) return null;
+
+  if (run.length > MIN_WEEKS_OF_DATA && run.every(w => w.avgSteps > 0)) {
+    const meanSteps = run.reduce((s, w) => s + w.avgSteps, 0) / run.length;
+    const latestSteps = run[run.length - 1].avgSteps;
+    if (Math.abs(latestSteps - meanSteps) / meanSteps > MAINTENANCE_STEPS_SHIFT_FRACTION) {
+      run = run.slice(-MIN_WEEKS_OF_DATA);
+    }
+  }
+
+  for (let n = run.length; n >= MIN_WEEKS_OF_DATA; n--) {
+    const windowWeeks = run.slice(-n);
+    const rate = getWindowRateKgPerWeek(userData?.weightIns, windowWeeks[0].weekStart, n);
+    if (rate == null) continue;
+    const avgCalories = Math.round(windowWeeks.reduce((s, w) => s + w.avgCalories, 0) / n);
+    const maintenance = calculateRealTDEE(avgCalories, rate);
+    if (maintenance) return { maintenance, weeksUsed: n, avgCalories, rateKgPerWeek: rate, windowed: true };
+  }
+
+  if (fallbackRateKgPerWeek == null) return null;
+  const lastWeeks = run.slice(-MIN_WEEKS_OF_DATA);
+  const avgCalories = Math.round(lastWeeks.reduce((s, w) => s + w.avgCalories, 0) / lastWeeks.length);
+  const maintenance = calculateRealTDEE(avgCalories, fallbackRateKgPerWeek);
+  return maintenance ? { maintenance, weeksUsed: lastWeeks.length, avgCalories, rateKgPerWeek: fallbackRateKgPerWeek, windowed: false } : null;
+};
+
+export const calculateMaintenanceEstimate = (userData, weeklyCalorieData) => {
+  const trendSeries = buildWeightTrendSeries(userData?.weightIns);
+  const rate = trendSeries.length ? calculateWeeklyRateOfChange(trendSeries) : null;
+  return estimateMaintenance(userData, weeklyCalorieData, rate);
+};
+
+export const refreshWeightChangePlan = (userData, { targetCalories, maintenance, ratePerWeek } = {}) => {
+  const plan = userData?.weightChangePlan;
+  if (!plan) return null;
+
+  const tdee = maintenance ?? plan.tdee;
+  if (plan.type === 'maintenance') {
+    return { ...plan, tdee, ...(maintenance != null ? { isEstimate: false } : {}) };
+  }
+
+  const trendSeries = buildWeightTrendSeries(userData.weightIns);
+  const trendWeight = trendSeries.length ? trendSeries[trendSeries.length - 1].trendWeight : null;
+  const weight = getRecentAverageWeight(userData.weightIns) ?? trendWeight;
+  const target = parseFloat(userData.targetWeight);
+  const goalCalories = targetCalories ?? userData.targetCalories ?? plan.goalCalories;
+  const rate = ratePerWeek ?? plan.ratePerWeek ?? 0;
+
+  let weeksToGoal = plan.weeksToGoal;
+  if (weight != null && isFinite(target)) {
+    const reached = isGoalReached(weight, target, 0.5, plan.type);
+    weeksToGoal = reached || !(rate > 0) ? 0 : Math.ceil(Math.abs(weight - target) / rate);
+  }
+
+  const estimatedDate = new Date();
+  if (weeksToGoal > 0) estimatedDate.setDate(estimatedDate.getDate() + weeksToGoal * 7);
+
+  const bmrInputs = [parseFloat(userData.height), parseFloat(userData.age)];
+  const bmr = trendWeight != null && userData.gender && bmrInputs.every(isFinite)
+    ? Math.round(calculateBMR(userData.gender, trendWeight, bmrInputs[0], bmrInputs[1]))
+    : plan.bmr;
+
+  return {
+    ...plan,
+    tdee,
+    bmr,
+    goalCalories,
+    macros: trendWeight != null ? calculateMacros(plan.type, goalCalories, trendWeight) : plan.macros,
+    ratePerWeek: rate,
+    ratePerMonth: parseFloat((rate * WEEKS_PER_MONTH).toFixed(1)),
+    weeksToGoal,
+    estimatedDate: estimatedDate.toLocaleDateString(),
+    isEstimate: maintenance != null ? false : plan.isEstimate,
+  };
+};
+
 export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   const plan = userData?.weightChangePlan;
   if (!plan || plan.type === 'maintenance' || !plan.ratePerWeek) return null;
@@ -259,11 +357,14 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   const planConfidence = getPlanConfidence(trendSeries, weeklyCalorieData);
   const recentAverageWeight = getRecentAverageWeight(userData.weightIns);
 
+  const actualRateKgPerWeek = calculateWeeklyRateOfChange(trendSeries);
+  const maintenanceEstimate = estimateMaintenance(userData, weeklyCalorieData, actualRateKgPerWeek);
+  const measuredTDEE = maintenanceEstimate?.maintenance ?? null;
+
   if (isGoalReached(recentAverageWeight ?? currentTrendWeight, targetWeight, 0.5, plan.type)) {
-    return { suggestion: 'goal_reached', planConfidence };
+    return { suggestion: 'goal_reached', planConfidence, measuredTDEE };
   }
 
-  const actualRateKgPerWeek = calculateWeeklyRateOfChange(trendSeries);
   const loggedWeeks = (weeklyCalorieData || [])
     .slice(-MIN_WEEKS_OF_DATA)
     .filter(w => w.daysLogged >= 4);
@@ -280,11 +381,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   if (hasWeekStarts && loggedWeeks.some((w, i) => i > 0 && shiftWeekStart(loggedWeeks[i - 1].weekStart, 1) !== w.weekStart)) {
     return null;
   }
-  const windowRate = hasWeekStarts
-    ? getWindowRateKgPerWeek(userData.weightIns, loggedWeeks[0].weekStart, loggedWeeks.length)
-    : null;
 
-  const measuredTDEE = calculateRealTDEE(avgLoggedCalories, windowRate ?? actualRateKgPerWeek);
   const realTDEE = measuredTDEE || plan.tdee;
 
   const referenceWeight = recentAverageWeight ?? currentTrendWeight;
