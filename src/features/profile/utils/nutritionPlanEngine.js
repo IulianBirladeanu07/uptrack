@@ -316,7 +316,7 @@ export const refreshWeightChangePlan = (userData, { targetCalories, maintenance,
 
   let weeksToGoal = plan.weeksToGoal;
   if (weight != null && isFinite(target)) {
-    const reached = isGoalReached(weight, target, 0.5, plan.type);
+    const reached = isGoalReached(weight, target, 0, plan.type);
     weeksToGoal = reached || !(rate > 0) ? 0 : Math.ceil(Math.abs(weight - target) / rate);
   }
 
@@ -361,7 +361,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   const maintenanceEstimate = estimateMaintenance(userData, weeklyCalorieData, actualRateKgPerWeek);
   const measuredTDEE = maintenanceEstimate?.maintenance ?? null;
 
-  if (isGoalReached(recentAverageWeight ?? currentTrendWeight, targetWeight, 0.5, plan.type)) {
+  if (isGoalReached(recentAverageWeight ?? currentTrendWeight, targetWeight, 0, plan.type)) {
     return { suggestion: 'goal_reached', planConfidence, measuredTDEE };
   }
 

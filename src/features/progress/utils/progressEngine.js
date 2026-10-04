@@ -7,7 +7,7 @@ export const SETS_LOW = 10;
 export const SETS_HIGH = 20;
 export const MIN_LOGGED_DAYS = 4;
 export const MIN_CURRENT_DAYS = 3;
-export const GOAL_TOL = 0.5;
+export const GOAL_TOL = 0;
 export const RECAP_MIN_WEEKS = 4;
 
 const MAX_HISTORY_WEEKS = 104;

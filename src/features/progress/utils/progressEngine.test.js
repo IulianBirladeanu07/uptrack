@@ -293,12 +293,21 @@ describe('phaseInfo and ranges', () => {
     expect(opts[2].n).toBe(19);
   });
 
-  test('reached flag matches the plan engine tolerance', () => {
-    expect(phaseInfo({ ...userData, targetWeight: 200 }, rated, NOW).reached).toBe(true);
+  test('reached only once the weekly average is at or past the target', () => {
     const latest = phaseInfo(userData, rated, NOW).latest;
-    expect(phaseInfo({ ...userData, targetWeight: latest - 0.6 }, rated, NOW).reached).toBe(false);
-    expect(phaseInfo({ ...userData, targetWeight: latest - 0.3 }, rated, NOW).reached).toBe(true);
-    expect(phaseInfo({ ...userData, targetWeight: latest - 0.04 }, rated, NOW).reached).toBe(true);
+    expect(phaseInfo({ ...userData, targetWeight: 200 }, rated, NOW).reached).toBe(true);
+    expect(phaseInfo({ ...userData, targetWeight: latest + 0.1 }, rated, NOW).reached).toBe(true);
+    expect(phaseInfo({ ...userData, targetWeight: latest }, rated, NOW).reached).toBe(true);
+    expect(phaseInfo({ ...userData, targetWeight: latest - 0.04 }, rated, NOW).reached).toBe(false);
+    expect(phaseInfo({ ...userData, targetWeight: latest - 0.3 }, rated, NOW).reached).toBe(false);
+  });
+
+  test('a bulk is reached from below only when the average gets up to the target', () => {
+    const up = withRates(weeks, 1);
+    const bulk = { weightChangePlan: { type: 'muscle_gain', ratePerWeek: 0.3 } };
+    const latest = phaseInfo({ ...bulk, targetWeight: 80 }, up, NOW).latest;
+    expect(phaseInfo({ ...bulk, targetWeight: latest + 0.1 }, up, NOW).reached).toBe(false);
+    expect(phaseInfo({ ...bulk, targetWeight: latest }, up, NOW).reached).toBe(true);
   });
 
   test('exposes the phase start only when goalSwitchDate is in the past', () => {

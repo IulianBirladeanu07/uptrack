@@ -341,6 +341,24 @@ describe('calculatePlanAdjustment - goal_reached on a fast cut', () => {
   });
 });
 
+describe('calculatePlanAdjustment - goal_reached has no tolerance', () => {
+  const cutIns = () => weeksOfDecline(95, 1, 8, [0]);
+  const run = (target) => calculatePlanAdjustment(
+    { ...baseUserData, targetWeight: String(target), weightIns: cutIns() },
+    buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }])
+  );
+
+  test('does not fire while the recent average is still above target by less than 0.5 kg', () => {
+    const recent = getRecentAverageWeight(cutIns());
+    expect(run(recent - 0.3)?.suggestion).not.toBe('goal_reached');
+  });
+
+  test('fires once the recent average equals the target', () => {
+    const recent = getRecentAverageWeight(cutIns());
+    expect(run(recent).suggestion).toBe('goal_reached');
+  });
+});
+
 describe('calculatePlanAdjustment - measuredTDEE', () => {
   test('is returned on a too_fast adjustment and matches calculateRealTDEE', () => {
     const userData = { ...baseUserData, targetCalories: 2400, weightIns: weeksOfDecline(95, 1.2) };
