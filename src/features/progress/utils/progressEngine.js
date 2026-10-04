@@ -1,5 +1,5 @@
 import { calculateRealTDEE, KCAL_PER_KG } from '../../profile/utils/nutritionPlanEngine';
-import { getPhaseLabel } from '../../profile/utils/weightTrendEngine';
+import { getPhaseLabel, isGoalReached } from '../../profile/utils/weightTrendEngine';
 
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 export const MAX_WEEKS = 26;
@@ -7,13 +7,13 @@ export const SETS_LOW = 10;
 export const SETS_HIGH = 20;
 export const MIN_LOGGED_DAYS = 4;
 export const MIN_CURRENT_DAYS = 3;
-export const GOAL_TOL = 0.05;
+export const GOAL_TOL = 0.5;
+export const RECAP_MIN_WEEKS = 4;
 
 const MAX_HISTORY_WEEKS = 104;
 const LIVE_WEEKS = 10;
 const RATE_WINDOW = 12;
 const TDEE_WINDOW = 4;
-const STATS_WINDOW = 8;
 const MUSCLE_ORDER = ['Back', 'Chest', 'Delts', 'Biceps', 'Triceps', 'Quads', 'Hamstring', 'Glutes', 'Calves', 'Core'];
 const MUSCLE_ALIAS = {
   Shoulders: 'Delts',
@@ -253,6 +253,7 @@ export const phaseInfo = (userData, weeks, now = new Date()) => {
   const goal = userData?.targetWeight ?? plan?.goalWeight ?? null;
   const gs = userData?.goalSwitchDate ? new Date(userData.goalSwitchDate) : null;
   const hasSwitch = gs && !Number.isNaN(gs.getTime()) && gs < now;
+  const phaseStart = hasSwitch ? gs : null;
   const phaseWeeks = hasSwitch ? Math.max(1, Math.ceil((now - gs) / WEEK_MS)) : Math.max(1, weeks.length);
   const planRate = plan?.ratePerWeek != null && plan.ratePerWeek !== 0 ? Math.abs(plan.ratePerWeek) : null;
   const latest = lastWeight(weeks);
@@ -268,7 +269,8 @@ export const phaseInfo = (userData, weeks, now = new Date()) => {
     goal,
     latest,
     remaining,
-    reached: remaining != null && remaining <= GOAL_TOL,
+    reached: isGoalReached(latest, goal, GOAL_TOL, type),
+    phaseStart,
     phaseWeeks,
     planRate,
     target: userData?.targetCalories ?? null,
@@ -351,9 +353,12 @@ export const paceTip = (m, info) => {
   return `Right on plan over ${m.count} weeks.`;
 };
 
+const tdeeWindow = (weeks, end) =>
+  weeks.slice(Math.max(0, end - TDEE_WINDOW + 1), end + 1).filter(w => w.kcal != null && w.dw != null);
+
 const maintSeries = weeks =>
   weeks.map((_, i) => {
-    const win = weeks.slice(Math.max(0, i - TDEE_WINDOW + 1), i + 1).filter(w => w.kcal != null && w.dw != null);
+    const win = tdeeWindow(weeks, i);
     if (win.length < 2) return null;
     return calculateRealTDEE(mean(win.map(w => w.kcal)), mean(win.map(w => w.dw)));
   });
@@ -371,15 +376,15 @@ export const energyModel = (weeks, n, info) => {
   const both = slots.filter((_, i) => eat[i] != null && maint[i] != null).length;
   if (both < 3) return null;
 
-  const done = weeks.filter(w => !w.isCurrent && w.kcal != null && w.dw != null).slice(-STATS_WINDOW);
-  if (done.length < 3) return null;
+  const win = tdeeWindow(weeks, weeks.length - 1);
+  if (win.length < 3) return null;
 
-  const eatNow = mean(done.map(w => w.kcal));
-  const maintNow = calculateRealTDEE(eatNow, mean(done.map(w => w.dw)));
+  const eatNow = mean(win.map(w => w.kcal));
+  const maintNow = calculateRealTDEE(eatNow, mean(win.map(w => w.dw)));
   if (maintNow == null) return null;
 
   const balance = eatNow - maintNow;
-  const realRate = mean(done.map(w => w.rate));
+  const realRate = mean(win.map(w => w.rate));
   const target = info.target;
   let atTarget = null;
   if (target != null && info.dir !== 0) {
@@ -399,7 +404,7 @@ export const energyModel = (weeks, n, info) => {
     realRate,
     atTarget,
     gapToTarget: target != null ? target - eatNow : null,
-    statsWeeks: done.length,
+    statsWeeks: win.length,
   };
 };
 
@@ -410,10 +415,9 @@ export const energyTip = (m, info) => {
     const need = info.dir < 0 ? m.maintNow - (plan * KCAL_PER_KG) / 7 : m.maintNow + (plan * KCAL_PER_KG) / 7;
     return `You ${verb} ${fmt1(m.realRate)} kg/wk against a ${fmt1(plan)} plan. Your real maintenance looks like ${kfmt(m.maintNow)} kcal, so plan pace needs about ${kfmt(need)}.`;
   }
-  if (m.target != null && m.atTarget != null && plan != null && Math.abs(m.gapToTarget) > m.target * 0.05 && Math.abs(m.atTarget - plan) > plan * 0.3) {
+  if (m.target != null && m.atTarget != null && Math.abs(m.gapToTarget) > m.target * 0.05) {
     const side = m.gapToTarget > 0 ? 'under' : 'over';
-    const cmp = m.atTarget < plan ? 'slower' : 'faster';
-    return `You eat ~${kfmt(Math.abs(m.gapToTarget))} kcal ${side} target and still ${verb} ${fmt1(m.realRate)} kg/wk. At ${kfmt(m.target)} you would ${verb} about ${fmt1(m.atTarget)} kg/wk, ${cmp} than the ${fmt1(plan)} plan.`;
+    return `You eat ~${kfmt(Math.abs(m.gapToTarget))} kcal ${side} the ${kfmt(m.target)} target. At target you would ${verb} about ${fmt1(m.atTarget)} kg/wk, at ${kfmt(m.eatNow)} you ${verb} ${fmt1(m.realRate)}.`;
   }
   return `Intake and weigh-ins agree. Your real maintenance is about ${kfmt(m.maintNow)} kcal.`;
 };
@@ -505,6 +509,61 @@ export const strengthTip = (m, info) => {
   return m.sNow >= 0 ? `${wTxt}Getting stronger at a steady weight.` : `${wTxt}Strength is trending down at maintenance.`;
 };
 
+export const phaseRecap = (userData, weeks, info, energy, strength) => {
+  if (info.dir === 0 || !info.reached || info.phaseWeeks < RECAP_MIN_WEEKS) return null;
+
+  const inPhase = weeks.slice(-info.phaseWeeks);
+  const rated = inPhase.filter(w => w.delta != null);
+  if (!rated.length) return null;
+
+  const endWeight = rated[rated.length - 1].w;
+  const change = sum(rated.map(w => w.delta));
+  const span = sum(rated.map(w => w.gap));
+  const avgKcal = mean(inPhase.filter(w => !w.isCurrent).map(w => w.kcal));
+
+  const hasStrength = strength?.sNow != null && strength?.wNow != null;
+  const perKg = hasStrength ? ((1 + strength.sNow / 100) / (1 + strength.wNow / 100) - 1) * 100 : null;
+
+  const measured = energy?.maintNow ?? null;
+  const base = measured ?? userData?.maintenanceCalories ?? userData?.weightChangePlan?.tdee ?? null;
+
+  return {
+    type: info.type,
+    tab: info.tab,
+    dir: info.dir,
+    weeks: info.phaseWeeks,
+    startDate: info.phaseStart,
+    startWeight: endWeight - change,
+    endWeight,
+    change,
+    rate: Math.abs(change) / span,
+    avgKcal,
+    strengthPct: hasStrength ? strength.sNow : null,
+    weightPct: hasStrength ? strength.wNow : null,
+    perKg,
+    maintenance: base != null ? Math.round(base) : null,
+    measured: measured != null,
+  };
+};
+
+export const recapTip = r => {
+  if (r.maintenance == null) return 'Set a new goal in Settings to start the next phase.';
+  const basis = r.measured ? 'Your measured maintenance is' : 'Your estimated maintenance is';
+  return `${basis} about ${kfmt(r.maintenance)} kcal. Switching makes it your target and starts a new phase at ${fmt1(r.endWeight)} kg.`;
+};
+
+export const recapEntry = (r, now = new Date()) => ({
+  type: r.type,
+  startDate: r.startDate ? r.startDate.toISOString() : null,
+  endDate: now.toISOString(),
+  weeks: r.weeks,
+  startWeight: Number(r.startWeight.toFixed(1)),
+  endWeight: Number(r.endWeight.toFixed(1)),
+  avgKcal: r.avgKcal != null ? Math.round(r.avgKcal) : null,
+  strengthPct: r.strengthPct != null ? Number(r.strengthPct.toFixed(1)) : null,
+  weightPct: r.weightPct != null ? Number(r.weightPct.toFixed(1)) : null,
+});
+
 export const setsModel = (weeks, n) => {
   const slots = weeks.slice(-n);
   const names = new Set();
@@ -518,18 +577,17 @@ export const setsModel = (weeks, n) => {
   ];
   const last4 = done.slice(-4);
   const prev4 = done.slice(-8, -4);
-  const rows = order.map(name => ({
-    name,
-    cells: slots.map(w => w.sets[name] || 0),
-    avg: mean(last4.map(w => w.sets[name] || 0)),
-  }));
+  const rows = order.map(name => {
+    const avg = mean(last4.map(w => w.sets[name] || 0));
+    return { name, avg, shown: Math.round(avg) };
+  });
   const total = sum(rows.map(r => r.avg));
   const prevTotal = prev4.length ? sum(order.map(name => mean(prev4.map(w => w.sets[name] || 0)))) : null;
   const delta = prevTotal ? (total / prevTotal - 1) * 100 : null;
-  const low = rows.filter(r => r.avg < SETS_LOW).map(r => r.name);
-  const high = rows.filter(r => r.avg > SETS_HIGH).map(r => r.name);
+  const low = rows.filter(r => r.shown < SETS_LOW).map(r => r.name);
+  const high = rows.filter(r => r.shown > SETS_HIGH).map(r => r.name);
 
-  return { rows, total, delta, low, high, first: slots[0].monday };
+  return { rows, total, delta, low, high };
 };
 
 const joinNames = a => (a.length === 1 ? a[0] : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);

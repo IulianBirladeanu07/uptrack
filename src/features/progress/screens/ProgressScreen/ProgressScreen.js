@@ -1,8 +1,9 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { getAuth } from 'firebase/auth';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
@@ -10,12 +11,19 @@ import { AuthContext } from '../../../auth/context/AuthContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { calculate1RM, fetchSplitsFromFirestore } from '../../../workout/handlers/WorkoutHandler';
+import { switchToMaintenance } from '../../../nutrition/helpers/phaseService';
 import { colors, spacing } from '../../../../shared/theme';
 import { PaceChart, EnergyChart, StrengthChart } from '../../components/ProgressCharts';
 import {
+    MAX_WEEKS,
+    SETS_LOW,
+    SETS_HIGH,
     buildWeeks,
     withRates,
     phaseInfo,
+    phaseRecap,
+    recapTip,
+    recapEntry,
     rangeOptions,
     paceModel,
     paceTip,
@@ -47,18 +55,6 @@ const TONES = {
     purple: { bg: colors.faded.purple, fg: colors.macro.protein },
     flat: { bg: colors.faded.surface, fg: colors.text.secondary },
 };
-
-const HEAT_KEY = [
-    { label: '<6', a: 0.08 },
-    { label: '6-9', a: 0.22 },
-    { label: '10-14', a: 0.5 },
-    { label: '15-20', a: 0.75 },
-    { label: '20+', a: 1 },
-];
-
-const heatAlpha = v => (v < 6 ? 0.08 : v < 10 ? 0.22 : v < 15 ? 0.5 : v <= 20 ? 0.75 : 1);
-
-const orange = a => `rgba(255, 149, 0, ${a})`;
 
 const Delta = ({ tone = 'good', icon, text }) => {
     const t = TONES[tone];
@@ -124,6 +120,47 @@ const EmptyCard = ({ cap, text }) => (
         <Text style={styles.empty}>{text}</Text>
     </View>
 );
+
+const RecapCard = ({ r, busy, onSwitch, onSettings }) => {
+    const third = r.dir < 0
+        ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Str / kg', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
+        : { value: r.strengthPct != null ? sg(r.strengthPct, 0) : '--', unit: r.strengthPct != null ? '%' : undefined, label: 'Strength', color: r.strengthPct != null && r.strengthPct > 0 ? colors.accent.success : undefined };
+
+    return (
+        <View style={styles.card}>
+            <View style={styles.rowBetween}>
+                <Text style={styles.cap}>Phase recap</Text>
+                <Text style={styles.capRight}>{`${r.tab} · ${r.weeks} weeks`}</Text>
+            </View>
+            <Hero value={sg(r.change, 1)} unit="kg">
+                <Delta tone="good" icon="checkmark" text="goal reached" />
+            </Hero>
+            <Stats
+                items={[
+                    { value: kfmt(r.avgKcal), label: 'Avg kcal' },
+                    { value: fmt1(r.rate), unit: 'kg/wk', label: 'Avg rate' },
+                    third,
+                ]}
+            />
+            <Tip text={recapTip(r)} />
+            {r.maintenance != null && (
+                <TouchableOpacity
+                    style={[styles.cta, busy && styles.ctaBusy]}
+                    onPress={onSwitch}
+                    disabled={busy}
+                    activeOpacity={0.9}
+                >
+                    <Text style={styles.ctaText}>
+                        {busy ? 'Switching...' : `Switch to maintenance · ${kfmt(r.maintenance)} kcal`}
+                    </Text>
+                </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.link} onPress={onSettings} activeOpacity={0.7}>
+                <Text style={styles.linkText}>Set a different goal</Text>
+            </TouchableOpacity>
+        </View>
+    );
+};
 
 const PaceCard = ({ m, info, n }) => {
     const [sel, setSel] = useState(null);
@@ -276,29 +313,27 @@ const SetsCard = ({ m }) => {
                 )}
             </Hero>
             <View style={styles.heat}>
-                {m.rows.map(r => (
-                    <View key={r.name} style={styles.heatRow}>
-                        <Text style={styles.heatName} numberOfLines={1}>{r.name}</Text>
-                        <View style={styles.heatCells}>
-                            {r.cells.map((v, i) => (
-                                <View key={i} style={[styles.heatCell, { backgroundColor: orange(heatAlpha(v)) }]} />
-                            ))}
+                {m.rows.map(r => {
+                    const low = r.shown < SETS_LOW;
+                    return (
+                        <View key={r.name} style={styles.heatRow}>
+                            <Text style={styles.heatName} numberOfLines={1}>{r.name}</Text>
+                            <View style={styles.heatTrack}>
+                                <View
+                                    style={[
+                                        styles.heatFill,
+                                        {
+                                            width: `${Math.min(r.avg / SETS_HIGH, 1) * 100}%`,
+                                            backgroundColor: low ? colors.accent.primary : colors.accent.cyan,
+                                        },
+                                    ]}
+                                />
+                                <View style={[styles.heatMark, { left: `${(SETS_LOW / SETS_HIGH) * 100}%` }]} />
+                            </View>
+                            <Text style={[styles.heatAvg, low && styles.heatAvgLow]}>{r.shown}</Text>
                         </View>
-                        <Text style={[styles.heatAvg, r.avg < 10 && styles.heatAvgLow]}>{Math.round(r.avg)}</Text>
-                    </View>
-                ))}
-            </View>
-            <View style={styles.heatAxis}>
-                <Text style={styles.heatAxisText}>{shortDate(m.first)}</Text>
-                <Text style={styles.heatAxisText}>this week</Text>
-            </View>
-            <View style={styles.key}>
-                {HEAT_KEY.map(k => (
-                    <View key={k.label} style={styles.keyItem}>
-                        <View style={[styles.keySwatch, { backgroundColor: orange(k.a) }]} />
-                        <Text style={styles.keyText}>{k.label}</Text>
-                    </View>
-                ))}
+                    );
+                })}
             </View>
             <Tip text={setsTip(m)} />
         </View>
@@ -363,7 +398,6 @@ const MonthRow = ({ m, kind, info, open, onToggle, last }) => {
                     sub={hasPlan ? `${Math.round((m.sessionsDone / m.planDone) * 100)}%` : null}
                 />
                 <Tile label="Hard sets" dot={colors.accent.cyan} value={kfmt(m.sets)} sub={vs(m.d?.setsPerWeek, 0, '/wk')} />
-                <Tile label="New PRs" dot={colors.accent.cyan} value={String(m.prs)} />
             </>
         );
     }
@@ -419,7 +453,7 @@ const MonthsCard = ({ months, kind, info, open, setOpen, all, setAll }) => {
 const ProgressScreen = () => {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
-    const { userData } = useContext(AuthContext);
+    const { userData, refreshUserData } = useContext(AuthContext);
     const { workoutHistory } = useContext(WorkoutContext);
     const { getNutritionForDateRange, getStepsForDateRange, rollingWeekStats } = useFoodContext();
     const [tab, setTab] = useState('nutrition');
@@ -427,6 +461,7 @@ const ProgressScreen = () => {
     const [planned, setPlanned] = useState(null);
     const [open, setOpen] = useState({});
     const [all, setAll] = useState({ n: false, t: false });
+    const [switching, setSwitching] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -471,10 +506,48 @@ const ProgressScreen = () => {
     const energy = useMemo(() => energyModel(weeks, n, info), [weeks, n, info]);
     const strength = useMemo(() => strengthModel(weeks, built.lifts, n), [weeks, built.lifts, n]);
     const lifts = useMemo(() => liftStats(weeks, built.lifts), [weeks, built.lifts]);
+    const phaseStrength = useMemo(
+        () => (info.reached && info.dir !== 0 ? strengthModel(weeks, built.lifts, Math.min(info.phaseWeeks, MAX_WEEKS)) : null),
+        [weeks, built.lifts, info],
+    );
+    const recap = useMemo(() => phaseRecap(userData, weeks, info, energy, phaseStrength), [userData, weeks, info, energy, phaseStrength]);
     const sets = useMemo(() => setsModel(weeks, n), [weeks, n]);
     const months = useMemo(() => monthsModel(weeks, planned), [weeks, planned]);
 
     const openLift = useCallback(name => navigation.navigate('ExerciseHistory', { exerciseName: name }), [navigation]);
+
+    const openSettings = useCallback(() => navigation.navigate('Settings'), [navigation]);
+
+    const onSwitch = useCallback(() => {
+        if (!recap || recap.maintenance == null || switching) return;
+        Alert.alert(
+            'Switch to maintenance',
+            `Your target becomes ${kfmt(recap.maintenance)} kcal and a new phase starts at ${fmt1(recap.endWeight)} kg.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Switch',
+                    onPress: async () => {
+                        setSwitching(true);
+                        try {
+                            const uid = userData?.uid || getAuth().currentUser?.uid;
+                            await switchToMaintenance(uid, userData, {
+                                weight: recap.endWeight,
+                                kcal: recap.maintenance,
+                                entry: recapEntry(recap),
+                            });
+                            await refreshUserData();
+                        } catch (e) {
+                            console.error('Progress switch error:', e.message);
+                            Alert.alert('Error', 'Failed to switch. Try again.');
+                        } finally {
+                            setSwitching(false);
+                        }
+                    },
+                },
+            ],
+        );
+    }, [recap, switching, userData, refreshUserData]);
 
     const status = weeks.length ? `${info.label} · week ${info.phaseWeeks}` : 'Your trends over time';
 
@@ -546,6 +619,7 @@ const ProgressScreen = () => {
                     <>
                         {tab === 'nutrition' ? (
                             <>
+                                {recap && <RecapCard r={recap} busy={switching} onSwitch={onSwitch} onSettings={openSettings} />}
                                 <PaceCard m={pace} info={info} n={n} />
                                 <EnergyCard m={energy} info={info} />
                                 <MonthsCard

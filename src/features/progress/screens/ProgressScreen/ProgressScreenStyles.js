@@ -246,6 +246,34 @@ const styles = createStyles(() => ({
         color: colors.text.secondary,
     },
 
+    cta: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: spacing[10],
+        marginTop: spacing[3],
+        paddingHorizontal: spacing[4],
+        borderRadius: radius[3],
+        backgroundColor: colors.accent.primary,
+    },
+    ctaBusy: {
+        opacity: 0.6,
+    },
+    ctaText: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.accent.buttonText,
+    },
+    link: {
+        alignSelf: 'center',
+        paddingTop: spacing[3],
+        paddingBottom: spacing[1],
+    },
+    linkText: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.secondary,
+    },
+
     alert: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -288,6 +316,7 @@ const styles = createStyles(() => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing[2],
+        minHeight: 17,
     },
     heatName: {
         width: 62,
@@ -295,15 +324,23 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.medium,
         color: colors.text.tertiary,
     },
-    heatCells: {
+    heatTrack: {
         flex: 1,
-        flexDirection: 'row',
-        gap: 2,
-        height: 17,
+        height: 8,
+        borderRadius: 4,
+        overflow: 'hidden',
+        backgroundColor: colors.faded.surface,
     },
-    heatCell: {
-        flex: 1,
-        borderRadius: 3,
+    heatFill: {
+        height: '100%',
+        borderRadius: 4,
+    },
+    heatMark: {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        width: 1,
+        backgroundColor: colors.text.quaternary,
     },
     heatAvg: {
         width: 34,
@@ -314,39 +351,6 @@ const styles = createStyles(() => ({
     },
     heatAvgLow: {
         color: colors.accent.primary,
-    },
-    heatAxis: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: spacing[2],
-        marginLeft: 70,
-        marginRight: 42,
-    },
-    heatAxisText: {
-        fontSize: fontSize[10],
-        color: colors.text.tertiary,
-    },
-    key: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: spacing[3],
-        marginTop: spacing[3],
-    },
-    keyItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing[1],
-    },
-    keySwatch: {
-        width: 12,
-        height: 12,
-        borderRadius: 3,
-    },
-    keyText: {
-        fontSize: fontSize[10],
-        fontWeight: fontWeight.medium,
-        color: colors.text.tertiary,
     },
 
     listHead: {

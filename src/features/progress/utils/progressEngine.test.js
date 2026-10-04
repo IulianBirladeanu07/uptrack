@@ -2,6 +2,9 @@ import {
   buildWeeks,
   withRates,
   phaseInfo,
+  phaseRecap,
+  recapTip,
+  recapEntry,
   rangeOptions,
   paceModel,
   paceTip,
@@ -290,11 +293,18 @@ describe('phaseInfo and ranges', () => {
     expect(opts[2].n).toBe(19);
   });
 
-  test('reached flag matches the remaining tolerance', () => {
+  test('reached flag matches the plan engine tolerance', () => {
     expect(phaseInfo({ ...userData, targetWeight: 200 }, rated, NOW).reached).toBe(true);
     const latest = phaseInfo(userData, rated, NOW).latest;
-    expect(phaseInfo({ ...userData, targetWeight: latest - 0.3 }, rated, NOW).reached).toBe(false);
+    expect(phaseInfo({ ...userData, targetWeight: latest - 0.6 }, rated, NOW).reached).toBe(false);
+    expect(phaseInfo({ ...userData, targetWeight: latest - 0.3 }, rated, NOW).reached).toBe(true);
     expect(phaseInfo({ ...userData, targetWeight: latest - 0.04 }, rated, NOW).reached).toBe(true);
+  });
+
+  test('exposes the phase start only when goalSwitchDate is in the past', () => {
+    const gs = addDays(NOW, -10 * 7);
+    expect(phaseInfo({ ...userData, goalSwitchDate: gs.toISOString() }, rated, NOW).phaseStart.getTime()).toBe(gs.getTime());
+    expect(phaseInfo(userData, rated, NOW).phaseStart).toBeNull();
   });
 
   test('hides the phase range when it is short', () => {
@@ -322,8 +332,26 @@ describe('energyModel', () => {
     expect(m.balance).toBeLessThan(0);
     expect(m.gapToTarget).toBeGreaterThan(300);
     expect(m.atTarget).toBeLessThan(0.3);
-    expect(energyTip(m, info)).toMatch(/under target and still lose/);
+    expect(energyTip(m, info)).toMatch(/under the 3,416 target/);
     expect(m.maint.filter(v => v != null).length).toBeGreaterThan(8);
+  });
+
+  test('flags a target gap even when the at-target rate matches the plan', () => {
+    const i2 = { ...info, planRate: 0.2 };
+    const m = energyModel(rated, 12, i2);
+    expect(Math.abs(m.atTarget - 0.2)).toBeLessThan(0.06);
+    expect(energyTip(m, i2)).toMatch(/under the 3,416 target. At target you would lose about 0.2 kg\/wk/);
+  });
+
+  test('reports eating over target', () => {
+    const i2 = { ...info, target: 2700 };
+    const m = energyModel(rated, 12, i2);
+    expect(energyTip(m, i2)).toMatch(/over the 2,700 target/);
+  });
+
+  test('the chart line ends on the maintenance shown in the stats', () => {
+    const m = energyModel(rated, 12, info);
+    expect(m.maint[m.maint.length - 1]).toBe(m.maintNow);
   });
 
   test('says behind-plan when real rate is far below plan', () => {
@@ -348,7 +376,7 @@ describe('energyModel', () => {
 
   test('reports how many weeks the estimate is based on', () => {
     const m = energyModel(rated, 12, info);
-    expect(m.statsWeeks).toBe(8);
+    expect(m.statsWeeks).toBe(4);
   });
 
   test('returns null without enough nutrition data', () => {
@@ -396,13 +424,23 @@ describe('setsModel', () => {
     const chest = m.rows.find(r => r.name === 'Chest');
     const quads = m.rows.find(r => r.name === 'Quads');
     expect(chest.avg).toBe(15);
-    expect(chest.cells).toHaveLength(12);
     expect(quads.avg).toBe(5);
     expect(m.low).toContain('Quads');
     expect(m.low).not.toContain('Chest');
     expect(m.total).toBe(30);
     expect(m.delta).toBeCloseTo(0, 5);
     expect(setsTip(m)).toMatch(/under 10 hard sets/);
+  });
+
+  test('rounds before flagging so the label and the number agree', () => {
+    const done = weeks.filter(w => !w.isCurrent);
+    const lastKey = done[done.length - 1].key;
+    const keys = new Set(done.slice(-4).map(w => w.key));
+    const w2 = weeks.map(w => (keys.has(w.key) ? { ...w, sets: { ...w.sets, Delts: w.key === lastKey ? 8 : 10 } } : w));
+    const d = setsModel(w2, 12).rows.find(r => r.name === 'Delts');
+    expect(d.avg).toBeCloseTo(9.5, 5);
+    expect(d.shown).toBe(10);
+    expect(setsModel(w2, 12).low).not.toContain('Delts');
   });
 
   test('current partial week does not drag averages down', () => {
@@ -445,5 +483,99 @@ describe('monthsModel', () => {
 
   test('plan is null when no split is known', () => {
     expect(monthsModel(rated, null)[0].planDone).toBeNull();
+  });
+});
+
+describe('phaseRecap', () => {
+  const { weeks, lifts } = buildWeeks(buildSrc(), NOW);
+  const rated = withRates(weeks, -1);
+  const latest = phaseInfo(userData, rated, NOW).latest;
+  const gs = addDays(NOW, -19 * 7).toISOString();
+  const reachedUser = { ...userData, goalSwitchDate: gs, targetWeight: latest + 0.3, maintenanceCalories: 3700 };
+  const info = phaseInfo(reachedUser, rated, NOW);
+  const energy = energyModel(rated, 12, info);
+  const strength = strengthModel(rated, lifts, 19);
+
+  test('summarises a finished cut', () => {
+    const r = phaseRecap(reachedUser, rated, info, energy, strength);
+    expect(r.type).toBe('weight_loss');
+    expect(r.tab).toBe('Cut');
+    expect(r.weeks).toBe(19);
+    expect(r.change).toBeLessThan(-10);
+    expect(r.endWeight).toBeCloseTo(latest, 5);
+    expect(r.startWeight).toBeGreaterThan(r.endWeight);
+    expect(r.rate).toBeGreaterThan(0.3);
+    expect(r.rate).toBeLessThan(0.8);
+    expect(r.avgKcal).toBeGreaterThan(2990);
+    expect(r.avgKcal).toBeLessThan(3190);
+    expect(r.strengthPct).toBeGreaterThan(5);
+    expect(r.perKg).toBeGreaterThan(r.strengthPct);
+    expect(r.maintenance).toBe(Math.round(energy.maintNow));
+    expect(r.measured).toBe(true);
+  });
+
+  test('counts the same weekly changes as the pace card over the phase', () => {
+    const r = phaseRecap(reachedUser, rated, info, energy, strength);
+    const pace = paceModel(rated, info.phaseWeeks, info, NOW);
+    expect(Math.abs(r.change)).toBeCloseTo(pace.total, 8);
+    expect(r.startWeight - r.endWeight).toBeCloseTo(pace.total, 8);
+    expect(r.rate).toBeCloseTo(pace.total / info.phaseWeeks, 8);
+  });
+
+  test('relative strength combines the strength and weight changes', () => {
+    const r = phaseRecap(reachedUser, rated, info, energy, strength);
+    const expected = ((1 + strength.sNow / 100) / (1 + strength.wNow / 100) - 1) * 100;
+    expect(r.perKg).toBeCloseTo(expected, 8);
+  });
+
+  test('falls back to stored maintenance without an energy model', () => {
+    const r = phaseRecap(reachedUser, rated, info, null, null);
+    expect(r.maintenance).toBe(3700);
+    expect(r.measured).toBe(false);
+    expect(r.perKg).toBeNull();
+    expect(r.strengthPct).toBeNull();
+  });
+
+  test('has no maintenance when nothing is known', () => {
+    const bare = { ...reachedUser, maintenanceCalories: undefined };
+    const r = phaseRecap(bare, rated, info, null, null);
+    expect(r.maintenance).toBeNull();
+    expect(recapTip(r)).toMatch(/Settings/);
+  });
+
+  test('stays hidden until the goal is reached', () => {
+    const far = phaseInfo({ ...reachedUser, targetWeight: latest - 2 }, rated, NOW);
+    expect(far.reached).toBe(false);
+    expect(phaseRecap(reachedUser, rated, far, energy, strength)).toBeNull();
+  });
+
+  test('stays hidden at maintenance', () => {
+    const hold = phaseInfo({ ...reachedUser, weightChangePlan: { type: 'maintenance' } }, withRates(weeks, 0), NOW);
+    expect(phaseRecap(reachedUser, rated, hold, energy, strength)).toBeNull();
+  });
+
+  test('stays hidden for a phase that just started', () => {
+    const young = phaseInfo({ ...reachedUser, goalSwitchDate: addDays(NOW, -2 * 7).toISOString() }, rated, NOW);
+    expect(young.phaseWeeks).toBeLessThan(4);
+    expect(phaseRecap(reachedUser, rated, young, energy, strength)).toBeNull();
+  });
+
+  test('only counts weeks inside the phase', () => {
+    const recent = phaseInfo({ ...reachedUser, goalSwitchDate: addDays(NOW, -8 * 7).toISOString() }, rated, NOW);
+    const long = phaseRecap(reachedUser, rated, info, energy, strength);
+    const short = phaseRecap(reachedUser, rated, recent, energy, strength);
+    expect(short.startWeight).toBeLessThan(long.startWeight);
+    expect(Math.abs(short.change)).toBeLessThan(Math.abs(long.change));
+  });
+
+  test('history entry is plain serialisable data', () => {
+    const r = phaseRecap(reachedUser, rated, info, energy, strength);
+    const e = recapEntry(r, NOW);
+    expect(e.endDate).toBe(NOW.toISOString());
+    expect(e.startDate).toBe(new Date(gs).toISOString());
+    expect(e.weeks).toBe(19);
+    expect(e.avgKcal).toBe(Math.round(r.avgKcal));
+    expect(JSON.parse(JSON.stringify(e))).toEqual(e);
+    expect(Object.values(e).every(v => v !== undefined)).toBe(true);
   });
 });
