@@ -531,3 +531,28 @@ describe('calculatePlanAdjustment - fix: hold-resync now applies the min-calorie
     expect(actualCalories).toBeLessThanOrEqual(minCal);
  });
 });
+
+describe('calculatePlanAdjustment - calorie window alignment', () => {
+  const slowThenFast = () => buildWeightIns('2026-01-05', [
+    ...buildDailyWeights(95, -0.2 / 7, 28, [0]),
+    ...buildDailyWeights(95 - 0.8, -1.0 / 7, 28, [0]),
+  ]);
+  const base = { ...baseUserData, targetWeight: '70', targetCalories: 2400, weightIns: slowThenFast() };
+  const wk = (weekStart) => ({ weekStart, daysLogged: 7, avgCalories: 2400, avgSteps: 0 });
+
+  test('measuredTDEE uses the weight change over the calorie weeks, not the latest rate', () => {
+    const aligned = calculatePlanAdjustment(base, [wk('2026-01-19'), wk('2026-01-26')]);
+    const unaligned = calculatePlanAdjustment(base, buildWeeklyCalorieData([{ avgCalories: 2400 }, { avgCalories: 2400 }]));
+    expect(aligned.measuredTDEE).toBeCloseTo(2400 + 0.2 * 1100, -1);
+    expect(unaligned.measuredTDEE).toBeGreaterThan(aligned.measuredTDEE + 300);
+  });
+
+  test('returns null when the calorie weeks are not consecutive', () => {
+    expect(calculatePlanAdjustment(base, [wk('2026-01-19'), wk('2026-02-02')])).toBeNull();
+  });
+
+  test('reports the pace target it used for cuts', () => {
+    const result = calculatePlanAdjustment(base, [wk('2026-01-19'), wk('2026-01-26')]);
+    expect(result.targetRate).toBeGreaterThan(0);
+  });
+});

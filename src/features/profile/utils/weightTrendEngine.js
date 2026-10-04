@@ -48,6 +48,27 @@ export const getRecentAverageWeight = (weightIns, days = 7, minEntries = 3) => {
   return parseFloat((recent.reduce((sum, e) => sum + e.weight, 0) / recent.length).toFixed(2));
 };
 
+export const shiftWeekStart = (weekStart, n) => {
+  const [y, m, d] = weekStart.split('-').map(Number);
+  const date = new Date(y, m - 1, d + 7 * n);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+export const getWeekAverageWeight = (weightIns, weekStart, minEntries = 3) => {
+  const week = (weightIns || []).find(w => w.weekStart === weekStart);
+  if (!week?.days) return null;
+  const v = DAY_KEYS_ORDER.map(k => week.days[k]).filter(x => x != null && !isNaN(x)).map(parseFloat);
+  if (v.length < minEntries) return null;
+  return v.reduce((a, b) => a + b, 0) / v.length;
+};
+
+export const getWindowRateKgPerWeek = (weightIns, firstWeekStart, weeks) => {
+  const before = getWeekAverageWeight(weightIns, shiftWeekStart(firstWeekStart, -1));
+  const last = getWeekAverageWeight(weightIns, shiftWeekStart(firstWeekStart, weeks - 1));
+  if (before == null || last == null) return null;
+  return parseFloat(((last - before) / weeks).toFixed(3));
+};
+
 export const calculateWeeklyRateOfChange = (trendSeries, windowDays = 14) => {
   if (!trendSeries || trendSeries.length < 4) return null;
 

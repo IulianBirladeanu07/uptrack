@@ -459,6 +459,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
                     if (!mountedRef.current) return;
                     if (initialUserData) {
                         const adjustment = await checkAndRunWeeklyEval(user.uid, initialUserData, mealCache.current);
+                        console.log('weekly eval', JSON.stringify(adjustment));
                         if (adjustment && mountedRef.current) {
                             setUserProfile(prev => ({ ...prev, ...adjustment }));
                             await refreshUserData();

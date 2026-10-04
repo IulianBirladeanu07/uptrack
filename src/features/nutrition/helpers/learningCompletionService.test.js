@@ -219,6 +219,14 @@ describe('evaluateWeeklyProgress', () => {
     expect(payload.slowEvalPending).toBe(false);
   });
 
+  test('weight_loss adjustments persist the live pace target into weightChangePlan', async () => {
+    const userData = { ...baseUserData, weightIns: weeksOfDecline(95, 0.5, 5) };
+    await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date());
+    const [, payload] = setDoc.mock.calls[0];
+    expect(payload.weightChangePlan.ratePerWeek).toBeGreaterThan(0);
+    expect(payload.weightChangePlan.type).toBe('weight_loss');
+  });
+
   test('first slow evaluation holds targets and persists the pending slow flag', async () => {
     const userData = { ...baseUserData, weightIns: weeksOfDecline(95, 0.1, 5) };
     const result = await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date());

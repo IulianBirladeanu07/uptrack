@@ -8,6 +8,9 @@ import {
   isSuspiciousWeightEntry,
   getPlanConfidence,
   getRecentAverageWeight,
+  shiftWeekStart,
+  getWeekAverageWeight,
+  getWindowRateKgPerWeek,
 } from './weightTrendEngine';
 import { buildWeightIns, buildDailyWeights, REALISTIC_DAILY_NOISE } from './testFixtures';
 
@@ -231,5 +234,28 @@ describe('getRecentAverageWeight', () => {
     const recent = getRecentAverageWeight(weightIns);
     const trend = getCurrentTrendWeight(weightIns);
     expect(recent).toBeLessThan(trend);
+  });
+});
+
+
+describe('weekly window helpers', () => {
+  const wi = buildWeightIns('2026-01-05', buildDailyWeights(90, -0.5 / 7, 28, [0]));
+
+  test('shiftWeekStart moves by whole weeks across month and year ends', () => {
+    expect(shiftWeekStart('2026-01-05', -1)).toBe('2025-12-29');
+    expect(shiftWeekStart('2026-01-26', 1)).toBe('2026-02-02');
+  });
+
+  test('getWeekAverageWeight returns null for missing or sparse weeks', () => {
+    expect(getWeekAverageWeight(wi, '2030-01-01')).toBeNull();
+    expect(getWeekAverageWeight([{ weekStart: '2026-01-05', days: { monday: 90 } }], '2026-01-05')).toBeNull();
+  });
+
+  test('getWindowRateKgPerWeek measures change from the week before the window to its last week', () => {
+    expect(getWindowRateKgPerWeek(wi, '2026-01-19', 2)).toBeCloseTo(-0.5, 1);
+  });
+
+  test('getWindowRateKgPerWeek is null when the week before the window is missing', () => {
+    expect(getWindowRateKgPerWeek(wi, '2026-01-05', 2)).toBeNull();
   });
 });

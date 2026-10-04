@@ -5,6 +5,8 @@ import {
   isGoalReached,
   getPlanConfidence,
   getRecentAverageWeight,
+  getWindowRateKgPerWeek,
+  shiftWeekStart,
 } from './weightTrendEngine';
 
 export const KCAL_PER_KG = 7700;
@@ -274,7 +276,15 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
     loggedWeeks.reduce((sum, w) => sum + w.avgCalories, 0) / loggedWeeks.length
   );
 
-  const measuredTDEE = calculateRealTDEE(avgLoggedCalories, actualRateKgPerWeek);
+  const hasWeekStarts = loggedWeeks.every(w => w.weekStart);
+  if (hasWeekStarts && loggedWeeks.some((w, i) => i > 0 && shiftWeekStart(loggedWeeks[i - 1].weekStart, 1) !== w.weekStart)) {
+    return null;
+  }
+  const windowRate = hasWeekStarts
+    ? getWindowRateKgPerWeek(userData.weightIns, loggedWeeks[0].weekStart, loggedWeeks.length)
+    : null;
+
+  const measuredTDEE = calculateRealTDEE(avgLoggedCalories, windowRate ?? actualRateKgPerWeek);
   const realTDEE = measuredTDEE || plan.tdee;
 
   const referenceWeight = recentAverageWeight ?? currentTrendWeight;
@@ -286,6 +296,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
     : plan.ratePerWeek;
   const actualMagnitude = isLoss ? -actualRateKgPerWeek : actualRateKgPerWeek;
   const progressRatio = actualMagnitude / targetRate;
+  const reportedRate = parseFloat(targetRate.toFixed(2));
   const ceilingRate = calculateWeeklyRateOfChange(trendSeries, FAST_LOSS_WINDOW_DAYS);
   const exceedsCeiling = isLoss && ceilingRate != null &&
     -ceilingRate > (referenceWeight * FAST_LOSS_CEILING_PERCENT) / 100;
@@ -298,7 +309,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   if (withinBand) {
     const caloriesDrift = avgLoggedCalories - userData.targetCalories;
     if (Math.abs(caloriesDrift) < HOLD_SYNC_MIN_DELTA) {
-      return { suggestion: 'hold', planConfidence, measuredTDEE };
+      return { suggestion: 'hold', planConfidence, measuredTDEE, targetRate: reportedRate };
     }
     const syncedCalories = isLoss ? Math.max(avgLoggedCalories, minCal) : avgLoggedCalories;
     return {
@@ -307,6 +318,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
       syncedMacros: calculateMacros(plan.type, syncedCalories, currentTrendWeight),
       planConfidence,
       measuredTDEE,
+      targetRate: reportedRate,
     };
   }
 
@@ -315,7 +327,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   if (!tooSlow) {
     const remainingKg = isLoss ? referenceWeight - targetWeight : targetWeight - referenceWeight;
     if (actualMagnitude > 0 && remainingKg / actualMagnitude <= LANDING_WEEKS) {
-      return { suggestion: 'hold', planConfidence, measuredTDEE };
+      return { suggestion: 'hold', planConfidence, measuredTDEE, targetRate: reportedRate };
     }
   }
 
@@ -333,7 +345,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
 
     if (tooSlow && alreadyAtFloor) {
       if (detectPlateau(actualRateKgPerWeek, currentTrendWeight)) {
-        return { suggestion: 'increase_steps', suggestedStepsIncrease: STEPS_INCREASE_SUGGESTION, planConfidence, measuredTDEE };
+        return { suggestion: 'increase_steps', suggestedStepsIncrease: STEPS_INCREASE_SUGGESTION, planConfidence, measuredTDEE, targetRate: reportedRate };
       }
       return {
         suggestion: 'calorie_adjustment',
@@ -345,16 +357,17 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
         adjustedAt: new Date().toISOString(),
         planConfidence,
         measuredTDEE,
+        targetRate: reportedRate,
       };
     }
 
     if (tooSlow && !alreadyAtFloor && !userData.slowEvalPending) {
-      return { suggestion: 'hold', planConfidence, measuredTDEE, slowEvalPending: true };
+      return { suggestion: 'hold', planConfidence, measuredTDEE, targetRate: reportedRate, slowEvalPending: true };
     }
   }
 
   const adjustment = newTargetCalories - userData.targetCalories;
-  if (adjustment === 0) return { suggestion: 'hold', planConfidence, measuredTDEE };
+  if (adjustment === 0) return { suggestion: 'hold', planConfidence, measuredTDEE, targetRate: reportedRate };
 
   return {
     suggestion: 'calorie_adjustment',
@@ -365,5 +378,6 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
     adjustedAt: new Date().toISOString(),
     planConfidence,
     measuredTDEE,
+    targetRate: reportedRate,
   };
 };

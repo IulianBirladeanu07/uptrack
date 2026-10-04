@@ -122,6 +122,7 @@ export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache,
 export const getWeeklyCalorieStats = (weeklyNutrition, weeks = 4) => {
   if (!weeklyNutrition?.length) return [];
   return weeklyNutrition.slice(-weeks).map(w => ({
+    weekStart:   w.weekStart,
     daysLogged:  w.daysLoggedNutrition || 0,
     avgCalories: w.avgCalories || 0,
     avgSteps:    w.avgSteps || 0,
@@ -189,6 +190,10 @@ export const evaluateWeeklyProgress = async (userId, userData, mealCache, curren
   }
 
   updateData.slowEvalPending = adjustment.slowEvalPending === true;
+
+  if (adjustment.targetRate && userData.weightChangePlan?.type === 'weight_loss') {
+    updateData.weightChangePlan = { ...userData.weightChangePlan, ratePerWeek: adjustment.targetRate };
+  }
 
   const maintenanceCalories = blendMaintenance(userData.maintenanceCalories, adjustment.measuredTDEE);
   if (maintenanceCalories && adjustment.suggestion !== 'goal_reached') {
