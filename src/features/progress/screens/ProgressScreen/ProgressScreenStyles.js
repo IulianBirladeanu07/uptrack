@@ -1,139 +1,88 @@
-import { createStyles } from "../../../../shared/theme/createStyles";
-import { colors, spacing, fontSize, fontWeight, radius } from "../../../../shared/theme";
+import { createStyles } from '../../../../shared/theme/createStyles';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
 const styles = createStyles(() => ({
     container: {
         flex: 1,
         backgroundColor: colors.background.primary,
     },
-    pageHeader: {
+    titleRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: spacing[4],
     },
-    pageTitle: {
-        fontSize: fontSize[28],
+    status: {
+        flexShrink: 1,
+        marginRight: spacing[3],
+        fontSize: fontSize[22],
         fontWeight: fontWeight.bold,
         color: colors.text.primary,
         letterSpacing: -0.5,
     },
-    weeksPills: {
-        flexDirection: 'row',
-        backgroundColor: colors.background.secondary,
-        borderRadius: radius[3],
-        borderWidth: 1,
-        borderColor: colors.border.default,
-        padding: 3,
-        gap: 2,
-    },
-    pill: {
-        paddingHorizontal: spacing[3],
-        paddingVertical: spacing[1],
-        borderRadius: radius[2],
-    },
-    pillActive: {
-        backgroundColor: colors.accent.primary,
-    },
-    pillText: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.quaternary,
-    },
-    pillTextActive: {
-        color: colors.accent.buttonText,
-    },
 
-    verdictLine: {
+    pillsRow: {
         flexDirection: 'row',
-        alignItems: 'center',
         gap: spacing[2],
+        marginTop: spacing[3],
         marginBottom: spacing[3],
     },
-    verdictText: {
+    pill: {
         flex: 1,
-        flexWrap: 'wrap',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing[2],
+        minHeight: spacing[10],
+        paddingVertical: 10,
+        paddingHorizontal: spacing[5],
+        borderRadius: radius[3],
+        borderWidth: 1,
     },
-    verdictTitle: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.bold,
+    pillSelected: {
+        backgroundColor: colors.accent.primary,
+        borderColor: 'transparent',
     },
-    verdictMessage: {
-        fontSize: fontSize[12],
+    pillInactive: {
+        backgroundColor: 'transparent',
+        borderColor: colors.border.default,
+    },
+    pillText: {
+        fontSize: fontSize[14],
         fontWeight: fontWeight.medium,
+        letterSpacing: 0.2,
+    },
+    pillTextSelected: {
+        color: colors.accent.buttonText,
+        fontWeight: fontWeight.semibold,
+    },
+    pillTextInactive: {
         color: colors.text.secondary,
     },
 
-    heroCard: {
-        backgroundColor: colors.background.secondary,
-        borderRadius: radius[5],
-        borderWidth: 1,
-        borderColor: colors.border.primaryAlt,
-        padding: spacing[5],
-        marginBottom: spacing[3],
-    },
-
-    quickStatsRow: {
+    rangeRow: {
         flexDirection: 'row',
-        gap: spacing[2],
-        marginBottom: spacing[3],
+        gap: spacing[5],
     },
-    quickStatTile: {
-        flex: 1,
-        backgroundColor: colors.background.secondary,
-        borderRadius: radius[3],
-        borderWidth: 1,
-        borderColor: colors.border.default,
-        paddingVertical: spacing[3],
-        paddingHorizontal: spacing[2],
-        alignItems: 'center',
-        gap: spacing[1],
+    rangeTab: {
+        paddingTop: spacing[2] + 2,
+        paddingBottom: spacing[2],
+        borderBottomWidth: 2,
+        borderBottomColor: 'transparent',
     },
-    quickStatIcon: {
-        width: spacing[8],
-        height: spacing[8],
-        borderRadius: radius[2],
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 2,
+    rangeTabActive: {
+        borderBottomColor: colors.accent.primary,
     },
-    quickStatValue: {
-        fontSize: fontSize[16],
-        fontWeight: fontWeight.extrabold,
-        color: colors.text.primary,
-        letterSpacing: -0.3,
-    },
-    quickStatLabel: {
-        fontSize: fontSize[8],
+    rangeText: {
+        fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
         color: colors.text.quaternary,
-        textTransform: 'uppercase',
-        letterSpacing: 0.4,
-        textAlign: 'center',
     },
-
-    deltaBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 3,
-        paddingHorizontal: spacing[2],
-        paddingVertical: 3,
-        borderRadius: radius[1],
-        alignSelf: 'flex-start',
-    },
-    deltaBadgeCompact: {
-        paddingHorizontal: spacing[1],
-        paddingVertical: 2,
-    },
-    deltaBadgeText: {
-        fontSize: fontSize[12],
+    rangeTextActive: {
+        color: colors.text.primary,
         fontWeight: fontWeight.bold,
     },
-    deltaBadgeTextCompact: {
-        fontSize: fontSize[10],
-    },
 
-    metricCard: {
+    card: {
         backgroundColor: colors.background.secondary,
         borderRadius: radius[4],
         borderWidth: 1,
@@ -141,277 +90,395 @@ const styles = createStyles(() => ({
         padding: spacing[4],
         marginBottom: spacing[3],
     },
-    cardHeader: {
+    cardFlush: {
+        backgroundColor: colors.background.secondary,
+        borderRadius: radius[4],
+        borderWidth: 1,
+        borderColor: colors.border.default,
+        marginBottom: spacing[3],
+        overflow: 'hidden',
+    },
+    rowBetween: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: spacing[3],
     },
-    cardHeaderLeft: {
+    cap: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+        textTransform: 'uppercase',
+        letterSpacing: 1.4,
+    },
+    capRight: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+    legendRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing[3],
     },
-    cardIconBox: {
-        width: spacing[8],
-        height: spacing[8],
-        borderRadius: radius[2],
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cardIconBoxLarge: {
-        width: spacing[10],
-        height: spacing[10],
-        borderRadius: radius[3],
-    },
-    cardTitle: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.bold,
-        color: colors.text.primary,
-    },
-    cardTitleLarge: {
-        fontSize: fontSize[14],
-    },
-    cardDaysLogged: {
-        fontSize: fontSize[10],
-        fontWeight: fontWeight.medium,
-        color: colors.text.quaternary,
-        marginTop: 1,
-    },
-    cardHeaderRight: {
-        alignItems: 'flex-end',
-        gap: 2,
-    },
-    cardCurrentValue: {
-        fontSize: fontSize[20],
-        fontWeight: fontWeight.extrabold,
-        letterSpacing: -0.5,
-    },
-    cardCurrentValueLarge: {
-        fontSize: fontSize[28],
-    },
-    cardSubtext: {
-        fontSize: fontSize[10],
-        fontWeight: fontWeight.medium,
-        marginBottom: spacing[3],
-        color: colors.text.quaternary,
-    },
-
-    goalRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: spacing[3],
-        backgroundColor: colors.faded.primaryExtraLight,
-        paddingHorizontal: spacing[3],
-        paddingVertical: spacing[2],
-        borderRadius: radius[2],
-        borderWidth: 1,
-        borderColor: colors.border.primaryAlt,
-    },
-    goalText: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.medium,
-        color: colors.text.quaternary,
-    },
-    goalRemaining: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.bold,
-    },
-
-    goalTrackWrap: {
-        marginBottom: spacing[3],
-    },
-    goalTrackBar: {
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: colors.background.tertiary,
-        marginBottom: spacing[2],
-        position: 'relative',
-        overflow: 'visible',
-    },
-    goalTrackFill: {
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: colors.accent.primary,
-    },
-    goalTrackDot: {
-        position: 'absolute',
-        top: -3,
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: colors.accent.primary,
-        borderWidth: 2,
-        borderColor: colors.background.secondary,
-        marginLeft: -6,
-    },
-    goalTrackLabels: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    goalTrackLabelText: {
-        fontSize: fontSize[10],
-        fontWeight: fontWeight.medium,
-        color: colors.text.quaternary,
-    },
-    goalTrackLabelCurrent: {
-        color: colors.accent.primary,
-        fontWeight: fontWeight.bold,
-    },
-
-    macroTilesRow: {
-        flexDirection: 'row',
-        gap: spacing[2],
-        marginBottom: spacing[3],
-    },
-    macroTile: {
-        flex: 1,
-        borderRadius: radius[2],
-        paddingHorizontal: spacing[3],
-        paddingVertical: spacing[2],
-        borderWidth: 1,
-    },
-    macroTileHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        marginBottom: spacing[1],
-    },
-    macroDot: {
-        width: 5,
-        height: 5,
-        borderRadius: 3,
-    },
-    macroTileLabel: {
-        fontSize: fontSize[8],
-        fontWeight: fontWeight.bold,
-        color: colors.text.quaternary,
-        letterSpacing: 0.5,
-    },
-    macroTileValue: {
-        fontSize: fontSize[14],
-        fontWeight: fontWeight.bold,
-        color: colors.text.primary,
-        letterSpacing: -0.3,
-    },
-
-    chipsDivider: {
-        height: 1,
-        backgroundColor: colors.border.light,
-        marginBottom: spacing[3],
-    },
-
-    activityRow: {
-        flexDirection: 'row',
-        marginBottom: spacing[3],
-    },
-    activityHalf: {
-        flex: 1,
-    },
-    activityHalfBorder: {
-        paddingRight: spacing[4],
-        borderRightWidth: 1,
-        borderRightColor: colors.border.light,
-        marginRight: spacing[4],
-    },
-    activityHeaderLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing[2],
-        marginBottom: spacing[2],
-    },
-    activityValueRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing[2],
-        flexWrap: 'wrap',
-    },
-
-    barChartRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        gap: 2,
-    },
-    barCol: {
-        flex: 1,
-        alignItems: 'center',
-    },
-    barValueLabel: {
-        fontSize: fontSize[8],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.quaternary,
-        marginBottom: spacing[1],
-    },
-    barTrack: {
-        width: '70%',
-        justifyContent: 'flex-end',
-        borderRadius: radius[1],
-        overflow: 'hidden',
-        backgroundColor: colors.faded.surface,
-    },
-    barFillBar: {
-        width: '100%',
-        borderRadius: radius[1],
-        minHeight: 3,
-    },
-    barBottomLabel: {
-        fontSize: fontSize[8],
-        fontWeight: fontWeight.medium,
-        color: colors.text.quaternary,
-        marginTop: spacing[1],
-    },
-
-    viewAllText: {
-        fontSize: fontSize[14],
-        fontWeight: fontWeight.semibold,
-        color: colors.accent.primary,
-    },
-
-    volumeList: {
-        gap: spacing[2],
-    },
-    volumeRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing[2],
-    },
-    volumeLabelWrap: {
+    legendItem: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing[1],
-        width: spacing[20],
     },
-    volumeDot: {
-        width: 5,
-        height: 5,
-        borderRadius: 3,
+    legendDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
-    volumeLabel: {
-        flexShrink: 1,
-        fontSize: fontSize[10],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.secondary,
+    legendText: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
     },
-    volumeBarTrack: {
+
+    hero: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[3],
+        marginTop: spacing[2],
+        marginBottom: spacing[2],
+    },
+    heroValueRow: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+    },
+    big: {
+        fontSize: fontSize[44],
+        fontWeight: fontWeight.bold,
+        color: colors.text.primary,
+        letterSpacing: -1,
+    },
+    bigUnit: {
+        marginLeft: spacing[1],
+        fontSize: fontSize[16],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+
+    dp: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        paddingHorizontal: spacing[2],
+        paddingVertical: 4,
+        borderRadius: radius[2],
+    },
+    dpText: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.bold,
+    },
+
+    stats: {
+        flexDirection: 'row',
+        marginTop: spacing[2],
+        paddingTop: spacing[3],
+        borderTopWidth: 1,
+        borderTopColor: colors.border.default,
+    },
+    stat: {
         flex: 1,
-        height: spacing[2],
-        borderRadius: radius[1],
-        overflow: 'hidden',
+        alignItems: 'center',
+    },
+    statDivider: {
+        width: 1,
+        backgroundColor: colors.border.default,
+    },
+    statValueRow: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+    },
+    statValue: {
+        fontSize: fontSize[20],
+        fontWeight: fontWeight.bold,
+        color: colors.text.primary,
+    },
+    statUnit: {
+        marginLeft: 2,
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+    statLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[1],
+        marginTop: spacing[1],
+    },
+    statLabel: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+        textTransform: 'uppercase',
+        letterSpacing: 1.2,
+    },
+    statDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+    },
+    statDash: {
+        width: 10,
+        height: 0,
+        borderTopWidth: 2,
+        borderStyle: 'dashed',
+        borderColor: colors.text.secondary,
+    },
+
+    tip: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: spacing[2],
+        marginTop: spacing[3],
+        padding: spacing[3],
+        borderRadius: radius[3],
         backgroundColor: colors.faded.surface,
     },
-    volumeBarFill: {
-        height: '100%',
-        borderRadius: radius[1],
-        minWidth: 3,
-    },
-    volumeValue: {
-        width: spacing[7],
-        textAlign: 'right',
-        fontSize: fontSize[10],
-        fontWeight: fontWeight.semibold,
+    tipText: {
+        flex: 1,
+        fontSize: fontSize[12],
+        lineHeight: 18,
+        fontWeight: fontWeight.medium,
         color: colors.text.secondary,
+    },
+
+    alert: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[3],
+        marginTop: spacing[3],
+        padding: spacing[3],
+        borderRadius: radius[3],
+        borderWidth: 1,
+        borderColor: colors.border.default,
+        backgroundColor: colors.faded.surface,
+    },
+    alertIcon: {
+        width: spacing[8],
+        height: spacing[8],
+        borderRadius: radius[6],
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.faded.primary,
+    },
+    alertBody: {
+        flex: 1,
+    },
+    alertTitle: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.primary,
+    },
+    alertSub: {
+        marginTop: 2,
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+
+    heat: {
+        marginTop: spacing[1],
+        gap: 5,
+    },
+    heatRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[2],
+    },
+    heatName: {
+        width: 62,
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+    heatCells: {
+        flex: 1,
+        flexDirection: 'row',
+        gap: 2,
+        height: 17,
+    },
+    heatCell: {
+        flex: 1,
+        borderRadius: 3,
+    },
+    heatAvg: {
+        width: 34,
+        textAlign: 'right',
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.bold,
+        color: colors.text.primary,
+    },
+    heatAvgLow: {
+        color: colors.accent.primary,
+    },
+    heatAxis: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: spacing[2],
+        marginLeft: 70,
+        marginRight: 42,
+    },
+    heatAxisText: {
+        fontSize: fontSize[10],
+        color: colors.text.tertiary,
+    },
+    key: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: spacing[3],
+        marginTop: spacing[3],
+    },
+    keyItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[1],
+    },
+    keySwatch: {
+        width: 12,
+        height: 12,
+        borderRadius: 3,
+    },
+    keyText: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+
+    listHead: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing[4],
+        paddingTop: spacing[4],
+        paddingBottom: spacing[3],
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border.default,
+    },
+    listTitle: {
+        fontSize: fontSize[16],
+        fontWeight: fontWeight.bold,
+        color: colors.text.primary,
+    },
+    viewAll: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.accent.primary,
+    },
+    monthRow: {
+        paddingHorizontal: spacing[4],
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border.light,
+    },
+    monthRowLast: {
+        borderBottomWidth: 0,
+    },
+    monthHead: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[2],
+        paddingVertical: spacing[3],
+    },
+    monthLeft: {
+        flex: 1,
+    },
+    monthName: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.primary,
+    },
+    monthMeta: {
+        marginTop: 2,
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.medium,
+        color: colors.text.quaternary,
+    },
+    monthValueRow: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+    },
+    monthValue: {
+        fontSize: fontSize[16],
+        fontWeight: fontWeight.extrabold,
+        color: colors.text.primary,
+        letterSpacing: -0.5,
+    },
+    monthUnit: {
+        marginLeft: 3,
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.secondary,
+    },
+    tiles: {
+        flexDirection: 'row',
+        gap: spacing[2],
+        paddingBottom: spacing[3],
+    },
+    tile: {
+        flex: 1,
+        padding: spacing[3],
+        borderRadius: radius[3],
+        borderWidth: 1,
+        borderColor: colors.border.default,
+        backgroundColor: colors.faded.surface,
+    },
+    tileLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[1],
+    },
+    tileDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+    },
+    tileLabel: {
+        fontSize: fontSize[8],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    tileValue: {
+        marginTop: spacing[1],
+        fontSize: fontSize[18],
+        fontWeight: fontWeight.bold,
+        color: colors.text.primary,
+    },
+    tileDelta: {
+        marginTop: 2,
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+
+    empty: {
+        marginTop: spacing[3],
+        fontSize: fontSize[14],
+        lineHeight: 20,
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+    emptyScreen: {
+        alignItems: 'center',
+        paddingVertical: spacing[16],
+        paddingHorizontal: spacing[6],
+        gap: spacing[3],
+    },
+    emptyTitle: {
+        fontSize: fontSize[18],
+        fontWeight: fontWeight.bold,
+        color: colors.text.primary,
+    },
+    emptySub: {
+        fontSize: fontSize[14],
+        lineHeight: 20,
+        textAlign: 'center',
+        color: colors.text.tertiary,
     },
 }));
 

@@ -1,6 +1,7 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
@@ -8,620 +9,477 @@ import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
-import { processWeightInsForDisplay } from '../../../nutrition/helpers/weightTrackerUtils';
-import WeightChart from '../../../nutrition/components/WeightTracker/WeightChart';
-import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import { calculate1RM, fetchSplitsFromFirestore } from '../../../workout/handlers/WorkoutHandler';
+import { colors, spacing } from '../../../../shared/theme';
+import { PaceChart, EnergyChart, StrengthChart } from '../../components/ProgressCharts';
+import {
+    buildWeeks,
+    withRates,
+    phaseInfo,
+    rangeOptions,
+    paceModel,
+    paceTip,
+    energyModel,
+    energyTip,
+    liftStats,
+    strengthModel,
+    strengthTip,
+    setsModel,
+    setsTip,
+    monthsModel,
+    countPlanned,
+    dirOf,
+    shortDate,
+    fmt1,
+    sg,
+    kfmt,
+} from '../../utils/progressEngine';
 import styles from './ProgressScreenStyles';
 
-const NUM_WEEKS_OPTIONS = [4, 8, 12];
-const PERIOD_BY_WEEKS = { 4: '4W', 8: '8W', 12: '12W' };
+const TABS = [
+    { key: 'nutrition', label: 'Nutrition', icon: 'restaurant' },
+    { key: 'training', label: 'Training', icon: 'barbell' },
+];
 
-const MUSCLE_GROUP_COLORS = {
-    Back: '#3B82F6',
-    Biceps: '#8B5CF6',
-    Calves: '#F59E0B',
-    Chest: '#EF4444',
-    Core: '#10B981',
-    Glutes: '#F97316',
-    Hamstring: '#84CC16',
-    Legs: '#06B6D4',
-    Quads: '#8B5CF6',
-    Shoulders: '#F59E0B',
-    Triceps: '#EF4444',
-    'Full Body': '#DC2626',
+const TONES = {
+    good: { bg: colors.faded.successAlt, fg: colors.accent.success },
+    warn: { bg: colors.faded.primary, fg: colors.accent.primary },
+    purple: { bg: colors.faded.purple, fg: colors.macro.protein },
+    flat: { bg: colors.faded.surface, fg: colors.text.secondary },
 };
 
-const getMonday = (date) => {
-    const d = new Date(date);
-    const day = d.getDay();
-    d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
-    d.setHours(0, 0, 0, 0);
-    return d;
-};
+const HEAT_KEY = [
+    { label: '<6', a: 0.08 },
+    { label: '6-9', a: 0.22 },
+    { label: '10-14', a: 0.5 },
+    { label: '15-20', a: 0.75 },
+    { label: '20+', a: 1 },
+];
 
-const toDateKey = (date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-};
+const heatAlpha = v => (v < 6 ? 0.08 : v < 10 ? 0.22 : v < 15 ? 0.5 : v <= 20 ? 0.75 : 1);
 
-const addDays = (date, n) => {
-    const d = new Date(date);
-    d.setDate(d.getDate() + n);
-    return d;
-};
+const orange = a => `rgba(255, 149, 0, ${a})`;
 
-const weekLabel = (mondayDate) =>
-    new Date(mondayDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-const deltaOf = (a, b) => {
-    if (a == null || b == null) return null;
-    return parseFloat((a - b).toFixed(2));
-};
-
-const useWeeklyBuckets = (weightIns, getNutritionForDateRange, getStepsForDateRange, workoutHistory, numWeeks) => {
-    return useMemo(() => {
-        const today = new Date();
-        const currentMonday = getMonday(today);
-        return Array.from({ length: numWeeks }, (_, i) => {
-            const monday = addDays(currentMonday, -(numWeeks - 1 - i) * 7);
-            const sunday = addDays(monday, 6);
-            const weekKey = toDateKey(monday);
-            const isCurrent = i === numWeeks - 1;
-
-            const weightEntry = weightIns?.find(w => w.weekStart === weekKey);
-            const avgWeight = weightEntry?.average ?? null;
-            const daysLoggedWeight = weightEntry?.days
-                ? Object.values(weightEntry.days).filter(v => v != null && !isNaN(v)).length
-                : 0;
-
-            const nutritionDays = getNutritionForDateRange
-                ? getNutritionForDateRange(monday, sunday).filter(d => d.calories > 0)
-                : [];
-            const avgCalories = nutritionDays.length
-                ? Math.round(nutritionDays.reduce((s, d) => s + d.calories, 0) / nutritionDays.length)
-                : null;
-            const avgProtein = nutritionDays.length
-                ? Math.round(nutritionDays.reduce((s, d) => s + d.protein, 0) / nutritionDays.length)
-                : null;
-            const avgCarbs = nutritionDays.length
-                ? Math.round(nutritionDays.reduce((s, d) => s + d.carbs, 0) / nutritionDays.length)
-                : null;
-            const avgFat = nutritionDays.length
-                ? Math.round(nutritionDays.reduce((s, d) => s + d.fat, 0) / nutritionDays.length)
-                : null;
-
-            const stepsDays = getStepsForDateRange
-                ? getStepsForDateRange(monday, sunday).filter(d => d.steps > 0)
-                : [];
-            const avgSteps = stepsDays.length
-                ? Math.round(stepsDays.reduce((s, d) => s + d.steps, 0) / stepsDays.length)
-                : null;
-
-            const workouts = (workoutHistory ?? []).filter(w => {
-                const d = w.timestamp?.toDate?.();
-                return d && d >= monday && d <= sunday;
-            });
-
-            return {
-                monday, sunday, weekKey, isCurrent,
-                label: weekLabel(monday),
-                avgWeight, daysLoggedWeight,
-                avgCalories, avgProtein, avgCarbs, avgFat,
-                avgSteps, daysLoggedSteps: stepsDays.length,
-                workoutCount: workouts.length,
-                daysLoggedNutrition: nutritionDays.length,
-            };
-        });
-    }, [weightIns, getNutritionForDateRange, getStepsForDateRange, workoutHistory, numWeeks]);
-};
-
-const useTrainingVolume = (workoutHistory, buckets, numWeeks) => useMemo(() => {
-    if (!buckets.length) return [];
-    const rangeStart = buckets[0].monday;
-    const rangeEnd = buckets[buckets.length - 1].sunday;
-    const totals = {};
-
-    (workoutHistory ?? []).forEach(w => {
-        const d = w.timestamp?.toDate?.();
-        if (!d || d < rangeStart || d > rangeEnd) return;
-        (w.exercises ?? []).forEach(ex => {
-            const group = ex.muscleGroup || 'Other';
-            const setCount = ex.sets?.length ?? 0;
-            totals[group] = (totals[group] ?? 0) + setCount;
-        });
-    });
-
-    return Object.entries(totals)
-        .map(([group, totalSets]) => ({
-            group,
-            avgPerWeek: parseFloat((totalSets / numWeeks).toFixed(1)),
-            color: MUSCLE_GROUP_COLORS[group] ?? colors.text.quaternary,
-        }))
-        .filter(g => g.avgPerWeek > 0)
-        .sort((a, b) => b.avgPerWeek - a.avgPerWeek);
-}, [workoutHistory, buckets, numWeeks]);
-
-const useWeightStatus = (weightDelta, targetRate) => useMemo(() => {
-    if (weightDelta == null || targetRate == null) return null;
-
-    const sameDirection =
-        (targetRate < 0 && weightDelta <= 0) ||
-        (targetRate > 0 && weightDelta >= 0) ||
-        (targetRate === 0 && Math.abs(weightDelta) < 0.15);
-
-    if (!sameDirection) {
-        return {
-            type: 'bad',
-            icon: 'alert-circle',
-            title: 'Off track',
-            message: `Trending opposite to your ${targetRate > 0 ? '+' : ''}${targetRate.toFixed(2)} kg/wk goal`,
-        };
-    }
-
-    const diff = Math.abs(weightDelta) - Math.abs(targetRate);
-
-    if (Math.abs(diff) < 0.15) {
-        return {
-            type: 'good',
-            icon: 'checkmark-circle',
-            title: 'On track',
-            message: `${weightDelta > 0 ? '+' : ''}${weightDelta.toFixed(2)} kg this week, right on pace`,
-        };
-    }
-
-    if (diff < 0) {
-        return {
-            type: 'warn',
-            icon: 'time',
-            title: 'Behind pace',
-            message: `Trending slower than your ${targetRate > 0 ? '+' : ''}${targetRate.toFixed(2)} kg/wk goal`,
-        };
-    }
-
-    return {
-        type: 'good',
-        icon: 'trending-up',
-        title: 'Ahead of pace',
-        message: `Trending faster than your ${targetRate > 0 ? '+' : ''}${targetRate.toFixed(2)} kg/wk goal`,
-    };
-}, [weightDelta, targetRate]);
-
-const DeltaBadge = ({ value, positiveIsGood = true, suffix = '', decimals = 1, compact = false }) => {
-    if (value == null) return null;
-    const abs = Math.abs(value);
-    const neutral = abs < 0.05;
-    const good = positiveIsGood ? value > 0 : value < 0;
-    const color = neutral ? colors.text.quaternary : good ? colors.accent.success : colors.accent.error;
-    const icon = neutral ? 'remove' : value > 0 ? 'arrow-up' : 'arrow-down';
-    const bg = neutral ? colors.faded.surface : good ? colors.faded.successAlt : colors.faded.errorAlt;
+const Delta = ({ tone = 'good', icon, text }) => {
+    const t = TONES[tone];
     return (
-        <View style={[styles.deltaBadge, compact && styles.deltaBadgeCompact, { backgroundColor: bg }]}>
-            <Ionicons name={icon} size={compact ? 8 : 9} color={color} />
-            <Text style={[styles.deltaBadgeText, compact && styles.deltaBadgeTextCompact, { color }]}>
-                {abs.toFixed(decimals)}{suffix}
-            </Text>
+        <View style={[styles.dp, { backgroundColor: t.bg }]}>
+            {icon && <Ionicons name={icon} size={10} color={t.fg} />}
+            <Text style={[styles.dpText, { color: t.fg }]}>{text}</Text>
         </View>
     );
 };
 
-const VerdictLine = ({ status }) => {
-    if (!status) return null;
-    const palette = {
-        good: { bg: colors.faded.successAlt, fg: colors.accent.success },
-        warn: { bg: colors.faded.primary, fg: colors.accent.warning },
-        bad: { bg: colors.faded.errorAlt, fg: colors.accent.errorAlt },
-    }[status.type];
+const Hero = ({ value, unit, children }) => (
+    <View style={styles.hero}>
+        <View style={styles.heroValueRow}>
+            <Text style={styles.big}>{value}</Text>
+            {unit ? <Text style={styles.bigUnit}>{unit}</Text> : null}
+        </View>
+        {children}
+    </View>
+);
 
+const Stats = ({ items }) => (
+    <View style={styles.stats}>
+        {items.map((it, i) => (
+            <React.Fragment key={it.label}>
+                {i > 0 && <View style={styles.statDivider} />}
+                <View style={styles.stat}>
+                    <View style={styles.statValueRow}>
+                        <Text style={[styles.statValue, it.color && { color: it.color }]}>{it.value}</Text>
+                        {it.unit ? <Text style={styles.statUnit}>{it.unit}</Text> : null}
+                    </View>
+                    <View style={styles.statLabelRow}>
+                        {it.dot && <View style={[styles.statDot, { backgroundColor: it.dot }]} />}
+                        {it.dash && <View style={styles.statDash} />}
+                        <Text style={styles.statLabel}>{it.label}</Text>
+                    </View>
+                </View>
+            </React.Fragment>
+        ))}
+    </View>
+);
+
+const Tip = ({ text }) =>
+    text ? (
+        <View style={styles.tip}>
+            <Ionicons name="sparkles-outline" size={spacing.iconSm} color={colors.accent.primary} />
+            <Text style={styles.tipText}>{text}</Text>
+        </View>
+    ) : null;
+
+const ChartBox = ({ children }) => {
+    const [w, setW] = useState(0);
     return (
-        <View style={[styles.verdictLine, { backgroundColor: palette.bg }]}>
-            <Ionicons name={status.icon} size={spacing.iconSm} color={palette.fg} />
-            <Text style={styles.verdictText}>
-                <Text style={[styles.verdictTitle, { color: palette.fg }]}>{status.title}</Text>
-                <Text style={styles.verdictMessage}>  {status.message}</Text>
-            </Text>
+        <View onLayout={e => setW(Math.floor(e.nativeEvent.layout.width))}>
+            {w > 0 && children(w)}
         </View>
     );
 };
 
-const WeeklyBarChart = ({ buckets, getValue, formatValue, color, height = 64, showValues = true }) => {
-    const values = buckets.map(b => getValue(b)).filter(v => v != null);
-    const maxVal = values.length ? Math.max(...values) : 0;
+const EmptyCard = ({ cap, text }) => (
+    <View style={styles.card}>
+        <Text style={styles.cap}>{cap}</Text>
+        <Text style={styles.empty}>{text}</Text>
+    </View>
+);
+
+const PaceCard = ({ m, info, n }) => {
+    const [sel, setSel] = useState(null);
+    useEffect(() => {
+        setSel(null);
+    }, [n]);
+
+    const title = info.dir < 0 ? 'Weight loss pace' : info.dir > 0 ? 'Weight gain pace' : 'Weight drift';
+    if (!m) return <EmptyCard cap={title} text="Log your weight for two weeks to see your pace." />;
+
+    const pill = {
+        on: { tone: 'good', icon: 'checkmark', text: 'on plan' },
+        'slightly-ahead': { tone: 'good', icon: 'checkmark', text: 'on plan' },
+        ahead: { tone: 'good', icon: 'arrow-up', text: `${fmt1(m.diff)} ahead` },
+        behind: { tone: 'warn', icon: 'arrow-down', text: `${fmt1(-m.diff)} behind` },
+        steady: { tone: 'good', icon: 'checkmark', text: 'steady' },
+        drift: { tone: 'warn', icon: 'alert', text: 'drifting' },
+    }[m.status];
+
+    const picked = sel != null && m.slots[sel]?.v != null ? m.slots[sel] : null;
+    const pickedText = picked
+        ? `${shortDate(picked.monday)}${picked.gap > 1 ? ` · ${picked.gap}-wk avg` : ''}`
+        : null;
+
+    const eta = m.reached
+        ? 'Reached'
+        : m.eta
+            ? `${shortDate(m.eta)}${m.eta.getFullYear() !== new Date().getFullYear() ? ` ${m.eta.getFullYear()}` : ''}`
+            : '--';
 
     return (
-        <View style={styles.barChartRow}>
-            {buckets.map((b) => {
-                const val = getValue(b);
-                const pct = val != null && maxVal > 0 ? Math.max((val / maxVal) * 100, 6) : 0;
-                return (
-                    <View key={b.weekKey} style={styles.barCol}>
-                        {showValues && (
-                            <Text style={[styles.barValueLabel, b.isCurrent && { color }]} numberOfLines={1}>
-                                {val != null ? formatValue(val) : ''}
-                            </Text>
-                        )}
-                        <View style={[styles.barTrack, { height }]}>
-                            {val != null && (
-                                <View
-                                    style={[
-                                        styles.barFillBar,
-                                        {
-                                            height: `${pct}%`,
-                                            backgroundColor: b.isCurrent ? color : `${color}40`,
-                                        },
-                                    ]}
-                                />
-                            )}
-                        </View>
-                        <Text style={[styles.barBottomLabel, b.isCurrent && { color }]} numberOfLines={1}>
-                            {b.isCurrent ? 'Now' : b.label}
+        <View style={styles.card}>
+            <View style={styles.rowBetween}>
+                <Text style={styles.cap}>{title}</Text>
+                <Text style={styles.capRight}>
+                    {`${n} weeks${info.remaining != null && !info.reached ? ` · ${info.remaining.toFixed(1)} kg to go` : ''}`}
+                </Text>
+            </View>
+            <Hero value={fmt1(picked ? picked.v : m.rate)} unit="kg/wk">
+                {picked ? <Delta tone="flat" text={pickedText} /> : <Delta {...pill} />}
+            </Hero>
+            <ChartBox>
+                {w => <PaceChart slots={m.slots} plan={m.plan} width={w} sel={sel} onSelect={setSel} />}
+            </ChartBox>
+            <Stats
+                items={[
+                    { value: fmt1(m.rate4), unit: 'kg', label: '4W rate' },
+                    { value: fmt1(m.total), unit: 'kg', label: info.dir < 0 ? 'Lost' : info.dir > 0 ? 'Gained' : 'Moved' },
+                    { value: eta, label: 'Goal ETA' },
+                ]}
+            />
+            <Tip text={paceTip(m, info)} />
+        </View>
+    );
+};
+
+const EnergyCard = ({ m, info }) => {
+    if (!m) return <EmptyCard cap="Energy balance" text="Needs about three weeks of weight and food logs to estimate your real maintenance." />;
+
+    const aligned = info.dir === 0 || (info.dir < 0 && m.balance < 0) || (info.dir > 0 && m.balance > 0);
+
+    return (
+        <View style={styles.card}>
+            <View style={styles.rowBetween}>
+                <Text style={styles.cap}>Energy balance</Text>
+                <Text style={styles.capRight}>{`estimated · last ${m.statsWeeks} weeks`}</Text>
+            </View>
+            <Hero value={sg(m.balance, 0)} unit="kcal/day">
+                <Delta tone={aligned ? 'good' : 'warn'} text={`~${fmt1(m.pillRate)} kg/wk`} />
+            </Hero>
+            <ChartBox>
+                {w => <EnergyChart eat={m.eat} maint={m.maint} target={m.target} slots={m.slots} width={w} />}
+            </ChartBox>
+            <Stats
+                items={[
+                    { value: kfmt(m.eatNow), label: 'Eaten', dot: colors.accent.primary },
+                    { value: kfmt(m.maintNow), label: 'Maint.', dash: true },
+                    { value: kfmt(m.target), label: 'Target', dot: colors.accent.amber },
+                ]}
+            />
+            <Tip text={energyTip(m, info)} />
+        </View>
+    );
+};
+
+const StrengthCard = ({ m, lifts, info, onLift }) => {
+    if (!m) return <EmptyCard cap="Strength vs weight" text="Train at least two lifts across a few weeks to see how your strength moves with your weight." />;
+
+    const more = lifts.stalled.length - 1;
+
+    return (
+        <View style={styles.card}>
+            <View style={styles.rowBetween}>
+                <Text style={styles.cap}>Strength vs weight</Text>
+                <View style={styles.legendRow}>
+                    <View style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: colors.accent.cyan }]} />
+                        <Text style={styles.legendText}>Strength</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: colors.macro.protein }]} />
+                        <Text style={styles.legendText}>Weight</Text>
+                    </View>
+                </View>
+            </View>
+            <Hero value={sg(m.sNow, 1)} unit="%">
+                {m.wNow != null && <Delta tone="purple" text={`weight ${sg(m.wNow, 1)}%`} />}
+            </Hero>
+            <ChartBox>
+                {w => <StrengthChart strength={m.strength} weight={m.weight} slots={m.slots} width={w} />}
+            </ChartBox>
+            <Stats
+                items={[
+                    { value: String(lifts.up), label: 'Lifts up', color: colors.accent.success },
+                    { value: String(lifts.flat), label: 'Flat' },
+                    { value: String(lifts.stalled.length), label: 'Stalled', color: lifts.stalled.length ? colors.accent.primary : undefined },
+                ]}
+            />
+            {lifts.stalled.length > 0 && (
+                <TouchableOpacity style={styles.alert} activeOpacity={0.7} onPress={() => onLift(lifts.stalled[0].name)}>
+                    <View style={styles.alertIcon}>
+                        <Ionicons name="warning-outline" size={spacing.iconSm} color={colors.accent.primary} />
+                    </View>
+                    <View style={styles.alertBody}>
+                        <Text style={styles.alertTitle} numberOfLines={1}>{lifts.stalled[0].name}</Text>
+                        <Text style={styles.alertSub}>
+                            No progress in {lifts.stalled[0].weeks} weeks{more > 0 ? ` · +${more} more stalled` : ''}
                         </Text>
                     </View>
+                    <Ionicons name="chevron-forward" size={spacing.icon} color={colors.text.quaternary} />
+                </TouchableOpacity>
+            )}
+            <Tip text={strengthTip(m, info)} />
+        </View>
+    );
+};
+
+const SetsCard = ({ m }) => {
+    if (!m) return <EmptyCard cap="Hard sets per muscle" text="Complete a few workouts to see your weekly volume per muscle." />;
+
+    return (
+        <View style={styles.card}>
+            <View style={styles.rowBetween}>
+                <Text style={styles.cap}>Hard sets per muscle</Text>
+                <Text style={styles.capRight}>avg of last 4 weeks</Text>
+            </View>
+            <Hero value={String(Math.round(m.total))} unit="sets/wk">
+                {m.delta != null && (
+                    <Delta tone={m.delta >= 0 ? 'good' : 'warn'} text={`${sg(m.delta, 0)}% vs prior 4W`} />
+                )}
+            </Hero>
+            <View style={styles.heat}>
+                {m.rows.map(r => (
+                    <View key={r.name} style={styles.heatRow}>
+                        <Text style={styles.heatName} numberOfLines={1}>{r.name}</Text>
+                        <View style={styles.heatCells}>
+                            {r.cells.map((v, i) => (
+                                <View key={i} style={[styles.heatCell, { backgroundColor: orange(heatAlpha(v)) }]} />
+                            ))}
+                        </View>
+                        <Text style={[styles.heatAvg, r.avg < 10 && styles.heatAvgLow]}>{Math.round(r.avg)}</Text>
+                    </View>
+                ))}
+            </View>
+            <View style={styles.heatAxis}>
+                <Text style={styles.heatAxisText}>{shortDate(m.first)}</Text>
+                <Text style={styles.heatAxisText}>this week</Text>
+            </View>
+            <View style={styles.key}>
+                {HEAT_KEY.map(k => (
+                    <View key={k.label} style={styles.keyItem}>
+                        <View style={[styles.keySwatch, { backgroundColor: orange(k.a) }]} />
+                        <Text style={styles.keyText}>{k.label}</Text>
+                    </View>
+                ))}
+            </View>
+            <Tip text={setsTip(m)} />
+        </View>
+    );
+};
+
+const Tile = ({ label, dot, value, sub }) => (
+    <View style={styles.tile}>
+        <View style={styles.tileLabelRow}>
+            <View style={[styles.tileDot, { backgroundColor: dot }]} />
+            <Text style={styles.tileLabel}>{label}</Text>
+        </View>
+        <Text style={styles.tileValue}>{value}</Text>
+        <Text style={styles.tileDelta}>{sub || ' '}</Text>
+    </View>
+);
+
+const vs = (v, d, suffix = '') => (v != null ? `${sg(v, d)}${suffix} vs prev` : null);
+
+const MonthRow = ({ m, kind, info, open, onToggle, last }) => {
+    let right;
+    let tiles;
+
+    if (kind === 'n') {
+        const good = m.change != null && (info.dir === 0 ? Math.abs(m.change) < 0.5 : info.dir * m.change > 0);
+        right = (
+            <>
+                {m.wEnd != null && (
+                    <View style={styles.monthValueRow}>
+                        <Text style={styles.monthValue}>{fmt1(m.wEnd)}</Text>
+                        <Text style={styles.monthUnit}>kg</Text>
+                    </View>
+                )}
+                {m.change != null && <Delta tone={good ? 'good' : 'flat'} text={sg(m.change, 1)} />}
+            </>
+        );
+        tiles = (
+            <>
+                <Tile label="Avg kcal" dot={colors.accent.primary} value={kfmt(m.kcal)} sub={vs(m.d?.kcal, 0)} />
+                <Tile label="Protein" dot={colors.macro.protein} value={m.protein != null ? `${Math.round(m.protein)}g` : '--'} sub={vs(m.d?.protein, 0, 'g')} />
+                <Tile label="Steps" dot={colors.accent.stepsRed} value={m.steps != null ? `${(m.steps / 1000).toFixed(1)}k` : '--'} sub={vs(m.d?.steps != null ? m.d.steps / 1000 : null, 1, 'k')} />
+            </>
+        );
+    } else {
+        const hasPlan = m.planDone != null && m.planDone > 0;
+        const on = hasPlan && m.sessionsDone >= m.planDone;
+        right = (
+            <>
+                <View style={styles.monthValueRow}>
+                    <Text style={styles.monthValue}>{m.sessions}</Text>
+                    <Text style={styles.monthUnit}>sessions</Text>
+                </View>
+                {hasPlan && <Delta tone={on ? 'good' : 'warn'} text={on ? 'on plan' : `${m.planDone - m.sessionsDone} missed`} />}
+            </>
+        );
+        tiles = (
+            <>
+                <Tile
+                    label={hasPlan ? 'On plan' : 'Sessions'}
+                    dot={colors.accent.cyan}
+                    value={hasPlan ? `${m.sessionsDone}/${m.planDone}` : String(m.sessions)}
+                    sub={hasPlan ? `${Math.round((m.sessionsDone / m.planDone) * 100)}%` : null}
+                />
+                <Tile label="Hard sets" dot={colors.accent.cyan} value={kfmt(m.sets)} sub={vs(m.d?.setsPerWeek, 0, '/wk')} />
+                <Tile label="New PRs" dot={colors.accent.cyan} value={String(m.prs)} />
+            </>
+        );
+    }
+
+    return (
+        <View style={[styles.monthRow, last && styles.monthRowLast]}>
+            <TouchableOpacity style={styles.monthHead} activeOpacity={0.7} onPress={onToggle}>
+                <View style={styles.monthLeft}>
+                    <Text style={styles.monthName}>{m.name}</Text>
+                    <Text style={styles.monthMeta}>{m.count} weeks{m.partial ? ' · to date' : ''}</Text>
+                </View>
+                {right}
+                <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={spacing.iconMd} color={colors.text.quaternary} />
+            </TouchableOpacity>
+            {open && <View style={styles.tiles}>{tiles}</View>}
+        </View>
+    );
+};
+
+const MonthsCard = ({ months, kind, info, open, setOpen, all, setAll }) => {
+    if (!months.length) return null;
+    const shown = all ? months.slice(0, 12) : months.slice(0, 3);
+
+    return (
+        <View style={styles.cardFlush}>
+            <View style={styles.listHead}>
+                <Text style={styles.listTitle}>By month</Text>
+                {months.length > 3 && (
+                    <TouchableOpacity onPress={() => setAll(!all)} activeOpacity={0.7}>
+                        <Text style={styles.viewAll}>{all ? 'Show less' : 'View all'}</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+            {shown.map((m, i) => {
+                const k = `${kind}:${m.key}`;
+                const isOpen = open[k] ?? i === 0;
+                return (
+                    <MonthRow
+                        key={m.key}
+                        m={m}
+                        kind={kind}
+                        info={info}
+                        open={isOpen}
+                        onToggle={() => setOpen(o => ({ ...o, [k]: !isOpen }))}
+                        last={i === shown.length - 1}
+                    />
                 );
             })}
         </View>
     );
 };
 
-const CardHeader = ({ iconName, iconBg, iconColor, title, value, unit, delta, positiveIsGood, decimals, daysLogged, accentColor, large }) => (
-    <View style={styles.cardHeader}>
-        <View style={styles.cardHeaderLeft}>
-            <View style={[styles.cardIconBox, large && styles.cardIconBoxLarge, { backgroundColor: iconBg }]}>
-                <Ionicons name={iconName} size={large ? spacing.iconMd : spacing.iconSm} color={iconColor} />
-            </View>
-            <View>
-                <Text style={[styles.cardTitle, large && styles.cardTitleLarge]}>{title}</Text>
-                {daysLogged != null && (
-                    <Text style={styles.cardDaysLogged}>{daysLogged}/7 days logged</Text>
-                )}
-            </View>
-        </View>
-        <View style={styles.cardHeaderRight}>
-            <Text style={[styles.cardCurrentValue, large && styles.cardCurrentValueLarge, { color: accentColor }]}>
-                {value ?? '—'}{value != null && unit ? unit : ''}
-            </Text>
-            <DeltaBadge value={delta} positiveIsGood={positiveIsGood} suffix={unit ?? ''} decimals={decimals} />
-        </View>
-    </View>
-);
-
-const GoalTrack = ({ start, goal, current }) => {
-    if (start == null || goal == null || current == null || start === goal) return null;
-    const total = goal - start;
-    const rawPct = ((current - start) / total) * 100;
-    const pct = Math.min(Math.max(rawPct, 0), 100);
-
-    return (
-        <View style={styles.goalTrackWrap}>
-            <View style={styles.goalTrackBar}>
-                <View style={[styles.goalTrackFill, { width: `${pct}%` }]} />
-                <View style={[styles.goalTrackDot, { left: `${pct}%` }]} />
-            </View>
-            <View style={styles.goalTrackLabels}>
-                <Text style={styles.goalTrackLabelText}>{start.toFixed(1)} kg</Text>
-                <Text style={[styles.goalTrackLabelText, styles.goalTrackLabelCurrent]}>
-                    {current.toFixed(1)} kg now
-                </Text>
-                <Text style={styles.goalTrackLabelText}>{goal.toFixed(1)} kg</Text>
-            </View>
-        </View>
-    );
-};
-
-const WeightHeroCard = ({ current, prev, userData, weightStatus, weightTrendData, period }) => {
-    const [chartWidth, setChartWidth] = useState(0);
-    const delta = deltaOf(current?.avgWeight, prev?.avgWeight);
-    const targetRate = userData?.weightChangePlan?.ratePerWeek ?? null;
-    const goalWeight = userData?.weightChangePlan?.goalWeight ?? null;
-    const startWeight = userData?.weightChangePlan?.startWeight ?? null;
-
-    return (
-        <View style={styles.heroCard}>
-            <CardHeader
-                iconName="scale"
-                iconBg={colors.faded.primary}
-                iconColor={colors.accent.primary}
-                title="Weight"
-                value={current?.avgWeight?.toFixed(1)}
-                unit=" kg"
-                delta={delta}
-                positiveIsGood={targetRate != null ? targetRate > 0 : false}
-                decimals={2}
-                daysLogged={current?.daysLoggedWeight}
-                accentColor={colors.accent.primary}
-                large
-            />
-            <VerdictLine status={weightStatus} />
-            {startWeight != null && goalWeight != null && current?.avgWeight != null ? (
-                <GoalTrack start={startWeight} goal={goalWeight} current={current.avgWeight} />
-            ) : goalWeight != null && current?.avgWeight != null ? (
-                <View style={styles.goalRow}>
-                    <Text style={styles.goalText}>Goal {goalWeight} kg</Text>
-                    <Text style={[styles.goalRemaining, {
-                        color: Math.abs(current.avgWeight - goalWeight) < 1
-                            ? colors.accent.success : colors.text.quaternary,
-                    }]}>
-                        {Math.abs(current.avgWeight - goalWeight).toFixed(1)} kg to go
-                    </Text>
-                </View>
-            ) : null}
-            <View onLayout={e => setChartWidth(e.nativeEvent.layout.width)}>
-                {chartWidth > 0 && (
-                    <WeightChart
-                        data={weightTrendData}
-                        period={period}
-                        goalWeight={goalWeight}
-                        width={chartWidth}
-                    />
-                )}
-            </View>
-        </View>
-    );
-};
-
-const QuickStatTile = ({ iconName, iconBg, iconColor, value, label, delta, positiveIsGood, decimals, suffix }) => (
-    <View style={styles.quickStatTile}>
-        <View style={[styles.quickStatIcon, { backgroundColor: iconBg }]}>
-            <Ionicons name={iconName} size={spacing.iconSm} color={iconColor} />
-        </View>
-        <Text style={styles.quickStatValue}>{value}</Text>
-        <Text style={styles.quickStatLabel}>{label}</Text>
-        <DeltaBadge value={delta} positiveIsGood={positiveIsGood} decimals={decimals} suffix={suffix} compact />
-    </View>
-);
-
-const QuickStatsRow = ({ current, prev }) => (
-    <View style={styles.quickStatsRow}>
-        <QuickStatTile
-            iconName="flame"
-            iconBg={colors.faded.primary}
-            iconColor={colors.accent.primary}
-            value={current?.avgCalories != null ? current.avgCalories.toLocaleString() : '—'}
-            label="Avg Cal"
-            delta={deltaOf(current?.avgCalories, prev?.avgCalories)}
-            positiveIsGood
-            decimals={0}
-        />
-        <QuickStatTile
-            iconName="footsteps"
-            iconBg={colors.faded.stepsRed}
-            iconColor={colors.accent.stepsRed}
-            value={current?.avgSteps != null ? `${(current.avgSteps / 1000).toFixed(1)}k` : '—'}
-            label="Avg Steps"
-            delta={current?.avgSteps != null && prev?.avgSteps != null
-                ? deltaOf(current.avgSteps / 1000, prev.avgSteps / 1000)
-                : null}
-            positiveIsGood
-            decimals={1}
-            suffix="k"
-        />
-        <QuickStatTile
-            iconName="barbell"
-            iconBg={colors.faded.cyanDark}
-            iconColor={colors.accent.cyan}
-            value={current?.workoutCount != null ? `${current.workoutCount}` : '—'}
-            label="Workouts"
-            delta={deltaOf(current?.workoutCount, prev?.workoutCount)}
-            positiveIsGood
-            decimals={0}
-        />
-    </View>
-);
-
-const NutritionCard = ({ buckets, current, prev, userData }) => {
-    const calDelta = deltaOf(current?.avgCalories, prev?.avgCalories);
-    const atTarget = userData?.targetCalories != null && current?.avgCalories != null
-        ? Math.abs(current.avgCalories - userData.targetCalories) < userData.targetCalories * 0.05
-        : null;
-
-    const macros = [
-        {
-            label: 'CARBS',
-            value: current?.avgCarbs,
-            target: userData?.targetCarbs,
-            color: colors.macro.carbs,
-            bg: colors.faded.carbs,
-            border: colors.border.carbs,
-        },
-        {
-            label: 'PROTEIN',
-            value: current?.avgProtein,
-            target: userData?.targetProtein,
-            color: colors.macro.protein,
-            bg: colors.faded.protein,
-            border: colors.border.protein,
-        },
-        {
-            label: 'FAT',
-            value: current?.avgFat,
-            target: userData?.targetFats,
-            color: colors.macro.fat,
-            bg: colors.faded.fat,
-            border: colors.border.fat,
-        },
-    ];
-
-    return (
-        <View style={styles.metricCard}>
-            <CardHeader
-                iconName="flame"
-                iconBg={colors.faded.primary}
-                iconColor={colors.accent.primary}
-                title="Calories"
-                value={current?.avgCalories != null ? current.avgCalories.toLocaleString() : null}
-                unit=" kcal"
-                delta={calDelta}
-                positiveIsGood
-                decimals={0}
-                daysLogged={current?.daysLoggedNutrition}
-                accentColor={colors.accent.success}
-            />
-            {userData?.targetCalories != null && current?.avgCalories != null && (
-                <Text style={[styles.cardSubtext, {
-                    color: atTarget ? colors.accent.success : colors.text.quaternary,
-                }]}>
-                    target {userData.targetCalories.toLocaleString()} kcal{atTarget ? ' · on target' : ''}
-                </Text>
-            )}
-            <View style={styles.macroTilesRow}>
-                {macros.map((m, i) => (
-                    <View key={i} style={[styles.macroTile, { backgroundColor: m.bg, borderColor: m.border }]}>
-                        <View style={styles.macroTileHeader}>
-                            <View style={[styles.macroDot, { backgroundColor: m.color }]} />
-                            <Text style={styles.macroTileLabel}>{m.label}</Text>
-                        </View>
-                        <Text style={styles.macroTileValue}>
-                            {m.value != null
-                                ? `${m.value}${m.target != null ? `/${Math.round(m.target)}` : ''}g`
-                                : '—'}
-                        </Text>
-                    </View>
-                ))}
-            </View>
-            <View style={styles.chipsDivider} />
-            <WeeklyBarChart
-                buckets={buckets}
-                getValue={b => b.avgCalories}
-                formatValue={v => v.toLocaleString()}
-                color={colors.accent.success}
-                height={56}
-                showValues={false}
-            />
-        </View>
-    );
-};
-
-const ActivityCard = ({ buckets, current, prev }) => {
-    const stepsDelta = current?.avgSteps != null && prev?.avgSteps != null
-        ? deltaOf(current.avgSteps / 1000, prev.avgSteps / 1000)
-        : null;
-    const workoutDelta = deltaOf(current?.workoutCount, prev?.workoutCount);
-
-    return (
-        <View style={styles.metricCard}>
-            <View style={styles.activityRow}>
-                <View style={[styles.activityHalf, styles.activityHalfBorder]}>
-                    <View style={styles.activityHeaderLeft}>
-                        <View style={[styles.cardIconBox, { backgroundColor: colors.faded.stepsRed }]}>
-                            <Ionicons name="footsteps" size={spacing.iconSm} color={colors.accent.stepsRed} />
-                        </View>
-                        <Text style={styles.cardTitle}>Steps</Text>
-                    </View>
-                    <View style={styles.activityValueRow}>
-                        <Text style={[styles.cardCurrentValue, { color: colors.accent.stepsRed }]}>
-                            {current?.avgSteps != null ? `${(current.avgSteps / 1000).toFixed(1)}k` : '—'}
-                        </Text>
-                        <DeltaBadge value={stepsDelta} positiveIsGood suffix="k" decimals={1} />
-                    </View>
-                </View>
-                <View style={styles.activityHalf}>
-                    <View style={styles.activityHeaderLeft}>
-                        <View style={[styles.cardIconBox, { backgroundColor: colors.faded.cyanDark }]}>
-                            <Ionicons name="barbell" size={spacing.iconSm} color={colors.accent.cyan} />
-                        </View>
-                        <Text style={styles.cardTitle}>Workouts</Text>
-                    </View>
-                    <View style={styles.activityValueRow}>
-                        <Text style={[styles.cardCurrentValue, { color: colors.accent.cyan }]}>
-                            {current?.workoutCount != null ? `${current.workoutCount}` : '—'}
-                        </Text>
-                        <DeltaBadge value={workoutDelta} positiveIsGood decimals={0} />
-                    </View>
-                </View>
-            </View>
-            <WeeklyBarChart
-                buckets={buckets}
-                getValue={b => b.avgSteps != null ? parseFloat((b.avgSteps / 1000).toFixed(1)) : null}
-                formatValue={v => `${v}k`}
-                color={colors.accent.stepsRed}
-                height={56}
-                showValues={false}
-            />
-        </View>
-    );
-};
-
-const TrainingVolumeCard = ({ volume }) => {
-    const [expanded, setExpanded] = useState(false);
-    if (!volume.length) return null;
-
-    const visible = expanded ? volume : volume.slice(0, 5);
-    const maxVal = volume[0]?.avgPerWeek ?? 0;
-
-    return (
-        <View style={styles.metricCard}>
-            <View style={styles.cardHeader}>
-                <View style={styles.cardHeaderLeft}>
-                    <View style={[styles.cardIconBox, { backgroundColor: colors.faded.purple }]}>
-                        <Ionicons name="body" size={spacing.iconSm} color={colors.accent.purple} />
-                    </View>
-                    <Text style={styles.cardTitle}>Training Volume</Text>
-                </View>
-                {volume.length > 5 && (
-                    <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7}>
-                        <Text style={styles.viewAllText}>{expanded ? 'Show less' : 'View all'}</Text>
-                    </TouchableOpacity>
-                )}
-            </View>
-            <Text style={styles.cardSubtext}>avg sets/week per muscle group</Text>
-            <View style={styles.volumeList}>
-                {visible.map(g => (
-                    <View key={g.group} style={styles.volumeRow}>
-                        <View style={styles.volumeLabelWrap}>
-                            <View style={[styles.volumeDot, { backgroundColor: g.color }]} />
-                            <Text style={styles.volumeLabel} numberOfLines={1}>{g.group}</Text>
-                        </View>
-                        <View style={styles.volumeBarTrack}>
-                            <View
-                                style={[
-                                    styles.volumeBarFill,
-                                    {
-                                        width: `${maxVal > 0 ? Math.max((g.avgPerWeek / maxVal) * 100, 6) : 0}%`,
-                                        backgroundColor: g.color,
-                                    },
-                                ]}
-                            />
-                        </View>
-                        <Text style={styles.volumeValue}>{g.avgPerWeek}</Text>
-                    </View>
-                ))}
-            </View>
-        </View>
-    );
-};
-
 const ProgressScreen = () => {
     const insets = useSafeAreaInsets();
+    const navigation = useNavigation();
     const { userData } = useContext(AuthContext);
     const { workoutHistory } = useContext(WorkoutContext);
-    const { getNutritionForDateRange, getStepsForDateRange } = useFoodContext();
-    const [numWeeks, setNumWeeks] = useState(8);
+    const { getNutritionForDateRange, getStepsForDateRange, rollingWeekStats } = useFoodContext();
+    const [tab, setTab] = useState('nutrition');
+    const [rangeKey, setRangeKey] = useState('12W');
+    const [planned, setPlanned] = useState(null);
+    const [open, setOpen] = useState({});
+    const [all, setAll] = useState({ n: false, t: false });
 
-    const buckets = useWeeklyBuckets(
-        userData?.weightIns,
-        getNutritionForDateRange,
-        getStepsForDateRange,
-        workoutHistory,
-        numWeeks,
+    useFocusEffect(
+        useCallback(() => {
+            let on = true;
+            (async () => {
+                try {
+                    const splits = await fetchSplitsFromFirestore();
+                    if (!on || !splits.length) return;
+                    const raw = splits.find(s => (s.id ?? s.data?.id) === userData?.activeSplitId) ?? splits[0];
+                    setPlanned(countPlanned(raw.schedule ?? raw.data?.schedule));
+                } catch (e) {
+                    console.error('Progress split load error:', e.message);
+                }
+            })();
+            return () => {
+                on = false;
+            };
+        }, [userData?.activeSplitId]),
     );
 
-    const current = buckets[buckets.length - 1];
-    const prev = buckets[buckets.length - 2];
+    const dir = dirOf(userData?.weightChangePlan?.type);
 
-    const weightDelta = deltaOf(current?.avgWeight, prev?.avgWeight);
-    const targetRate = userData?.weightChangePlan?.ratePerWeek ?? null;
-    const weightStatus = useWeightStatus(weightDelta, targetRate);
-
-    const weightTrendData = useMemo(
-        () => processWeightInsForDisplay(userData?.weightIns, 100),
-        [userData?.weightIns],
+    const built = useMemo(
+        () => buildWeeks({
+            weightIns: userData?.weightIns,
+            weeklyNutrition: userData?.weeklyNutrition,
+            workouts: workoutHistory,
+            getNutrition: getNutritionForDateRange,
+            getSteps: getStepsForDateRange,
+            calc1RM: calculate1RM,
+        }),
+        [userData?.weightIns, userData?.weeklyNutrition, workoutHistory, getNutritionForDateRange, getStepsForDateRange, rollingWeekStats],
     );
 
-    const trainingVolume = useTrainingVolume(workoutHistory, buckets, numWeeks);
+    const weeks = useMemo(() => withRates(built.weeks, dir), [built, dir]);
+    const info = useMemo(() => phaseInfo(userData, weeks), [userData, weeks]);
+    const ranges = useMemo(() => rangeOptions(info), [info]);
+    const range = ranges.find(r => r.key === rangeKey) ?? ranges[1];
+    const n = range.n;
+
+    const pace = useMemo(() => paceModel(weeks, n, info), [weeks, n, info]);
+    const energy = useMemo(() => energyModel(weeks, n, info), [weeks, n, info]);
+    const strength = useMemo(() => strengthModel(weeks, built.lifts, n), [weeks, built.lifts, n]);
+    const lifts = useMemo(() => liftStats(weeks, built.lifts), [weeks, built.lifts]);
+    const sets = useMemo(() => setsModel(weeks, n), [weeks, n]);
+    const months = useMemo(() => monthsModel(weeks, planned), [weeks, planned]);
+
+    const openLift = useCallback(name => navigation.navigate('ExerciseHistory', { exerciseName: name }), [navigation]);
+
+    const status = weeks.length ? `${info.label} · week ${info.phaseWeeks}` : 'Your trends over time';
 
     return (
-        <ApplicationCustomScreen>
+        <ApplicationCustomScreen showHeader={false}>
             <ScrollView
                 style={styles.container}
                 contentContainerStyle={{
@@ -631,36 +489,92 @@ const ProgressScreen = () => {
                 }}
                 showsVerticalScrollIndicator={false}
             >
-                <View style={styles.pageHeader}>
-                    <Text style={styles.pageTitle}>Progress</Text>
-                    <View style={styles.weeksPills}>
-                        {NUM_WEEKS_OPTIONS.map(n => (
-                            <TouchableOpacity
-                                key={n}
-                                style={[styles.pill, numWeeks === n && styles.pillActive]}
-                                onPress={() => setNumWeeks(n)}
-                                activeOpacity={0.7}
-                            >
-                                <Text style={[styles.pillText, numWeeks === n && styles.pillTextActive]}>
-                                    {n}W
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
+                <View style={styles.titleRow}>
+                    <Text style={styles.status} numberOfLines={1}>{status}</Text>
+                    {weeks.length >= 2 && (
+                        <View style={styles.rangeRow}>
+                            {ranges.map(r => (
+                                <TouchableOpacity
+                                    key={r.key}
+                                    style={[styles.rangeTab, range.key === r.key && styles.rangeTabActive]}
+                                    onPress={() => setRangeKey(r.key)}
+                                    activeOpacity={0.7}
+                                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                                >
+                                    <Text style={[styles.rangeText, range.key === r.key && styles.rangeTextActive]}>
+                                        {r.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
                 </View>
 
-                <WeightHeroCard
-                    current={current}
-                    prev={prev}
-                    userData={userData}
-                    weightStatus={weightStatus}
-                    weightTrendData={weightTrendData}
-                    period={PERIOD_BY_WEEKS[numWeeks]}
-                />
-                <QuickStatsRow current={current} prev={prev} />
-                <NutritionCard buckets={buckets} current={current} prev={prev} userData={userData} />
-                <ActivityCard buckets={buckets} current={current} prev={prev} />
-                <TrainingVolumeCard volume={trainingVolume} />
+                <View style={styles.pillsRow}>
+                    {TABS.map(t => {
+                        const on = tab === t.key;
+                        return (
+                            <TouchableOpacity
+                                key={t.key}
+                                style={[styles.pill, on ? styles.pillSelected : styles.pillInactive]}
+                                onPress={() => setTab(t.key)}
+                                activeOpacity={0.9}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                <Ionicons
+                                    name={t.icon}
+                                    size={spacing.icon}
+                                    color={on ? colors.accent.buttonText : colors.text.secondary}
+                                />
+                                <Text style={[styles.pillText, on ? styles.pillTextSelected : styles.pillTextInactive]}>
+                                    {t.label}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+
+                {weeks.length < 2 ? (
+                    <View style={styles.emptyScreen}>
+                        <Ionicons name="trending-up" size={spacing[10]} color={colors.text.quaternary} />
+                        <Text style={styles.emptyTitle}>No trends yet</Text>
+                        <Text style={styles.emptySub}>
+                            Log your weight, food and workouts for a couple of weeks and your long-range trends show up here.
+                        </Text>
+                    </View>
+                ) : (
+                    <>
+                        {tab === 'nutrition' ? (
+                            <>
+                                <PaceCard m={pace} info={info} n={n} />
+                                <EnergyCard m={energy} info={info} />
+                                <MonthsCard
+                                    months={months}
+                                    kind="n"
+                                    info={info}
+                                    open={open}
+                                    setOpen={setOpen}
+                                    all={all.n}
+                                    setAll={v => setAll(a => ({ ...a, n: v }))}
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <StrengthCard m={strength} lifts={lifts} info={info} onLift={openLift} />
+                                <SetsCard m={sets} />
+                                <MonthsCard
+                                    months={months}
+                                    kind="t"
+                                    info={info}
+                                    open={open}
+                                    setOpen={setOpen}
+                                    all={all.t}
+                                    setAll={v => setAll(a => ({ ...a, t: v }))}
+                                />
+                            </>
+                        )}
+                    </>
+                )}
             </ScrollView>
             <BottomNav />
         </ApplicationCustomScreen>
