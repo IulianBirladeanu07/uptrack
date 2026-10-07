@@ -8,7 +8,6 @@ const AX = colors.text.quaternary;
 const GRID = colors.border.default;
 const PLAN = colors.text.primary;
 const EAT = colors.accent.primary;
-const TARGET = colors.accent.amber;
 const WEIGHT = colors.macro.protein;
 const STRENGTH = colors.accent.cyan;
 const BG = colors.background.secondary;
@@ -279,9 +278,9 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
           })}
           {ty != null && (
             <>
-              <Line x1={-LP} x2={pw} y1={ty} y2={ty} stroke={TARGET} strokeOpacity={0.85} strokeWidth={1.5} strokeDasharray="4 4" />
+              <Line x1={-LP} x2={pw} y1={ty} y2={ty} stroke={PLAN} strokeOpacity={0.75} strokeWidth={1.5} strokeDasharray="4 4" />
               <SvgText x={width - LP} y={ty - 3} fontSize={10} fill={AX} textAnchor="end">target</SvgText>
-              <SvgText x={width - LP} y={ty + 10} fontSize={10} fontWeight="700" fill={TARGET} textAnchor="end">{kfmt(target)}</SvgText>
+              <SvgText x={width - LP} y={ty + 10} fontSize={10} fontWeight="700" fill={PLAN} textAnchor="end">{kfmt(target)}</SvgText>
             </>
           )}
           </G>

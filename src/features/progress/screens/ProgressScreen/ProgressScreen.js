@@ -203,16 +203,22 @@ const PaceCard = ({ m, info, n }) => {
             ? `${shortDate(m.eta)}${m.eta.getFullYear() !== new Date().getFullYear() ? ` ${m.eta.getFullYear()}` : ''}`
             : '--';
 
+    const note = picked
+        ? pickedText
+        : m.status === 'reached'
+            ? `${m.count}-week avg`
+            : info.remaining != null && !info.reached
+                ? `${info.remaining.toFixed(1)} kg to go`
+                : null;
+
     return (
         <View style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.cap}>{title}</Text>
-                {info.remaining != null && !info.reached && (
-                    <Text style={styles.capRight}>{`${info.remaining.toFixed(1)} kg to go`}</Text>
-                )}
+                {note != null && <Text style={styles.capRight}>{note}</Text>}
             </View>
             <Hero value={fmt1(picked ? picked.v : m.rate)} unit="kg/wk">
-                {picked ? <Delta tone="flat" text={pickedText} /> : pill ? <Delta {...pill} /> : <Delta tone="flat" text={m.status === 'reached' ? `${m.count}-week avg · 4W ${fmt1(m.rate4)}` : `${m.count}-week avg`} />}
+                {!picked && pill ? <Delta {...pill} /> : null}
             </Hero>
             <ChartBox>
                 {w => <PaceChart slots={m.slots} plan={m.plan} width={w} sel={sel} onSelect={setSel} />}
@@ -261,7 +267,7 @@ const EnergyCard = ({ m, info, n }) => {
                 items={[
                     { value: kfmt(m.maintNow), unit: m.margin != null ? `\u00b1${kfmt(m.margin)}` : undefined, label: 'Maintenance' },
                     { value: kfmt(m.eatNow), label: 'Eating' },
-                    { value: m.target != null ? kfmt(m.target) : '--', label: 'Target' },
+                    { value: m.target != null ? kfmt(m.target) : '--', label: 'Eat target' },
                 ]}
             />
             <Tip text={energyTip(m, info)} />
@@ -292,11 +298,7 @@ const StrengthCard = ({ m, lifts, info, onLift }) => {
                 </View>
             </View>
             <Hero value={perKgPill ? sg(m.perKg, 0) : sg(m.sNow, 1)} unit={perKgPill ? '% per kg' : '%'}>
-                {perKgPill ? (
-                    <Delta tone="flat" text={`strength ${sg(m.sNow, 1)}%`} />
-                ) : (
-                    m.wNow != null && <Delta tone="purple" text={`weight ${sg(m.wNow, 1)}%`} />
-                )}
+                {!perKgPill && m.wNow != null && <Delta tone="purple" text={`weight ${sg(m.wNow, 1)}%`} />}
             </Hero>
             <ChartBox>
                 {w => <StrengthChart strength={m.strength} weight={m.weight} slots={m.slots} width={w} />}
@@ -348,13 +350,9 @@ const SetsCard = ({ m }) => {
                     <View key={r.name} style={styles.heatRow}>
                         <Text style={styles.heatName} numberOfLines={1}>{r.name}</Text>
                         <View style={styles.heatCells}>
-                            {r.cells.map((v, i) =>
-                                i === r.cells.length - 1 ? (
-                                    <View key={i} style={[styles.heatCell, styles.heatCellNow]} />
-                                ) : (
-                                    <View key={i} style={[styles.heatCell, { backgroundColor: orange(heatAlpha(v)) }]} />
-                                ),
-                            )}
+                            {r.cells.slice(0, -1).map((v, i) => (
+                                <View key={i} style={[styles.heatCell, { backgroundColor: orange(heatAlpha(v)) }]} />
+                            ))}
                         </View>
                         <Text style={[styles.heatAvg, r.shown < SETS_LOW && styles.heatAvgLow]}>{r.shown}</Text>
                     </View>
@@ -362,7 +360,7 @@ const SetsCard = ({ m }) => {
             </View>
             <View style={styles.heatAxis}>
                 <Text style={styles.heatAxisText}>{shortDate(m.first)}</Text>
-                <Text style={styles.heatAxisText}>this week</Text>
+                <Text style={styles.heatAxisText}>last week</Text>
             </View>
             <View style={styles.key}>
                 {HEAT_KEY.map(k => (
@@ -384,7 +382,7 @@ const Tile = ({ label, dot, value, sub }) => (
             <Text style={styles.tileLabel}>{label}</Text>
         </View>
         <Text style={styles.tileValue}>{value}</Text>
-        <Text style={styles.tileDelta}>{sub || ' '}</Text>
+        {sub ? <Text style={styles.tileDelta}>{sub}</Text> : null}
     </View>
 );
 

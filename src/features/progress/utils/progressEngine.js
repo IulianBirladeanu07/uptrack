@@ -346,7 +346,7 @@ export const paceModel = (weeks, n, info, now = new Date()) => {
   }
 
   return {
-    slots: slots.map(w => ({ v: w.rate, monday: w.monday, gap: w.gap, avg: roll.get(w.i) ?? null })),
+    slots: slots.map(w => ({ v: w.rate, monday: w.monday, gap: w.gap, avg: roll.get(w.i) ?? null, cur: w.isCurrent })),
     plan,
     diff,
     rate,
@@ -438,7 +438,7 @@ export const energyModel = (weeks, n, info, weightIns, now = new Date()) => {
   const keep = bal.map((v, i) => (v != null ? i : -1)).filter(i => i >= 0);
 
   return {
-    slots: keep.map(i => ({ monday: slots[i].monday })),
+    slots: keep.map(i => ({ monday: slots[i].monday, cur: slots[i].isCurrent })),
     eat: keep.map(i => eat[i]),
     maint: keep.map(i => maint[i]),
     bal: keep.map(i => bal[i]),
@@ -566,22 +566,17 @@ export const strengthModel = (weeks, lifts, n) => {
 
 export const strengthTip = (m, info) => {
   if (m.sNow == null) return '';
-  const wDir = m.wNow == null ? '' : m.wNow < 0 ? 'down' : 'up';
-  const wTxt = m.wNow == null ? '' : `Weight ${wDir} ${Math.abs(m.wNow).toFixed(1)}% and strength ${sg(m.sNow, 1)}%. `;
   if (info.dir < 0) {
-    if (m.sNow >= 1) return `${wTxt}A good sign the cut is taking fat, not muscle.`;
-    if (m.sNow > -2) return `${wTxt}Strength is holding through the cut.`;
-    if (m.wNow != null && m.sNow > m.wNow) {
-      const perKg = ((1 + m.sNow / 100) / (1 + m.wNow / 100) - 1) * 100;
-      return `${wTxt}Per kg of bodyweight you are ${sg(perKg, 0)}% stronger.`;
-    }
-    return `${wTxt}Strength is slipping. Check protein, sleep, and whether the deficit is too steep.`;
+    if (m.sNow >= 1) return 'A good sign the cut is taking fat, not muscle.';
+    if (m.sNow > -2) return 'Strength is holding through the cut.';
+    if (m.wNow != null && m.sNow > m.wNow) return '';
+    return 'Strength is slipping. Check protein, sleep, and whether the deficit is too steep.';
   }
   if (info.dir > 0) {
-    if (m.sNow >= 2) return `${wTxt}The surplus is turning into strength.`;
-    return `${wTxt}Strength is not keeping up with the weight gain. Check recovery and programming.`;
+    if (m.sNow >= 2) return 'The surplus is turning into strength.';
+    return 'Strength is not keeping up with the weight gain. Check recovery and programming.';
   }
-  return m.sNow >= 0 ? `${wTxt}Getting stronger at a steady weight.` : `${wTxt}Strength is trending down at maintenance.`;
+  return m.sNow >= 0 ? 'Getting stronger at a steady weight.' : 'Strength is trending down at maintenance.';
 };
 
 export const phaseRecap = (userData, weeks, info, energy, strength) => {
