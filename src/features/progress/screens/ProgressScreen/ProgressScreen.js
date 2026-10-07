@@ -586,22 +586,18 @@ const ProgressScreen = () => {
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.titleRow}>
-                    <Text style={styles.status} numberOfLines={1}>{status}</Text>
-                </View>
-
-                <View style={styles.controlRow}>
-                    <View style={styles.pills}>
+                    <View style={styles.viewRow}>
                         {TABS.map(t => {
                             const on = tab === t.key;
                             return (
                                 <TouchableOpacity
                                     key={t.key}
-                                    style={[styles.pill, on && styles.pillOn]}
+                                    style={[styles.viewTab, on && styles.viewTabActive]}
                                     onPress={() => setTab(t.key)}
-                                    activeOpacity={0.8}
-                                    hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
+                                    activeOpacity={0.7}
+                                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                                 >
-                                    <Text style={[styles.pillText, on && styles.pillTextOn]}>{t.label}</Text>
+                                    <Text style={[styles.viewText, on && styles.viewTextActive]}>{t.label}</Text>
                                 </TouchableOpacity>
                             );
                         })}
@@ -611,10 +607,9 @@ const ProgressScreen = () => {
                             {ranges.map(r => (
                                 <TouchableOpacity
                                     key={r.key}
-                                    style={[styles.rangeTab, range.key === r.key && styles.rangeTabActive]}
                                     onPress={() => setRangeKey(r.key)}
                                     activeOpacity={0.7}
-                                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                                    hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
                                 >
                                     <Text style={[styles.rangeText, range.key === r.key && styles.rangeTextActive]}>
                                         {r.label}
@@ -624,6 +619,7 @@ const ProgressScreen = () => {
                         </View>
                     )}
                 </View>
+                <Text style={styles.status} numberOfLines={1}>{status}</Text>
 
                 {weeks.length < 2 ? (
                     <View style={styles.emptyScreen}>

@@ -11,64 +11,40 @@ const styles = createStyles(() => ({
         alignItems: 'center',
         justifyContent: 'space-between',
     },
-    status: {
-        flexShrink: 1,
-        marginRight: spacing[3],
-        fontSize: fontSize[22],
-        fontWeight: fontWeight.bold,
-        color: colors.text.primary,
-        letterSpacing: -0.5,
-    },
-
-    controlRow: {
+    viewRow: {
         flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: spacing[3],
-        marginBottom: spacing[3],
+        gap: spacing[5],
     },
-    pills: {
-        flexDirection: 'row',
-        gap: spacing[2],
-    },
-    pill: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: spacing[8],
-        paddingHorizontal: spacing[3],
-        borderRadius: radius[8],
-        borderWidth: 1,
-        borderColor: colors.border.default,
-    },
-    pillOn: {
-        backgroundColor: colors.faded.primary,
-        borderColor: colors.faded.primary,
-    },
-    pillText: {
-        fontSize: fontSize[14],
-        fontWeight: fontWeight.medium,
-        color: colors.text.tertiary,
-    },
-    pillTextOn: {
-        fontWeight: fontWeight.semibold,
-        color: colors.accent.primary,
-    },
-
-    rangeRow: {
-        flexDirection: 'row',
-        gap: spacing[4],
-    },
-    rangeTab: {
-        paddingTop: spacing[2] + 2,
+    viewTab: {
+        paddingTop: spacing[1],
         paddingBottom: spacing[2],
         borderBottomWidth: 2,
         borderBottomColor: 'transparent',
     },
-    rangeTabActive: {
+    viewTabActive: {
         borderBottomColor: colors.accent.primary,
     },
-    rangeText: {
+    viewText: {
+        fontSize: fontSize[18],
+        fontWeight: fontWeight.bold,
+        color: colors.text.quaternary,
+    },
+    viewTextActive: {
+        color: colors.text.primary,
+    },
+    status: {
+        marginTop: spacing[1],
+        marginBottom: spacing[3],
         fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+    rangeRow: {
+        flexDirection: 'row',
+        gap: spacing[4],
+    },
+    rangeText: {
+        fontSize: fontSize[14],
         fontWeight: fontWeight.semibold,
         color: colors.text.quaternary,
     },
