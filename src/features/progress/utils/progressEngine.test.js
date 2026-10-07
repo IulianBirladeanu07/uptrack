@@ -172,7 +172,19 @@ describe('buildWeeks', () => {
     expect(w.sets.Back).toBe(10);
     expect(w.sets.Quads).toBe(5);
     expect(w.setsTotal).toBe(30);
-    expect(w.prs).toBe(1);
+    expect(w.prs).toBe(2);
+    expect(weeks[1].prs).toBe(0);
+  });
+
+  test('a PR is a new best for the exercise, once per session, ignoring stored flags', () => {
+    const at = (d, h) => ({ toDate: () => new Date(addDays(CUR, d).getTime() + h * 3600000) });
+    const mk = (d, kg, reps, isPR) => ({
+      timestamp: at(d, 9),
+      exercises: [{ exerciseName: 'Row', muscleGroup: 'Back', sets: [{ weight: kg, reps, isPR }, { weight: kg, reps, isPR }] }],
+    });
+    const workouts = [mk(-14, 60, 8, true), mk(-7, 70, 8, true), mk(-6, 60, 8, true), mk(0, 80, 8, false)];
+    const { weeks } = buildWeeks({ workouts, calc1RM }, NOW);
+    expect(weeks.map(w => w.prs)).toEqual([0, 1, 1]);
   });
 
   test('extracts loaded lifts as e1RM and bodyweight lifts as reps', () => {
@@ -263,6 +275,25 @@ describe('paceModel', () => {
 
   test('returns null with fewer than two rated weeks', () => {
     expect(paceModel(rated.slice(0, 2), 12, info, NOW)).toBeNull();
+  });
+
+  test('slots carry a trailing 4-week average and the model exposes the best week', () => {
+    const m = paceModel(rated, 12, info, NOW);
+    const withAvg = m.slots.filter(s => s.avg != null);
+    expect(withAvg.length).toBeGreaterThanOrEqual(m.slots.length - 3);
+    const last = m.slots[m.slots.length - 1];
+    const tail = rated.filter(w => w.rate != null).slice(-4).map(w => w.rate);
+    expect(last.avg).toBeCloseTo(tail.reduce((a, b) => a + b, 0) / 4, 8);
+    expect(m.best).toBe(Math.max(...m.slots.map(s => s.v).filter(v => v != null)));
+  });
+
+  test('a reached goal drops the plan comparison and the tip', () => {
+    const done = { ...info, remaining: 0, reached: true };
+    const m = paceModel(rated, 12, done, NOW);
+    expect(m.status).toBe('reached');
+    expect(m.plan).toBeNull();
+    expect(m.diff).toBeNull();
+    expect(paceTip(m, done)).toBe('');
   });
 
   test('maintenance has no plan line', () => {
@@ -397,13 +428,16 @@ describe('energyModel', () => {
     expect(m.balNote).toBe(`below maintenance \u00b7 ${m.statsWeeks}-week avg`);
   });
 
-  test('keeps the full range and leaves gap weeks empty', () => {
-    const gapped = rated.map((w, i) => (i > rated.length - 13 && i < rated.length - 9 ? { ...w, kcal: null } : w));
+  test('drops gap weeks so every slot has a balance, keeping real dates', () => {
+    const gapped = rated.map((w, i) => (i === rated.length - 7 || i === rated.length - 6 ? { ...w, kcal: null } : w));
     const m = energyModel(gapped, 12, info);
-    expect(m.slots).toHaveLength(12);
-    expect(m.eat[0]).toBeNull();
-    expect(m.bal[0]).toBeNull();
-    expect(m.bal[m.bal.length - 2]).not.toBeNull();
+    expect(m.slots.length).toBeLessThan(12);
+    expect(m.slots).toHaveLength(m.bal.length);
+    expect(m.eat).toHaveLength(m.bal.length);
+    expect(m.maint).toHaveLength(m.bal.length);
+    m.bal.forEach(v => expect(v).not.toBeNull());
+    const days = m.slots.slice(1).map((s, i) => Math.round((s.monday - m.slots[i].monday) / 86400000));
+    expect(days.some(d => d > 7)).toBe(true);
   });
 
   test('says behind-plan when real rate is far below plan', () => {
@@ -445,15 +479,33 @@ describe('strength', () => {
     const m = strengthModel(weeks, lifts, 20);
     expect(m.sNow).toBeGreaterThan(5);
     expect(m.wNow).toBeLessThan(-8);
-    expect(m.strength[0]).toBeCloseTo(0, 5);
-    expect(m.weight[0]).toBeCloseTo(0, 5);
+    const b = m.strength.findIndex(v => v != null);
+    expect(m.strength[b]).toBeCloseTo(0, 5);
+    expect(m.weight[b]).toBeCloseTo(0, 5);
+    expect(m.weight.findIndex(v => v != null)).toBe(b);
     expect(m.lifts).toBeGreaterThanOrEqual(2);
+    expect(m.perKg).toBeCloseTo(((1 + m.sNow / 100) / (1 + m.wNow / 100) - 1) * 100, 8);
+  });
+
+  test('both lines start together at zero and strength is smoothed over observations', () => {
+    const mkLift = (name, vals) => ({ name, loaded: true, values: vals });
+    const ws = Array.from({ length: 10 }, (_, i) => ({ w: 90 - i, monday: addDays(CUR, i * 7) }));
+    const flatThenDrop = mkLift('A', [100, 100, 100, 100, 100, 90, 90, 90, 90, 90]);
+    const steady = mkLift('B', [50, 50, 50, 50, 50, 50, 50, 50, 50, 50]);
+    const other = mkLift('C', [70, 70, 70, 70, 70, 63, 63, 63, 63, 63]);
+    const m = strengthModel(ws, [flatThenDrop, steady, other], 10);
+    expect(m.strength[0]).toBeNull();
+    expect(m.weight[0]).toBeNull();
+    expect(m.strength[1]).toBeCloseTo(0, 8);
+    expect(m.weight[1]).toBeCloseTo(0, 8);
+    expect(m.strength[5]).toBeGreaterThan(-10);
+    expect(m.sNow).toBeLessThan(0);
   });
 
   test('rebases to the start of a shorter range', () => {
     const m = strengthModel(weeks, lifts, 8);
     expect(m.slots).toHaveLength(8);
-    expect(m.strength[0]).toBeCloseTo(0, 5);
+    expect(m.strength[m.strength.findIndex(v => v != null)]).toBeCloseTo(0, 5);
   });
 
   test('needs at least two lifts', () => {
@@ -463,8 +515,83 @@ describe('strength', () => {
   test('liftStats separates up, flat and stalled lifts', () => {
     const s = liftStats(weeks, lifts);
     expect(s.up).toBeGreaterThanOrEqual(1);
-    expect(s.stalled.map(x => x.name)).toContain('Ring Pull-ups');
-    expect(s.stalled[0].weeks).toBeGreaterThanOrEqual(6);
+    expect(s.stalled).toHaveLength(0);
+    expect(s.flat).toBeGreaterThanOrEqual(1);
+  });
+
+  test('a lift that peaked and then dropped is stalled, measured inside the window only', () => {
+    const L = weeks.length;
+    const mk = (name, f) => ({ name, loaded: true, values: Array.from({ length: L }, (_, i) => f(i)) });
+    const flatW = weeks.map(w => ({ ...w, w: 80 }));
+    const dropped = mk('Dropped', i => (i < 14 ? 100 : 90));
+    const rare = mk('Rare', i => (i === 3 || i === 20 ? 80 : null));
+    const old = mk('Old peak', i => (i === 0 ? 120 : 100));
+    const s = liftStats(flatW, [dropped, rare, old], 12);
+    expect(s.stalled.map(x => x.name)).toEqual(['Dropped']);
+    expect(s.stalled[0].weeks).toBeLessThanOrEqual(11);
+    expect(s.up + s.flat).toBe(1);
+  });
+
+  test('a lift that fell less than bodyweight is not stalled, one that fell more is', () => {
+    const L = weeks.length;
+    const cutW = weeks.map((w, i) => ({ ...w, w: 90 - (i * 10) / (L - 1) }));
+    const mk = (name, f) => ({ name, loaded: true, values: Array.from({ length: L }, (_, i) => f(i)) });
+    const held = mk('Held', i => (i < 12 ? 100 : 92));
+    const lost = mk('Lost', i => (i < 12 ? 100 : 80));
+    const s = liftStats(cutW, [held, lost], 21);
+    expect(s.stalled.map(x => x.name)).toEqual(['Lost']);
+    expect(s.up + s.flat).toBe(1);
+  });
+
+  test('liftStats ignores lifts logged in fewer than four weeks of the window', () => {
+    const L = weeks.length;
+    const few = { name: 'Few', loaded: true, values: Array.from({ length: L }, (_, i) => (i === 10 || i === 19 || i === 20 ? 100 - i : null)) };
+    const s = liftStats(weeks, [few], 12);
+    expect(s.up + s.flat + s.stalled.length).toBe(0);
+  });
+});
+
+describe('buildWeeks nutrition gaps', () => {
+  test('the current week ignores today until the day is over', () => {
+    const src = buildSrc();
+    const days = Array.from({ length: 7 }, (_, d) => ({ date: toKey(addDays(CUR, d)), calories: toKey(addDays(CUR, d)) === toKey(NOW) ? 400 : 3000, protein: 100, carbs: 0, fat: 0 }));
+    src.getNutrition = () => days;
+    const { weeks } = buildWeeks(src, NOW);
+    expect(weeks[weeks.length - 1].kcal).toBe(3000);
+  });
+
+  test('the current week needs two finished days before it shows calories', () => {
+    const days = Array.from({ length: 7 }, (_, d) => ({ date: toKey(addDays(CUR, d)), calories: 3000, protein: 100, carbs: 0, fat: 0 }));
+    const kcalAt = now => {
+      const src = buildSrc();
+      src.getNutrition = () => days.filter(d => d.date <= toKey(now));
+      return buildWeeks(src, now).weeks.pop().kcal;
+    };
+    expect(kcalAt(CUR)).toBeNull();
+    expect(kcalAt(addDays(CUR, 1))).toBeNull();
+    expect(kcalAt(addDays(CUR, 2))).toBe(3000);
+  });
+
+  test('fills a missing past snapshot from daily logs once nutrition history has started', () => {
+    const src = buildSrc();
+    const hole = weekKey(8);
+    src.weeklyNutrition = src.weeklyNutrition.filter(e => e.weekStart !== hole);
+    const live = Array.from({ length: 7 }, (_, d) => ({ date: toKey(addDays(CUR, d)), calories: 2900, protein: 190, carbs: 0, fat: 0 }));
+    src.getNutrition = (a) => (toKey(a) === hole ? live : []);
+    const { weeks } = buildWeeks(src, NOW);
+    expect(weeks[8].kcal).toBe(2900);
+    expect(weeks[7].kcal).toBe(KCAL[6]);
+  });
+
+  test('does not query daily logs for weeks before nutrition history started', () => {
+    const src = buildSrc();
+    const calls = [];
+    src.getNutrition = a => {
+      calls.push(toKey(a));
+      return [];
+    };
+    buildWeeks(src, NOW);
+    expect(calls.every(k => k >= weekKey(1))).toBe(true);
   });
 });
 

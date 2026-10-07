@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
-import Svg, { Rect, Line, Path, Circle, Text as SvgText, TSpan } from 'react-native-svg';
+import Svg, { G, Rect, Line, Path, Circle, Text as SvgText } from 'react-native-svg';
 import { colors } from '../../../shared/theme';
 import { shortDate, kfmt, sg } from '../utils/progressEngine';
 
@@ -12,6 +12,9 @@ const TARGET = colors.accent.amber;
 const WEIGHT = colors.macro.protein;
 const STRENGTH = colors.accent.cyan;
 const BG = colors.background.secondary;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const BREAK = 10;
+const LP = 10;
 
 const runs = vals => {
   const out = [];
@@ -55,8 +58,8 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }) => {
   const H = 176;
   const top = 18;
   const bot = 24;
-  const gut = 46;
-  const pw = width - gut;
+  const gut = 52;
+  const pw = width - gut - LP;
   const gap = n > 12 ? 3 : 5;
   const bw = (pw - gap * (n - 1)) / n;
   const base = H - bot;
@@ -67,14 +70,15 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }) => {
   const li = lastIdx(slots.map(s => s.v));
   const active = sel != null && slots[sel]?.v != null ? sel : li;
   const py = plan != null ? y(plan) : null;
+  const trend = slots.map((s, i) => (s.avg != null ? [i * (bw + gap) + bw / 2, y(s.avg)] : null)).filter(Boolean);
   const ts = tickStep(mx);
   const ticks = [];
   for (let t = ts; t < mx; t += ts) ticks.push(Math.round(t * 100) / 100);
-  const shown = ticks.filter(t => py == null || Math.abs(y(t) - py) >= 14);
+  const shown = ticks.filter(t => py == null || Math.abs(y(t) - py) >= 26);
 
   const onPress = e => {
     if (!onSelect) return;
-    const x = e.nativeEvent.locationX;
+    const x = e.nativeEvent.locationX - LP;
     if (x < 0 || x > pw) return;
     const i = Math.min(n - 1, Math.floor(x / (bw + gap)));
     if (slots[i].v == null) return;
@@ -85,13 +89,14 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }) => {
     <Pressable onPress={onPress}>
       <View pointerEvents="none">
         <Svg width={width} height={H}>
+          <G transform={`translate(${LP} 0)`}>
           {shown.map(t => (
             <React.Fragment key={t}>
-              <Line x1={0} x2={pw} y1={y(t)} y2={y(t)} stroke={GRID} strokeWidth={1} />
-              <SvgText x={width} y={y(t) + 3} fontSize={10} fill={AX} textAnchor="end">{tickText(t)}</SvgText>
+              <Line x1={-LP} x2={pw} y1={y(t)} y2={y(t)} stroke={GRID} strokeWidth={1} />
+              <SvgText x={width - LP} y={y(t) + 3} fontSize={10} fill={AX} textAnchor="end">{tickText(t)}</SvgText>
             </React.Fragment>
           ))}
-          <Line x1={0} x2={pw} y1={base} y2={base} stroke={GRID} strokeWidth={1} />
+          <Line x1={-LP} x2={pw} y1={base} y2={base} stroke={GRID} strokeWidth={1} />
           {slots.map((s, i) => {
             const x = i * (bw + gap);
             const hot = i === active;
@@ -125,11 +130,11 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }) => {
                 )}
                 {showLabel && (
                   <SvgText
-                    x={i === 0 ? x : x + bw / 2}
+                    x={x + bw / 2}
                     y={H - 6}
                     fontSize={10}
                     fill={hot ? EAT : AX}
-                    textAnchor={i === 0 ? 'start' : 'middle'}
+                    textAnchor="middle"
                   >
                     {shortDate(s.monday)}
                   </SvgText>
@@ -137,15 +142,18 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }) => {
               </React.Fragment>
             );
           })}
+          {trend.length > 1 && (
+            <Path d={trend.map((p, k) => `${k ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')} stroke={PLAN} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" fill="none" />
+          )}
+          {trend.length > 1 && <Circle cx={trend[trend.length - 1][0]} cy={trend[trend.length - 1][1]} r={3.5} fill={PLAN} stroke={BG} strokeWidth={1.5} />}
           {plan != null && (
             <>
-              <Line x1={0} x2={pw} y1={py} y2={py} stroke={PLAN} strokeOpacity={0.75} strokeWidth={1.5} strokeDasharray="4 4" />
-              <SvgText x={width} y={py + 3} fontSize={10} textAnchor="end">
-                <TSpan fill={AX}>plan </TSpan>
-                <TSpan fontWeight="700" fill={PLAN}>{plan.toFixed(1)}</TSpan>
-              </SvgText>
+              <Line x1={-LP} x2={pw} y1={py} y2={py} stroke={PLAN} strokeOpacity={0.75} strokeWidth={1.5} strokeDasharray="4 4" />
+              <SvgText x={width - LP} y={py - 3} fontSize={10} fill={AX} textAnchor="end">plan</SvgText>
+              <SvgText x={width - LP} y={py + 10} fontSize={10} fontWeight="700" fill={PLAN} textAnchor="end">{plan.toFixed(1)}</SvgText>
             </>
           )}
+          </G>
         </Svg>
       </View>
     </Pressable>
@@ -158,9 +166,26 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
   const top = 18;
   const bot = 24;
   const gut = 52;
-  const pw = width - gut;
+  const pw = width - gut - LP;
   const gap = n > 12 ? 3 : 5;
-  const bw = (pw - gap * (n - 1)) / n;
+  const brk = slots.map((s, i) => i > 0 && Math.round((s.monday - slots[i - 1].monday) / DAY_MS) > 8);
+  const nb = brk.filter(Boolean).length;
+  const lab = new Set();
+  for (let k = n - 1; k >= 0; k -= n <= 8 ? 2 : n <= 12 ? 3 : 4) lab.add(k);
+  brk.forEach((on, k) => {
+    if (on || k === 0) {
+      lab.add(k);
+      if (k + 1 < n && !brk[k + 1]) lab.delete(k + 1);
+    }
+  });
+  const bw = Math.min(36, (pw - gap * (n - 1) - BREAK * nb) / n);
+  let acc = 0;
+  const xs = bal.map((_, i) => {
+    if (i > 0) acc += gap + (brk[i] ? BREAK : 0);
+    const x = acc;
+    acc += bw;
+    return x;
+  });
   const base = H - bot;
   const vals = bal.filter(v => v != null);
   const lo = Math.min(0, ...vals, target ?? 0);
@@ -168,16 +193,18 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
   const pad = Math.max(hi - lo, 200) * 0.1;
   const y = v => top + (base - top) * (1 - (v - (lo - pad)) / (hi - lo + 2 * pad));
   const y0 = y(0);
-  const step = n <= 8 ? 2 : n <= 12 ? 3 : 4;
   const li = lastIdx(bal);
   const active = sel != null && bal[sel] != null ? sel : li;
   const ty = target != null ? y(target) : null;
 
   const onPress = e => {
     if (!onSelect) return;
-    const x = e.nativeEvent.locationX;
+    const x = e.nativeEvent.locationX - LP;
     if (x < 0 || x > pw) return;
-    const i = Math.min(n - 1, Math.floor(x / (bw + gap)));
+    let i = 0;
+    xs.forEach((bx, k) => {
+      if (x >= bx - gap / 2) i = k;
+    });
     if (bal[i] == null) return;
     onSelect(i === sel ? null : i);
   };
@@ -186,14 +213,29 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
     <Pressable onPress={onPress}>
       <View pointerEvents="none">
         <Svg width={width} height={H}>
-          <Line x1={0} x2={pw} y1={y0} y2={y0} stroke={GRID} strokeWidth={1} />
-          {(ty == null || Math.abs(ty - y0) >= 14) && (
-            <SvgText x={width} y={y0 + 3} fontSize={10} fill={AX} textAnchor="end">maint</SvgText>
+          <G transform={`translate(${LP} 0)`}>
+          <Line x1={-LP} x2={pw} y1={y0} y2={y0} stroke={GRID} strokeWidth={1} />
+          {(ty == null || Math.abs(ty - y0) >= 26) && (
+            <SvgText x={width - LP} y={y0 + 3} fontSize={10} fill={AX} textAnchor="end">maint</SvgText>
+          )}
+          {brk.map((on, i) =>
+            on ? (
+              <Line
+                key={`b${i}`}
+                x1={xs[i] - (gap + BREAK) / 2}
+                x2={xs[i] - (gap + BREAK) / 2}
+                y1={top}
+                y2={base}
+                stroke={GRID}
+                strokeWidth={1}
+                strokeDasharray="2 3"
+              />
+            ) : null,
           )}
           {bal.map((v, i) => {
-            const x = i * (bw + gap);
+            const x = xs[i];
             const hot = i === active;
-            const showLabel = (n - 1 - i) % step === 0;
+            const showLabel = lab.has(i);
             return (
               <React.Fragment key={i}>
                 {v != null && (
@@ -223,11 +265,11 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
                 )}
                 {showLabel && (
                   <SvgText
-                    x={i === 0 ? x : x + bw / 2}
+                    x={x + bw / 2}
                     y={H - 6}
                     fontSize={10}
                     fill={hot ? EAT : AX}
-                    textAnchor={i === 0 ? 'start' : 'middle'}
+                    textAnchor="middle"
                   >
                     {shortDate(slots[i].monday)}
                   </SvgText>
@@ -237,13 +279,12 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
           })}
           {ty != null && (
             <>
-              <Line x1={0} x2={pw} y1={ty} y2={ty} stroke={TARGET} strokeOpacity={0.85} strokeWidth={1.5} strokeDasharray="4 4" />
-              <SvgText x={width} y={ty + 3} fontSize={10} textAnchor="end">
-                <TSpan fill={AX}>target </TSpan>
-                <TSpan fontWeight="700" fill={TARGET}>{kfmt(target)}</TSpan>
-              </SvgText>
+              <Line x1={-LP} x2={pw} y1={ty} y2={ty} stroke={TARGET} strokeOpacity={0.85} strokeWidth={1.5} strokeDasharray="4 4" />
+              <SvgText x={width - LP} y={ty - 3} fontSize={10} fill={AX} textAnchor="end">target</SvgText>
+              <SvgText x={width - LP} y={ty + 10} fontSize={10} fontWeight="700" fill={TARGET} textAnchor="end">{kfmt(target)}</SvgText>
             </>
           )}
+          </G>
         </Svg>
       </View>
     </Pressable>

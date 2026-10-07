@@ -311,6 +311,10 @@ const styles = createStyles(() => ({
         flex: 1,
         borderRadius: 3,
     },
+    heatCellNow: {
+        borderWidth: 1,
+        borderColor: colors.accent.primary,
+    },
     heatAvg: {
         width: 34,
         textAlign: 'right',

@@ -29,6 +29,7 @@ import {
     energyModel,
     energyTip,
     liftStats,
+    liftSpan,
     strengthModel,
     strengthTip,
     setsModel,
@@ -148,7 +149,7 @@ const RecapCard = ({ r, busy, onSwitch, onSettings }) => {
             <Stats
                 items={[
                     { value: kfmt(r.avgKcal), label: 'Avg kcal' },
-                    { value: fmt1(r.rate), unit: 'kg/wk', label: 'Avg rate' },
+                    { value: String(r.weeks), unit: 'wk', label: 'Duration' },
                     third,
                 ]}
             />
@@ -188,11 +189,12 @@ const PaceCard = ({ m, info, n }) => {
         behind: { tone: 'warn', icon: 'arrow-down', text: `${fmt1(-m.diff)} behind` },
         steady: { tone: 'good', icon: 'checkmark', text: 'steady' },
         drift: { tone: 'warn', icon: 'alert', text: 'drifting' },
+        reached: null,
     }[m.status];
 
     const picked = sel != null && m.slots[sel]?.v != null ? m.slots[sel] : null;
     const pickedText = picked
-        ? `${shortDate(picked.monday)}${picked.gap > 1 ? ` · ${picked.gap}-wk avg` : ''}`
+        ? `week of ${shortDate(picked.monday)}${picked.gap > 1 ? ` · ${picked.gap}-wk avg` : ''}`
         : null;
 
     const eta = m.reached
@@ -210,17 +212,25 @@ const PaceCard = ({ m, info, n }) => {
                 )}
             </View>
             <Hero value={fmt1(picked ? picked.v : m.rate)} unit="kg/wk">
-                {picked ? <Delta tone="flat" text={pickedText} /> : <Delta {...pill} />}
+                {picked ? <Delta tone="flat" text={pickedText} /> : pill ? <Delta {...pill} /> : <Delta tone="flat" text={`${m.count}-week avg`} />}
             </Hero>
             <ChartBox>
                 {w => <PaceChart slots={m.slots} plan={m.plan} width={w} sel={sel} onSelect={setSel} />}
             </ChartBox>
             <Stats
-                items={[
-                    { value: fmt1(m.rate4), unit: 'kg', label: '4W rate' },
-                    { value: fmt1(m.total), unit: 'kg', label: info.dir < 0 ? 'Lost' : info.dir > 0 ? 'Gained' : 'Moved' },
-                    { value: eta, label: 'Goal ETA' },
-                ]}
+                items={
+                    m.status === 'reached'
+                        ? [
+                            { value: fmt1(m.rate4), unit: 'kg/wk', label: '4W rate' },
+                            { value: fmt1(m.lastRate), unit: 'kg/wk', label: 'Last week' },
+                            { value: fmt1(m.best), unit: 'kg/wk', label: 'Best week' },
+                        ]
+                        : [
+                            { value: fmt1(m.rate4), unit: 'kg/wk', label: '4W rate' },
+                            { value: fmt1(m.total), unit: 'kg', label: info.dir < 0 ? 'Lost' : info.dir > 0 ? 'Gained' : 'Moved' },
+                            { value: eta, label: 'Goal ETA' },
+                        ]
+                }
             />
             <Tip text={paceTip(m, info)} />
         </View>
@@ -269,6 +279,8 @@ const StrengthCard = ({ m, lifts, info, onLift }) => {
     if (!m) return <EmptyCard cap="Strength vs weight" text="Train at least two lifts across a few weeks to see how your strength moves with your weight." />;
 
     const more = lifts.stalled.length - 1;
+    const perKgPill = info.dir < 0 && m.perKg != null;
+    const anyLift = lifts.up + lifts.flat + lifts.stalled.length > 0;
 
     return (
         <View style={styles.card}>
@@ -285,19 +297,25 @@ const StrengthCard = ({ m, lifts, info, onLift }) => {
                     </View>
                 </View>
             </View>
-            <Hero value={sg(m.sNow, 1)} unit="%">
-                {m.wNow != null && <Delta tone="purple" text={`weight ${sg(m.wNow, 1)}%`} />}
+            <Hero value={perKgPill ? sg(m.perKg, 0) : sg(m.sNow, 1)} unit={perKgPill ? '% per kg' : '%'}>
+                {perKgPill ? (
+                    <Delta tone="flat" text={`strength ${sg(m.sNow, 1)}%`} />
+                ) : (
+                    m.wNow != null && <Delta tone="purple" text={`weight ${sg(m.wNow, 1)}%`} />
+                )}
             </Hero>
             <ChartBox>
                 {w => <StrengthChart strength={m.strength} weight={m.weight} slots={m.slots} width={w} />}
             </ChartBox>
-            <Stats
-                items={[
-                    { value: String(lifts.up), label: 'Lifts up', color: colors.accent.success },
-                    { value: String(lifts.flat), label: 'Flat' },
-                    { value: String(lifts.stalled.length), label: 'Stalled', color: lifts.stalled.length ? colors.accent.primary : undefined },
-                ]}
-            />
+            {anyLift && (
+                <Stats
+                    items={[
+                        { value: String(lifts.up), label: 'Lifts up', color: colors.accent.success },
+                        { value: String(lifts.flat), label: 'Flat' },
+                        { value: String(lifts.stalled.length), label: 'Stalled', color: lifts.stalled.length ? colors.accent.primary : undefined },
+                    ]}
+                />
+            )}
             {lifts.stalled.length > 0 && (
                 <TouchableOpacity style={styles.alert} activeOpacity={0.7} onPress={() => onLift(lifts.stalled[0].name)}>
                     <View style={styles.alertIcon}>
@@ -336,9 +354,13 @@ const SetsCard = ({ m }) => {
                     <View key={r.name} style={styles.heatRow}>
                         <Text style={styles.heatName} numberOfLines={1}>{r.name}</Text>
                         <View style={styles.heatCells}>
-                            {r.cells.map((v, i) => (
-                                <View key={i} style={[styles.heatCell, { backgroundColor: orange(heatAlpha(v)) }]} />
-                            ))}
+                            {r.cells.map((v, i) =>
+                                i === r.cells.length - 1 ? (
+                                    <View key={i} style={[styles.heatCell, styles.heatCellNow]} />
+                                ) : (
+                                    <View key={i} style={[styles.heatCell, { backgroundColor: orange(heatAlpha(v)) }]} />
+                                ),
+                            )}
                         </View>
                         <Text style={[styles.heatAvg, r.shown < SETS_LOW && styles.heatAvgLow]}>{r.shown}</Text>
                     </View>
@@ -528,7 +550,7 @@ const ProgressScreen = () => {
     const pace = useMemo(() => paceModel(weeks, n, info), [weeks, n, info]);
     const energy = useMemo(() => energyModel(weeks, n, info, userData?.weightIns), [weeks, n, info, userData?.weightIns]);
     const strength = useMemo(() => strengthModel(weeks, built.lifts, n), [weeks, built.lifts, n]);
-    const lifts = useMemo(() => liftStats(weeks, built.lifts), [weeks, built.lifts]);
+    const lifts = useMemo(() => liftStats(weeks, built.lifts, liftSpan(info)), [weeks, built.lifts, info]);
     const phaseStrength = useMemo(
         () => (info.reached && info.dir !== 0 ? strengthModel(weeks, built.lifts, Math.min(info.phaseWeeks, MAX_WEEKS)) : null),
         [weeks, built.lifts, info],

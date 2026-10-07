@@ -9,8 +9,11 @@ export const SETS_LOW = 10;
 export const SETS_HIGH = 20;
 export const MIN_LOGGED_DAYS = 4;
 export const MIN_CURRENT_DAYS = 3;
+export const MIN_CURRENT_FOOD_DAYS = 2;
 export const GOAL_TOL = 0;
 export const RECAP_MIN_WEEKS = 4;
+export const MIN_LIFT_WEEKS = 4;
+export const STALL_DROP = 0.03;
 
 const MAX_HISTORY_WEEKS = 104;
 const LIVE_WEEKS = 10;
@@ -120,6 +123,8 @@ export const buildWeeks = (src, now = new Date()) => {
 
   const keys = [...wMap.keys(), ...nMap.keys(), ...byWeek.keys()].sort();
   if (!keys.length) return { weeks: [], lifts: [] };
+  const firstNutrition = [...nMap.keys()].sort()[0] ?? null;
+  const best = new Map();
 
   const cur = mondayOf(now);
   const count = Math.min(MAX_HISTORY_WEEKS, Math.max(1, Math.round((cur - parseKey(keys[0])) / WEEK_MS) + 1));
@@ -149,8 +154,8 @@ export const buildWeeks = (src, now = new Date()) => {
       kcal = snap.avgCalories || null;
       protein = snap.avgProtein || null;
       steps = snap.avgSteps || null;
-    } else if (getNutrition && i >= count - LIVE_WEEKS) {
-      const days = getNutrition(monday, sunday).filter(d => d.calories > 0);
+    } else if (getNutrition && (i >= count - LIVE_WEEKS || (!snap && firstNutrition != null && key >= firstNutrition))) {
+      const days = getNutrition(monday, sunday).filter(d => d.calories > 0 && !(isCurrent && d.date === todayKey));
       nd = days.length;
       kcal = nd ? mean(days.map(d => d.calories)) : null;
       protein = nd ? mean(days.map(d => d.protein)) : null;
@@ -159,24 +164,35 @@ export const buildWeeks = (src, now = new Date()) => {
         steps = sd.length ? mean(sd.map(d => d.steps)) : null;
       }
     }
-    const okDays = nd >= (isCurrent ? MIN_CURRENT_DAYS : MIN_LOGGED_DAYS);
+    const okDays = nd >= (isCurrent ? MIN_CURRENT_FOOD_DAYS : MIN_LOGGED_DAYS);
     if (!okDays) {
       kcal = null;
       protein = null;
     }
 
-    const docs = byWeek.get(key) || [];
+    const docs = (byWeek.get(key) || []).sort((a, b) => tsDate(a.timestamp) - tsDate(b.timestamp));
     const sets = {};
     let prs = 0;
     docs.forEach(doc => {
+      const sess = new Map();
       (doc.exercises || []).forEach(ex => {
         const valid = (ex.sets || []).filter(s => parseInt(s.reps, 10) > 0);
         if (!valid.length) return;
         const m = normMuscle(ex.muscleGroup);
         if (m) sets[m] = (sets[m] || 0) + valid.length;
-        if (valid.some(s => s.isPR)) prs += 1;
         const name = ex.exerciseName;
         if (!name) return;
+        const sb = sess.get(name) || { e: null, r: null };
+        valid.forEach(s => {
+          const kg = parseFloat(s.weight) || 0;
+          const r = parseInt(s.reps, 10);
+          if (kg > 0) {
+            const e = calc1RM(kg, r);
+            sb.e = sb.e == null ? e : Math.max(sb.e, e);
+          }
+          sb.r = sb.r == null ? r : Math.max(sb.r, r);
+        });
+        sess.set(name, sb);
         if (!raw.has(name)) raw.set(name, { loaded: false, wk: new Map() });
         const lf = raw.get(name);
         const slot = lf.wk.get(i) || { e: null, r: null };
@@ -191,6 +207,12 @@ export const buildWeeks = (src, now = new Date()) => {
           slot.r = slot.r == null ? r : Math.max(slot.r, r);
         });
         lf.wk.set(i, slot);
+      });
+      sess.forEach((sb, name) => {
+        const v = sb.e != null ? sb.e : sb.r;
+        const prev = best.get(name);
+        if (prev != null && v > prev + 0.01) prs += 1;
+        if (prev == null || v > prev) best.set(name, v);
       });
     });
 
@@ -300,14 +322,21 @@ export const paceModel = (weeks, n, info, now = new Date()) => {
   const rest = win.slice(0, -1).map(w => w.rate);
   const spike = win.length >= 4 && lastRate >= 1.8 * mean(rest) && lastRate - mean(rest) >= 0.3;
 
-  const plan = info.dir === 0 ? null : info.planRate;
+  const done = info.dir !== 0 && info.reached;
+  const plan = info.dir === 0 || done ? null : info.planRate;
   const diff = plan != null ? rate - plan : null;
   let status = 'on';
-  if (info.dir === 0) status = rate < 0.25 ? 'steady' : 'drift';
+  if (done) status = 'reached';
+  else if (info.dir === 0) status = rate < 0.25 ? 'steady' : 'drift';
   else if (diff != null && diff > 0.15) status = 'ahead';
   else if (diff != null && diff > 0.05) status = 'slightly-ahead';
   else if (diff != null && diff < -0.05) status = 'behind';
 
+  const roll = new Map();
+  win.forEach((w, k) => {
+    const trail = win.slice(Math.max(0, k - 3), k + 1);
+    roll.set(w.i, trail.length >= 3 ? mean(trail.map(x => x.rate)) : null);
+  });
   const rate12 = mean(weeks.filter(w => w.rate != null).slice(-RATE_WINDOW).map(w => w.rate));
   let eta = null;
   let reached = false;
@@ -317,7 +346,8 @@ export const paceModel = (weeks, n, info, now = new Date()) => {
   }
 
   return {
-    slots: slots.map(w => ({ v: w.rate, monday: w.monday, gap: w.gap })),
+    slots: slots.map(w => ({ v: w.rate, monday: w.monday, gap: w.gap, avg: roll.get(w.i) ?? null })),
+    best: Math.max(...win.map(w => w.rate)),
     plan,
     diff,
     rate,
@@ -333,6 +363,7 @@ export const paceModel = (weeks, n, info, now = new Date()) => {
 };
 
 export const paceTip = (m, info) => {
+  if (m.status === 'reached') return '';
   const word = info.dir > 0 ? 'bulk' : 'cut';
   if (info.dir === 0) {
     return m.status === 'steady'
@@ -405,11 +436,13 @@ export const energyModel = (weeks, n, info, weightIns, now = new Date()) => {
     atTarget = Math.max(0, (raw * 7) / KCAL_PER_KG);
   }
 
+  const keep = bal.map((v, i) => (v != null ? i : -1)).filter(i => i >= 0);
+
   return {
-    slots: slots.map(w => ({ monday: w.monday })),
-    eat,
-    maint,
-    bal,
+    slots: keep.map(i => ({ monday: slots[i].monday })),
+    eat: keep.map(i => eat[i]),
+    maint: keep.map(i => maint[i]),
+    bal: keep.map(i => bal[i]),
     target,
     targetBal: target != null ? target - maintNow : null,
     eatNow,
@@ -439,15 +472,31 @@ export const energyTip = (m, info) => {
   return '';
 };
 
-export const liftStats = (weeks, lifts) => {
+const relDrop = (loaded, top, best, wBest, wNow) => {
+  if (!loaded || !wBest || !wNow) return 1 - top / best;
+  return 1 - top / wNow / (best / wBest);
+};
+
+export const liftSpan = info => Math.max(8, Math.min(info.phaseWeeks, MAX_WEEKS));
+
+export const liftStats = (weeks, lifts, span = MAX_WEEKS) => {
   const L = weeks.length;
+  const s = Math.max(0, L - span);
+  const wAt = i => {
+    for (let k = i; k >= 0; k--) if (weeks[k].w != null) return weeks[k].w;
+    for (let k = i + 1; k < L; k++) if (weeks[k].w != null) return weeks[k].w;
+    return null;
+  };
+  const wNow = wAt(L - 1);
   let up = 0;
   let flat = 0;
   const stalled = [];
   lifts.forEach(lf => {
-    const v = lf.values;
-    const recent = nums(v.slice(Math.max(0, L - 4)));
-    const prior = nums(v.slice(Math.max(0, L - 8), Math.max(0, L - 4)));
+    const v = lf.values.slice(s);
+    const n = v.length;
+    if (nums(v).length < MIN_LIFT_WEEKS) return;
+    const recent = nums(v.slice(Math.max(0, n - 4)));
+    const prior = nums(v.slice(Math.max(0, n - 8), Math.max(0, n - 4)));
     if (!recent.length || !prior.length) return;
     let best = -Infinity;
     let pr = -1;
@@ -457,10 +506,11 @@ export const liftStats = (weeks, lifts) => {
         pr = i;
       }
     });
-    const since = L - 1 - pr;
-    const ch = Math.max(...recent) / Math.max(...prior) - 1;
+    const since = n - 1 - pr;
+    const top = Math.max(...recent);
+    const ch = top / Math.max(...prior) - 1;
     if (since <= 3 || ch >= 0.02) up += 1;
-    else if (since >= 6) stalled.push({ name: lf.name, weeks: since });
+    else if (since >= 6 && relDrop(lf.loaded, top, best, wAt(s + pr), wNow) > STALL_DROP) stalled.push({ name: lf.name, weeks: since });
     else flat += 1;
   });
   stalled.sort((a, b) => b.weeks - a.weeks);
@@ -472,40 +522,45 @@ export const strengthModel = (weeks, lifts, n) => {
   const s = Math.max(0, L - n);
   const curves = [];
   lifts.forEach(lf => {
-    const v = lf.values;
-    if (nums(v.slice(s)).length < 2) return;
-    let last = null;
-    const locf = v.map(x => {
-      if (x != null) last = x;
-      return last;
-    });
-    const bi = locf.findIndex((x, i) => i >= s && x != null);
-    const base = locf[bi];
+    const obs = [];
+    for (let i = s; i < L; i++) if (lf.values[i] != null) obs.push(i);
+    if (obs.length < 3) return;
+    const sm = obs.map((_, k) => mean(obs.slice(Math.max(0, k - 2), k + 1).map(i => lf.values[i])));
+    const base = sm[1];
     if (!base) return;
-    curves.push(locf.map((x, i) => (i >= s && x != null ? x / base : null)));
+    const c = new Array(L).fill(null);
+    let k = 1;
+    for (let i = obs[1]; i < L; i++) {
+      while (k + 1 < obs.length && obs[k + 1] <= i) k += 1;
+      c[i] = sm[k] / base;
+    }
+    curves.push(c);
   });
   if (curves.length < 2) return null;
 
-  const idx = [];
-  for (let i = s; i < L; i++) idx.push(median(curves.map(c => c[i])));
-  const first = idx.find(v => v != null);
-  if (first == null) return null;
-
   const slots = weeks.slice(s);
-  const strength = idx.map(v => (v == null ? null : (v / first - 1) * 100));
-  const w0 = slots.find(w => w.w != null)?.w;
-  const weight = slots.map(w => (w.w != null && w0 ? (w.w / w0 - 1) * 100 : null));
+  const idx = slots.map((_, j) => median(curves.map(c => c[s + j])));
+  const b = slots.findIndex((w, j) => idx[j] != null && w.w != null);
+  if (b < 0) return null;
+
+  const first = idx[b];
+  const w0 = slots[b].w;
+  const strength = idx.map((v, j) => (j >= b && v != null ? (v / first - 1) * 100 : null));
+  const weight = slots.map((w, j) => (j >= b && w.w != null ? (w.w / w0 - 1) * 100 : null));
   const lastOf = a => {
     for (let i = a.length - 1; i >= 0; i--) if (a[i] != null) return a[i];
     return null;
   };
+  const sNow = lastOf(strength);
+  const wNow = lastOf(weight);
 
   return {
     slots: slots.map(w => ({ monday: w.monday })),
     strength,
     weight,
-    sNow: lastOf(strength),
-    wNow: lastOf(weight),
+    sNow,
+    wNow,
+    perKg: sNow != null && wNow != null ? ((1 + sNow / 100) / (1 + wNow / 100) - 1) * 100 : null,
     lifts: curves.length,
   };
 };
