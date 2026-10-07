@@ -8,7 +8,6 @@ const AX = colors.text.quaternary;
 const GRID = colors.border.default;
 const PLAN = colors.text.primary;
 const EAT = colors.accent.primary;
-const MAINT = colors.text.secondary;
 const TARGET = colors.accent.amber;
 const WEIGHT = colors.macro.protein;
 const STRENGTH = colors.accent.cyan;
@@ -26,8 +25,6 @@ const runs = vals => {
   if (cur.length) out.push(cur);
   return out;
 };
-
-const drawn = vals => runs(vals).filter(r => r.length > 1).flatMap(r => r.map(i => vals[i]));
 
 const line = (idx, xf, yf, vals) =>
   idx.map((i, k) => `${k ? 'L' : 'M'}${xf(i).toFixed(1)} ${yf(vals[i]).toFixed(1)}`).join(' ');
@@ -155,63 +152,101 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }) => {
   );
 };
 
-export const EnergyChart = ({ eat, maint, target, slots, width }) => {
-  const n = eat.length;
-  const H = 172;
-  const top = 12;
+export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }) => {
+  const n = bal.length;
+  const H = 176;
+  const top = 18;
   const bot = 24;
-  const gut = 82;
+  const gut = 52;
   const pw = width - gut;
-  const li = lastIdx(eat);
-  const mi = lastIdx(maint);
-  const all = [...drawn(eat), ...drawn(maint), li >= 0 ? eat[li] : null, target].filter(v => v != null);
-  const lo = Math.floor((Math.min(...all) - 100) / 200) * 200;
-  const hi = Math.ceil((Math.max(...all) + 100) / 200) * 200;
-  const y = v => top + (H - top - bot) * (1 - (v - lo) / (hi - lo));
-  const x = i => 4 + (pw - 10) * (n === 1 ? 0 : i / (n - 1));
-  const both = eat.map((v, i) => (v != null && maint[i] != null ? v : null));
-  const labels = xLabels(n, slots.map(s => s.monday), H - 6, 'e');
-  const tags = [
-    mi >= 0 && { v: maint[mi], name: 'maint', c: MAINT },
-    target != null && { v: target, name: 'target', c: TARGET },
-    li >= 0 && { v: eat[li], name: 'eaten', c: EAT },
-  ]
-    .filter(Boolean)
-    .map(t => ({ ...t, y: y(t.v) }))
-    .sort((a, b) => a.y - b.y);
-  for (let i = 1; i < tags.length; i++) {
-    if (tags[i].y - tags[i - 1].y < 15) tags[i].y = tags[i - 1].y + 15;
-  }
+  const gap = n > 12 ? 3 : 5;
+  const bw = (pw - gap * (n - 1)) / n;
+  const base = H - bot;
+  const vals = bal.filter(v => v != null);
+  const lo = Math.min(0, ...vals, target ?? 0);
+  const hi = Math.max(0, ...vals, target ?? 0);
+  const pad = Math.max(hi - lo, 200) * 0.1;
+  const y = v => top + (base - top) * (1 - (v - (lo - pad)) / (hi - lo + 2 * pad));
+  const y0 = y(0);
+  const step = n <= 8 ? 2 : n <= 12 ? 3 : 4;
+  const li = lastIdx(bal);
+  const active = sel != null && bal[sel] != null ? sel : li;
+  const ty = target != null ? y(target) : null;
+
+  const onPress = e => {
+    if (!onSelect) return;
+    const x = e.nativeEvent.locationX;
+    if (x < 0 || x > pw) return;
+    const i = Math.min(n - 1, Math.floor(x / (bw + gap)));
+    if (bal[i] == null) return;
+    onSelect(i === sel ? null : i);
+  };
 
   return (
-    <Svg width={width} height={H}>
-      <Line x1={0} x2={pw} y1={y(lo)} y2={y(lo)} stroke={GRID} strokeWidth={1} />
-      {runs(both).map((r, k) => {
-        if (r.length < 2) return null;
-        const up = r.map(i => `${x(i).toFixed(1)} ${y(maint[i]).toFixed(1)}`);
-        const dn = [...r].reverse().map(i => `${x(i).toFixed(1)} ${y(eat[i]).toFixed(1)}`);
-        return <Path key={k} d={`M${up.join(' L')} L${dn.join(' L')} Z`} fill={colors.accent.success} fillOpacity={0.14} />;
-      })}
-      {target != null && (
-        <Line x1={0} x2={pw} y1={y(target)} y2={y(target)} stroke={TARGET} strokeOpacity={0.85} strokeWidth={1.5} strokeDasharray="2 4" />
-      )}
-      {runs(maint).map((r, k) => r.length > 1 && (
-        <Path key={k} d={line(r, x, y, maint)} stroke={MAINT} strokeWidth={2} strokeDasharray="5 4" fill="none" />
-      ))}
-      {runs(eat).map((r, k) => r.length > 1 && (
-        <Path key={k} d={line(r, x, y, eat)} stroke={EAT} strokeWidth={2.6} strokeLinejoin="round" strokeLinecap="round" fill="none" />
-      ))}
-      {li >= 0 && <Circle cx={x(li)} cy={y(eat[li])} r={4.5} fill={EAT} stroke={BG} strokeWidth={2} />}
-      {tags.map(t => (
-        <SvgText key={t.name} x={pw + 4} y={t.y + 4} fontSize={11} fill={AX}>
-          <TSpan fontWeight="700" fill={t.c}>{kfmt(t.v)}</TSpan>
-          {` ${t.name}`}
-        </SvgText>
-      ))}
-      {labels.map(l => (
-        <SvgText key={l.key} x={x(l.i)} y={l.y} fontSize={10} fill={l.hot ? EAT : AX} textAnchor={l.anchor}>{l.text}</SvgText>
-      ))}
-    </Svg>
+    <Pressable onPress={onPress}>
+      <View pointerEvents="none">
+        <Svg width={width} height={H}>
+          <Line x1={0} x2={pw} y1={y0} y2={y0} stroke={GRID} strokeWidth={1} />
+          {(ty == null || Math.abs(ty - y0) >= 14) && (
+            <SvgText x={width} y={y0 + 3} fontSize={10} fill={AX} textAnchor="end">maint</SvgText>
+          )}
+          {bal.map((v, i) => {
+            const x = i * (bw + gap);
+            const hot = i === active;
+            const showLabel = (n - 1 - i) % step === 0;
+            return (
+              <React.Fragment key={i}>
+                {v != null && (
+                  <>
+                    <Rect
+                      x={x}
+                      y={v < 0 ? y0 : y(v)}
+                      width={bw}
+                      height={Math.max(Math.abs(y(v) - y0), 2)}
+                      rx={3}
+                      fill={EAT}
+                      fillOpacity={hot ? 1 : 0.5}
+                    />
+                    {hot && (
+                      <SvgText
+                        x={x + bw / 2}
+                        y={v < 0 ? y(v) + 12 : y(v) - 5}
+                        fontSize={10}
+                        fontWeight="600"
+                        fill={EAT}
+                        textAnchor="middle"
+                      >
+                        {kfmt(v)}
+                      </SvgText>
+                    )}
+                  </>
+                )}
+                {showLabel && (
+                  <SvgText
+                    x={i === 0 ? x : x + bw / 2}
+                    y={H - 6}
+                    fontSize={10}
+                    fill={hot ? EAT : AX}
+                    textAnchor={i === 0 ? 'start' : 'middle'}
+                  >
+                    {shortDate(slots[i].monday)}
+                  </SvgText>
+                )}
+              </React.Fragment>
+            );
+          })}
+          {ty != null && (
+            <>
+              <Line x1={0} x2={pw} y1={ty} y2={ty} stroke={TARGET} strokeOpacity={0.85} strokeWidth={1.5} strokeDasharray="4 4" />
+              <SvgText x={width} y={ty + 3} fontSize={10} textAnchor="end">
+                <TSpan fill={AX}>target </TSpan>
+                <TSpan fontWeight="700" fill={TARGET}>{kfmt(target)}</TSpan>
+              </SvgText>
+            </>
+          )}
+        </Svg>
+      </View>
+    </Pressable>
   );
 };
 

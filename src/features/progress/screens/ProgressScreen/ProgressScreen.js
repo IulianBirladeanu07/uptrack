@@ -13,7 +13,7 @@ import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { calculate1RM, fetchSplitsFromFirestore } from '../../../workout/handlers/WorkoutHandler';
 import { switchToMaintenance } from '../../../nutrition/helpers/phaseService';
 import { colors, spacing } from '../../../../shared/theme';
-import { PaceChart, EnergyChart, StrengthChart } from '../../components/ProgressCharts';
+import { PaceChart, BalanceChart, StrengthChart } from '../../components/ProgressCharts';
 import {
     MAX_WEEKS,
     SETS_LOW,
@@ -228,20 +228,40 @@ const PaceCard = ({ m, info, n }) => {
     );
 };
 
-const EnergyCard = ({ m, info }) => {
+const EnergyCard = ({ m, info, n }) => {
+    const [sel, setSel] = useState(null);
+    useEffect(() => {
+        setSel(null);
+    }, [n]);
+
     if (!m) return <EmptyCard cap="Energy balance" text="Needs about three weeks of weight and food logs to estimate your real maintenance." />;
+
+    const f = info.dir === 0 ? 1 : info.dir;
+    const bars = m.bal.map(v => (v == null ? null : v * f));
+    const goal = m.targetBal != null ? m.targetBal * f : null;
+    const picked = sel != null && bars[sel] != null ? sel : null;
+    const shown = picked != null ? bars[picked] : m.balance * f;
+    const heroText = info.dir === 0 || shown < 0 ? sg(shown, 0) : kfmt(shown);
+    const unit = info.dir < 0 ? 'kcal/day deficit' : info.dir > 0 ? 'kcal/day surplus' : 'kcal/day';
 
     return (
         <View style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.cap}>Energy balance</Text>
-                <Text style={styles.capRight}>{m.slots.length} weeks</Text>
+                <Text style={styles.capRight}>{`${m.slots.length} weeks`}</Text>
             </View>
-            <Hero value={sg(m.balance, 0)} unit="kcal/day" />
-            <Text style={styles.heroNote}>{m.balNote}</Text>
+            <Hero value={heroText} unit={unit} />
+            <Text style={styles.heroNote}>{picked != null ? `week of ${shortDate(m.slots[picked].monday)}` : m.balNote}</Text>
             <ChartBox>
-                {cw => <EnergyChart eat={m.eat} maint={m.maint} target={m.target} slots={m.slots} width={cw} />}
+                {w => <BalanceChart bal={bars} target={goal} slots={m.slots} width={w} sel={sel} onSelect={setSel} />}
             </ChartBox>
+            <Stats
+                items={[
+                    { value: kfmt(m.maintNow), unit: m.margin != null ? `\u00b1${kfmt(m.margin)}` : undefined, label: 'Maintenance' },
+                    { value: kfmt(m.eatNow), label: 'Eating' },
+                    { value: m.target != null ? kfmt(m.target) : '--', label: 'Target' },
+                ]}
+            />
             <Tip text={energyTip(m, info)} />
         </View>
     );
@@ -508,7 +528,7 @@ const ProgressScreen = () => {
     const n = range.n;
 
     const pace = useMemo(() => paceModel(weeks, n, info), [weeks, n, info]);
-    const energy = useMemo(() => energyModel(weeks, n, info), [weeks, n, info]);
+    const energy = useMemo(() => energyModel(weeks, n, info, userData?.weightIns), [weeks, n, info, userData?.weightIns]);
     const strength = useMemo(() => strengthModel(weeks, built.lifts, n), [weeks, built.lifts, n]);
     const lifts = useMemo(() => liftStats(weeks, built.lifts), [weeks, built.lifts]);
     const phaseStrength = useMemo(
@@ -624,7 +644,7 @@ const ProgressScreen = () => {
                             <>
                                 {recap && <RecapCard r={recap} busy={switching} onSwitch={onSwitch} onSettings={openSettings} />}
                                 <PaceCard m={pace} info={info} n={n} />
-                                <EnergyCard m={energy} info={info} />
+                                <EnergyCard m={energy} info={info} n={n} />
                                 <MonthsCard
                                     months={months}
                                     kind="n"

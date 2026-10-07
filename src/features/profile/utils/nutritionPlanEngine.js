@@ -9,8 +9,9 @@ import {
   shiftWeekStart,
 } from './weightTrendEngine';
 import { MIN_STEP_DAYS } from '../../nutrition/helpers/stepStats';
+import { KCAL_PER_KG, estimateMaintenanceRegression } from './maintenanceEstimator';
 
-export const KCAL_PER_KG = 7700;
+export { KCAL_PER_KG };
 const WEEKS_PER_MONTH = 4.34524;
 
 const ACTIVITY_MULTIPLIERS = {
@@ -250,6 +251,9 @@ export const calculateWeightChangePlan = (formData) => {
 
 export const estimateMaintenance = (userData, weeklyCalorieData, fallbackRateKgPerWeek = null) => {
   const weeks = weeklyCalorieData || [];
+  const regression = estimateMaintenanceRegression(userData?.weightIns, weeks);
+  if (regression) return regression;
+
   const isUsable = w => w && w.daysLogged >= MAINTENANCE_MIN_LOGGED_DAYS && w.avgCalories > 0;
 
   const hasWeekStarts = weeks.length > 0 && weeks.every(w => w.weekStart);

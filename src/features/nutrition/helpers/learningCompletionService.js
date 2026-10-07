@@ -185,7 +185,7 @@ export const evaluateWeeklyProgress = async (userId, userData, mealCache, curren
   if (!userData?.weightChangePlan || !userData?.targetCalories) return null;
   if (daysSince(userData.lastAdjustmentDate) < 6) return null;
 
-  const weeklyCalorieData = getWeeklyCalorieStats(userData.weeklyNutrition || [], 4, userData.dailySteps);
+  const weeklyCalorieData = getWeeklyCalorieStats(userData.weeklyNutrition || [], 8, userData.dailySteps);
   if (!weeklyCalorieData.length) return null;
 
   const adjustment = calculatePlanAdjustment(userData, weeklyCalorieData);

@@ -1,4 +1,5 @@
 import { calculateRealTDEE, KCAL_PER_KG } from '../../profile/utils/nutritionPlanEngine';
+import { estimateMaintenanceRegression, maintenanceSeries } from '../../profile/utils/maintenanceEstimator';
 import { getPhaseLabel, isGoalReached } from '../../profile/utils/weightTrendEngine';
 import { overlayWeekSteps } from '../../nutrition/helpers/stepStats';
 
@@ -369,30 +370,34 @@ export const balanceNote = (balance, weeks) => {
   return `${side} maintenance \u00b7 ${weeks}-week avg`;
 };
 
-export const energyModel = (weeks, n, info) => {
-  const series = maintSeries(weeks);
-  const from = Math.max(0, weeks.length - n);
-  const seg = weeks.slice(from);
-  const ok = i => seg[i].kcal != null && series[from + i] != null;
-  const lead = seg.findIndex((_, i) => i < seg.length - 1 && ok(i) && ok(i + 1));
-  if (lead < 0) return null;
+const estimatorWeeks = weeks =>
+  weeks.map(w => ({ weekStart: w.key, daysLogged: w.nd, avgCalories: w.kcal, avgSteps: w.steps }));
 
-  const start = from + lead;
-  const slots = weeks.slice(start);
+export const energyModel = (weeks, n, info, weightIns, now = new Date()) => {
+  const legacy = maintSeries(weeks);
+  const ew = weightIns?.length ? estimatorWeeks(weeks) : null;
+  const measured = ew ? maintenanceSeries(weightIns, ew, now) : null;
+  const series = measured ? measured.map((v, i) => v ?? legacy[i]) : legacy;
+  const firstData = weeks.findIndex(w => w.kcal != null);
+  if (firstData < 0) return null;
+  const from = Math.max(firstData, weeks.length - n);
+  const slots = weeks.slice(from);
   const eat = slots.map(w => w.kcal);
-  const maint = series.slice(start);
+  const maint = series.slice(from);
   const both = slots.filter((_, i) => eat[i] != null && maint[i] != null).length;
   if (both < 3) return null;
 
   const win = tdeeWindow(weeks, weeks.length - 1);
   if (win.length < 3) return null;
 
-  const eatNow = mean(win.map(w => w.kcal));
-  const maintNow = calculateRealTDEE(eatNow, mean(win.map(w => w.dw)));
+  const reg = ew ? estimateMaintenanceRegression(weightIns, ew, now) : null;
+  const eatNow = reg ? reg.avgCalories : mean(win.map(w => w.kcal));
+  const maintNow = reg ? reg.maintenance : calculateRealTDEE(eatNow, mean(win.map(w => w.dw)));
   if (maintNow == null) return null;
 
   const balance = eatNow - maintNow;
-  const realRate = mean(win.map(w => w.rate));
+  const bal = eat.map((v, i) => (v != null && maint[i] != null ? v - maint[i] : null));
+  const realRate = reg ? (info.dir === 0 ? Math.abs(reg.rateKgPerWeek) : info.dir * reg.rateKgPerWeek) : mean(win.map(w => w.rate));
   const target = info.target;
   let atTarget = null;
   if (target != null && info.dir !== 0) {
@@ -404,15 +409,18 @@ export const energyModel = (weeks, n, info) => {
     slots: slots.map(w => ({ monday: w.monday })),
     eat,
     maint,
+    bal,
     target,
+    targetBal: target != null ? target - maintNow : null,
     eatNow,
     maintNow,
     balance,
-    balNote: balanceNote(balance, win.length),
+    balNote: balanceNote(balance, reg ? reg.weeksUsed : win.length),
     realRate,
     atTarget,
     gapToTarget: target != null ? target - eatNow : null,
-    statsWeeks: win.length,
+    statsWeeks: reg ? reg.weeksUsed : win.length,
+    margin: reg ? reg.margin : null,
   };
 };
 

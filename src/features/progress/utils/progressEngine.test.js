@@ -368,6 +368,25 @@ describe('energyModel', () => {
     expect(energyTip(m, i2)).toMatch(/over the 2,700 target/);
   });
 
+  test('builds per-week balance and a target balance for the bars', () => {
+    const m = energyModel(rated, 12, info);
+    expect(m.bal).toHaveLength(m.eat.length);
+    m.bal.forEach((v, i) => {
+      if (v != null) expect(v).toBeCloseTo(m.eat[i] - m.maint[i], 5);
+    });
+    expect(m.targetBal).toBeCloseTo(m.target - m.maintNow, 5);
+    expect(energyModel(rated, 12, { ...info, target: null }).targetBal).toBeNull();
+  });
+
+  test('uses the regression estimate when weigh-ins are passed', () => {
+    const m = energyModel(rated, 12, info, buildSrc().weightIns, NOW);
+    expect(m.margin).toBeGreaterThan(0);
+    expect(m.statsWeeks).toBeGreaterThanOrEqual(4);
+    expect(m.maintNow).toBeGreaterThan(m.eatNow);
+    expect(m.realRate).toBeGreaterThan(0.3);
+    expect(m.maint.filter(v => v != null).pop()).toBe(m.maintNow);
+  });
+
   test('the chart line ends on the maintenance shown in the stats', () => {
     const m = energyModel(rated, 12, info);
     expect(m.maint[m.maint.length - 1]).toBe(m.maintNow);
@@ -378,13 +397,13 @@ describe('energyModel', () => {
     expect(m.balNote).toBe(`below maintenance \u00b7 ${m.statsWeeks}-week avg`);
   });
 
-  test('chart starts at the first week that can draw a line', () => {
+  test('keeps the full range and leaves gap weeks empty', () => {
     const gapped = rated.map((w, i) => (i > rated.length - 13 && i < rated.length - 9 ? { ...w, kcal: null } : w));
     const m = energyModel(gapped, 12, info);
-    expect(m.eat[0]).not.toBeNull();
-    expect(m.maint[0]).not.toBeNull();
-    expect(m.eat[1]).not.toBeNull();
-    expect(m.maint[1]).not.toBeNull();
+    expect(m.slots).toHaveLength(12);
+    expect(m.eat[0]).toBeNull();
+    expect(m.bal[0]).toBeNull();
+    expect(m.bal[m.bal.length - 2]).not.toBeNull();
   });
 
   test('says behind-plan when real rate is far below plan', () => {
