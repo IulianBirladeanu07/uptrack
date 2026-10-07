@@ -600,6 +600,16 @@ describe('estimateMaintenance', () => {
     expect(estimateMaintenance(steady(), weeks).weeksUsed).toBe(4);
   });
 
+  test('does not trust a thin step sample for the shift check', () => {
+    const weeks = four.map((w, i) => wk(w, { avgSteps: i === 3 ? 14000 : 8000, daysLoggedSteps: i === 3 ? 1 : 7 }));
+    expect(estimateMaintenance(steady(), weeks).weeksUsed).toBe(4);
+  });
+
+  test('uses a well-sampled step shift to narrow the window', () => {
+    const weeks = four.map((w, i) => wk(w, { avgSteps: i === 3 ? 14000 : 8000, daysLoggedSteps: 7 }));
+    expect(estimateMaintenance(steady(), weeks).weeksUsed).toBe(2);
+  });
+
   test('ignores weeks before a gap in the weekly history', () => {
     const weeks = ['2026-01-12', '2026-01-19', '2026-02-02', '2026-02-09'].map(w => wk(w));
     expect(estimateMaintenance(steady(), weeks).weeksUsed).toBe(2);

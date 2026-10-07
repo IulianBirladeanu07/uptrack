@@ -20,43 +20,36 @@ const styles = createStyles(() => ({
         letterSpacing: -0.5,
     },
 
-    pillsRow: {
+    seg: {
         flexDirection: 'row',
-        gap: spacing[2],
         marginTop: spacing[3],
         marginBottom: spacing[3],
+        padding: 3,
+        borderRadius: radius[3],
+        borderWidth: 1,
+        borderColor: colors.border.default,
+        backgroundColor: colors.background.secondary,
     },
-    pill: {
+    segItem: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: spacing[2],
-        minHeight: spacing[10],
-        paddingVertical: 10,
-        paddingHorizontal: spacing[5],
-        borderRadius: radius[3],
-        borderWidth: 1,
+        minHeight: spacing[8],
+        borderRadius: radius[2],
     },
-    pillSelected: {
-        backgroundColor: colors.accent.primary,
-        borderColor: 'transparent',
+    segItemOn: {
+        backgroundColor: colors.faded.surface,
     },
-    pillInactive: {
-        backgroundColor: 'transparent',
-        borderColor: colors.border.default,
-    },
-    pillText: {
+    segText: {
         fontSize: fontSize[14],
         fontWeight: fontWeight.medium,
-        letterSpacing: 0.2,
+        color: colors.text.tertiary,
     },
-    pillTextSelected: {
-        color: colors.accent.buttonText,
+    segTextOn: {
         fontWeight: fontWeight.semibold,
-    },
-    pillTextInactive: {
-        color: colors.text.secondary,
+        color: colors.text.primary,
     },
 
     rangeRow: {
@@ -156,6 +149,13 @@ const styles = createStyles(() => ({
     bigUnit: {
         marginLeft: spacing[1],
         fontSize: fontSize[16],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+    heroNote: {
+        marginTop: -spacing[1],
+        marginBottom: spacing[2],
+        fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
         color: colors.text.tertiary,
     },
@@ -316,7 +316,6 @@ const styles = createStyles(() => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing[2],
-        minHeight: 17,
     },
     heatName: {
         width: 62,
@@ -324,23 +323,15 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.medium,
         color: colors.text.tertiary,
     },
-    heatTrack: {
+    heatCells: {
         flex: 1,
-        height: 8,
-        borderRadius: 4,
-        overflow: 'hidden',
-        backgroundColor: colors.faded.surface,
+        flexDirection: 'row',
+        gap: 2,
+        height: 17,
     },
-    heatFill: {
-        height: '100%',
-        borderRadius: 4,
-    },
-    heatMark: {
-        position: 'absolute',
-        top: 0,
-        bottom: 0,
-        width: 1,
-        backgroundColor: colors.text.quaternary,
+    heatCell: {
+        flex: 1,
+        borderRadius: 3,
     },
     heatAvg: {
         width: 34,
@@ -351,6 +342,39 @@ const styles = createStyles(() => ({
     },
     heatAvgLow: {
         color: colors.accent.primary,
+    },
+    heatAxis: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: spacing[2],
+        marginLeft: 70,
+        marginRight: 42,
+    },
+    heatAxisText: {
+        fontSize: fontSize[10],
+        color: colors.text.tertiary,
+    },
+    key: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: spacing[3],
+        marginTop: spacing[3],
+    },
+    keyItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[1],
+    },
+    keySwatch: {
+        width: 12,
+        height: 12,
+        borderRadius: 3,
+    },
+    keyText: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
     },
 
     listHead: {

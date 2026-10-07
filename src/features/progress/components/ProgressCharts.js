@@ -160,28 +160,32 @@ export const EnergyChart = ({ eat, maint, target, slots, width }) => {
   const H = 172;
   const top = 12;
   const bot = 24;
-  const gut = 40;
+  const gut = 82;
   const pw = width - gut;
   const li = lastIdx(eat);
+  const mi = lastIdx(maint);
   const all = [...drawn(eat), ...drawn(maint), li >= 0 ? eat[li] : null, target].filter(v => v != null);
   const lo = Math.floor((Math.min(...all) - 100) / 200) * 200;
   const hi = Math.ceil((Math.max(...all) + 100) / 200) * 200;
-  const mid = (lo + hi) / 2;
   const y = v => top + (H - top - bot) * (1 - (v - lo) / (hi - lo));
-  const x = i => 2 + (pw - 2) * (n === 1 ? 0 : i / (n - 1));
+  const x = i => 4 + (pw - 10) * (n === 1 ? 0 : i / (n - 1));
   const both = eat.map((v, i) => (v != null && maint[i] != null ? v : null));
   const labels = xLabels(n, slots.map(s => s.monday), H - 6, 'e');
-  const ty = target != null ? y(target) : null;
-  const grid = [lo, mid, hi].filter(g => g !== mid || ty == null || Math.abs(y(g) - ty) > 12);
+  const tags = [
+    mi >= 0 && { v: maint[mi], name: 'maint', c: MAINT },
+    target != null && { v: target, name: 'target', c: TARGET },
+    li >= 0 && { v: eat[li], name: 'eaten', c: EAT },
+  ]
+    .filter(Boolean)
+    .map(t => ({ ...t, y: y(t.v) }))
+    .sort((a, b) => a.y - b.y);
+  for (let i = 1; i < tags.length; i++) {
+    if (tags[i].y - tags[i - 1].y < 15) tags[i].y = tags[i - 1].y + 15;
+  }
 
   return (
     <Svg width={width} height={H}>
-      {grid.map(g => (
-        <React.Fragment key={g}>
-          <Line x1={0} x2={pw} y1={y(g)} y2={y(g)} stroke={GRID} strokeWidth={1} />
-          <SvgText x={width} y={y(g) + 3} fontSize={10} fill={AX} textAnchor="end">{kfmt(g)}</SvgText>
-        </React.Fragment>
-      ))}
+      <Line x1={0} x2={pw} y1={y(lo)} y2={y(lo)} stroke={GRID} strokeWidth={1} />
       {runs(both).map((r, k) => {
         if (r.length < 2) return null;
         const up = r.map(i => `${x(i).toFixed(1)} ${y(maint[i]).toFixed(1)}`);
@@ -198,6 +202,12 @@ export const EnergyChart = ({ eat, maint, target, slots, width }) => {
         <Path key={k} d={line(r, x, y, eat)} stroke={EAT} strokeWidth={2.6} strokeLinejoin="round" strokeLinecap="round" fill="none" />
       ))}
       {li >= 0 && <Circle cx={x(li)} cy={y(eat[li])} r={4.5} fill={EAT} stroke={BG} strokeWidth={2} />}
+      {tags.map(t => (
+        <SvgText key={t.name} x={pw + 4} y={t.y + 4} fontSize={11} fill={AX}>
+          <TSpan fontWeight="700" fill={t.c}>{kfmt(t.v)}</TSpan>
+          {` ${t.name}`}
+        </SvgText>
+      ))}
       {labels.map(l => (
         <SvgText key={l.key} x={x(l.i)} y={l.y} fontSize={10} fill={l.hot ? EAT : AX} textAnchor={l.anchor}>{l.text}</SvgText>
       ))}

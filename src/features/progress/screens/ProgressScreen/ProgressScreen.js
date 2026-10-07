@@ -17,7 +17,6 @@ import { PaceChart, EnergyChart, StrengthChart } from '../../components/Progress
 import {
     MAX_WEEKS,
     SETS_LOW,
-    SETS_HIGH,
     buildWeeks,
     withRates,
     phaseInfo,
@@ -55,6 +54,18 @@ const TONES = {
     purple: { bg: colors.faded.purple, fg: colors.macro.protein },
     flat: { bg: colors.faded.surface, fg: colors.text.secondary },
 };
+
+const HEAT_KEY = [
+    { label: '<6', a: 0.08 },
+    { label: '6-9', a: 0.22 },
+    { label: '10-14', a: 0.5 },
+    { label: '15-20', a: 0.75 },
+    { label: '20+', a: 1 },
+];
+
+const heatAlpha = v => (v < 6 ? 0.08 : v < 10 ? 0.22 : v < 15 ? 0.5 : v <= 20 ? 0.75 : 1);
+
+const orange = a => `rgba(255, 149, 0, ${a})`;
 
 const Delta = ({ tone = 'good', icon, text }) => {
     const t = TONES[tone];
@@ -220,27 +231,17 @@ const PaceCard = ({ m, info, n }) => {
 const EnergyCard = ({ m, info }) => {
     if (!m) return <EmptyCard cap="Energy balance" text="Needs about three weeks of weight and food logs to estimate your real maintenance." />;
 
-    const aligned = info.dir === 0 || (info.dir < 0 && m.balance < 0) || (info.dir > 0 && m.balance > 0);
-
     return (
         <View style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.cap}>Energy balance</Text>
-                <Text style={styles.capRight}>{`estimated · last ${m.statsWeeks} weeks`}</Text>
+                <Text style={styles.capRight}>{m.slots.length} weeks</Text>
             </View>
-            <Hero value={sg(m.balance, 0)} unit="kcal/day">
-                <Delta tone={aligned ? 'good' : 'warn'} text={`~${fmt1(m.pillRate)} kg/wk`} />
-            </Hero>
+            <Hero value={sg(m.balance, 0)} unit="kcal/day" />
+            <Text style={styles.heroNote}>{m.balNote}</Text>
             <ChartBox>
-                {w => <EnergyChart eat={m.eat} maint={m.maint} target={m.target} slots={m.slots} width={w} />}
+                {cw => <EnergyChart eat={m.eat} maint={m.maint} target={m.target} slots={m.slots} width={cw} />}
             </ChartBox>
-            <Stats
-                items={[
-                    { value: kfmt(m.eatNow), label: 'Eaten', dot: colors.accent.primary },
-                    { value: kfmt(m.maintNow), label: 'Maint.', dash: true },
-                    { value: kfmt(m.target), label: 'Target', dot: colors.accent.amber },
-                ]}
-            />
             <Tip text={energyTip(m, info)} />
         </View>
     );
@@ -313,27 +314,29 @@ const SetsCard = ({ m }) => {
                 )}
             </Hero>
             <View style={styles.heat}>
-                {m.rows.map(r => {
-                    const low = r.shown < SETS_LOW;
-                    return (
-                        <View key={r.name} style={styles.heatRow}>
-                            <Text style={styles.heatName} numberOfLines={1}>{r.name}</Text>
-                            <View style={styles.heatTrack}>
-                                <View
-                                    style={[
-                                        styles.heatFill,
-                                        {
-                                            width: `${Math.min(r.avg / SETS_HIGH, 1) * 100}%`,
-                                            backgroundColor: low ? colors.accent.primary : colors.accent.cyan,
-                                        },
-                                    ]}
-                                />
-                                <View style={[styles.heatMark, { left: `${(SETS_LOW / SETS_HIGH) * 100}%` }]} />
-                            </View>
-                            <Text style={[styles.heatAvg, low && styles.heatAvgLow]}>{r.shown}</Text>
+                {m.rows.map(r => (
+                    <View key={r.name} style={styles.heatRow}>
+                        <Text style={styles.heatName} numberOfLines={1}>{r.name}</Text>
+                        <View style={styles.heatCells}>
+                            {r.cells.map((v, i) => (
+                                <View key={i} style={[styles.heatCell, { backgroundColor: orange(heatAlpha(v)) }]} />
+                            ))}
                         </View>
-                    );
-                })}
+                        <Text style={[styles.heatAvg, r.shown < SETS_LOW && styles.heatAvgLow]}>{r.shown}</Text>
+                    </View>
+                ))}
+            </View>
+            <View style={styles.heatAxis}>
+                <Text style={styles.heatAxisText}>{shortDate(m.first)}</Text>
+                <Text style={styles.heatAxisText}>this week</Text>
+            </View>
+            <View style={styles.key}>
+                {HEAT_KEY.map(k => (
+                    <View key={k.label} style={styles.keyItem}>
+                        <View style={[styles.keySwatch, { backgroundColor: orange(k.a) }]} />
+                        <Text style={styles.keyText}>{k.label}</Text>
+                    </View>
+                ))}
             </View>
             <Tip text={setsTip(m)} />
         </View>
@@ -398,6 +401,7 @@ const MonthRow = ({ m, kind, info, open, onToggle, last }) => {
                     sub={hasPlan ? `${Math.round((m.sessionsDone / m.planDone) * 100)}%` : null}
                 />
                 <Tile label="Hard sets" dot={colors.accent.cyan} value={kfmt(m.sets)} sub={vs(m.d?.setsPerWeek, 0, '/wk')} />
+                <Tile label="New PRs" dot={colors.accent.cyan} value={String(m.prs)} />
             </>
         );
     }
@@ -488,12 +492,13 @@ const ProgressScreen = () => {
         () => buildWeeks({
             weightIns: userData?.weightIns,
             weeklyNutrition: userData?.weeklyNutrition,
+            dailySteps: userData?.dailySteps,
             workouts: workoutHistory,
             getNutrition: getNutritionForDateRange,
             getSteps: getStepsForDateRange,
             calc1RM: calculate1RM,
         }),
-        [userData?.weightIns, userData?.weeklyNutrition, workoutHistory, getNutritionForDateRange, getStepsForDateRange, rollingWeekStats],
+        [userData?.weightIns, userData?.weeklyNutrition, userData?.dailySteps, workoutHistory, getNutritionForDateRange, getStepsForDateRange, rollingWeekStats],
     );
 
     const weeks = useMemo(() => withRates(built.weeks, dir), [built, dir]);
@@ -583,25 +588,23 @@ const ProgressScreen = () => {
                     )}
                 </View>
 
-                <View style={styles.pillsRow}>
+                <View style={styles.seg}>
                     {TABS.map(t => {
                         const on = tab === t.key;
                         return (
                             <TouchableOpacity
                                 key={t.key}
-                                style={[styles.pill, on ? styles.pillSelected : styles.pillInactive]}
+                                style={[styles.segItem, on && styles.segItemOn]}
                                 onPress={() => setTab(t.key)}
-                                activeOpacity={0.9}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                activeOpacity={0.8}
+                                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                             >
                                 <Ionicons
                                     name={t.icon}
-                                    size={spacing.icon}
-                                    color={on ? colors.accent.buttonText : colors.text.secondary}
+                                    size={spacing.iconSm}
+                                    color={on ? colors.accent.primary : colors.text.tertiary}
                                 />
-                                <Text style={[styles.pillText, on ? styles.pillTextSelected : styles.pillTextInactive]}>
-                                    {t.label}
-                                </Text>
+                                <Text style={[styles.segText, on && styles.segTextOn]}>{t.label}</Text>
                             </TouchableOpacity>
                         );
                     })}

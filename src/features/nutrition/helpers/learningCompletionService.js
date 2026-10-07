@@ -6,6 +6,7 @@ import {
   calculateMaintenanceEstimate,
   refreshWeightChangePlan,
 } from '../../profile/utils/nutritionPlanEngine';
+import { weekStepStats, overlayWeekSteps } from './stepStats';
 
 export const calculateDailyNutritionFromMeals = (meals) =>
   Object.values(meals || {})
@@ -69,6 +70,7 @@ export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache,
 
   const stepDays = mealCache.getStepsRange(start, end)
     .filter(d => d.date !== todayKey && d.steps > 0);
+  const cacheSteps = new Map(stepDays.map(d => [d.date, d.steps]));
 
   if (!nutritionDays.length && !stepDays.length) return null;
 
@@ -90,6 +92,10 @@ export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache,
     const userDocRef = doc(db, 'users', userId);
     const userDoc    = await getDoc(userDocRef);
     const existing   = userDoc.data()?.weeklyNutrition || [];
+    const st = weekStepStats(userDoc.data()?.dailySteps, weekStart, k => cacheSteps.get(k), todayKey);
+    snapshot.daysLoggedSteps = st.days;
+    snapshot.avgSteps = st.avg;
+    snapshot.totalSteps = st.total;
 
     const updated = [
       ...existing.filter(w => w.weekStart !== weekStart),
@@ -124,14 +130,18 @@ export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache,
   }
 };
 
-export const getWeeklyCalorieStats = (weeklyNutrition, weeks = 4) => {
+export const getWeeklyCalorieStats = (weeklyNutrition, weeks = 4, dailySteps) => {
   if (!weeklyNutrition?.length) return [];
-  return weeklyNutrition.slice(-weeks).map(w => ({
-    weekStart:   w.weekStart,
-    daysLogged:  w.daysLoggedNutrition || 0,
-    avgCalories: w.avgCalories || 0,
-    avgSteps:    w.avgSteps || 0,
-  }));
+  return weeklyNutrition.slice(-weeks).map(w => {
+    const o = overlayWeekSteps(w, dailySteps);
+    return {
+      weekStart:       w.weekStart,
+      daysLogged:      w.daysLoggedNutrition || 0,
+      avgCalories:     w.avgCalories || 0,
+      avgSteps:        o.avgSteps || 0,
+      daysLoggedSteps: o.daysLoggedSteps || 0,
+    };
+  });
 };
 
 const blendMaintenance = (stored, measured) => {
@@ -175,7 +185,7 @@ export const evaluateWeeklyProgress = async (userId, userData, mealCache, curren
   if (!userData?.weightChangePlan || !userData?.targetCalories) return null;
   if (daysSince(userData.lastAdjustmentDate) < 6) return null;
 
-  const weeklyCalorieData = getWeeklyCalorieStats(userData.weeklyNutrition || [], 4);
+  const weeklyCalorieData = getWeeklyCalorieStats(userData.weeklyNutrition || [], 4, userData.dailySteps);
   if (!weeklyCalorieData.length) return null;
 
   const adjustment = calculatePlanAdjustment(userData, weeklyCalorieData);

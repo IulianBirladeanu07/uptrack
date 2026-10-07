@@ -113,9 +113,20 @@ describe('getWeeklyCalorieStats', () => {
       { daysLoggedNutrition: 7, avgCalories: 2300, avgSteps: 9000 },
     ];
     expect(getWeeklyCalorieStats(weeklyNutrition, 4)).toEqual([
-      { daysLogged: 6, avgCalories: 2200, avgSteps: 8000 },
-      { daysLogged: 7, avgCalories: 2300, avgSteps: 9000 },
+      { daysLogged: 6, avgCalories: 2200, avgSteps: 8000, daysLoggedSteps: 0 },
+      { daysLogged: 7, avgCalories: 2300, avgSteps: 9000, daysLoggedSteps: 0 },
     ]);
+  });
+
+  test('overlays complete step history from dailySteps over thin snapshots', () => {
+    const weeklyNutrition = [{ weekStart: '2026-08-03', daysLoggedNutrition: 7, avgCalories: 3091, avgSteps: 19724, daysLoggedSteps: 1 }];
+    const dailySteps = {
+      '2026-08-03': 5410, '2026-08-04': 20430, '2026-08-05': 10819, '2026-08-06': 18629,
+      '2026-08-07': 14027, '2026-08-08': 15126, '2026-08-09': 20409,
+    };
+    const [w] = getWeeklyCalorieStats(weeklyNutrition, 4, dailySteps);
+    expect(w.daysLoggedSteps).toBe(7);
+    expect(w.avgSteps).toBe(Math.round((5410 + 20430 + 10819 + 18629 + 14027 + 15126 + 20409) / 7));
   });
 
   test('only keeps the most recent N weeks', () => {

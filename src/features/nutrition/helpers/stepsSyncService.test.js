@@ -8,23 +8,13 @@ import { setDoc } from 'firebase/firestore';
 import { diffSteps, chunkRange, persistDailySteps } from './stepsSyncService';
 
 describe('diffSteps', () => {
-  test('returns only new or changed positive days', () => {
-    const out = diffSteps({ '2026-10-01': 8000, '2026-10-02': 9000 }, { '2026-10-01': 8000, '2026-10-02': 9500, '2026-10-03': 7000 });
+  test('only past days, new or larger', () => {
+    const out = diffSteps({ '2026-10-01': 8000, '2026-10-02': 9000 }, { '2026-10-01': 8000, '2026-10-02': 9500, '2026-10-03': 7000, '2026-10-04': 300 }, '2026-10-04');
     expect(out).toEqual({ '2026-10-02': 9500, '2026-10-03': 7000 });
   });
 
-  test('ignores zero, negative and non-numeric values', () => {
-    expect(diffSteps({}, { a: 0, b: -5, c: 'x', d: null })).toEqual({});
-  });
-
-  test('rounds fractional values and compares rounded', () => {
-    expect(diffSteps({ a: 100 }, { a: 100.4 })).toEqual({});
-    expect(diffSteps({ a: 100 }, { a: 100.6 })).toEqual({ a: 101 });
-  });
-
-  test('handles missing stored and incoming', () => {
-    expect(diffSteps(undefined, { a: 5 })).toEqual({ a: 5 });
-    expect(diffSteps({ a: 5 }, undefined)).toEqual({});
+  test('ignores junk values', () => {
+    expect(diffSteps({}, { '2026-10-01': 29, '2026-10-02': 0, '2026-10-03': 'x' }, '2026-10-04')).toEqual({});
   });
 });
 

@@ -14,6 +14,7 @@ import { getRollingWeekStats, checkAndCompleteLearning, calculateLearningStats, 
 import useDailyNutrition from '../helpers/useDailyNutrition';
 import MealCache from './cache/MealCache';
 import { formatDate } from '../utils/dateUtils';
+import { diffSteps, persistDailySteps } from '../helpers/stepsSyncService';
 
 const MEAL_CACHE_KEY_PREFIX = 'meal_cache_v2_';
 const MEAL_CACHE_TTL        = 30 * 60 * 1000;
@@ -157,6 +158,10 @@ export const FoodProvider = ({ children, initialUserData }) => {
     const stepsDisplayRef   = useRef(null);
     const stepsBonusCheckedRef = useRef(false);
     const currentUserRef    = useRef(null);
+    const pendingStepsRef   = useRef({});
+    const writtenStepsRef   = useRef({});
+    const flushingStepsRef  = useRef(false);
+    const userDataRef       = useRef(null);
 
     const { userData, refreshUserData } = useContext(AuthContext);
 
@@ -254,6 +259,37 @@ export const FoodProvider = ({ children, initialUserData }) => {
         mealCache.current.setSteps(key, steps);
         setStepsVersion(v => v + 1);
     }, []);
+
+    const flushSteps = useCallback(async () => {
+        const uid = currentUserRef.current?.uid;
+        const ud  = userDataRef.current;
+        if (!uid || !ud || flushingStepsRef.current) return;
+        const incoming = pendingStepsRef.current;
+        if (!Object.keys(incoming).length) return;
+        const stored  = { ...(ud.dailySteps || {}), ...writtenStepsRef.current };
+        const toWrite = diffSteps(stored, incoming, formatDate(new Date()));
+        pendingStepsRef.current = {};
+        if (!Object.keys(toWrite).length) return;
+        flushingStepsRef.current = true;
+        try {
+            await persistDailySteps(uid, toWrite);
+            writtenStepsRef.current = { ...writtenStepsRef.current, ...toWrite };
+        } catch (e) {
+            console.error('persistDailySteps error:', e);
+        } finally {
+            flushingStepsRef.current = false;
+        }
+    }, []);
+
+    const handleStepsHistory = useCallback((entries) => {
+        pendingStepsRef.current = { ...pendingStepsRef.current, ...entries };
+        flushSteps();
+    }, [flushSteps]);
+
+    useEffect(() => {
+        userDataRef.current = userData;
+        flushSteps();
+    }, [userData, currentUser, flushSteps]);
 
     const handleStepsError = useCallback((errorCode) => {
         if (!mountedRef.current) return;
@@ -527,6 +563,8 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 if (previousUser) clearPersistedMealCache(previousUser.uid);
                 initializationRef.current = false;
                 stepsBonusCheckedRef.current = false;
+                pendingStepsRef.current = {};
+                writtenStepsRef.current = {};
                 mealCache.current.clear();
                 setCategoryData({ recentMeals: [], frequentFoods: [], favoriteFoods: [] });
                 setUserProfile(null);
@@ -611,6 +649,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
             <GoogleFitStepDisplay
                 ref={stepsDisplayRef}
                 onStepsUpdate={updateDailySteps}
+                onStepsHistory={handleStepsHistory}
                 onStepsError={handleStepsError}
                 onStepsLoading={handleStepsLoading}
                 onConnectedChange={handleStepsConnectedChange}

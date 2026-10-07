@@ -1,5 +1,6 @@
 import { calculateRealTDEE, KCAL_PER_KG } from '../../profile/utils/nutritionPlanEngine';
 import { getPhaseLabel, isGoalReached } from '../../profile/utils/weightTrendEngine';
+import { overlayWeekSteps } from '../../nutrition/helpers/stepStats';
 
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 export const MAX_WEEKS = 26;
@@ -101,7 +102,7 @@ export const normMuscle = raw => {
 export const dirOf = type => (type === 'muscle_gain' ? 1 : type === 'weight_loss' ? -1 : 0);
 
 export const buildWeeks = (src, now = new Date()) => {
-  const { weightIns = [], weeklyNutrition = [], workouts = [], getNutrition, getSteps, calc1RM } = src;
+  const { weightIns = [], weeklyNutrition = [], dailySteps, workouts = [], getNutrition, getSteps, calc1RM } = src;
   const wMap = new Map();
   const nMap = new Map();
   const byWeek = new Map();
@@ -141,7 +142,7 @@ export const buildWeeks = (src, now = new Date()) => {
     let protein = null;
     let steps = null;
     let nd = 0;
-    const snap = nMap.get(key);
+    const snap = overlayWeekSteps(nMap.get(key), dailySteps);
     if (snap && !isCurrent) {
       nd = snap.daysLoggedNutrition || 0;
       kcal = snap.avgCalories || null;
@@ -363,10 +364,17 @@ const maintSeries = weeks =>
     return calculateRealTDEE(mean(win.map(w => w.kcal)), mean(win.map(w => w.dw)));
   });
 
+export const balanceNote = (balance, weeks) => {
+  const side = Math.abs(balance) < 50 ? 'around' : balance < 0 ? 'below' : 'above';
+  return `${side} maintenance \u00b7 ${weeks}-week avg`;
+};
+
 export const energyModel = (weeks, n, info) => {
   const series = maintSeries(weeks);
   const from = Math.max(0, weeks.length - n);
-  const lead = weeks.slice(from).findIndex(w => w.kcal != null);
+  const seg = weeks.slice(from);
+  const ok = i => seg[i].kcal != null && series[from + i] != null;
+  const lead = seg.findIndex((_, i) => i < seg.length - 1 && ok(i) && ok(i + 1));
   if (lead < 0) return null;
 
   const start = from + lead;
@@ -400,7 +408,7 @@ export const energyModel = (weeks, n, info) => {
     eatNow,
     maintNow,
     balance,
-    pillRate: (Math.abs(balance) * 7) / KCAL_PER_KG,
+    balNote: balanceNote(balance, win.length),
     realRate,
     atTarget,
     gapToTarget: target != null ? target - eatNow : null,
@@ -579,7 +587,7 @@ export const setsModel = (weeks, n) => {
   const prev4 = done.slice(-8, -4);
   const rows = order.map(name => {
     const avg = mean(last4.map(w => w.sets[name] || 0));
-    return { name, avg, shown: Math.round(avg) };
+    return { name, cells: slots.map(w => w.sets[name] || 0), avg, shown: Math.round(avg) };
   });
   const total = sum(rows.map(r => r.avg));
   const prevTotal = prev4.length ? sum(order.map(name => mean(prev4.map(w => w.sets[name] || 0)))) : null;
@@ -587,7 +595,7 @@ export const setsModel = (weeks, n) => {
   const low = rows.filter(r => r.shown < SETS_LOW).map(r => r.name);
   const high = rows.filter(r => r.shown > SETS_HIGH).map(r => r.name);
 
-  return { rows, total, delta, low, high };
+  return { rows, total, delta, low, high, first: slots[0].monday };
 };
 
 const joinNames = a => (a.length === 1 ? a[0] : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);

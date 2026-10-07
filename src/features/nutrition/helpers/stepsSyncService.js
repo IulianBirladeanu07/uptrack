@@ -1,18 +1,10 @@
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
+import { diffPastSteps } from './stepStats';
 
 export const STEPS_BACKFILL_FROM = '2026-01-01';
-export const TODAY_WRITE_INTERVAL_MS = 10 * 60 * 1000;
 
-export const diffSteps = (stored, incoming) => {
-  const out = {};
-  const s = stored || {};
-  Object.entries(incoming || {}).forEach(([k, v]) => {
-    const n = Math.round(Number(v));
-    if (n > 0 && s[k] !== n) out[k] = n;
-  });
-  return out;
-};
+export const diffSteps = diffPastSteps;
 
 export const chunkRange = (start, end, days = 30) => {
   const out = [];

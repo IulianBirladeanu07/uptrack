@@ -9,6 +9,7 @@ import {
   paceModel,
   paceTip,
   energyModel,
+  balanceNote,
   energyTip,
   liftStats,
   strengthModel,
@@ -328,6 +329,15 @@ describe('phaseInfo and ranges', () => {
   });
 });
 
+describe('balanceNote', () => {
+  test('picks the side from the sign and calls small gaps around', () => {
+    expect(balanceNote(-737, 4)).toBe('below maintenance \u00b7 4-week avg');
+    expect(balanceNote(310, 3)).toBe('above maintenance \u00b7 3-week avg');
+    expect(balanceNote(-20, 4)).toBe('around maintenance \u00b7 4-week avg');
+    expect(balanceNote(49, 4)).toBe('around maintenance \u00b7 4-week avg');
+  });
+});
+
 describe('energyModel', () => {
   const { weeks } = buildWeeks(buildSrc(), NOW);
   const rated = withRates(weeks, -1);
@@ -361,6 +371,20 @@ describe('energyModel', () => {
   test('the chart line ends on the maintenance shown in the stats', () => {
     const m = energyModel(rated, 12, info);
     expect(m.maint[m.maint.length - 1]).toBe(m.maintNow);
+  });
+
+  test('describes the balance in plain words with the averaging window', () => {
+    const m = energyModel(rated, 12, info);
+    expect(m.balNote).toBe(`below maintenance \u00b7 ${m.statsWeeks}-week avg`);
+  });
+
+  test('chart starts at the first week that can draw a line', () => {
+    const gapped = rated.map((w, i) => (i > rated.length - 13 && i < rated.length - 9 ? { ...w, kcal: null } : w));
+    const m = energyModel(gapped, 12, info);
+    expect(m.eat[0]).not.toBeNull();
+    expect(m.maint[0]).not.toBeNull();
+    expect(m.eat[1]).not.toBeNull();
+    expect(m.maint[1]).not.toBeNull();
   });
 
   test('says behind-plan when real rate is far below plan', () => {
@@ -422,6 +446,24 @@ describe('strength', () => {
     expect(s.up).toBeGreaterThanOrEqual(1);
     expect(s.stalled.map(x => x.name)).toContain('Ring Pull-ups');
     expect(s.stalled[0].weeks).toBeGreaterThanOrEqual(6);
+  });
+});
+
+describe('buildWeeks step overlay', () => {
+  test('replaces a thin snapshot step average with the dailySteps history', () => {
+    const src = buildSrc();
+    const key = weekKey(10);
+    src.weeklyNutrition.find(w => w.weekStart === key).avgSteps = 19724;
+    src.weeklyNutrition.find(w => w.weekStart === key).daysLoggedSteps = 1;
+    const dailySteps = {};
+    for (let i = 0; i < 7; i++) dailySteps[toKey(addDays(addDays(CUR, -10 * 7), i))] = 10000 + i * 1000;
+    const { weeks } = buildWeeks({ ...src, dailySteps }, NOW);
+    expect(weeks.find(w => toKey(w.monday) === key).steps).toBe(13000);
+  });
+
+  test('leaves snapshots alone without dailySteps', () => {
+    const { weeks } = buildWeeks(buildSrc(), NOW);
+    expect(weeks[10].steps).toBe(14000);
   });
 });
 

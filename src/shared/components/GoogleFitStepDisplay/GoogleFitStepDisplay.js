@@ -16,6 +16,9 @@ const PREFERRED_SOURCES = [
     'derived:com.google.step_count.delta',
 ];
 
+const STEPS_LOOKBACK_DAYS = 30;
+const ROLLOVER_LOOKBACK_DAYS = 3;
+
 const formatDate = (date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
@@ -59,9 +62,10 @@ const mergeStepsAcrossSources = (result) => {
     return byDate;
 };
 
-const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsError, onStepsLoading, onConnectedChange }, ref) => {
+const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStepsError, onStepsLoading, onConnectedChange }, ref) => {
     const [initialized, setInitialized] = useState(false);
     const initializingRef = useRef(false);
+    const lastDayKeyRef = useRef(null);
 
     const initializeHealthKit = () => {
         return new Promise((resolve, reject) => {
@@ -129,21 +133,25 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsError, onStepsL
         }
     };
 
-    const fetchLast7DaysSteps = async () => {
+    const fetchRecentSteps = async (days) => {
         const now = new Date();
         const startDate = new Date();
-        startDate.setDate(now.getDate() - 7);
+        startDate.setDate(now.getDate() - days);
         startDate.setHours(0, 0, 0, 0);
+        const entries = {};
 
         if (Platform.OS === 'ios') {
             return new Promise((resolve) => {
                 AppleHealthKit.getDailyStepCountSamples(
                     { startDate: startDate.toISOString(), endDate: now.toISOString() },
                     (err, results) => {
-                        if (!err && results && onStepsUpdate) {
+                        if (!err && results) {
                             results.forEach(day => {
-                                onStepsUpdate(day.value || 0, formatDate(new Date(day.startDate)));
+                                const key = formatDate(new Date(day.startDate));
+                                entries[key] = Math.max(entries[key] || 0, day.value || 0);
                             });
+                            Object.entries(entries).forEach(([key, value]) => onStepsUpdate?.(value, key));
+                            onStepsHistory?.(entries);
                         }
                         resolve();
                     }
@@ -156,20 +164,25 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsError, onStepsL
                 startDate: getLocalISOString(startDate),
                 endDate: getLocalISOString(now),
             });
-            if (onStepsUpdate) {
-                const byDate = mergeStepsAcrossSources(stepsData);
-                byDate.forEach((totalSteps, dateKey) => onStepsUpdate(totalSteps, dateKey));
-            }
+            mergeStepsAcrossSources(stepsData).forEach((totalSteps, dateKey) => {
+                entries[dateKey] = totalSteps;
+                onStepsUpdate?.(totalSteps, dateKey);
+            });
+            onStepsHistory?.(entries);
         } catch (err) {
-            console.log('[Steps] fetchLast7Days error:', err);
+            console.log('[Steps] fetchRecent error:', err);
             onStepsError?.('steps_unavailable');
         }
     };
 
     const updateTodaySteps = async () => {
+        const todayKey = formatDate(new Date());
+        if (lastDayKeyRef.current && lastDayKeyRef.current !== todayKey) {
+            lastDayKeyRef.current = todayKey;
+            await fetchRecentSteps(ROLLOVER_LOOKBACK_DAYS);
+        }
         const steps = await fetchTodaySteps();
         if (steps === null) return;
-        const todayKey = formatDate(new Date());
         if (onStepsUpdate) onStepsUpdate(steps, todayKey);
     };
 
@@ -200,7 +213,8 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsError, onStepsL
             }
 
             await new Promise(resolve => setTimeout(resolve, 500));
-            await fetchLast7DaysSteps();
+            await fetchRecentSteps(STEPS_LOOKBACK_DAYS);
+            lastDayKeyRef.current = formatDate(new Date());
             await updateTodaySteps();
             setInitialized(true);
             onConnectedChange?.(true);

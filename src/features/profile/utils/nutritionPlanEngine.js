@@ -8,6 +8,7 @@ import {
   getWindowRateKgPerWeek,
   shiftWeekStart,
 } from './weightTrendEngine';
+import { MIN_STEP_DAYS } from '../../nutrition/helpers/stepStats';
 
 export const KCAL_PER_KG = 7700;
 const WEEKS_PER_MONTH = 4.34524;
@@ -268,7 +269,7 @@ export const estimateMaintenance = (userData, weeklyCalorieData, fallbackRateKgP
   }
   if (run.length < MIN_WEEKS_OF_DATA) return null;
 
-  if (run.length > MIN_WEEKS_OF_DATA && run.every(w => w.avgSteps > 0)) {
+  if (run.length > MIN_WEEKS_OF_DATA && run.every(w => w.avgSteps > 0 && (w.daysLoggedSteps == null || w.daysLoggedSteps >= MIN_STEP_DAYS))) {
     const meanSteps = run.reduce((s, w) => s + w.avgSteps, 0) / run.length;
     const latestSteps = run[run.length - 1].avgSteps;
     if (Math.abs(latestSteps - meanSteps) / meanSteps > MAINTENANCE_STEPS_SHIFT_FRACTION) {
