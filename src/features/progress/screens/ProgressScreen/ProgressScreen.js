@@ -212,26 +212,20 @@ const PaceCard = ({ m, info, n }) => {
                 )}
             </View>
             <Hero value={fmt1(picked ? picked.v : m.rate)} unit="kg/wk">
-                {picked ? <Delta tone="flat" text={pickedText} /> : pill ? <Delta {...pill} /> : <Delta tone="flat" text={`${m.count}-week avg`} />}
+                {picked ? <Delta tone="flat" text={pickedText} /> : pill ? <Delta {...pill} /> : <Delta tone="flat" text={m.status === 'reached' ? `${m.count}-week avg · 4W ${fmt1(m.rate4)}` : `${m.count}-week avg`} />}
             </Hero>
             <ChartBox>
                 {w => <PaceChart slots={m.slots} plan={m.plan} width={w} sel={sel} onSelect={setSel} />}
             </ChartBox>
-            <Stats
-                items={
-                    m.status === 'reached'
-                        ? [
-                            { value: fmt1(m.rate4), unit: 'kg/wk', label: '4W rate' },
-                            { value: fmt1(m.lastRate), unit: 'kg/wk', label: 'Last week' },
-                            { value: fmt1(m.best), unit: 'kg/wk', label: 'Best week' },
-                        ]
-                        : [
-                            { value: fmt1(m.rate4), unit: 'kg/wk', label: '4W rate' },
-                            { value: fmt1(m.total), unit: 'kg', label: info.dir < 0 ? 'Lost' : info.dir > 0 ? 'Gained' : 'Moved' },
-                            { value: eta, label: 'Goal ETA' },
-                        ]
-                }
-            />
+            {m.status !== 'reached' && (
+                <Stats
+                    items={[
+                        { value: fmt1(m.rate4), unit: 'kg/wk', label: '4W rate' },
+                        { value: fmt1(m.total), unit: 'kg', label: info.dir < 0 ? 'Lost' : info.dir > 0 ? 'Gained' : 'Moved' },
+                        { value: eta, label: 'Goal ETA' },
+                    ]}
+                />
+            )}
             <Tip text={paceTip(m, info)} />
         </View>
     );

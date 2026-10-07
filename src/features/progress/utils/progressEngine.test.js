@@ -277,14 +277,21 @@ describe('paceModel', () => {
     expect(paceModel(rated.slice(0, 2), 12, info, NOW)).toBeNull();
   });
 
-  test('slots carry a trailing 4-week average and the model exposes the best week', () => {
+  test('slots carry a trailing 4-week average', () => {
     const m = paceModel(rated, 12, info, NOW);
     const withAvg = m.slots.filter(s => s.avg != null);
     expect(withAvg.length).toBeGreaterThanOrEqual(m.slots.length - 3);
     const last = m.slots[m.slots.length - 1];
     const tail = rated.filter(w => w.rate != null).slice(-4).map(w => w.rate);
     expect(last.avg).toBeCloseTo(tail.reduce((a, b) => a + b, 0) / 4, 8);
-    expect(m.best).toBe(Math.max(...m.slots.map(s => s.v).filter(v => v != null)));
+  });
+
+  test('the trailing average starts inside the visible window and never blends earlier weeks', () => {
+    const m = paceModel(rated, 8, info, NOW);
+    const vals = m.slots.filter(s => s.v != null);
+    expect(vals[0].avg).toBeNull();
+    expect(vals[1].avg).toBeNull();
+    expect(vals[2].avg).toBeCloseTo((vals[0].v + vals[1].v + vals[2].v) / 3, 8);
   });
 
   test('a reached goal drops the plan comparison and the tip', () => {

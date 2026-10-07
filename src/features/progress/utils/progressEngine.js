@@ -347,7 +347,6 @@ export const paceModel = (weeks, n, info, now = new Date()) => {
 
   return {
     slots: slots.map(w => ({ v: w.rate, monday: w.monday, gap: w.gap, avg: roll.get(w.i) ?? null })),
-    best: Math.max(...win.map(w => w.rate)),
     plan,
     diff,
     rate,
