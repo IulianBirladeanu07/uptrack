@@ -31,8 +31,7 @@ describe('estimateMaintenanceRegression', () => {
     const r = estimateMaintenanceRegression(weightsFor(10), weeksFrom(10), NOW);
     expect(Math.abs(r.maintenance - TRUE_MAINT)).toBeLessThan(120);
     expect(r.windowed).toBe(true);
-    expect(r.weeksUsed).toBeGreaterThanOrEqual(REGRESSION_MIN_WEEKS);
-    expect(r.weeksUsed).toBeLessThanOrEqual(REGRESSION_MAX_WEEKS);
+    expect(r.weeksUsed).toBe(REGRESSION_MAX_WEEKS);
     expect(r.rateKgPerWeek).toBeCloseTo(DAILY_RATE * 7, 1);
   });
 
@@ -42,15 +41,10 @@ describe('estimateMaintenanceRegression', () => {
     expect(r.margin).toBeGreaterThan(r.se);
   });
 
-  test('stops growing the window once the error is small enough', () => {
-    const clean = estimateMaintenanceRegression(weightsFor(10, [0]), weeksFrom(10), NOW);
-    expect(clean.weeksUsed).toBe(REGRESSION_MIN_WEEKS);
-  });
-
-  test('grows the window when daily noise is large', () => {
+  test('always uses exactly the newest four weeks', () => {
     const noisy = [1.2, -0.9, 0.6, -1.1, 0.8, 1.0, -0.6, -0.9, 1.1, -0.7];
-    const r = estimateMaintenanceRegression(weightsFor(10, noisy), weeksFrom(10), NOW);
-    expect(r.weeksUsed).toBeGreaterThan(REGRESSION_MIN_WEEKS);
+    expect(estimateMaintenanceRegression(weightsFor(10, [0]), weeksFrom(10), NOW).weeksUsed).toBe(REGRESSION_MIN_WEEKS);
+    expect(estimateMaintenanceRegression(weightsFor(10, noisy), weeksFrom(10), NOW).weeksUsed).toBe(REGRESSION_MAX_WEEKS);
   });
 
   test('ignores the week that is still in progress', () => {
@@ -76,16 +70,14 @@ describe('estimateMaintenanceRegression', () => {
     expect(estimateMaintenanceRegression(weightsFor(10), weeks, NOW)).toBeNull();
   });
 
-  test('cuts off older weeks whose steps differ sharply from the recent level', () => {
-    const noisy = [1.2, -0.9, 0.6, -1.1, 0.8, 1.0, -0.6, -0.9, 1.1, -0.7];
-    const stable = estimateMaintenanceRegression(weightsFor(10, noisy), weeksFrom(10), NOW);
-    const shifted = estimateMaintenanceRegression(
-      weightsFor(10, noisy),
+  test('ignores the steps of weeks older than the window', () => {
+    const r = estimateMaintenanceRegression(
+      weightsFor(10),
       weeksFrom(10, i => (i < 5 ? { avgSteps: 20000 } : {})),
       NOW,
     );
-    expect(stable.weeksUsed).toBeGreaterThan(5);
-    expect(shifted.weeksUsed).toBeLessThanOrEqual(5);
+    expect(r).not.toBeNull();
+    expect(r.weeksUsed).toBe(REGRESSION_MIN_WEEKS);
   });
 
   test('returns null when steps moved sharply inside the newest four weeks', () => {

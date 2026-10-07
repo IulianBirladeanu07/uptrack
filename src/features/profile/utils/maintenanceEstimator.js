@@ -3,8 +3,7 @@ import { MIN_STEP_DAYS } from '../../nutrition/helpers/stepStats';
 
 export const KCAL_PER_KG = 7700;
 export const REGRESSION_MIN_WEEKS = 4;
-export const REGRESSION_MAX_WEEKS = 8;
-export const REGRESSION_TARGET_SE = 75;
+export const REGRESSION_MAX_WEEKS = 4;
 export const REGRESSION_MIN_LOGGED_DAYS = 4;
 export const REGRESSION_STEPS_SHIFT = 0.25;
 
@@ -42,18 +41,12 @@ const contiguousRun = (weeks, now) => {
 
 const stableRun = run => {
   if (run.length < REGRESSION_MIN_WEEKS) return null;
-  const core = run.slice(-REGRESSION_MIN_WEEKS).map(stepsOf).filter(v => v != null);
-  if (!core.length) return run;
-  const ref = mean(core);
+  const steps = run.map(stepsOf).filter(v => v != null);
+  if (!steps.length) return run;
+  const ref = mean(steps);
   const latest = stepsOf(run[run.length - 1]);
   if (latest != null && Math.abs(latest - ref) / ref > REGRESSION_STEPS_SHIFT) return null;
-  let from = run.length - REGRESSION_MIN_WEEKS;
-  while (from > 0) {
-    const s = stepsOf(run[from - 1]);
-    if (s != null && Math.abs(s - ref) / ref > REGRESSION_STEPS_SHIFT) break;
-    from--;
-  }
-  return run.slice(from);
+  return run;
 };
 
 const fitLine = pts => {
@@ -103,14 +96,7 @@ export const estimateMaintenanceRegression = (weightIns, weeks, now = new Date()
   const run = stableRun(contiguousRun(weeks, now));
   if (!run) return null;
 
-  let best = null;
-  for (let n = REGRESSION_MIN_WEEKS; n <= run.length; n++) {
-    const r = fitWindow(entries, run, n);
-    if (!r) continue;
-    if (r.se <= REGRESSION_TARGET_SE) return r;
-    if (!best || r.se < best.se) best = r;
-  }
-  return best;
+  return fitWindow(entries, run, run.length);
 };
 
 export const maintenanceSeries = (weightIns, weeks, now = new Date()) =>

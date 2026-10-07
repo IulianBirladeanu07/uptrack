@@ -15,6 +15,7 @@ import {
   strengthModel,
   setsModel,
   setsTip,
+  strengthTip,
   monthsModel,
   normMuscle,
   dirOf,
@@ -290,8 +291,8 @@ describe('phaseInfo and ranges', () => {
     const info = phaseInfo({ ...userData, goalSwitchDate: gs }, rated, NOW);
     expect(info.phaseWeeks).toBe(19);
     const opts = rangeOptions(info);
-    expect(opts.map(o => o.key)).toEqual(['8W', '12W', 'PHASE']);
-    expect(opts[2].n).toBe(19);
+    expect(opts.map(o => o.key)).toEqual(['PHASE', '8W', '12W']);
+    expect(opts[0].n).toBe(19);
   });
 
   test('reached only once the weekly average is at or past the target', () => {
@@ -317,15 +318,15 @@ describe('phaseInfo and ranges', () => {
     expect(phaseInfo(userData, rated, NOW).phaseStart).toBeNull();
   });
 
-  test('hides the phase range when it is short', () => {
-    const gs = addDays(NOW, -5 * 7).toISOString();
-    const info = phaseInfo({ ...userData, goalSwitchDate: gs }, rated, NOW);
-    expect(rangeOptions(info).map(o => o.key)).toEqual(['8W', '12W']);
+  test('adds the phase range from four weeks and hides it before that', () => {
+    const at = w => phaseInfo({ ...userData, goalSwitchDate: addDays(NOW, -w * 7).toISOString() }, rated, NOW);
+    expect(rangeOptions(at(5)).map(o => o.key)).toEqual(['PHASE', '8W', '12W']);
+    expect(rangeOptions(at(2)).map(o => o.key)).toEqual(['8W', '12W']);
   });
 
   test('caps phase range at 26 weeks', () => {
     const info = { phaseWeeks: 60, tab: 'Cut' };
-    expect(rangeOptions(info)[2].n).toBe(26);
+    expect(rangeOptions(info)[0].n).toBe(26);
   });
 });
 
@@ -351,15 +352,14 @@ describe('energyModel', () => {
     expect(m.balance).toBeLessThan(0);
     expect(m.gapToTarget).toBeGreaterThan(300);
     expect(m.atTarget).toBeLessThan(0.3);
-    expect(energyTip(m, info)).toMatch(/under the 3,416 target/);
+    expect(energyTip(m, info)).toBe('');
     expect(m.maint.filter(v => v != null).length).toBeGreaterThan(8);
   });
 
-  test('flags a target gap even when the at-target rate matches the plan', () => {
-    const i2 = { ...info, planRate: 0.2 };
-    const m = energyModel(rated, 12, i2);
-    expect(Math.abs(m.atTarget - 0.2)).toBeLessThan(0.06);
-    expect(energyTip(m, i2)).toMatch(/under the 3,416 target. At target you would lose about 0.2 kg\/wk/);
+  test('flags an under-target gap on a bulk even when the at-target rate matches the plan', () => {
+    const m = energyModel(rated, 12, info);
+    const bulk = { ...info, dir: 1, planRate: 0.2 };
+    expect(energyTip(m, bulk)).toMatch(/under the 3,416 target/);
   });
 
   test('reports eating over target', () => {
@@ -411,9 +411,9 @@ describe('energyModel', () => {
     expect(energyTip(m, { ...info, planRate: 1.2 })).toMatch(/plan pace needs about/);
   });
 
-  test('agreement message when target matches intake', () => {
+  test('stays silent when target matches intake', () => {
     const m = energyModel(rated, 12, { ...info, target: 3012 });
-    expect(energyTip(m, { ...info, target: 3012 })).toMatch(/agree/);
+    expect(energyTip(m, { ...info, target: 3012 })).toBe('');
   });
 
   test('drops leading weeks that have no nutrition data', () => {
@@ -647,5 +647,22 @@ describe('phaseRecap', () => {
     expect(e.avgKcal).toBe(Math.round(r.avgKcal));
     expect(JSON.parse(JSON.stringify(e))).toEqual(e);
     expect(Object.values(e).every(v => v !== undefined)).toBe(true);
+  });
+});
+
+describe('progress copy rules', () => {
+  test('a cut with strength down less than weight reads as stronger per kg', () => {
+    const tip = strengthTip({ sNow: -3.7, wNow: -8.6 }, { dir: -1 });
+    expect(tip).toMatch(/5% stronger/);
+    expect(tip).not.toMatch(/slipping/);
+  });
+
+  test('a cut with strength down more than weight still warns', () => {
+    expect(strengthTip({ sNow: -9, wNow: -3 }, { dir: -1 })).toMatch(/slipping/);
+  });
+
+  test('collapses a long list of low muscles into a count', () => {
+    const low = ['Biceps', 'Triceps', 'Hamstring', 'Glutes', 'Calves', 'Core'];
+    expect(setsTip({ low, high: [] })).toBe('6 muscles sit under 10 hard sets a week.');
   });
 });

@@ -20,41 +20,43 @@ const styles = createStyles(() => ({
         letterSpacing: -0.5,
     },
 
-    seg: {
-        flexDirection: 'row',
-        marginTop: spacing[3],
-        marginBottom: spacing[3],
-        padding: 3,
-        borderRadius: radius[3],
-        borderWidth: 1,
-        borderColor: colors.border.default,
-        backgroundColor: colors.background.secondary,
-    },
-    segItem: {
-        flex: 1,
+    controlRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
+        marginTop: spacing[3],
+        marginBottom: spacing[3],
+    },
+    pills: {
+        flexDirection: 'row',
         gap: spacing[2],
-        minHeight: spacing[8],
-        borderRadius: radius[2],
     },
-    segItemOn: {
-        backgroundColor: colors.faded.surface,
+    pill: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: spacing[8],
+        paddingHorizontal: spacing[3],
+        borderRadius: radius[8],
+        borderWidth: 1,
+        borderColor: colors.border.default,
     },
-    segText: {
+    pillOn: {
+        backgroundColor: colors.faded.primary,
+        borderColor: colors.faded.primary,
+    },
+    pillText: {
         fontSize: fontSize[14],
         fontWeight: fontWeight.medium,
         color: colors.text.tertiary,
     },
-    segTextOn: {
+    pillTextOn: {
         fontWeight: fontWeight.semibold,
-        color: colors.text.primary,
+        color: colors.accent.primary,
     },
 
     rangeRow: {
         flexDirection: 'row',
-        gap: spacing[5],
+        gap: spacing[4],
     },
     rangeTab: {
         paddingTop: spacing[2] + 2,

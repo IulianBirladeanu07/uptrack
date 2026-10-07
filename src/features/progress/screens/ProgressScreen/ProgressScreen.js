@@ -44,8 +44,8 @@ import {
 import styles from './ProgressScreenStyles';
 
 const TABS = [
-    { key: 'nutrition', label: 'Nutrition', icon: 'restaurant' },
-    { key: 'training', label: 'Training', icon: 'barbell' },
+    { key: 'nutrition', label: 'Nutrition' },
+    { key: 'training', label: 'Training' },
 ];
 
 const TONES = {
@@ -141,7 +141,6 @@ const RecapCard = ({ r, busy, onSwitch, onSettings }) => {
         <View style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.cap}>Phase recap</Text>
-                <Text style={styles.capRight}>{`${r.tab} · ${r.weeks} weeks`}</Text>
             </View>
             <Hero value={sg(r.change, 1)} unit="kg">
                 <Delta tone="good" icon="checkmark" text="goal reached" />
@@ -153,7 +152,7 @@ const RecapCard = ({ r, busy, onSwitch, onSettings }) => {
                     third,
                 ]}
             />
-            <Tip text={recapTip(r)} />
+            {r.maintenance == null && <Tip text={recapTip(r)} />}
             {r.maintenance != null && (
                 <TouchableOpacity
                     style={[styles.cta, busy && styles.ctaBusy]}
@@ -206,9 +205,9 @@ const PaceCard = ({ m, info, n }) => {
         <View style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.cap}>{title}</Text>
-                <Text style={styles.capRight}>
-                    {`${n} weeks${info.remaining != null && !info.reached ? ` · ${info.remaining.toFixed(1)} kg to go` : ''}`}
-                </Text>
+                {info.remaining != null && !info.reached && (
+                    <Text style={styles.capRight}>{`${info.remaining.toFixed(1)} kg to go`}</Text>
+                )}
             </View>
             <Hero value={fmt1(picked ? picked.v : m.rate)} unit="kg/wk">
                 {picked ? <Delta tone="flat" text={pickedText} /> : <Delta {...pill} />}
@@ -234,7 +233,7 @@ const EnergyCard = ({ m, info, n }) => {
         setSel(null);
     }, [n]);
 
-    if (!m) return <EmptyCard cap="Energy balance" text="Needs about three weeks of weight and food logs to estimate your real maintenance." />;
+    if (!m) return <EmptyCard cap="Energy balance" text="Needs about four weeks of weight and food logs to estimate your real maintenance." />;
 
     const f = info.dir === 0 ? 1 : info.dir;
     const bars = m.bal.map(v => (v == null ? null : v * f));
@@ -248,7 +247,6 @@ const EnergyCard = ({ m, info, n }) => {
         <View style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.cap}>Energy balance</Text>
-                <Text style={styles.capRight}>{`${m.slots.length} weeks`}</Text>
             </View>
             <Hero value={heroText} unit={unit} />
             <Text style={styles.heroNote}>{picked != null ? `week of ${shortDate(m.slots[picked].monday)}` : m.balNote}</Text>
@@ -431,7 +429,7 @@ const MonthRow = ({ m, kind, info, open, onToggle, last }) => {
             <TouchableOpacity style={styles.monthHead} activeOpacity={0.7} onPress={onToggle}>
                 <View style={styles.monthLeft}>
                     <Text style={styles.monthName}>{m.name}</Text>
-                    <Text style={styles.monthMeta}>{m.count} weeks{m.partial ? ' · to date' : ''}</Text>
+                    <Text style={styles.monthMeta}>{m.count === 1 && m.partial ? 'this week' : `${m.count} ${m.count === 1 ? 'week' : 'weeks'}${m.partial ? ' · to date' : ''}`}</Text>
                 </View>
                 {right}
                 <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={spacing.iconMd} color={colors.text.quaternary} />
@@ -481,7 +479,7 @@ const ProgressScreen = () => {
     const { workoutHistory } = useContext(WorkoutContext);
     const { getNutritionForDateRange, getStepsForDateRange, rollingWeekStats } = useFoodContext();
     const [tab, setTab] = useState('nutrition');
-    const [rangeKey, setRangeKey] = useState('12W');
+    const [rangeKey, setRangeKey] = useState(null);
     const [planned, setPlanned] = useState(null);
     const [open, setOpen] = useState({});
     const [all, setAll] = useState({ n: false, t: false });
@@ -524,7 +522,7 @@ const ProgressScreen = () => {
     const weeks = useMemo(() => withRates(built.weeks, dir), [built, dir]);
     const info = useMemo(() => phaseInfo(userData, weeks), [userData, weeks]);
     const ranges = useMemo(() => rangeOptions(info), [info]);
-    const range = ranges.find(r => r.key === rangeKey) ?? ranges[1];
+    const range = ranges.find(r => r.key === rangeKey) ?? ranges.find(r => r.key === 'PHASE') ?? ranges.find(r => r.key === '12W');
     const n = range.n;
 
     const pace = useMemo(() => paceModel(weeks, n, info), [weeks, n, info]);
@@ -589,6 +587,25 @@ const ProgressScreen = () => {
             >
                 <View style={styles.titleRow}>
                     <Text style={styles.status} numberOfLines={1}>{status}</Text>
+                </View>
+
+                <View style={styles.controlRow}>
+                    <View style={styles.pills}>
+                        {TABS.map(t => {
+                            const on = tab === t.key;
+                            return (
+                                <TouchableOpacity
+                                    key={t.key}
+                                    style={[styles.pill, on && styles.pillOn]}
+                                    onPress={() => setTab(t.key)}
+                                    activeOpacity={0.8}
+                                    hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
+                                >
+                                    <Text style={[styles.pillText, on && styles.pillTextOn]}>{t.label}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
                     {weeks.length >= 2 && (
                         <View style={styles.rangeRow}>
                             {ranges.map(r => (
@@ -606,28 +623,6 @@ const ProgressScreen = () => {
                             ))}
                         </View>
                     )}
-                </View>
-
-                <View style={styles.seg}>
-                    {TABS.map(t => {
-                        const on = tab === t.key;
-                        return (
-                            <TouchableOpacity
-                                key={t.key}
-                                style={[styles.segItem, on && styles.segItemOn]}
-                                onPress={() => setTab(t.key)}
-                                activeOpacity={0.8}
-                                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-                            >
-                                <Ionicons
-                                    name={t.icon}
-                                    size={spacing.iconSm}
-                                    color={on ? colors.accent.primary : colors.text.tertiary}
-                                />
-                                <Text style={[styles.segText, on && styles.segTextOn]}>{t.label}</Text>
-                            </TouchableOpacity>
-                        );
-                    })}
                 </View>
 
                 {weeks.length < 2 ? (

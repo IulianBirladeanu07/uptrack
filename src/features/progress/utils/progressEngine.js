@@ -284,7 +284,7 @@ export const rangeOptions = info => {
     { key: '8W', label: '8W', n: 8 },
     { key: '12W', label: '12W', n: 12 },
   ];
-  if (info.phaseWeeks > 12) out.push({ key: 'PHASE', label: info.tab, n: Math.min(info.phaseWeeks, MAX_WEEKS) });
+  if (info.phaseWeeks >= RECAP_MIN_WEEKS) out.unshift({ key: 'PHASE', label: info.tab, n: Math.min(info.phaseWeeks, MAX_WEEKS) });
   return out;
 };
 
@@ -431,11 +431,12 @@ export const energyTip = (m, info) => {
     const need = info.dir < 0 ? m.maintNow - (plan * KCAL_PER_KG) / 7 : m.maintNow + (plan * KCAL_PER_KG) / 7;
     return `You ${verb} ${fmt1(m.realRate)} kg/wk against a ${fmt1(plan)} plan. Your real maintenance looks like ${kfmt(m.maintNow)} kcal, so plan pace needs about ${kfmt(need)}.`;
   }
-  if (m.target != null && m.atTarget != null && Math.abs(m.gapToTarget) > m.target * 0.05) {
+  const adverse = info.dir < 0 ? m.gapToTarget < 0 : info.dir > 0 ? m.gapToTarget > 0 : true;
+  if (adverse && m.target != null && m.atTarget != null && Math.abs(m.gapToTarget) > m.target * 0.05) {
     const side = m.gapToTarget > 0 ? 'under' : 'over';
     return `You eat ~${kfmt(Math.abs(m.gapToTarget))} kcal ${side} the ${kfmt(m.target)} target. At target you would ${verb} about ${fmt1(m.atTarget)} kg/wk, at ${kfmt(m.eatNow)} you ${verb} ${fmt1(m.realRate)}.`;
   }
-  return `Intake and weigh-ins agree. Your real maintenance is about ${kfmt(m.maintNow)} kcal.`;
+  return '';
 };
 
 export const liftStats = (weeks, lifts) => {
@@ -516,6 +517,10 @@ export const strengthTip = (m, info) => {
   if (info.dir < 0) {
     if (m.sNow >= 1) return `${wTxt}A good sign the cut is taking fat, not muscle.`;
     if (m.sNow > -2) return `${wTxt}Strength is holding through the cut.`;
+    if (m.wNow != null && m.sNow > m.wNow) {
+      const perKg = ((1 + m.sNow / 100) / (1 + m.wNow / 100) - 1) * 100;
+      return `${wTxt}Per kg of bodyweight you are ${sg(perKg, 0)}% stronger.`;
+    }
     return `${wTxt}Strength is slipping. Check protein, sleep, and whether the deficit is too steep.`;
   }
   if (info.dir > 0) {
@@ -610,6 +615,7 @@ const joinNames = a => (a.length === 1 ? a[0] : `${a.slice(0, -1).join(', ')} an
 
 export const setsTip = m => {
   if (m.low.length) {
+    if (m.low.length > 3) return `${m.low.length} muscles sit under ${SETS_LOW} hard sets a week.`;
     const verb = m.low.length === 1 ? 'sits' : 'sit';
     const rest = m.high.length ? '' : ' The rest are in range.';
     return `${joinNames(m.low)} ${verb} under ${SETS_LOW} hard sets a week.${rest}`;
@@ -645,6 +651,7 @@ export const monthsModel = (weeks, planned = null) => {
         sessionsDone: sum(done.map(w => w.sessions)),
         planDone: planned != null ? planned * done.length : null,
         sets: sum(ws.map(w => w.setsTotal)),
+        setsPerWeek: done.length ? sum(done.map(w => w.setsTotal)) / done.length : null,
         prs: sum(ws.map(w => w.prs)),
         hasData: wl.length > 0 || ws.some(w => w.kcal != null || w.sessions > 0),
       };
@@ -662,7 +669,7 @@ export const monthsModel = (weeks, planned = null) => {
             kcal: diff(m.kcal, p.kcal),
             protein: diff(m.protein, p.protein),
             steps: diff(m.steps, p.steps),
-            setsPerWeek: diff(m.sets / m.count, p.sets / p.count),
+            setsPerWeek: diff(m.setsPerWeek, p.setsPerWeek),
           }
         : null,
     };
