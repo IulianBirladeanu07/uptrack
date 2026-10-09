@@ -30,9 +30,9 @@ export const styles = createStyles(() => ({
   },
 
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border.default,
   },
@@ -130,6 +130,17 @@ export const styles = createStyles(() => ({
     alignItems: 'center',
   },
 
+  doneButton: {
+    width: spacing[10],
+    height: spacing[10],
+    borderRadius: spacing[5],
+    backgroundColor: colors.faded.successAlt,
+    borderWidth: 1,
+    borderColor: colors.border.successAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
   activeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -204,13 +215,6 @@ export const styles = createStyles(() => ({
     marginBottom: spacing[3],
   },
 
-  remainingText: {
-    fontSize: fontSize[12],
-    color: colors.text.secondary,
-    fontWeight: fontWeight.semibold,
-    marginBottom: spacing[3],
-  },
-
   percentageBadge: {
     backgroundColor: colors.accent.primary,
     paddingHorizontal: spacing[2],
@@ -229,6 +233,7 @@ export const styles = createStyles(() => ({
     backgroundColor: colors.border.default,
     borderRadius: radius[3],
     overflow: 'hidden',
+    marginTop: spacing[3],
     marginBottom: spacing[4],
   },
 
@@ -272,11 +277,23 @@ export const styles = createStyles(() => ({
     letterSpacing: 0.5,
   },
 
+  macroValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing[1],
+  },
+
   macroValue: {
     fontSize: fontSize[16],
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
     letterSpacing: -0.3,
+  },
+
+  macroTarget: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.tertiary,
   },
 
   weeklyCard: {
@@ -312,7 +329,7 @@ export const styles = createStyles(() => ({
   },
 
   barsRow: {
-    height: spacing[24],
+    height: spacing[30],
     flexDirection: 'row',
     gap: spacing[1],
     marginBottom: spacing[2],
@@ -325,9 +342,9 @@ export const styles = createStyles(() => ({
   },
 
   barValueText: {
-    fontSize: fontSize[8],
+    fontSize: fontSize[10],
     fontWeight: fontWeight.bold,
-    color: colors.text.quaternary,
+    color: colors.text.tertiary,
     marginBottom: spacing[1],
   },
 
@@ -407,12 +424,34 @@ export const styles = createStyles(() => ({
     flex: 1,
   },
 
+  weeklyStatValueRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing[1],
+    marginBottom: spacing[1],
+  },
+
   weeklyStatValue: {
     fontSize: fontSize[16],
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
     letterSpacing: -0.3,
-    marginBottom: spacing[1],
+  },
+
+  weeklyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radius[1],
+  },
+
+  weeklyBadgeText: {
+    fontSize: fontSize[12],
+    lineHeight: 14,
+    fontWeight: fontWeight.bold,
   },
 
   weeklyStatLabel: {

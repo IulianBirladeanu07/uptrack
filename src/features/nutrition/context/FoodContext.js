@@ -57,7 +57,7 @@ const clearPersistedMealCache = async (uid) => {
 };
 
 const getCurrentWeekRollingStats = (mealCache, weightIns) => {
-    if (!mealCache) return { avgCalories: 0, avgSteps: 0, avgWeight: null };
+    if (!mealCache) return { avgCalories: 0, avgSteps: 0, avgWeight: null, prevAvgWeight: null };
 
     const today        = new Date();
     const weekStartStr = getLocalWeekStart(today);
@@ -67,8 +67,12 @@ const getCurrentWeekRollingStats = (mealCache, weightIns) => {
 
     const nutritionStats = getRollingWeekStats(mealCache, weekStartDate, todayEnd);
 
+    const prevWeekDate   = new Date(sy, sm - 1, sd - 7);
+    const prevWeekStr    = getLocalWeekStart(prevWeekDate);
     const weekEntry      = weightIns?.find(w => w.weekStart === weekStartStr);
+    const prevWeekEntry  = weightIns?.find(w => w.weekStart === prevWeekStr);
     const avgWeight      = weekEntry?.average ?? null;
+    const prevAvgWeight  = prevWeekEntry?.average ?? null;
     const daysLoggedWeight = weekEntry?.days
         ? Object.values(weekEntry.days).filter(w => w != null && !isNaN(w)).length
         : 0;
@@ -80,6 +84,7 @@ const getCurrentWeekRollingStats = (mealCache, weightIns) => {
         avgFats:             nutritionStats.avgFats,
         avgSteps:            nutritionStats.avgSteps,
         avgWeight,
+        prevAvgWeight,
         daysLoggedNutrition: nutritionStats.daysLoggedNutrition,
         daysLoggedSteps:     nutritionStats.daysLoggedSteps,
         daysLoggedWeight,
