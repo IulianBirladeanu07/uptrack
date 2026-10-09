@@ -589,7 +589,7 @@ const ProgressScreen = () => {
     const status = weeks.length ? `${info.label} · week ${info.phaseWeeks}` : 'Your trends over time';
 
     return (
-        <ApplicationCustomScreen showHeader={false}>
+        <ApplicationCustomScreen>
             <ScrollView
                 style={styles.container}
                 contentContainerStyle={{

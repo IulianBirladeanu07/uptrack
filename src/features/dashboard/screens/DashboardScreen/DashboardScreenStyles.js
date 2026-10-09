@@ -13,8 +13,23 @@ export const styles = createStyles(() => ({
     flex: 1,
   },
 
-  greetingBlock: {
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing[4],
+  },
+
+  greetingBlock: {
+    flex: 1,
+  },
+
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
 
   greetingTitle: {

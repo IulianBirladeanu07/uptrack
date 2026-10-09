@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, ActivityIndicator, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
 import { useFoodContext } from '../../context/FoodContext';
@@ -132,12 +131,7 @@ const NutritionScreen = () => {
 
     if (!isReady) {
         return (
-            <ApplicationCustomScreen
-                headerLeft={<Ionicons name="person-circle-outline" size={28} color="#fdf5ec" />}
-                headerRight={<Ionicons name="settings-outline" size={28} color="#fdf5ec" />}
-                onProfilePress={() => navigation.navigate('Profile')}
-                onSettingsPress={() => navigation.navigate('Settings')}
-            >
+            <ApplicationCustomScreen>
                 <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
                     <ActivityIndicator size="large" color="#FF9500" />
                 </View>
@@ -146,12 +140,7 @@ const NutritionScreen = () => {
     }
 
     return (
-        <ApplicationCustomScreen
-            headerLeft={<Ionicons name="person-circle-outline" size={28} color="#fdf5ec" />}
-            headerRight={<Ionicons name="settings-outline" size={28} color="#fdf5ec" />}
-            onProfilePress={() => navigation.navigate('Profile')}
-            onSettingsPress={() => navigation.navigate('Settings')}
-        >
+        <ApplicationCustomScreen>
             <View style={styles.container}>
                 <View style={styles.contentContainer}>
                     <DateNavigationHeader

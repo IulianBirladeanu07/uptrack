@@ -45,7 +45,7 @@ const SectionHeader = ({ title }) => (
 
 const ProfileScreen = ({ navigation }) => {
   const { setUserSettings, userSettings } = useContext(WorkoutContext);
-  const { logout } = useContext(AuthContext);
+  const { logout, refreshUserData } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
 
   const auth = getAuth();
@@ -155,6 +155,7 @@ const ProfileScreen = ({ navigation }) => {
       setProfilePicture(finalProfilePicture);
       setPendingImageUri(null);
       setUserSettings(prev => ({ ...prev, ...profileData }));
+      await refreshUserData();
       setIsEditing(false);
     } catch (error) {
       Alert.alert('Error', error.message);

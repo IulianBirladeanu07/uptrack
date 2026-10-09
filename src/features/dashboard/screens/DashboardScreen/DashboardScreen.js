@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useContext, useCallback, useRef } from 'react';
 import { View, TouchableOpacity, Text, ActivityIndicator, Animated } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -455,14 +456,27 @@ const DashboardScreen = () => {
     return (
         <ApplicationCustomScreen>
             <View style={styles.container}>
-                <View style={styles.greetingBlock}>
-                    <Text style={styles.greetingTitle}>{(() => {
-                        const h = new Date().getHours();
-                        if (h < 12) return 'Good morning';
-                        if (h < 17) return 'Good afternoon';
-                        return 'Good evening';
-                    })()}</Text>
-                    <Text style={styles.greetingDate}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+                <View style={styles.greetingRow}>
+                    <View style={styles.greetingBlock}>
+                        <Text style={styles.greetingTitle}>{(() => {
+                            const h = new Date().getHours();
+                            if (h < 12) return 'Good morning';
+                            if (h < 17) return 'Good afternoon';
+                            return 'Good evening';
+                        })()}</Text>
+                        <Text style={styles.greetingDate}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+                    </View>
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate('Profile')}
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                        {userData?.profilePicture ? (
+                            <Image source={{ uri: userData.profilePicture }} style={styles.avatar} contentFit="cover" />
+                        ) : (
+                            <Ionicons name="person-circle-outline" size={44} color={colors.accent.primary} />
+                        )}
+                    </TouchableOpacity>
                 </View>
 {dashboardReady ? (
                     <View style={styles.content}>
