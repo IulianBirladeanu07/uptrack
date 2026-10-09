@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { findBestSet } from '../../handlers/WorkoutHandler';
+import { durationToMinutes } from '../../utils/durationUtils';
 import { colors } from '../../../../shared/theme';
 import styles from './WorkoutHistoryStyles';
 
@@ -36,12 +37,7 @@ const getWorkoutLabel = (timestamp, templateName) => {
     return 'Night Workout';
 };
 
-const getDurationInMinutes = (duration) => {
-    if (typeof duration !== 'string') return 0;
-    const [hours, minutes] = duration.split(':').map(Number);
-    if (isNaN(hours) || isNaN(minutes)) return 0;
-    return hours * 60 + minutes;
-};
+const getDurationInMinutes = (duration) => durationToMinutes(duration) ?? 0;
 
 const WorkoutCard = ({ item, activeWorkout, onPress }) => {
     const exercises = item.exercises || [];

@@ -15,6 +15,7 @@ import { colors, spacing } from '../../../../shared/theme';
 import { fetchSplitsFromFirestore, SPLITS_CACHE_KEY } from '../../../workout/handlers/WorkoutHandler';
 import { getHomeNotices } from '../../../profile/utils/homeSurfaceEngine';
 import { dirOf } from '../../../progress/utils/progressEngine';
+import { durationLabel } from '../../../workout/utils/durationUtils';
 import { styles } from './DashboardScreenStyles';
 
 const SPLITS_CACHE_TTL = 15 * 60 * 1000;
@@ -118,10 +119,10 @@ const TodayWorkout = ({ workout, activeWorkout, completed, onPress }) => {
                     <View style={styles.workoutInfo}>
                         <Text style={styles.workoutTitle}>{workout.name}</Text>
                         <View style={styles.workoutMeta}>
-                            {completed.duration != null && (
+                            {completed.durationLabel != null && (
                                 <>
                                     <Ionicons name="time-outline" size={spacing[3]} color={colors.text.secondary} />
-                                    <Text style={styles.metaText}>{completed.duration}</Text>
+                                    <Text style={styles.metaText}>{completed.durationLabel}</Text>
                                 </>
                             )}
                             <Ionicons name="barbell-outline" size={spacing[3]} color={colors.text.secondary} />
@@ -498,7 +499,7 @@ const DashboardScreen = () => {
         if (!entries.length) return null;
         const latest = entries.reduce((a, b) => (b.timestamp.toDate() > a.timestamp.toDate() ? b : a));
         return {
-            duration: latest.duration ?? null,
+            durationLabel: durationLabel(latest.duration),
             exerciseCount: (latest.exercises ?? []).length,
         };
     }, [workoutHistory]);
