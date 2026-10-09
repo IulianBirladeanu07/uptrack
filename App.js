@@ -13,7 +13,6 @@ import RegistrationScreen from './src/features/auth/components/RegistrationScree
 import DashboardScreen from './src/features/dashboard/screens/DashboardScreen/DashboardScreen';
 import NutritionScreen from './src/features/nutrition/screens/NutritionScreen/NutritionScreen';
 import ProgressScreen from './src/features/progress/screens/ProgressScreen/ProgressScreen';
-import SettingsScreen from './src/features/profile/components/Settings/SettingsScreen';
 import ProfileScreen from './src/features/profile/components/Profile/ProfileScreen';
 import WorkoutHistory from './src/features/workout/screens/WorkoutHistoryScreen/WorkoutHistory';
 import WorkoutDetails from './src/features/workout/screens/WorkoutDetailsScreen/WorkoutDetails';
@@ -55,7 +54,6 @@ const AuthenticatedScreens = React.memo(() => (
         <Stack.Screen name="Workout" component={WorkoutScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Nutrition" component={NutritionScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Progress" component={ProgressScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
         <Stack.Screen name="CustomFood" component={CustomFoodScreen} options={{ headerShown: false }} />

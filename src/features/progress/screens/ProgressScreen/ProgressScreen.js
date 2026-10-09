@@ -133,7 +133,7 @@ const EmptyCard = ({ cap, text }) => (
     </View>
 );
 
-const RecapCard = ({ r, busy, onSwitch, onSettings }) => {
+const RecapCard = ({ r, busy, onSwitch, onProfile }) => {
     const third = r.dir < 0
         ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Str / kg', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
         : { value: r.strengthPct != null ? sg(r.strengthPct, 0) : '--', unit: r.strengthPct != null ? '%' : undefined, label: 'Strength', color: r.strengthPct != null && r.strengthPct > 0 ? colors.accent.success : undefined };
@@ -166,7 +166,7 @@ const RecapCard = ({ r, busy, onSwitch, onSettings }) => {
                     </Text>
                 </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.link} onPress={onSettings} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.link} onPress={onProfile} activeOpacity={0.7}>
                 <Text style={styles.linkText}>Set a different goal</Text>
             </TouchableOpacity>
         </View>
@@ -553,7 +553,7 @@ const ProgressScreen = () => {
 
     const openLift = useCallback(name => navigation.navigate('ExerciseHistory', { exerciseName: name }), [navigation]);
 
-    const openSettings = useCallback(() => navigation.navigate('Settings'), [navigation]);
+    const openProfile = useCallback(() => navigation.navigate('Profile'), [navigation]);
 
     const onSwitch = useCallback(() => {
         if (!recap || recap.maintenance == null || switching) return;
@@ -647,7 +647,7 @@ const ProgressScreen = () => {
                     <>
                         {tab === 'nutrition' ? (
                             <>
-                                {recap && <RecapCard r={recap} busy={switching} onSwitch={onSwitch} onSettings={openSettings} />}
+                                {recap && <RecapCard r={recap} busy={switching} onSwitch={onSwitch} onProfile={openProfile} />}
                                 <PaceCard m={pace} info={info} n={n} />
                                 <EnergyCard m={energy} info={info} n={n} />
                                 <MonthsCard

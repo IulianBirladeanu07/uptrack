@@ -380,7 +380,7 @@ const DashboardScreen = () => {
 
     const handleNoticeAction = useCallback((notice) => {
         if (notice.type === 'goal_reached') {
-            navigation.navigate('Settings');
+            navigation.navigate('Profile');
         } else if (notice.type === 'steps_permission') {
             retryStepsConnection();
         }

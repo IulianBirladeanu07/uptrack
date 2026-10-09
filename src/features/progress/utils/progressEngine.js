@@ -617,7 +617,7 @@ export const phaseRecap = (userData, weeks, info, energy, strength) => {
 };
 
 export const recapTip = r => {
-  if (r.maintenance == null) return 'Set a new goal in Settings to start the next phase.';
+  if (r.maintenance == null) return 'Set a new goal in Profile to start the next phase.';
   const basis = r.measured ? 'Your measured maintenance is' : 'Your estimated maintenance is';
   return `${basis} about ${kfmt(r.maintenance)} kcal. Switching makes it your target and starts a new phase at ${fmt1(r.endWeight)} kg.`;
 };

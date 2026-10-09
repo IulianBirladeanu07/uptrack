@@ -744,7 +744,7 @@ describe('phaseRecap', () => {
     const bare = { ...reachedUser, maintenanceCalories: undefined };
     const r = phaseRecap(bare, rated, info, null, null);
     expect(r.maintenance).toBeNull();
-    expect(recapTip(r)).toMatch(/Settings/);
+    expect(recapTip(r)).toMatch(/Profile/);
   });
 
   test('stays hidden until the goal is reached', () => {
