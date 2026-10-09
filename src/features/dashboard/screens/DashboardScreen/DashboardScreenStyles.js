@@ -4,13 +4,18 @@ import { createStyles } from '../../../../shared/theme/createStyles';
 export const styles = createStyles(() => ({
   container: {
     flex: 1,
-    paddingHorizontal: spacing[4],
-    paddingTop: spacing[3],
     backgroundColor: colors.background.primary,
   },
 
-  content: {
+  scroll: {
     flex: 1,
+  },
+
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[3],
   },
 
   greetingRow: {
@@ -309,14 +314,12 @@ export const styles = createStyles(() => ({
   barsRow: {
     height: spacing[24],
     flexDirection: 'row',
-    alignItems: 'flex-end',
     gap: spacing[1],
     marginBottom: spacing[2],
   },
 
   barContainer: {
     flex: 1,
-    height: '100%',
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
@@ -330,6 +333,15 @@ export const styles = createStyles(() => ({
 
   barValueTextToday: {
     color: colors.accent.primary,
+  },
+
+  barValueHidden: {
+    opacity: 0,
+  },
+
+  barFuture: {
+    height: 4,
+    opacity: 0.15,
   },
 
   bar: {

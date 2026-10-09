@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useContext, useCallback, useRef } from 'react';
-import { View, TouchableOpacity, Text, ActivityIndicator, Animated } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Text, ActivityIndicator, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -9,7 +9,7 @@ import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
-import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
+import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
 import HomeNoticeCard from '../../../../shared/components/HomeNoticeCard/HomeNoticeCard';
 import { colors, spacing } from '../../../../shared/theme';
 import { fetchSplitsFromFirestore, SPLITS_CACHE_KEY } from '../../../workout/handlers/WorkoutHandler';
@@ -231,19 +231,22 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
                 <View style={styles.chartContent}>
                     <View style={styles.barsRow}>
                         {weekDays.map((point, index) => {
-                            const heightPercent = point.calories > 0 ? (point.calories / maxCalories) * 100 : 0;
+                            const showValue = !point.isFuture && point.calories > 0;
+                            const share = Math.max(point.calories > 0 ? (point.calories / maxCalories) * 100 : 0, 4);
                             return (
                                 <View key={index} style={styles.barContainer}>
-                                    {!point.isFuture && point.calories > 0 && (
-                                        <Text style={[styles.barValueText, point.isToday && styles.barValueTextToday]}>
-                                            {Math.round(point.calories)}
-                                        </Text>
-                                    )}
+                                    <View style={{ flex: point.isFuture ? 1 : 100 - share }} />
+                                    <Text style={[
+                                        styles.barValueText,
+                                        point.isToday && styles.barValueTextToday,
+                                        !showValue && styles.barValueHidden,
+                                    ]}>
+                                        {showValue ? Math.round(point.calories) : 0}
+                                    </Text>
                                     <View style={[
                                         styles.bar,
-                                        { height: point.isFuture ? 4 : `${Math.max(heightPercent, 4)}%` },
+                                        point.isFuture ? styles.barFuture : { flex: share },
                                         point.isToday && styles.barToday,
-                                        point.isFuture && { opacity: 0.15 },
                                     ]} />
                                 </View>
                             );
@@ -311,6 +314,7 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, getCalor
 
 const DashboardScreen = () => {
     const navigation = useNavigation();
+    const navInset = useBottomNavInset();
     const [todayScheduledWorkout, setTodayScheduledWorkout] = useState(null);
     const [workoutLoading, setWorkoutLoading] = useState(true);
 
@@ -456,70 +460,76 @@ const DashboardScreen = () => {
     return (
         <ApplicationCustomScreen>
             <View style={styles.container}>
-                <View style={styles.greetingRow}>
-                    <View style={styles.greetingBlock}>
-                        <Text style={styles.greetingTitle}>{(() => {
-                            const h = new Date().getHours();
-                            if (h < 12) return 'Good morning';
-                            if (h < 17) return 'Good afternoon';
-                            return 'Good evening';
-                        })()}</Text>
-                        <Text style={styles.greetingDate}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+                <ScrollView
+                    style={styles.scroll}
+                    contentContainerStyle={[styles.scrollContent, { paddingBottom: navInset }]}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <View style={styles.greetingRow}>
+                        <View style={styles.greetingBlock}>
+                            <Text style={styles.greetingTitle}>{(() => {
+                                const h = new Date().getHours();
+                                if (h < 12) return 'Good morning';
+                                if (h < 17) return 'Good afternoon';
+                                return 'Good evening';
+                            })()}</Text>
+                            <Text style={styles.greetingDate}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('Profile')}
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                            {userData?.profilePicture ? (
+                                <Image source={{ uri: userData.profilePicture }} style={styles.avatar} contentFit="cover" />
+                            ) : (
+                                <Ionicons name="person-circle-outline" size={44} color={colors.accent.primary} />
+                            )}
+                        </TouchableOpacity>
                     </View>
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('Profile')}
-                        activeOpacity={0.7}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                        {userData?.profilePicture ? (
-                            <Image source={{ uri: userData.profilePicture }} style={styles.avatar} contentFit="cover" />
-                        ) : (
-                            <Ionicons name="person-circle-outline" size={44} color={colors.accent.primary} />
-                        )}
-                    </TouchableOpacity>
-                </View>
-{dashboardReady ? (
-                    <View style={styles.content}>
-                        {notices.map(notice => (
-                            <HomeNoticeCard
-                                key={notice.id}
-                                notice={notice}
-                                onAction={
-                                    (notice.type === 'goal_reached' || notice.type === 'steps_permission')
-                                        ? () => handleNoticeAction(notice)
-                                        : undefined
-                                }
-                                actionLabel={
-                                    notice.type === 'goal_reached' ? 'Update Goal' : 'Connect'
-                                }
-                                onDismiss={() => handleDismissNotice(notice)}
+    {dashboardReady ? (
+                        <View>
+                            {notices.map(notice => (
+                                <HomeNoticeCard
+                                    key={notice.id}
+                                    notice={notice}
+                                    onAction={
+                                        (notice.type === 'goal_reached' || notice.type === 'steps_permission')
+                                            ? () => handleNoticeAction(notice)
+                                            : undefined
+                                    }
+                                    actionLabel={
+                                        notice.type === 'goal_reached' ? 'Update Goal' : 'Connect'
+                                    }
+                                    onDismiss={() => handleDismissNotice(notice)}
+                                />
+                            ))}
+                            <TodayWorkout
+                                workout={todayScheduledWorkout}
+                                activeWorkout={activeWorkout}
+                                onPress={handleWorkoutPress}
                             />
-                        ))}
-                        <TodayWorkout
-                            workout={todayScheduledWorkout}
-                            activeWorkout={activeWorkout}
-                            onPress={handleWorkoutPress}
-                        />
-                        <TodayNutrition
-                            calories={dailyNutrition?.calories || 0}
-                            targetCalories={userMacros?.targetCalories || 2000}
-                            macros={{ carbs: dailyNutrition?.carbs || 0, protein: dailyNutrition?.protein || 0, fat: dailyNutrition?.fat || 0 }}
-                            onPress={() => navigation.navigate('Nutrition')}
-                        />
-                        <WeeklyOverview
-                            rollingStats={rollingWeekStats}
-                            weeklyWorkouts={weeklyWorkoutsCount}
-                            targetWorkouts={targetWorkouts}
-                            getCaloriesForDateRange={getCaloriesForDateRange}
-                            onWeightPress={() => navigation.navigate('WeightTracker')}
-                            dataReady={initialLoadComplete}
-                        />
-                    </View>
-                ) : (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color={colors.accent.primary} />
-                    </View>
-                )}
+                            <TodayNutrition
+                                calories={dailyNutrition?.calories || 0}
+                                targetCalories={userMacros?.targetCalories || 2000}
+                                macros={{ carbs: dailyNutrition?.carbs || 0, protein: dailyNutrition?.protein || 0, fat: dailyNutrition?.fat || 0 }}
+                                onPress={() => navigation.navigate('Nutrition')}
+                            />
+                            <WeeklyOverview
+                                rollingStats={rollingWeekStats}
+                                weeklyWorkouts={weeklyWorkoutsCount}
+                                targetWorkouts={targetWorkouts}
+                                getCaloriesForDateRange={getCaloriesForDateRange}
+                                onWeightPress={() => navigation.navigate('WeightTracker')}
+                                dataReady={initialLoadComplete}
+                            />
+                        </View>
+                    ) : (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color={colors.accent.primary} />
+                        </View>
+                    )}
+                </ScrollView>
                 <BottomNav />
             </View>
         </ApplicationCustomScreen>

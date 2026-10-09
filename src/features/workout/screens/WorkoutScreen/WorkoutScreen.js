@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
-import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
+import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
 import { fetchSplitsFromFirestore } from '../../handlers/WorkoutHandler';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { AuthContext } from '../../../auth/context/AuthContext';
@@ -432,6 +432,7 @@ const summarizeWorkoutEntry = (entry) => {
 const WorkoutScreen = () => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
+    const navInset = useBottomNavInset();
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [previewWorkout, setPreviewWorkout] = useState(null);
     const [activeSplit, setActiveSplit] = useState(null);
@@ -517,7 +518,7 @@ const WorkoutScreen = () => {
             } : null);
 
             const upcoming = [];
-            for (let i = 1; i <= 13 && upcoming.length < 3; i++) {
+            for (let i = 1; i <= 13 && upcoming.length < 4; i++) {
                 const futureDay = (todayIdx + i) % 7;
                 const futureKey = DAYS_MAP[futureDay];
                 const w = schedule?.[futureKey];
@@ -568,7 +569,7 @@ const WorkoutScreen = () => {
     );
 
     const comingUpWorkouts = useMemo(
-        () => (primaryWorkout?.isToday ? upcomingWorkouts.slice(0, 2) : upcomingWorkouts.slice(1, 3)),
+        () => (primaryWorkout?.isToday ? upcomingWorkouts.slice(0, 3) : upcomingWorkouts.slice(1, 4)),
         [primaryWorkout, upcomingWorkouts]
     );
 
@@ -624,7 +625,9 @@ const WorkoutScreen = () => {
             <ScrollView
                 style={styles.container}
                 contentContainerStyle={{
-                    paddingBottom: 70 + insets.bottom,
+                    flexGrow: 1,
+                    justifyContent: 'center',
+                    paddingBottom: navInset,
                     paddingHorizontal: spacing[4],
                     paddingTop: spacing[3],
                 }}

@@ -12,6 +12,7 @@ const styles = createStyles(() => ({
     width: '100%',
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     padding: spacing[2],
   },
   dateNavigation: {

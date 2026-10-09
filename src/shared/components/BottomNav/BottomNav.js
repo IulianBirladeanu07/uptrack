@@ -5,6 +5,13 @@ import { MaterialCommunityIcons, Ionicons, MaterialIcons } from '@expo/vector-ic
 import { colors, spacing, fontSize, fontWeight } from '../../theme';
 import { createStyles } from '../../theme/createStyles';
 
+const BOTTOM_NAV_SPACE = 70;
+
+export const useBottomNavInset = () => {
+    const insets = useSafeAreaInsets();
+    return BOTTOM_NAV_SPACE + insets.bottom;
+};
+
 const screens = [
     { name: 'Dashboard', label: 'Home',      icon: 'home',         iconType: 'Ionicons' },
     { name: 'Workout',   label: 'Workout',   icon: 'dumbbell',     iconType: 'MaterialCommunityIcons' },

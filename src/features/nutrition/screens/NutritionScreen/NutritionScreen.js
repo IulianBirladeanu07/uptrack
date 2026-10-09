@@ -5,7 +5,7 @@ import { getAuth } from 'firebase/auth';
 import { useFoodContext } from '../../context/FoodContext';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
-import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
+import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
 import MealContainer from '../../components/NutritionItem/MealContainer';
 import useLearningCompletion from '../../helpers/useLearningCompletion';
 import DateNavigationHeader from '../../components/DateNavigationHeader/DateNavigationHeader';
@@ -15,6 +15,7 @@ import styles from './NutritionScreenStyles';
 
 const NutritionScreen = () => {
     const navigation = useNavigation();
+    const navInset = useBottomNavInset();
     const route = useRoute();
 
     const {
@@ -142,7 +143,7 @@ const NutritionScreen = () => {
     return (
         <ApplicationCustomScreen>
             <View style={styles.container}>
-                <View style={styles.contentContainer}>
+                <View style={[styles.contentContainer, { paddingBottom: navInset }]}>
                     <DateNavigationHeader
                         selectedDate={selectedDate}
                         onDateChange={handleDateChange}
