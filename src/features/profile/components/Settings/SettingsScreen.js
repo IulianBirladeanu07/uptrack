@@ -6,7 +6,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { db } from '../../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../../auth/context/AuthContext';
-import { calculateWeightChangePlan, deriveFitnessGoal } from '../../utils/nutritionPlanEngine';
+import { buildPlanUpdate, planView } from '../../utils/planUpdate';
 import { OptionRow, NumberStepper } from '../../../../shared/components/FormControls/FormControls';
 import { ACTIVITY_OPTIONS, EXPERIENCE_OPTIONS, STRESS_OPTIONS } from '../../utils/profileOptions';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
@@ -30,7 +30,6 @@ const SettingsScreen = ({ navigation }) => {
     experienceLevel:   userData?.experienceLevel    || 'intermediate',
     stressLevel:       userData?.stressLevel        || 'moderate',
     autoAdjustEnabled: userData?.autoAdjustEnabled  ?? true,
-    avgDailySteps:     userData?.avgDailySteps      || 0,
   });
 
   const [original] = useState({ ...form });
@@ -49,14 +48,21 @@ const SettingsScreen = ({ navigation }) => {
     setHasChanges(true);
   }, []);
 
-  const deriveGoal = (f) => deriveFitnessGoal(f.currentWeight, f.targetWeight);
+  const view = planView({ userData, form, original });
+  const previewGoal = view.goal;
+  const currentPlan = view.base;
+  const previewPlan = view.next;
+  const isGaining   = previewGoal === 'muscle_gain';
+  const calDiff     = previewPlan.goalCalories - currentPlan.goalCalories;
 
   const handleSave = () => {
     if (!hasChanges) return;
 
     Alert.alert(
       'Update Plan',
-      'This will recalculate your calorie and macro targets. Continue?',
+      view.replan
+        ? 'This will recalculate your calorie and macro targets. Continue?'
+        : 'Your calorie and macro targets stay as learned from your data. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -65,36 +71,8 @@ const SettingsScreen = ({ navigation }) => {
             setSaving(true);
             try {
               const uid = userData?.uid || getAuth().currentUser?.uid;
-
-              const previousGoal = deriveGoal(original);
-              const newGoal      = deriveGoal(form);
-              const goalChanged  = previousGoal !== newGoal;
-
-              const formWithGoal = { ...form, fitnessGoals: newGoal };
-              const newPlan      = calculateWeightChangePlan(formWithGoal);
-
-              const now = new Date().toISOString();
-
-              await setDoc(doc(db, 'users', uid), {
-                ...form,
-                fitnessGoals:        newGoal,
-                weightChangePlan:    newPlan,
-                targetCalories:      newPlan.goalCalories,
-                targetProtein:       newPlan.macros.protein,
-                targetCarbs:         newPlan.macros.carbs,
-                targetFats:          newPlan.macros.fats,
-                maintenanceCalories: newPlan.tdee,
-                lastNutritionUpdate: now,
-                planConfidence:      'estimated',
-                lastCalorieAdjustment: null,
-                lastAdjustmentDate:  null,
-                stepsBonusAppliedAt: null,
-                ...(goalChanged ? {
-                  goalSwitchDate:     now,
-                  weeksSinceCutStart: 0,
-                  startWeight:        form.currentWeight,
-                } : {}),
-              }, { merge: true });
+              const payload = buildPlanUpdate({ userData, form, original, now: new Date().toISOString() });
+              await setDoc(doc(db, 'users', uid), payload, { merge: true });
 
               await refreshUserData();
               setHasChanges(false);
@@ -110,13 +88,6 @@ const SettingsScreen = ({ navigation }) => {
       ]
     );
   };
-
-  const originalGoal   = deriveGoal(original);
-  const previewGoal    = deriveGoal(form);
-  const currentPlan    = calculateWeightChangePlan({ ...original, fitnessGoals: originalGoal });
-  const previewPlan    = calculateWeightChangePlan({ ...form,     fitnessGoals: previewGoal  });
-  const isGaining      = previewGoal === 'muscle_gain';
-  const calDiff        = previewPlan.goalCalories - currentPlan.goalCalories;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -203,6 +174,9 @@ const SettingsScreen = ({ navigation }) => {
                 ? `${isGaining ? '+' : '-'}${previewPlan.ratePerWeek} kg/week · ~${previewPlan.weeksToGoal} weeks to goal`
                 : 'Maintenance'}
             </Text>
+            {!view.replan && hasChanges && (
+              <Text style={styles.heroRate}>Targets stay as learned from your data</Text>
+            )}
           </View>
         </View>
 

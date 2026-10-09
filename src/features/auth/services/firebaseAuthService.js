@@ -84,7 +84,7 @@ const signInWithGoogle = async (googleResponse, setAuthenticated, setProfileSetu
   setProfileSetupComplete(userData.profileSetupComplete || false);
 };
 
-const sendPasswordResetEmail = async (email) => {
+export const sendPasswordResetEmail = async (email) => {
   try {
     await firebaseSendPasswordResetEmail(auth, email);
   } catch (error) {

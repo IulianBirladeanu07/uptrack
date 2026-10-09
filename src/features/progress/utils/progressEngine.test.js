@@ -785,10 +785,8 @@ describe('phaseRecap', () => {
 });
 
 describe('progress copy rules', () => {
-  test('a cut with strength down less than weight reads as stronger per kg', () => {
-    const tip = strengthTip({ sNow: -3.7, wNow: -8.6 }, { dir: -1 });
-    expect(tip).toMatch(/5% stronger/);
-    expect(tip).not.toMatch(/slipping/);
+  test('a cut with strength down less than weight stays silent because the card already shows per kg', () => {
+    expect(strengthTip({ sNow: -3.7, wNow: -8.6 }, { dir: -1 })).toBe('');
   });
 
   test('a cut with strength down more than weight still warns', () => {
