@@ -106,7 +106,7 @@ const ProfileScreen = ({ navigation }) => {
   const uploadPicture = async (uid, uri) => {
     const blob = await (await fetch(uri)).blob();
     const pictureRef = ref(getStorage(), `profilePictures/${uid}.jpg`);
-    await uploadBytes(pictureRef, blob);
+    await uploadBytes(pictureRef, blob, { contentType: blob.type || 'image/jpeg' });
     const url = await getDownloadURL(pictureRef);
     return `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`;
   };
