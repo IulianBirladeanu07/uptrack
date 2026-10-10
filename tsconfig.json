@@ -5,7 +5,11 @@
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
-    "noImplicitReturns": true
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
   "include": ["src/**/*", "App.js", "index.js"]
 }

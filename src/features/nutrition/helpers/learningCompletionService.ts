@@ -210,8 +210,8 @@ const refreshMaintenanceOnly = async (userId: string, userData: UserData, weekly
 export const evaluateWeeklyProgress = async (
   userId: string,
   userData: UserData | null | undefined,
-  mealCache: MealCacheLike,
-  currentDate: Date,
+  _mealCache: MealCacheLike,
+  _currentDate: Date,
 ): Promise<WeeklyEvalResult | null> => {
   if (!userData?.weightChangePlan || !userData?.targetCalories) return null;
   if (daysSince(userData.lastAdjustmentDate) < 6) return null;

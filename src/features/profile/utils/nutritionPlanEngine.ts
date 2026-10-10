@@ -10,7 +10,7 @@ import {
 } from './weightTrendEngine';
 import { MIN_STEP_DAYS } from '../../nutrition/helpers/stepStats';
 import { KCAL_PER_KG, estimateMaintenanceRegression } from './maintenanceEstimator';
-import type { LegacyMaintenance, Macros, MaintenanceResult, PlanAdjustment, PlanFormData, PlanType, UserData, WeekStats, WeightChangePlan } from '../../../shared/types';
+import type { Macros, MaintenanceResult, PlanAdjustment, PlanFormData, PlanType, UserData, WeekStats, WeightChangePlan } from '../../../shared/types';
 
 export { KCAL_PER_KG };
 const WEEKS_PER_MONTH = 4.34524;

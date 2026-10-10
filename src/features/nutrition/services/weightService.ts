@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../auth/services/firebaseConfigService';
 import type { DateInput, UserData, WeightDisplayData } from '../../../shared/types';
