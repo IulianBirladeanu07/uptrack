@@ -98,12 +98,6 @@ timerContainer: {
     borderColor: 'rgba(255, 255, 255, 0.08)',
 },
 
-timerText: {
-    fontSize: normalize(15),
-    fontWeight: '700',
-    color: '#9CA3AF',
-    letterSpacing: 0.5,
-},
   timerProgress: {
     position: 'absolute',
     width: '100%',

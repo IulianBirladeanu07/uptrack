@@ -152,7 +152,6 @@ const CustomFoodScreen = () => {
   const navigation = useNavigation();
 
   const scrollViewRef = useRef(null);
-  const inputRefs = useRef({});
 
   const [activeTab, setActiveTab] = useState('essential');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -166,8 +165,10 @@ const CustomFoodScreen = () => {
     handleSubmitEditing,
     handleAmountChange,
     handleSubmit,
-    focusFirstField
-  } = useCustomFood(type, navigation, remainingCalories, barcode, meal, selectedDate, inputRefs);
+    focusFirstField,
+    inputRefs,
+    registerInputRef
+  } = useCustomFood(type, navigation, remainingCalories, barcode, meal, selectedDate);
 
   useEffect(() => {
     if (barcode) {
@@ -180,7 +181,7 @@ const CustomFoodScreen = () => {
     originalHandleFieldFocus(field);
 
     setTimeout(() => {
-      const inputRef = inputRefs.current[field];
+      const inputRef = inputRefs[field];
       if (inputRef && inputRef.measure && scrollViewRef.current) {
         inputRef.measure((x, y, width, height, pageX, pageY) => {
           scrollViewRef.current?.scrollTo({ 
@@ -191,10 +192,6 @@ const CustomFoodScreen = () => {
       }
     }, 100);
   }, [originalHandleFieldFocus]);
-
-  const registerInputRef = (field) => (ref) => {
-    inputRefs.current[field] = ref;
-  };
 
   const showFooter = !keyboardVisible || currentFocusedField === 'amount';
   const shouldShowBarcode = type === 'foodWithBarcode';
