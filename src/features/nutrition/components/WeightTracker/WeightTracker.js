@@ -207,7 +207,7 @@ const WeightTracker = () => {
     const navigation  = useNavigation();
     const insets      = useSafeAreaInsets();
     const { getMealCache } = useFoodContext();
-    const { userData } = useContext(AuthContext);
+    const { userData, refreshUserData } = useContext(AuthContext);
 
     const [userId,         setUserId]         = useState(null);
     const [loading,        setLoading]        = useState(true);
@@ -396,6 +396,7 @@ const commitWeightSave = async (parsedWeight) => {
                 setCurrentWeight, setWeeklyAverage, loadData,
                 getMealCache(),
             );
+            await refreshUserData();
             setModalVisible(false);
         } catch (e) {
             console.error('handleSave:', e);
