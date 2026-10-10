@@ -7,27 +7,46 @@ import {
   refreshWeightChangePlan,
 } from '../../profile/utils/nutritionPlanEngine';
 import { weekStepStats, overlayWeekSteps } from './stepStats';
+import type {
+  DailySteps,
+  DayMeals,
+  MealCacheLike,
+  Numeric,
+  NutritionTotals,
+  PlanAdjustment,
+  UserData,
+  WeekStats,
+  WeeklySnapshot,
+  WeightChangePlan,
+  WeightInWeek,
+} from '../../../shared/types';
 
-export const calculateDailyNutritionFromMeals = (meals) =>
+type DateInput = Date | string | number;
+type WeeklyEvalResult = Partial<UserData> & { suggestion: PlanAdjustment['suggestion'] | 'maintenance_refresh' };
+
+const DAY_MS = 1000 * 60 * 60 * 24;
+const WEEK_MS = 7 * DAY_MS;
+
+export const calculateDailyNutritionFromMeals = (meals: DayMeals | null | undefined): NutritionTotals =>
   Object.values(meals || {})
     .flat()
-    .reduce((totals, food) => ({
+    .reduce<NutritionTotals>((totals, food) => ({
       calories: totals.calories + (Number(food?.calories) || 0),
       protein:  totals.protein  + (Number(food?.protein)  || 0),
       carbs:    totals.carbs    + (Number(food?.carbohydrates) || 0),
       fat:      totals.fat      + (Number(food?.fats)     || 0),
     }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
 
-const avg = (arr, key) =>
+const avg = <K extends string>(arr: Partial<Record<K, number>>[], key: K): number =>
   arr.length ? Math.round(arr.reduce((s, d) => s + (d[key] || 0), 0) / arr.length) : 0;
 
-export const deriveStartWeight = (weightIns) => {
+export const deriveStartWeight = (weightIns: WeightInWeek[] | null | undefined): Numeric | null => {
   if (!weightIns?.length) return null;
   const oldest = weightIns[0];
   return oldest.average ?? Object.values(oldest.days || {})[0] ?? null;
 };
 
-export const getRollingWeekStats = (mealCache, weekStart, today) => {
+export const getRollingWeekStats = (mealCache: MealCacheLike, weekStart: DateInput, today: DateInput) => {
   const start = new Date(weekStart);
   const end   = new Date(today);
   end.setHours(23, 59, 59, 999);
@@ -52,7 +71,12 @@ export const getRollingWeekStats = (mealCache, weekStart, today) => {
   };
 };
 
-export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache, userData) => {
+export const snapshotPreviousWeek = async (
+  userId: string,
+  previousWeekEntry: WeightInWeek | null | undefined,
+  mealCache: MealCacheLike,
+  userData: UserData | null | undefined,
+): Promise<(WeeklySnapshot & { weeksSinceCutStart: number }) | null> => {
   if (!previousWeekEntry?.weekStart) return null;
 
   const weekStart = previousWeekEntry.weekStart;
@@ -74,7 +98,7 @@ export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache,
 
   if (!nutritionDays.length && !stepDays.length) return null;
 
-  const snapshot = {
+  const snapshot: WeeklySnapshot = {
     weekStart,
     daysLoggedNutrition: nutritionDays.length,
     avgCalories: avg(nutritionDays, 'calories'),
@@ -91,8 +115,9 @@ export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache,
   try {
     const userDocRef = doc(db, 'users', userId);
     const userDoc    = await getDoc(userDocRef);
-    const existing   = userDoc.data()?.weeklyNutrition || [];
-    const st = weekStepStats(userDoc.data()?.dailySteps, weekStart, k => cacheSteps.get(k), todayKey);
+    const stored     = userDoc.data() as UserData | undefined;
+    const existing: WeeklySnapshot[] = stored?.weeklyNutrition || [];
+    const st = weekStepStats(stored?.dailySteps, weekStart, k => cacheSteps.get(k), todayKey);
     snapshot.daysLoggedSteps = st.days;
     snapshot.avgSteps = st.avg;
     snapshot.totalSteps = st.total;
@@ -100,7 +125,7 @@ export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache,
     const updated = [
       ...existing.filter(w => w.weekStart !== weekStart),
       snapshot,
-    ].sort((a, b) => new Date(a.weekStart) - new Date(b.weekStart));
+    ].sort((a, b) => new Date(a.weekStart).getTime() - new Date(b.weekStart).getTime());
 
     const isWeightLoss = userData?.weightChangePlan?.type === 'weight_loss';
     const goalSwitchDate = userData?.goalSwitchDate;
@@ -110,8 +135,8 @@ export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache,
       if (goalSwitchDate) {
         const switchDate = new Date(goalSwitchDate);
         const snapshotDate = new Date(weekStart);
-        const diffMs = snapshotDate - switchDate;
-        weeksSinceCutStart = Math.max(0, Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)));
+        const diffMs = snapshotDate.getTime() - switchDate.getTime();
+        weeksSinceCutStart = Math.max(0, Math.floor(diffMs / WEEK_MS));
       } else {
         weeksSinceCutStart = weeksSinceCutStart + 1;
       }
@@ -130,7 +155,7 @@ export const snapshotPreviousWeek = async (userId, previousWeekEntry, mealCache,
   }
 };
 
-export const getWeeklyCalorieStats = (weeklyNutrition, weeks = 4, dailySteps) => {
+export const getWeeklyCalorieStats = (weeklyNutrition: WeeklySnapshot[] | null | undefined, weeks = 4, dailySteps?: DailySteps | null): WeekStats[] => {
   if (!weeklyNutrition?.length) return [];
   return weeklyNutrition.slice(-weeks).map(w => {
     const o = overlayWeekSteps(w, dailySteps);
@@ -144,17 +169,17 @@ export const getWeeklyCalorieStats = (weeklyNutrition, weeks = 4, dailySteps) =>
   });
 };
 
-const blendMaintenance = (stored, measured) => {
+const blendMaintenance = (stored: number | null | undefined, measured: number | null | undefined): number | null => {
   if (!measured) return null;
   return stored ? Math.round((stored + measured) / 2) : measured;
 };
 
-const daysSince = (isoDateStr) => {
+const daysSince = (isoDateStr: string | null | undefined): number => {
   if (!isoDateStr) return Infinity;
-  return (Date.now() - new Date(isoDateStr).getTime()) / (1000 * 60 * 60 * 24);
+  return (Date.now() - new Date(isoDateStr).getTime()) / DAY_MS;
 };
 
-const refreshMaintenanceOnly = async (userId, userData, weeklyCalorieData) => {
+const refreshMaintenanceOnly = async (userId: string, userData: UserData, weeklyCalorieData: WeekStats[]): Promise<WeeklyEvalResult | null> => {
   if (userData.autoAdjustEnabled === false) return null;
   if (daysSince(userData.maintenanceUpdatedAt) < 6) return null;
 
@@ -162,7 +187,7 @@ const refreshMaintenanceOnly = async (userId, userData, weeklyCalorieData) => {
   const maintenanceCalories = blendMaintenance(userData.maintenanceCalories, estimate?.maintenance);
   if (!maintenanceCalories) return null;
 
-  const updateData = {
+  const updateData: Partial<UserData> = {
     maintenanceCalories,
     maintenanceUpdatedAt: new Date().toISOString(),
   };
@@ -181,7 +206,12 @@ const refreshMaintenanceOnly = async (userId, userData, weeklyCalorieData) => {
   }
 };
 
-export const evaluateWeeklyProgress = async (userId, userData, mealCache, currentDate) => {
+export const evaluateWeeklyProgress = async (
+  userId: string,
+  userData: UserData | null | undefined,
+  mealCache: MealCacheLike,
+  currentDate: Date,
+): Promise<WeeklyEvalResult | null> => {
   if (!userData?.weightChangePlan || !userData?.targetCalories) return null;
   if (daysSince(userData.lastAdjustmentDate) < 6) return null;
 
@@ -192,46 +222,40 @@ export const evaluateWeeklyProgress = async (userId, userData, mealCache, curren
   if (!adjustment) return refreshMaintenanceOnly(userId, userData, weeklyCalorieData);
 
   const now = new Date().toISOString();
-  let updateData;
+  const confirmed: Partial<UserData> = { lastAdjustmentDate: now, planConfidence: adjustment.planConfidence };
+  let updateData: Partial<UserData>;
 
   if (adjustment.suggestion === 'goal_reached') {
     updateData = {
       lastCalorieAdjustment: { reason: 'goal_reached', adjustedAt: now },
-      lastAdjustmentDate: now,
-      planConfidence: adjustment.planConfidence,
+      ...confirmed,
     };
   } else if (adjustment.suggestion === 'increase_steps') {
-    updateData = {
-      lastAdjustmentDate: now,
-      planConfidence: adjustment.planConfidence,
-    };
+    updateData = confirmed;
   } else if (adjustment.suggestion === 'hold') {
-    updateData = adjustment.syncedCalories != null
+    updateData = adjustment.syncedCalories != null && adjustment.syncedMacros
       ? {
           targetCalories: adjustment.syncedCalories,
           targetProtein:  adjustment.syncedMacros.protein,
           targetCarbs:    adjustment.syncedMacros.carbs,
           targetFats:     adjustment.syncedMacros.fats,
-          lastAdjustmentDate: now,
-          planConfidence: adjustment.planConfidence,
+          ...confirmed,
         }
-      : {
-          lastAdjustmentDate: now,
-          planConfidence: adjustment.planConfidence,
-        };
-  } else {
+      : confirmed;
+  } else if (adjustment.newMacros && adjustment.newTargetCalories != null) {
     updateData = {
       targetCalories: adjustment.newTargetCalories,
       targetProtein:  adjustment.newMacros.protein,
       targetCarbs:    adjustment.newMacros.carbs,
       targetFats:     adjustment.newMacros.fats,
       lastCalorieAdjustment: adjustment,
-      lastAdjustmentDate:    now,
-      planConfidence: adjustment.planConfidence,
+      ...confirmed,
     };
+  } else {
+    updateData = confirmed;
   }
 
-  updateData.slowEvalPending = adjustment.slowEvalPending === true;
+  updateData = { ...updateData, slowEvalPending: adjustment.slowEvalPending === true };
 
   const maintenanceCalories = blendMaintenance(userData.maintenanceCalories, adjustment.measuredTDEE);
   if (maintenanceCalories) {
@@ -255,7 +279,7 @@ export const evaluateWeeklyProgress = async (userId, userData, mealCache, curren
   }
 };
 
-export const checkAndRunWeeklyEval = async (userId, userData, mealCache) => {
+export const checkAndRunWeeklyEval = async (userId: string, userData: UserData | null | undefined, mealCache: MealCacheLike | null | undefined): Promise<WeeklyEvalResult | null> => {
   if (!userData || !mealCache) return null;
   if (daysSince(userData.lastAdjustmentDate) < 6) return null;
 
@@ -268,10 +292,10 @@ export const checkAndRunWeeklyEval = async (userId, userData, mealCache) => {
   return evaluateWeeklyProgress(userId, userData, mealCache, new Date());
 };
 
-export const initializeUserTargets = async (userId, weightChangePlan) => {
+export const initializeUserTargets = async (userId: string, weightChangePlan: WeightChangePlan): Promise<Partial<UserData>> => {
   if (!userId || !weightChangePlan) throw new Error('Invalid parameters');
 
-  const targets = {
+  const targets: Partial<UserData> = {
     targetCalories:       weightChangePlan.goalCalories,
     targetProtein:        weightChangePlan.macros.protein,
     targetCarbs:          weightChangePlan.macros.carbs,
@@ -286,7 +310,7 @@ export const initializeUserTargets = async (userId, weightChangePlan) => {
   return targets;
 };
 
-export const calculateLearningStats = (mealCache, currentDate, requiredDays = 7) => {
+export const calculateLearningStats = (mealCache: MealCacheLike, currentDate: DateInput, requiredDays = 7) => {
   const end = new Date(currentDate);
   end.setHours(23, 59, 59, 999);
   const start = new Date(end);
@@ -315,7 +339,12 @@ export const calculateLearningStats = (mealCache, currentDate, requiredDays = 7)
 const STEPS_BONUS_WINDOW_DAYS = 14;
 const STEPS_BONUS_MIN_DAYS = 7;
 
-export const checkAndBackfillStepsBonus = async (userId, userData, mealCache, currentDate) => {
+export const checkAndBackfillStepsBonus = async (
+  userId: string,
+  userData: UserData | null | undefined,
+  mealCache: MealCacheLike,
+  currentDate: DateInput,
+): Promise<Partial<UserData> | null> => {
   if (!userData?.weightChangePlan) return null;
   if (userData.planConfidence !== 'estimated') return null;
   if (userData.lastCalorieAdjustment) return null;
@@ -335,9 +364,9 @@ export const checkAndBackfillStepsBonus = async (userId, userData, mealCache, cu
   const avgDailySteps = avg(stepDays, 'steps');
   const plan = calculateWeightChangePlan({ ...userData, avgDailySteps });
   const now = new Date().toISOString();
-  const adjustment = plan.goalCalories - userData.targetCalories;
+  const adjustment = plan.goalCalories - Number(userData.targetCalories);
 
-  const targets = {
+  const targets: Partial<UserData> = {
     weightChangePlan:     plan,
     targetCalories:       plan.goalCalories,
     targetProtein:        plan.macros.protein,
@@ -365,13 +394,13 @@ export const checkAndBackfillStepsBonus = async (userId, userData, mealCache, cu
   }
 };
 
-export const checkAndCompleteLearning = async (userId, mealCache, currentDate, hasTargets) => {
+export const checkAndCompleteLearning = async (userId: string, mealCache: MealCacheLike, currentDate: DateInput, hasTargets: boolean): Promise<Partial<UserData> | null> => {
   if (hasTargets) return null;
 
   const stats = calculateLearningStats(mealCache, currentDate);
   if (!stats.isComplete) return null;
 
-  const targets = {
+  const targets: Partial<UserData> = {
     targetCalories:       stats.averages.calories,
     targetProtein:        stats.averages.protein,
     targetCarbs:          stats.averages.carbs,

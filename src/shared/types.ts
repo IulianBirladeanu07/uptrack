@@ -95,6 +95,17 @@ export type UserData = PlanFormData & {
   goalSwitchDate?: string | null;
   maintenanceCalories?: number | null;
   dailySteps?: DailySteps;
+  weeklyNutrition?: WeeklySnapshot[];
+  weeksSinceCutStart?: number;
+  maintenanceUpdatedAt?: string | null;
+  lastAdjustmentDate?: string | null;
+  lastCalorieAdjustment?: CalorieAdjustmentRecord | null;
+  lastNutritionUpdate?: string;
+  stepsBonusAppliedAt?: string | null;
+  targetsSource?: 'formula' | 'learning';
+  targetsInitializedAt?: string;
+  startWeight?: number;
+  phaseHistory?: PhaseHistoryEntry[];
 };
 
 export type LegacyMaintenance = {
@@ -121,4 +132,57 @@ export type PlanAdjustment = {
   newMacros?: Macros;
   adjustedAt?: string;
   slowEvalPending?: boolean;
+};
+
+export type CalorieAdjustmentRecord = Omit<Partial<PlanAdjustment>, 'reason'> & {
+  reason?: string;
+  adjustedAt?: string;
+};
+
+export type PhaseHistoryEntry = {
+  type: PlanType;
+  startDate: string | null;
+  endDate: string;
+  weeks: number;
+  startWeight: number;
+  endWeight: number;
+  avgKcal: number | null;
+  strengthPct: number | null;
+  weightPct: number | null;
+};
+
+export type FoodItem = {
+  calories?: Numeric | null;
+  protein?: Numeric | null;
+  carbohydrates?: Numeric | null;
+  fats?: Numeric | null;
+};
+
+export type DayMeals = Record<string, FoodItem[]>;
+
+export type NutritionTotals = {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
+
+export type WeeklySnapshot = {
+  weekStart: string;
+  daysLoggedNutrition: number;
+  avgCalories: number;
+  avgProtein: number;
+  avgCarbs: number;
+  avgFats: number;
+  daysLoggedSteps: number;
+  avgSteps: number;
+  totalSteps: number;
+  weightAverage: number | null;
+  createdAt: string;
+};
+
+export type MealCacheLike = {
+  getDateRange: (start: Date, end: Date) => { date: string; meals: DayMeals | null | undefined }[];
+  getStepsRange: (start: Date, end: Date) => { date: string; steps: number }[];
+  formatDate: (date: Date | string | number) => string;
 };

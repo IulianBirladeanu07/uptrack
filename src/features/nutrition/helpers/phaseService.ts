@@ -1,8 +1,11 @@
 import { doc, setDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
 import { calculateWeightChangePlan, calculateMacros } from '../../profile/utils/nutritionPlanEngine';
+import type { PhaseHistoryEntry, UserData, WeightChangePlan } from '../../../shared/types';
 
-export const switchToMaintenance = async (userId, userData, { weight, kcal, entry }) => {
+type SwitchInput = { weight: number; kcal: number; entry: PhaseHistoryEntry };
+
+export const switchToMaintenance = async (userId: string, userData: UserData, { weight, kcal, entry }: SwitchInput): Promise<void> => {
   const now = new Date().toISOString();
   const w = Number(weight.toFixed(1));
 
@@ -13,7 +16,7 @@ export const switchToMaintenance = async (userId, userData, { weight, kcal, entr
     fitnessGoals: 'maintenance',
   });
   const macros = calculateMacros('maintenance', kcal, w);
-  const plan = { ...base, tdee: kcal, goalCalories: kcal, macros, isEstimate: false };
+  const plan: WeightChangePlan = { ...base, tdee: kcal, goalCalories: kcal, macros, isEstimate: false };
 
   await setDoc(
     doc(db, 'users', userId),
