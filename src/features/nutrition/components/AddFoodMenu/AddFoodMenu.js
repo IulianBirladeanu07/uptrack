@@ -43,7 +43,7 @@ const menuItems = [
   }
 ];
 
-const AddFoodMenu = React.memo(({ isExpanded, onClose, navigation, meal }) => {
+const AddFoodMenu = React.memo(({ isExpanded, onClose, navigation, meal, selectedDate }) => {
   const insets = useSafeAreaInsets();
   const animationValue = useRef(new Animated.Value(0)).current;
 
@@ -99,9 +99,9 @@ const AddFoodMenu = React.memo(({ isExpanded, onClose, navigation, meal }) => {
   const handleItemPress = useCallback((type) => {
     onClose();
     setTimeout(() => {
-      navigation.navigate('CustomFood', { type, meal });
+      navigation.navigate('CustomFood', { type, meal, selectedDate });
     }, 250);
-  }, [navigation, meal, onClose]);
+  }, [navigation, meal, selectedDate, onClose]);
 
   const handleBackdropPress = useCallback(() => {
     onClose();

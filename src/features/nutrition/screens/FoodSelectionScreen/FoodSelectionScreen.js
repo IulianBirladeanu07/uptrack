@@ -288,6 +288,7 @@ const FoodSelectionScreen = () => {
                 onClose={handleQuickActionsClose}
                 navigation={navigation}
                 meal={meal}
+                selectedDate={selectedDate}
             />
 
             <View style={{ paddingBottom: insets.bottom || 20 }}>
