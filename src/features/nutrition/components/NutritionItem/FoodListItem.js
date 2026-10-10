@@ -174,6 +174,8 @@ const FoodListItem = memo(({
     setSearchQuery,
     handleSearch,
     onRecentSearchPress,
+    onRemoveRecentSearch,
+    onClearAllRecentSearches,
 }) => {
     const [expandedMealType, setExpandedMealType] = useState(null);
 
@@ -248,6 +250,8 @@ const FoodListItem = memo(({
                 onCreateFood={onCreateFood}
                 recentSearches={recentSearches}
                 onRecentSearchPress={handleRecentSearchPress}
+                onRemoveRecentSearch={onRemoveRecentSearch}
+                onClearAllRecentSearches={onClearAllRecentSearches}
             />
         );
     }
