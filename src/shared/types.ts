@@ -110,6 +110,7 @@ export type UserData = PlanFormData & {
   lastWeightUpdate?: string;
   weeklyTrend?: number | null;
   phaseHistory?: PhaseHistoryEntry[];
+  profileSetupComplete?: boolean;
 };
 
 export type LegacyMaintenance = {

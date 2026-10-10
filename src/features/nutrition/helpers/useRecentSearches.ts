@@ -5,7 +5,7 @@ export const RECENT_SEARCHES_KEY = '@food_recent_searches';
 const MAX_RECENT_SEARCHES = 5;
 
 export const useRecentSearches = () => {
-  const [recentSearches, setRecentSearches] = useState([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadRecentSearches = useCallback(async () => {
@@ -26,7 +26,7 @@ export const useRecentSearches = () => {
     }
   }, []);
 
-  const saveRecentSearches = useCallback(async (searches) => {
+  const saveRecentSearches = useCallback(async (searches: string[]) => {
     try {
       await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches));
     } catch (error) {
@@ -34,7 +34,7 @@ export const useRecentSearches = () => {
     }
   }, []);
 
-  const addRecentSearch = useCallback(async (searchTerm) => {
+  const addRecentSearch = useCallback(async (searchTerm: string) => {
     if (!searchTerm || typeof searchTerm !== 'string') return;
     
     const cleanedTerm = searchTerm.trim();
@@ -56,7 +56,7 @@ export const useRecentSearches = () => {
     }
   }, [saveRecentSearches]);
 
-  const removeRecentSearch = useCallback(async (searchTerm) => {
+  const removeRecentSearch = useCallback(async (searchTerm: string) => {
     try {
       setRecentSearches(prevSearches => {
         const updatedSearches = prevSearches.filter(
@@ -80,11 +80,11 @@ export const useRecentSearches = () => {
     }
   }, []);
 
-  const getRecentSearch = useCallback((index) => {
+  const getRecentSearch = useCallback((index: number) => {
     return recentSearches[index] || null;
   }, [recentSearches]);
 
-  const hasRecentSearch = useCallback((searchTerm) => {
+  const hasRecentSearch = useCallback((searchTerm: string) => {
     return recentSearches.some(
       term => term.toLowerCase() === searchTerm.toLowerCase()
     );

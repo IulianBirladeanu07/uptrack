@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect, useCallback, useMemo } from 'react';
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebaseConfigService';
@@ -8,15 +9,27 @@ import { RECENT_SEARCHES_KEY } from '../../nutrition/helpers/useRecentSearches';
 import { SPLITS_CACHE_KEY } from '../../workout/handlers/WorkoutHandler';
 import { SEARCH } from '../../../shared/theme/constants';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import type { UserData } from '../../../shared/types';
 
-export const AuthContext = createContext();
+export type AuthContextValue = {
+  authenticated: boolean;
+  loading: boolean;
+  userData: UserData | null;
+  setAuthenticated: Dispatch<SetStateAction<boolean>>;
+  profileSetupComplete: boolean;
+  setProfileSetupComplete: Dispatch<SetStateAction<boolean>>;
+  logout: () => Promise<void>;
+  refreshUserData: () => Promise<UserData | undefined>;
+};
+
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const PROFILE_DEFAULTS = {
   autoAdjustEnabled:   true,
   weeksSinceCutStart:  0,
 };
 
-const deriveAndSaveStartWeight = async (userId, data) => {
+const deriveAndSaveStartWeight = async (userId: string, data: UserData): Promise<UserData> => {
   if (data.startWeight || !data.weightIns?.length) return data;
 
   const startWeight = deriveStartWeight(data.weightIns);
@@ -26,10 +39,10 @@ const deriveAndSaveStartWeight = async (userId, data) => {
   return { ...data, startWeight };
 };
 
-const applyProfileDefaults = async (userId, data) => {
-  const missing = {};
+const applyProfileDefaults = async (userId: string, data: UserData): Promise<UserData> => {
+  const missing: Record<string, unknown> = {};
   Object.entries(PROFILE_DEFAULTS).forEach(([key, value]) => {
-    if (data[key] === undefined) missing[key] = value;
+    if (data[key as keyof UserData] === undefined) missing[key] = value;
   });
   if (!Object.keys(missing).length) return data;
 
@@ -37,16 +50,16 @@ const applyProfileDefaults = async (userId, data) => {
   return { ...data, ...missing };
 };
 
-export const AuthProvider = ({ children }) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profileSetupComplete, setProfileSetupComplete] = useState(false);
-  const [userData, setUserData] = useState(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
 
-  const refreshUserData = useCallback(async () => {
+  const refreshUserData = useCallback(async (): Promise<UserData | undefined> => {
     try {
       const user = auth.currentUser;
-      if (!user) return;
+      if (!user) return undefined;
 
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() || {});
@@ -55,6 +68,7 @@ export const AuthProvider = ({ children }) => {
       return data;
     } catch (error) {
       console.error('refreshUserData error:', error);
+      return undefined;
     }
   }, []);
 

@@ -1,8 +1,14 @@
 import { useContext, useMemo } from 'react';
 import { AuthContext } from '../../auth/context/AuthContext';
+import type { FoodItem, NutritionTotals } from '../../../shared/types';
 
-const useDailyNutrition = (breakfastFoods, lunchFoods, dinnerFoods, snacksFoods) => {
-  const { userData } = useContext(AuthContext);
+const useDailyNutrition = (
+  breakfastFoods: FoodItem[],
+  lunchFoods: FoodItem[],
+  dinnerFoods: FoodItem[],
+  snacksFoods?: FoodItem[] | null,
+) => {
+  const { userData } = useContext(AuthContext)!;
 
   const hasTargets = !!(userData?.targetCalories && userData?.maintenanceCalories);
   const userMacros = useMemo(() => hasTargets
@@ -23,7 +29,7 @@ const useDailyNutrition = (breakfastFoods, lunchFoods, dinnerFoods, snacksFoods)
 
   const dailyNutrition = useMemo(() => {
     const allFoods = [...breakfastFoods, ...lunchFoods, ...dinnerFoods, ...(snacksFoods || [])];
-    return allFoods.reduce((totals, food) => ({
+    return allFoods.reduce<NutritionTotals>((totals, food) => ({
       calories: totals.calories + (Number(food.calories) || 0),
       protein: totals.protein + (Number(food.protein) || 0),
       carbs: totals.carbs + (Number(food.carbohydrates) || 0),
