@@ -263,11 +263,7 @@ const FoodSelectionScreen = () => {
                 </View>
             )}
 
-            <View style={[
-                styles.foodListContainer,
-                headerCollapsed && !isSearching && styles.foodListContainerExpanded,
-                isSearching && styles.foodListContainerSearching,
-            ]}>
+            <View style={styles.foodListContainer}>
                 <FoodListItem
                     isSearching={isSearching}
                     selectedCategory={selectedCategory}

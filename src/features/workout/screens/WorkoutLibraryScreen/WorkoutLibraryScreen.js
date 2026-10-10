@@ -40,6 +40,12 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
         }
     }, [route.params?.initialSegment]);
 
+    useEffect(() => {
+        if (userData?.activeSplitId) {
+            setActiveSplitId(userData.activeSplitId);
+        }
+    }, [userData?.activeSplitId]);
+
     const fetchData = useCallback(async (force = false) => {
         if (!force && hasFetchedRef.current) return;
         setLoading(true);

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../../../../../shared/theme';
 import styles from './WorkoutPreviewCardStyles';
 
-const WorkoutPreviewCard = React.memo(({
+const WorkoutPreviewCardContent = ({
   workout,
   onSelect,
   selectedDay,
@@ -82,8 +82,6 @@ const WorkoutPreviewCard = React.memo(({
     LayoutAnimation.configureNext(animationConfig);
     setShowAllExercises(prev => !prev);
   }, []);
-
-  if (!workout) return null;
 
   const totalSets = useMemo(() => {
     return workout.exercises?.reduce((total, exercise) => total + (parseInt(exercise.numSets) || 0), 0) || 0;
@@ -205,6 +203,10 @@ const WorkoutPreviewCard = React.memo(({
       )}
     </View>
   );
-});
+};
+
+const WorkoutPreviewCard = React.memo((props) => (
+  props.workout ? <WorkoutPreviewCardContent {...props} /> : null
+));
 
 export default WorkoutPreviewCard;

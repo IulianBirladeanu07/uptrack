@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
@@ -83,41 +83,28 @@ const MemoizedFoodItem = memo(({ food, onPress, onPlusPress, isChecked, showPlus
   );
 });
 
-const MealItem = memo(({
+const isMealVisible = (item, meal) => {
+  if (!meal) return true;
+
+  const currentMealType = meal.toLowerCase().trim();
+  const itemMealType = item.mealType.toLowerCase().trim();
+
+  if (currentMealType === 'snacks' || currentMealType === 'snack') {
+    return itemMealType === 'snacks' || itemMealType === 'snack';
+  }
+
+  return itemMealType === currentMealType;
+};
+
+const MealItemContent = ({
   item,
   onPress,
   onPlusPress,
-  showPlusButton = true,
-  isFoodDeletable = false,
-  meal,
+  showPlusButton,
+  isFoodDeletable,
 }) => {
   const navigation = useNavigation();
   const containerScale = useSharedValue(1);
-
-  if (!item?.foods || !Array.isArray(item.foods)) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Meal data is missing or invalid!</Text>
-      </View>
-    );
-  }
-
-  const shouldDisplay = useMemo(() => {
-    if (!meal) return true;
-
-    const currentMealType = meal.toLowerCase().trim();
-    const itemMealType = item.mealType.toLowerCase().trim();
-
-    if (currentMealType === 'snacks' || currentMealType === 'snack') {
-      return itemMealType === 'snacks' || itemMealType === 'snack';
-    }
-
-    return itemMealType === currentMealType;
-  }, [meal, item.mealType]);
-
-  if (!shouldDisplay) {
-    return null;
-  }
 
   const totalCalories = item.foods.reduce((total, food) => total + (parseFloat(food.calories) || 0), 0);
   const foodsCount = item.foods.length;
@@ -264,6 +251,37 @@ const MealItem = memo(({
         </View>
       )}
     </Animated.View>
+  );
+};
+
+const MealItem = memo(({
+  item,
+  onPress,
+  onPlusPress,
+  showPlusButton = true,
+  isFoodDeletable = false,
+  meal,
+}) => {
+  if (!item?.foods || !Array.isArray(item.foods)) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Meal data is missing or invalid!</Text>
+      </View>
+    );
+  }
+
+  if (!isMealVisible(item, meal)) {
+    return null;
+  }
+
+  return (
+    <MealItemContent
+      item={item}
+      onPress={onPress}
+      onPlusPress={onPlusPress}
+      showPlusButton={showPlusButton}
+      isFoodDeletable={isFoodDeletable}
+    />
   );
 }, (prevProps, nextProps) => {
   const prevItem = prevProps.item;

@@ -134,13 +134,14 @@ const buildCategoryData = (cache) => {
     return { recentMeals, frequentFoods, favoriteFoods: [] };
 };
 
-export const FoodProvider = ({ children, initialUserData }) => {
+export const FoodProvider = ({ children }) => {
     const [currentUser,         setCurrentUser]         = useState(null);
     const [selectedDate,        setSelectedDate]        = useState(new Date());
-    const [userProfile,         setUserProfile]         = useState(initialUserData || null);
+    const [userProfile,         setUserProfile]         = useState(null);
     const [loading,             setLoading]             = useState(false);
     const [error,               setError]               = useState(null);
     const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+    const [freshMealsLoaded,    setFreshMealsLoaded]    = useState(false);
     const [dailySteps,          setDailySteps]          = useState(0);
     const [stepsVersion,        setStepsVersion]        = useState(0);
     const [stepsLoading,        setStepsLoading]        = useState(false);
@@ -162,6 +163,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
     const selectedDateRef   = useRef(selectedDate);
     const stepsDisplayRef   = useRef(null);
     const stepsBonusCheckedRef = useRef(false);
+    const weeklyEvalCheckedRef = useRef(false);
     const currentUserRef    = useRef(null);
     const pendingStepsRef   = useRef({});
     const writtenStepsRef   = useRef({});
@@ -504,7 +506,6 @@ export const FoodProvider = ({ children, initialUserData }) => {
 
             if (cachedMeals && mountedRef.current) {
                 mealCache.current.buildFromMeals(cachedMeals);
-                setUserProfile(initialUserData);
                 updateCurrentDayMeals(new Date());
                 setCacheVersion(v => v + 1);
                 setInitialLoadComplete(true);
@@ -513,25 +514,13 @@ export const FoodProvider = ({ children, initialUserData }) => {
             const last30DaysMeals = await fetchLast30DaysMeals(user.uid);
 
             if (mountedRef.current) {
-                setUserProfile(initialUserData);
                 mealCache.current.buildFromMeals(last30DaysMeals);
+                setFreshMealsLoaded(true);
                 updateCurrentDayMeals(new Date());
                 setCacheVersion(v => v + 1);
                 if (!cachedMeals) setInitialLoadComplete(true);
 
                 persistMealCache(user.uid, last30DaysMeals);
-
-                setTimeout(async () => {
-                    if (!mountedRef.current) return;
-                    if (initialUserData) {
-                        const adjustment = await checkAndRunWeeklyEval(user.uid, initialUserData, mealCache.current);
-                        console.log('weekly eval', JSON.stringify(adjustment));
-                        if (adjustment && mountedRef.current) {
-                            setUserProfile(prev => ({ ...prev, ...adjustment }));
-                            await refreshUserData();
-                        }
-                    }
-                }, 1000);
             }
         } catch (err) {
             console.error('[FoodContext] init failed:', err);
@@ -542,7 +531,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
         } finally {
             if (mountedRef.current) setLoading(false);
         }
-    }, [initialUserData, updateCurrentDayMeals, handleError, refreshUserData]);
+    }, [updateCurrentDayMeals, handleError]);
 
     useEffect(() => {
         const checkLearningCompletion = async () => {
@@ -582,6 +571,24 @@ export const FoodProvider = ({ children, initialUserData }) => {
     }, [currentUser, stepsConnected, userData, refreshUserData]);
 
     useEffect(() => {
+        if (!currentUser || !freshMealsLoaded || !userData || weeklyEvalCheckedRef.current) return;
+        weeklyEvalCheckedRef.current = true;
+
+        const runWeeklyEval = async () => {
+            try {
+                const adjustment = await checkAndRunWeeklyEval(currentUser.uid, userData, mealCache.current);
+                if (adjustment && mountedRef.current) {
+                    setUserProfile(prev => ({ ...prev, ...adjustment }));
+                    await refreshUserData();
+                }
+            } catch (error) {
+                console.error('Failed to run weekly evaluation:', error);
+            }
+        };
+        runWeeklyEval();
+    }, [currentUser, freshMealsLoaded, userData, refreshUserData]);
+
+    useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (!mountedRef.current) return;
             const previousUser = currentUserRef.current;
@@ -593,6 +600,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 if (previousUser) clearPersistedMealCache(previousUser.uid);
                 initializationRef.current = false;
                 stepsBonusCheckedRef.current = false;
+                weeklyEvalCheckedRef.current = false;
                 pendingStepsRef.current = {};
                 writtenStepsRef.current = {};
                 mealCache.current.clear();
@@ -608,6 +616,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
                 setError(null);
                 setLoading(false);
                 setInitialLoadComplete(false);
+                setFreshMealsLoaded(false);
             }
         });
         return () => unsubscribe();
