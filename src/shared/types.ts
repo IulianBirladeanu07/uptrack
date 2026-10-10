@@ -225,6 +225,14 @@ export type WeightDisplayData = {
   weighInCount: number;
 };
 
+export type HomeNotice = {
+  id: string;
+  type: 'calorie_adjustment' | 'goal_reached' | 'steps_permission';
+  title: string;
+  body: string;
+  dismissKey?: string;
+};
+
 export type MealCacheLike = {
   getDateRange: (start: Date, end: Date) => { date: string; meals: DayMeals | null | undefined }[];
   getStepsRange: (start: Date, end: Date) => { date: string; steps: number }[];

@@ -1,4 +1,4 @@
-export const durationToMinutes = (d) => {
+export const durationToMinutes = (d: unknown): number | null => {
   if (typeof d !== 'string') return null;
   const p = d.split(':').map(Number);
   if (p.length < 2 || p.length > 3 || p.some(isNaN)) return null;
@@ -6,7 +6,7 @@ export const durationToMinutes = (d) => {
   return h * 60 + m;
 };
 
-export const durationLabel = (d) => {
+export const durationLabel = (d: unknown): string | null => {
   const m = durationToMinutes(d);
   if (m == null) return null;
   const n = Math.max(m, 1);
