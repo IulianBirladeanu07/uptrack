@@ -391,6 +391,7 @@ const ExerciseSelectionScreen = ({ route }) => {
   }, [allGroupedExercises.length]);
 
   const hasClearedCacheRef = useRef(false);
+  const createdExerciseRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -398,7 +399,8 @@ const ExerciseSelectionScreen = ({ route }) => {
         hasClearedCacheRef.current = true;
         clearExercisesCache(true);
       }
-      loadExercises();
+      loadExercises(createdExerciseRef.current);
+      createdExerciseRef.current = false;
     }, [loadExercises])
   );
 
@@ -504,6 +506,7 @@ const ExerciseSelectionScreen = ({ route }) => {
   }, [navigation]);
 
   const handleCreateExercise = useCallback(() => {
+    createdExerciseRef.current = true;
     navigation.navigate('CreateExercise', {});
   }, [navigation]);
 
