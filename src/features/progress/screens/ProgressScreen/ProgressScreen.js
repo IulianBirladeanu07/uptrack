@@ -505,7 +505,11 @@ const ProgressScreen = () => {
             (async () => {
                 try {
                     const splits = await fetchSplitsFromFirestore();
-                    if (!on || !splits.length) return;
+                    if (!on) return;
+                    if (!splits.length) {
+                        setPlanned(null);
+                        return;
+                    }
                     const raw = splits.find(s => (s.id ?? s.data?.id) === userData?.activeSplitId) ?? splits[0];
                     setPlanned(countPlanned(raw.schedule ?? raw.data?.schedule));
                 } catch (e) {

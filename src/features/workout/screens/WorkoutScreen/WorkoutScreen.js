@@ -496,7 +496,12 @@ const WorkoutScreen = () => {
                 setLoading(true);
             }
             const splits = await fetchSplitsFromFirestore();
-            if (!splits.length) { return; }
+            if (!splits.length) {
+                setActiveSplit(null);
+                setTodayWorkout(null);
+                setUpcomingWorkouts([]);
+                return;
+            }
 
             const raw = splits.find(s => (s.id ?? s.data?.id) === userData?.activeSplitId) ?? splits[0];
             const active = {
