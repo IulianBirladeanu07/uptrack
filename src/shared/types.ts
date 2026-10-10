@@ -41,3 +41,5 @@ export type StatusBadge = {
   label: string;
   message: string;
 };
+
+export type DailySteps = Record<string, number>;
