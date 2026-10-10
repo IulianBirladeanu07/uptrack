@@ -8,9 +8,8 @@ import {
   checkAndRunWeeklyEval,
 } from '../helpers/learningCompletionService';
 import WeightService from '../services/weightService';
-import type { DayKey, MealCacheLike, Numeric, UserData, WeeklySnapshot, WeightInWeek } from '../../../shared/types';
+import type { DateInput, DayKey, MealCacheLike, Numeric, UserData, WeeklySnapshot, WeightInWeek } from '../../../shared/types';
 
-type DateInput = Date | string | number;
 type Setter<T> = (value: T) => void;
 type WeightTab = 'input' | 'week' | 'trend';
 type TrendEntry = { date: string; weight: number };

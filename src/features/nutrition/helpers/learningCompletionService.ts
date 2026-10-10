@@ -9,6 +9,7 @@ import {
 import { weekStepStats, overlayWeekSteps } from './stepStats';
 import type {
   DailySteps,
+  DateInput,
   DayMeals,
   MealCacheLike,
   Numeric,
@@ -21,7 +22,6 @@ import type {
   WeightInWeek,
 } from '../../../shared/types';
 
-type DateInput = Date | string | number;
 type WeeklyEvalResult = Partial<UserData> & { suggestion: PlanAdjustment['suggestion'] | 'maintenance_refresh' };
 
 const DAY_MS = 1000 * 60 * 60 * 24;
