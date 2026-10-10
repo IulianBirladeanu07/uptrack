@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Vibration, Alert } from 'react-native';
 import { Animated } from 'react-native';
 import { transformBarcodeDBToFoodDetail } from '../utils/customFoodDataUtils';
@@ -184,10 +184,10 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
     );
   };
 
-  const resumeScanning = () => {
+  const resumeScanning = useCallback(() => {
     setCurrentProduct(null);
     setIsScanning(true);
-  };
+  }, []);
 
   const toggleBatchMode = () => {
     if (batchMode && scannedProducts.length > 0) {
