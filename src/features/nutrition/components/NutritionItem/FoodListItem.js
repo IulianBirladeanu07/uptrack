@@ -279,7 +279,7 @@ const FoodListItem = memo(({
                     extraData={categoryFoods.length}
                 />
             );
-        case 'Favorite':
+        case 'Favorites':
             return <EmptyComponent text="Favorite foods coming soon!" mealType="favorite" />;
         default:
             return null;
