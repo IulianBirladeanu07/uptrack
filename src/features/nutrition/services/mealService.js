@@ -4,6 +4,8 @@ import { formatDate } from '../utils/dateUtils';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snacks'];
 
+const num = (v) => Number(v) || 0;
+
 export const consolidateFoodData = (existingFoods, newFoods) => {
     const foods = [...existingFoods];
     newFoods.forEach(newFood => {
@@ -12,16 +14,16 @@ export const consolidateFoodData = (existingFoods, newFoods) => {
             const existing = foods[idx];
             foods[idx] = {
                 ...existing,
-                calories:      (existing.calories      || 0) + (newFood.calories      || 0),
-                carbohydrates: (existing.carbohydrates || 0) + (newFood.carbohydrates || 0),
-                fats:          (existing.fats          || 0) + (newFood.fats          || 0),
-                protein:       (existing.protein       || 0) + (newFood.protein       || 0),
-                fiber:         (existing.fiber         || 0) + (newFood.fiber         || 0),
-                sugar:         (existing.sugar         || 0) + (newFood.sugar         || 0),
-                salt:          (existing.salt          || 0) + (newFood.salt          || 0),
-                saturatedFats: (existing.saturatedFats || 0) + (newFood.saturatedFats || 0),
+                calories:      num(existing.calories)      + num(newFood.calories),
+                carbohydrates: num(existing.carbohydrates) + num(newFood.carbohydrates),
+                fats:          num(existing.fats)          + num(newFood.fats),
+                protein:       num(existing.protein)       + num(newFood.protein),
+                fiber:         num(existing.fiber)         + num(newFood.fiber),
+                sugar:         num(existing.sugar)         + num(newFood.sugar),
+                salt:          num(existing.salt)          + num(newFood.salt),
+                saturatedFats: num(existing.saturatedFats) + num(newFood.saturatedFats),
                 usageCount:    (existing.usageCount    || 0) + 1,
-                quantity:      (existing.quantity      || 0) + (newFood.quantity      || 0),
+                quantity:      num(existing.quantity)      + num(newFood.quantity),
             };
         } else {
             foods.push({ ...newFood, quantity: newFood.quantity || 1, usageCount: 1 });
