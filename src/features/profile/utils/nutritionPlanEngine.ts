@@ -10,11 +10,12 @@ import {
 } from './weightTrendEngine';
 import { MIN_STEP_DAYS } from '../../nutrition/helpers/stepStats';
 import { KCAL_PER_KG, estimateMaintenanceRegression } from './maintenanceEstimator';
+import type { LegacyMaintenance, Macros, MaintenanceResult, PlanAdjustment, PlanFormData, PlanType, UserData, WeekStats, WeightChangePlan } from '../../../shared/types';
 
 export { KCAL_PER_KG };
 const WEEKS_PER_MONTH = 4.34524;
 
-const ACTIVITY_MULTIPLIERS = {
+const ACTIVITY_MULTIPLIERS: Record<string, number> = {
   sedentary:         1.2,
   lightly_active:    1.375,
   moderately_active: 1.55,
@@ -22,7 +23,7 @@ const ACTIVITY_MULTIPLIERS = {
   extremely_active:  1.9,
 };
 
-const MIN_CALORIES_PER_KG_BY_ACTIVITY = {
+const MIN_CALORIES_PER_KG_BY_ACTIVITY: Record<string, number> = {
   sedentary:         20,
   lightly_active:    22,
   moderately_active: 24,
@@ -30,7 +31,7 @@ const MIN_CALORIES_PER_KG_BY_ACTIVITY = {
   extremely_active:  30,
 };
 
-const DEFICIT_PERCENT = {
+const DEFICIT_PERCENT: Record<string, number> = {
   novice:       0.22,
   beginner:     0.20,
   intermediate: 0.18,
@@ -38,7 +39,7 @@ const DEFICIT_PERCENT = {
   elite:        0.15,
 };
 
-const SURPLUS_PERCENT = {
+const SURPLUS_PERCENT: Record<string, number> = {
   novice:       0.12,
   beginner:     0.10,
   intermediate: 0.08,
@@ -46,12 +47,12 @@ const SURPLUS_PERCENT = {
   elite:        0.05,
 };
 
-const BULKING_RATE_KG_PER_MONTH = {
+const BULKING_RATE_KG_PER_MONTH: Record<string, Record<string, number>> = {
   male:   { novice: 1.5, beginner: 1.2, intermediate: 0.9, advanced: 0.6, elite: 0.4 },
   female: { novice: 1.0, beginner: 0.8, intermediate: 0.6, advanced: 0.4, elite: 0.25 },
 };
 
-export const STRESS_MULTIPLIERS = {
+export const STRESS_MULTIPLIERS: Record<string, number> = {
   low:      1.0,
   moderate: 0.85,
   high:     0.7,
@@ -86,10 +87,12 @@ const HOLD_SYNC_MIN_DELTA = 25;
 const WEIGHT_LOSS_PROTEIN_PER_KG = 2.4;
 const REDUCED_FAT_PER_KG = 0.8;
 
-export const validateInput = (key, value, fieldType) => {
+const pick = <T>(table: Record<string, T>, key: string | null | undefined): T | undefined => (key ? table[key] : undefined);
+
+export const validateInput = (key: string, value: number | string | null | undefined, fieldType?: string): boolean => {
   if (fieldType === 'picker') return !!value;
 
-  const parsed = parseFloat(value);
+  const parsed = parseFloat(String(value));
   if (key === 'avgDailySteps') return !isNaN(parsed) && parsed >= 0;
 
   if (!value || isNaN(parsed) || parsed <= 0) return false;
@@ -97,20 +100,20 @@ export const validateInput = (key, value, fieldType) => {
   return true;
 };
 
-export const calculateBMR = (gender, weight, height, age) => {
+export const calculateBMR = (gender: string | null | undefined, weight: number, height: number, age: number): number => {
   const genderConstant = gender === 'male' ? 5 : -161;
   return 10 * weight + 6.25 * height - 5 * age + genderConstant;
 };
 
-export const calculateTDEE = (bmr, activityLevel) => {
-  const multiplier = ACTIVITY_MULTIPLIERS[activityLevel] || 1.55;
+export const calculateTDEE = (bmr: number, activityLevel: string | null | undefined): number => {
+  const multiplier = pick(ACTIVITY_MULTIPLIERS, activityLevel) || 1.55;
   return bmr * multiplier;
 };
 
-export const calculateStepsTDEEBonus = (avgSteps, weight) => {
+export const calculateStepsTDEEBonus = (avgSteps: number | null | undefined, weight: number): number => {
   if (avgSteps == null || avgSteps <= 0) return 0;
 
-  let bucket = 'low';
+  let bucket: keyof typeof STEPS_TDEE_BONUS_PER_KG = 'low';
   if (avgSteps >= STEPS_THRESHOLDS.very_high) bucket = 'very_high';
   else if (avgSteps >= STEPS_THRESHOLDS.high) bucket = 'high';
   else if (avgSteps >= STEPS_THRESHOLDS.moderate) bucket = 'moderate';
@@ -118,28 +121,28 @@ export const calculateStepsTDEEBonus = (avgSteps, weight) => {
   return Math.round(STEPS_TDEE_BONUS_PER_KG[bucket] * weight);
 };
 
-export const calculateRealTDEE = (avgDailyCalories, weeklyWeightChangeKg) => {
+export const calculateRealTDEE = (avgDailyCalories: number | null | undefined, weeklyWeightChangeKg: number): number | null => {
   if (!avgDailyCalories || avgDailyCalories <= 0) return null;
   const dailyWeightChangeKcal = (weeklyWeightChangeKg * KCAL_PER_KG) / 7;
   return Math.round(avgDailyCalories - dailyWeightChangeKcal);
 };
 
-export const calculateMinCalories = (bmr, tdee, currentWeight, activityLevel) => {
-  const perKgFloor = MIN_CALORIES_PER_KG_BY_ACTIVITY[activityLevel] || 24;
+export const calculateMinCalories = (bmr: number, tdee: number, currentWeight: number, activityLevel: string | null | undefined): number => {
+  const perKgFloor = pick(MIN_CALORIES_PER_KG_BY_ACTIVITY, activityLevel) || 24;
   const weightFloor = Math.min(currentWeight * perKgFloor, tdee * 0.9);
   const macroFloor = currentWeight * WEIGHT_LOSS_PROTEIN_PER_KG * 4 + currentWeight * REDUCED_FAT_PER_KG * 9;
   return Math.round(Math.max(bmr * 1.1, tdee * 0.75, weightFloor, macroFloor));
 };
 
-export const getTargetROLPercent = (stressLevel) => {
-  const stressMultiplier = STRESS_MULTIPLIERS[stressLevel] || STRESS_MULTIPLIERS.moderate;
+export const getTargetROLPercent = (stressLevel: string | null | undefined): number => {
+  const stressMultiplier = pick(STRESS_MULTIPLIERS, stressLevel) || STRESS_MULTIPLIERS.moderate;
   return STANDARD_ROL_PERCENT * stressMultiplier;
 };
 
-export const getTargetWeeklyRateKg = (currentWeight, stressLevel) =>
+export const getTargetWeeklyRateKg = (currentWeight: number, stressLevel: string | null | undefined): number =>
   (currentWeight * getTargetROLPercent(stressLevel)) / 100;
 
-export const calculateMacros = (goal, calories, weight) => {
+export const calculateMacros = (goal: string, calories: number, weight: number): Macros => {
   const proteinPerKg = goal === 'weight_loss' ? WEIGHT_LOSS_PROTEIN_PER_KG : goal === 'muscle_gain' ? 2.2 : 1.8;
   const fatPerKg = 1.0;
 
@@ -160,42 +163,42 @@ export const calculateMacros = (goal, calories, weight) => {
   return { protein: proteinGrams, carbs: Math.round(remaining / 4), fats: fatGrams };
 };
 
-export const deriveFitnessGoal = (currentWeight, targetWeight) => {
-  const current = parseFloat(currentWeight);
-  const target = parseFloat(targetWeight);
+export const deriveFitnessGoal = (currentWeight: number | string | null | undefined, targetWeight: number | string | null | undefined): PlanType => {
+  const current = parseFloat(String(currentWeight));
+  const target = parseFloat(String(targetWeight));
   if (!isFinite(current) || !isFinite(target) || current === target) return 'maintenance';
   return current > target ? 'weight_loss' : 'muscle_gain';
 };
 
-export const calculateWeightChangePlan = (formData) => {
+export const calculateWeightChangePlan = (formData: PlanFormData): WeightChangePlan => {
   const {
     currentWeight, targetWeight, fitnessGoals,
     activityLevel, gender, height, age,
     stressLevel, avgDailySteps, experienceLevel,
   } = formData;
 
-  const weight = parseFloat(currentWeight);
-  const target = parseFloat(targetWeight) || weight;
+  const weight = parseFloat(String(currentWeight));
+  const target = parseFloat(String(targetWeight)) || weight;
   const weightDiff = Math.abs(weight - target);
   const expLevel = experienceLevel || 'intermediate';
 
-  const goal = fitnessGoals || deriveFitnessGoal(weight, target);
+  const goal: PlanType = fitnessGoals || deriveFitnessGoal(weight, target);
 
-  const bmr = calculateBMR(gender, weight, parseFloat(height), parseFloat(age));
+  const bmr = calculateBMR(gender, weight, parseFloat(String(height)), parseFloat(String(age)));
   const tdeeMifflin = calculateTDEE(bmr, activityLevel);
   const stepsBonus = calculateStepsTDEEBonus(avgDailySteps, weight);
   const tdee = Math.round(tdeeMifflin + stepsBonus);
 
-  const stressMultiplier = STRESS_MULTIPLIERS[stressLevel] || STRESS_MULTIPLIERS.moderate;
+  const stressMultiplier = pick(STRESS_MULTIPLIERS, stressLevel) || STRESS_MULTIPLIERS.moderate;
 
-  let goalCalories;
+  let goalCalories: number;
   let ratePerWeek = 0;
   let ratePerMonth = 0;
   let weeksToGoal = 0;
 
   if (goal === 'weight_loss') {
     const targetRatePerWeek = getTargetWeeklyRateKg(weight, stressLevel);
-    const deficitPct = DEFICIT_PERCENT[expLevel] || 0.18;
+    const deficitPct = pick(DEFICIT_PERCENT, expLevel) || 0.18;
     const dailyDeltaTarget = (targetRatePerWeek * KCAL_PER_KG) / 7;
     const maxDailyDelta = tdee * deficitPct;
     const dailyDelta = Math.min(dailyDeltaTarget, maxDailyDelta);
@@ -210,12 +213,12 @@ export const calculateWeightChangePlan = (formData) => {
     weeksToGoal = ratePerWeek > 0 ? Math.ceil(weightDiff / ratePerWeek) : 0;
 
   } else if (goal === 'muscle_gain') {
-    const bulkRates = BULKING_RATE_KG_PER_MONTH[gender] || BULKING_RATE_KG_PER_MONTH.male;
-    const baseRate = bulkRates[expLevel] || bulkRates.intermediate;
+    const bulkRates = pick(BULKING_RATE_KG_PER_MONTH, gender) || BULKING_RATE_KG_PER_MONTH.male;
+    const baseRate = pick(bulkRates, expLevel) || bulkRates.intermediate;
     const targetRatePerMonth = baseRate * stressMultiplier;
     const targetRatePerWeek = targetRatePerMonth / WEEKS_PER_MONTH;
 
-    const surplusPct = SURPLUS_PERCENT[expLevel] || 0.08;
+    const surplusPct = pick(SURPLUS_PERCENT, expLevel) || 0.08;
     const dailyDeltaTarget = (targetRatePerWeek * KCAL_PER_KG) / 7;
     const maxDailyDelta = tdee * surplusPct;
     const dailyDelta = Math.min(dailyDeltaTarget, maxDailyDelta);
@@ -249,12 +252,16 @@ export const calculateWeightChangePlan = (formData) => {
   };
 };
 
-export const estimateMaintenance = (userData, weeklyCalorieData, fallbackRateKgPerWeek = null) => {
+export const estimateMaintenance = (
+  userData: UserData | null | undefined,
+  weeklyCalorieData: WeekStats[] | null | undefined,
+  fallbackRateKgPerWeek: number | null = null,
+): MaintenanceResult | null => {
   const weeks = weeklyCalorieData || [];
   const regression = estimateMaintenanceRegression(userData?.weightIns, weeks);
   if (regression) return regression;
 
-  const isUsable = w => w && w.daysLogged >= MAINTENANCE_MIN_LOGGED_DAYS && w.avgCalories > 0;
+  const isUsable = (w: WeekStats | null | undefined): boolean => !!(w && w.daysLogged >= MAINTENANCE_MIN_LOGGED_DAYS && w.avgCalories > 0);
 
   const hasWeekStarts = weeks.length > 0 && weeks.every(w => w.weekStart);
   if (!hasWeekStarts) {
@@ -265,7 +272,7 @@ export const estimateMaintenance = (userData, weeklyCalorieData, fallbackRateKgP
     return maintenance ? { maintenance, weeksUsed: lastWeeks.length, avgCalories, rateKgPerWeek: fallbackRateKgPerWeek, windowed: false } : null;
   }
 
-  let run = [];
+  let run: WeekStats[] = [];
   for (let i = weeks.length - 1; i >= 0 && run.length < MAINTENANCE_MAX_WEEKS; i--) {
     if (!isUsable(weeks[i])) break;
     if (run.length && shiftWeekStart(weeks[i].weekStart, 1) !== run[0].weekStart) break;
@@ -273,9 +280,9 @@ export const estimateMaintenance = (userData, weeklyCalorieData, fallbackRateKgP
   }
   if (run.length < MIN_WEEKS_OF_DATA) return null;
 
-  if (run.length > MIN_WEEKS_OF_DATA && run.every(w => w.avgSteps > 0 && (w.daysLoggedSteps == null || w.daysLoggedSteps >= MIN_STEP_DAYS))) {
-    const meanSteps = run.reduce((s, w) => s + w.avgSteps, 0) / run.length;
-    const latestSteps = run[run.length - 1].avgSteps;
+  if (run.length > MIN_WEEKS_OF_DATA && run.every(w => (w.avgSteps ?? 0) > 0 && (w.daysLoggedSteps == null || w.daysLoggedSteps >= MIN_STEP_DAYS))) {
+    const meanSteps = run.reduce((s, w) => s + (w.avgSteps ?? 0), 0) / run.length;
+    const latestSteps = run[run.length - 1].avgSteps ?? 0;
     if (Math.abs(latestSteps - meanSteps) / meanSteps > MAINTENANCE_STEPS_SHIFT_FRACTION) {
       run = run.slice(-MIN_WEEKS_OF_DATA);
     }
@@ -297,13 +304,16 @@ export const estimateMaintenance = (userData, weeklyCalorieData, fallbackRateKgP
   return maintenance ? { maintenance, weeksUsed: lastWeeks.length, avgCalories, rateKgPerWeek: fallbackRateKgPerWeek, windowed: false } : null;
 };
 
-export const calculateMaintenanceEstimate = (userData, weeklyCalorieData) => {
+export const calculateMaintenanceEstimate = (userData: UserData | null | undefined, weeklyCalorieData: WeekStats[] | null | undefined): MaintenanceResult | null => {
   const trendSeries = buildWeightTrendSeries(userData?.weightIns);
   const rate = trendSeries.length ? calculateWeeklyRateOfChange(trendSeries) : null;
   return estimateMaintenance(userData, weeklyCalorieData, rate);
 };
 
-export const refreshWeightChangePlan = (userData, { targetCalories, maintenance, ratePerWeek } = {}) => {
+export const refreshWeightChangePlan = (
+  userData: UserData | null | undefined,
+  { targetCalories, maintenance, ratePerWeek }: { targetCalories?: number | null; maintenance?: number | null; ratePerWeek?: number | null } = {},
+): WeightChangePlan | null => {
   const plan = userData?.weightChangePlan;
   if (!plan) return null;
 
@@ -315,7 +325,7 @@ export const refreshWeightChangePlan = (userData, { targetCalories, maintenance,
   const trendSeries = buildWeightTrendSeries(userData.weightIns);
   const trendWeight = trendSeries.length ? trendSeries[trendSeries.length - 1].trendWeight : null;
   const weight = getRecentAverageWeight(userData.weightIns) ?? trendWeight;
-  const target = parseFloat(userData.targetWeight);
+  const target = parseFloat(String(userData.targetWeight));
   const goalCalories = targetCalories ?? userData.targetCalories ?? plan.goalCalories;
   const rate = ratePerWeek ?? plan.ratePerWeek ?? 0;
 
@@ -328,7 +338,7 @@ export const refreshWeightChangePlan = (userData, { targetCalories, maintenance,
   const estimatedDate = new Date();
   if (weeksToGoal > 0) estimatedDate.setDate(estimatedDate.getDate() + weeksToGoal * 7);
 
-  const bmrInputs = [parseFloat(userData.height), parseFloat(userData.age)];
+  const bmrInputs = [parseFloat(String(userData.height)), parseFloat(String(userData.age))];
   const bmr = trendWeight != null && userData.gender && bmrInputs.every(isFinite)
     ? Math.round(calculateBMR(userData.gender, trendWeight, bmrInputs[0], bmrInputs[1]))
     : plan.bmr;
@@ -347,14 +357,15 @@ export const refreshWeightChangePlan = (userData, { targetCalories, maintenance,
   };
 };
 
-export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
+export const calculatePlanAdjustment = (userData: UserData | null | undefined, weeklyCalorieData: WeekStats[] | null | undefined): PlanAdjustment | null => {
   const plan = userData?.weightChangePlan;
   if (!plan || plan.type === 'maintenance' || !plan.ratePerWeek) return null;
   if (userData.autoAdjustEnabled === false) return null;
 
   const isLoss = plan.type === 'weight_loss';
   const expLevel = userData.experienceLevel || 'intermediate';
-  const targetWeight = parseFloat(userData.targetWeight);
+  const targetWeight = parseFloat(String(userData.targetWeight));
+  const currentTarget = Number(userData.targetCalories);
 
   const trendSeries = buildWeightTrendSeries(userData.weightIns);
   if (!trendSeries.length) return null;
@@ -393,7 +404,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   const targetRate = isLoss
     ? Math.min(
         getTargetWeeklyRateKg(referenceWeight, userData.stressLevel),
-        (realTDEE * (DEFICIT_PERCENT[expLevel] || 0.18) * 7) / KCAL_PER_KG
+        (realTDEE * (pick(DEFICIT_PERCENT, expLevel) || 0.18) * 7) / KCAL_PER_KG
       )
     : plan.ratePerWeek;
   const actualMagnitude = isLoss ? -actualRateKgPerWeek : actualRateKgPerWeek;
@@ -402,14 +413,14 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
   const ceilingRate = calculateWeeklyRateOfChange(trendSeries, FAST_LOSS_WINDOW_DAYS);
   const exceedsCeiling = isLoss && ceilingRate != null &&
     -ceilingRate > (referenceWeight * FAST_LOSS_CEILING_PERCENT) / 100;
-  const bmr = calculateBMR(userData.gender, currentTrendWeight, parseFloat(userData.height), parseFloat(userData.age));
-  const minCal = isLoss ? calculateMinCalories(bmr, realTDEE, currentTrendWeight, userData.activityLevel) : null;
+  const bmr = calculateBMR(userData.gender, currentTrendWeight, parseFloat(String(userData.height)), parseFloat(String(userData.age)));
+  const minCal = calculateMinCalories(bmr, realTDEE, currentTrendWeight, userData.activityLevel);
 
   const withinBand = progressRatio >= 1 - RATE_TOLERANCE_PERCENT &&
     (progressRatio <= 1 + RATE_TOLERANCE_PERCENT || (isLoss && !exceedsCeiling));
 
   if (withinBand) {
-    const caloriesDrift = avgLoggedCalories - userData.targetCalories;
+    const caloriesDrift = avgLoggedCalories - currentTarget;
     if (Math.abs(caloriesDrift) < HOLD_SYNC_MIN_DELTA) {
       return { suggestion: 'hold', planConfidence, measuredTDEE, targetRate: reportedRate };
     }
@@ -435,14 +446,14 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
 
   const dailyDeltaTarget = (targetRate * KCAL_PER_KG) / 7;
   const maxDeltaFraction = isLoss
-    ? (DEFICIT_PERCENT[expLevel] || 0.18)
-    : (SURPLUS_PERCENT[expLevel] || 0.08);
+    ? (pick(DEFICIT_PERCENT, expLevel) || 0.18)
+    : (pick(SURPLUS_PERCENT, expLevel) || 0.08);
   const dailyDelta = Math.min(dailyDeltaTarget, realTDEE * maxDeltaFraction);
 
   let newTargetCalories = Math.round(isLoss ? realTDEE - dailyDelta : realTDEE + dailyDelta);
 
   if (isLoss) {
-    const alreadyAtFloor = userData.targetCalories <= minCal;
+    const alreadyAtFloor = currentTarget <= minCal;
     newTargetCalories = Math.max(newTargetCalories, minCal);
 
     if (tooSlow && alreadyAtFloor) {
@@ -452,7 +463,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
       return {
         suggestion: 'calorie_adjustment',
         reason: 'plateau_at_min_calories',
-        adjustment: minCal - userData.targetCalories,
+        adjustment: minCal - currentTarget,
         newTargetCalories: minCal,
         newMacros: calculateMacros(plan.type, minCal, currentTrendWeight),
         suggestedStepsIncrease: STEPS_INCREASE_SUGGESTION,
@@ -468,7 +479,7 @@ export const calculatePlanAdjustment = (userData, weeklyCalorieData) => {
     }
   }
 
-  const adjustment = newTargetCalories - userData.targetCalories;
+  const adjustment = newTargetCalories - currentTarget;
   if (adjustment === 0) return { suggestion: 'hold', planConfidence, measuredTDEE, targetRate: reportedRate };
 
   return {
