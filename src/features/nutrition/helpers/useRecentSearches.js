@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const RECENT_SEARCHES_KEY = '@food_recent_searches';
+export const RECENT_SEARCHES_KEY = '@food_recent_searches';
 const MAX_RECENT_SEARCHES = 5;
 
 export const useRecentSearches = () => {

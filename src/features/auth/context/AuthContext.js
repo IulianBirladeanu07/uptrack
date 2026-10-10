@@ -4,6 +4,9 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebaseConfigService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { deriveStartWeight } from '../../nutrition/helpers/learningCompletionService';
+import { RECENT_SEARCHES_KEY } from '../../nutrition/helpers/useRecentSearches';
+import { SPLITS_CACHE_KEY } from '../../workout/handlers/WorkoutHandler';
+import { SEARCH } from '../../../shared/theme/constants';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 export const AuthContext = createContext();
@@ -71,7 +74,7 @@ export const AuthProvider = ({ children }) => {
           setAuthenticated(false);
           setProfileSetupComplete(false);
           setUserData(null);
-          await AsyncStorage.removeItem('auth_token');
+          await AsyncStorage.multiRemove(['auth_token', SPLITS_CACHE_KEY, RECENT_SEARCHES_KEY, SEARCH.STORAGE_KEY]);
         }
       } catch (error) {
         console.error('onAuthStateChanged error:', error);
