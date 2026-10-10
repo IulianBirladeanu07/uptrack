@@ -7,8 +7,6 @@ const handleFirebaseError = (error) => {
   switch (error.code) {
     case 'auth/wrong-password':
       return 'Invalid password. Please try again.';
-    case 'auth/user-not-found':
-      return 'No account found with this email.';
     case 'auth/email-already-in-use':
       return 'Email is already in use. Please use a different email.';
     case 'auth/too-many-requests':
@@ -88,6 +86,7 @@ export const sendPasswordResetEmail = async (email) => {
   try {
     await firebaseSendPasswordResetEmail(auth, email);
   } catch (error) {
+    if (error.code === 'auth/user-not-found') return;
     throw new Error(handleFirebaseError(error));
   }
 };
