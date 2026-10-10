@@ -167,6 +167,7 @@ const FoodListItem = memo(({
     searchQuery = '',
     handleNavigateToFoodDetail,
     handlePlusPress,
+    onCreateFood,
     meal,
     maxItemsToShow = LIST.INITIAL_ITEMS_COUNT,
     recentSearches = [],
@@ -244,6 +245,7 @@ const FoodListItem = memo(({
                 onItemPress={handleNavigateToFoodDetail}
                 onPlusPress={handlePlusPress}
                 showPlusButton={true}
+                onCreateFood={onCreateFood}
                 recentSearches={recentSearches}
                 onRecentSearchPress={handleRecentSearchPress}
             />

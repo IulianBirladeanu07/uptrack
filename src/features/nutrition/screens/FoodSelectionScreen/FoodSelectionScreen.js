@@ -126,6 +126,10 @@ const FoodSelectionScreen = () => {
         navigation.navigate('FoodDetail', { food, meal, selectedDate, remainingCalories });
     }, [navigation, meal, selectedDate, remainingCalories, isSearching, searchQuery, handleSearchComplete]);
 
+    const handleCreateFood = useCallback(() => {
+        navigation.navigate('CustomFood', { type: 'foodWithoutBarcode', meal, selectedDate });
+    }, [navigation, meal, selectedDate]);
+
     const toggleFoodSelection = useCallback(async (item) => {
         if (isSearching && searchQuery && searchQuery.trim().length >= 3) {
             await handleSearchComplete(searchQuery);
@@ -272,6 +276,7 @@ const FoodSelectionScreen = () => {
                     searchQuery={searchQuery}
                     handleNavigateToFoodDetail={handleNavigateToFoodDetail}
                     handlePlusPress={toggleFoodSelection}
+                    onCreateFood={handleCreateFood}
                     selectedFoods={selectedFoods}
                     meal={meal}
                     recentSearches={recentSearches}
