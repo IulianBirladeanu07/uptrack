@@ -87,6 +87,11 @@ export const fetchNonBarcodedProducts = async (
   }
 };
 
+const ilikeNames = (term) => {
+  const v = `"%${term.replace(/[\\"]/g, '\\$&')}%"`;
+  return `product_name_en.ilike.${v},product_name_ro.ilike.${v}`;
+};
+
 const performEnhancedSearch = async (searchQuery, limitCount = 50) => {
   try {
     
@@ -106,13 +111,9 @@ const performEnhancedSearch = async (searchQuery, limitCount = 50) => {
 
     if (searchTerms.length === 1) {
       const term = searchTerms[0];
-      queryBuilder = queryBuilder.or(
-        `product_name_en.ilike.%${term}%,product_name_ro.ilike.%${term}%`
-      );
+      queryBuilder = queryBuilder.or(ilikeNames(term));
     } else {
-      const conditions = searchTerms.map(term => 
-        `product_name_en.ilike.%${term}%,product_name_ro.ilike.%${term}%`
-      ).join(',');
+      const conditions = searchTerms.map(ilikeNames).join(',');
       queryBuilder = queryBuilder.or(conditions);
     }
 
@@ -141,7 +142,7 @@ const performEnhancedSearch = async (searchQuery, limitCount = 50) => {
     const { data: looseResults, error: looseError } = await supabase
       .from('non_barcoded_products')
       .select('*')
-      .or(`product_name_en.ilike.%${searchQuery.charAt(0)}%,product_name_ro.ilike.%${searchQuery.charAt(0)}%`)
+      .or(ilikeNames(searchQuery.charAt(0)))
       .limit(20);
 
     if (looseError) {

@@ -3,6 +3,7 @@ module.exports = {
   testMatch: [
     '<rootDir>/src/features/profile/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/nutrition/helpers/**/*.test.{js,ts}',
+    '<rootDir>/src/features/nutrition/handlers/**/*.test.{js,ts}',
     '<rootDir>/src/features/progress/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/workout/utils/**/*.test.{js,ts}',
   ],
