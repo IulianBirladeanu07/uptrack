@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WeightService from '../services/weightService';
+import { formatDate } from '../utils/dateUtils';
 
 const useWeightData = (userId, selectedDate) => {
     const [weightData, setWeightData] = useState({
@@ -13,7 +14,7 @@ const useWeightData = (userId, selectedDate) => {
 
     const isFetchingRef = useRef(false);
     const loadedDatesRef = useRef(new Set());
-    const dateString = selectedDate.toISOString().split('T')[0];
+    const dateString = formatDate(selectedDate);
 
     useEffect(() => {
         if (!userId) return;
