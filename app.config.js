@@ -12,6 +12,7 @@ module.exports = {
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
       "./plugins/withGoogleFitVersions",
+      "react-native-health",
       [
         "expo-build-properties",
         {
