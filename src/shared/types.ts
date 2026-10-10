@@ -2,6 +2,7 @@ export type DayKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' 
 
 export type WeightInWeek = {
   weekStart: string;
+  average?: number | null;
   days?: Partial<Record<DayKey, number | string | null>>;
 };
 
@@ -65,6 +66,7 @@ export type WeightChangePlan = {
   weeksToGoal: number;
   estimatedDate: string;
   isEstimate: boolean;
+  goalWeight?: number | null;
 };
 
 export type PlanFormData = {
@@ -90,6 +92,8 @@ export type UserData = PlanFormData & {
   targetFats?: number | null;
   slowEvalPending?: boolean;
   planConfidence?: string | null;
+  goalSwitchDate?: string | null;
+  maintenanceCalories?: number | null;
   dailySteps?: DailySteps;
 };
 

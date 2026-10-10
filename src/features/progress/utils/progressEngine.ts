@@ -2,6 +2,166 @@ import { calculateRealTDEE, KCAL_PER_KG } from '../../profile/utils/nutritionPla
 import { estimateMaintenanceRegression, maintenanceSeries } from '../../profile/utils/maintenanceEstimator';
 import { getPhaseLabel, isGoalReached } from '../../profile/utils/weightTrendEngine';
 import { overlayWeekSteps } from '../../nutrition/helpers/stepStats';
+import type { StepSnapshot } from '../../nutrition/helpers/stepStats';
+import type { DailySteps, PlanType, UserData, WeekStats, WeightInWeek } from '../../../shared/types';
+
+type Maybe = number | null | undefined;
+type Slot = { e: number | null; r: number | null };
+type TsLike = { toDate: () => Date };
+
+export type NutritionSnap = StepSnapshot & {
+  daysLoggedNutrition?: number;
+  avgCalories?: number;
+  avgProtein?: number;
+};
+export type ExerciseDoc = {
+  exerciseName?: string;
+  muscleGroup?: string;
+  sets?: { weight?: number | string | null; reps?: number | string | null }[];
+};
+export type WorkoutDoc = { timestamp?: unknown; exercises?: ExerciseDoc[] };
+export type NutritionDay = { date: string; calories: number; protein: number };
+export type StepDay = { date: string; steps: number };
+export type BuildSource = {
+  weightIns?: WeightInWeek[];
+  weeklyNutrition?: NutritionSnap[];
+  dailySteps?: DailySteps;
+  workouts?: WorkoutDoc[];
+  getNutrition?: (from: Date, to: Date) => NutritionDay[];
+  getSteps?: (from: Date, to: Date) => StepDay[];
+  calc1RM: (kg: number, reps: number) => number;
+};
+
+export type WeekRow = {
+  i: number;
+  key: string;
+  monday: Date;
+  isCurrent: boolean;
+  w: number | null;
+  kcal: number | null;
+  protein: number | null;
+  steps: number | null;
+  nd: number;
+  sessions: number;
+  sets: Record<string, number>;
+  setsTotal: number;
+  prs: number;
+};
+export type RatedWeek = WeekRow & {
+  delta: number | null;
+  gap: number | null;
+  dw: number | null;
+  chg: number | null;
+  rate: number | null;
+};
+export type Lift = { name: string; loaded: boolean; values: (number | null)[] };
+
+export type PhaseInfo = {
+  type: PlanType;
+  dir: number;
+  label: string;
+  tab: string;
+  goal: number | null;
+  latest: number | null;
+  remaining: number | null;
+  reached: boolean;
+  phaseStart: Date | null;
+  phaseWeeks: number;
+  planRate: number | null;
+  target: number | null;
+};
+
+export type PaceStatus = 'reached' | 'steady' | 'drift' | 'ahead' | 'slightly-ahead' | 'behind' | 'on';
+export type PaceModel = {
+  slots: { v: number | null; monday: Date; gap: number | null; avg: number | null; cur: boolean }[];
+  plan: number | null;
+  diff: number | null;
+  rate: number | null;
+  rate4: number | null;
+  total: number;
+  lastRate: number;
+  spike: boolean;
+  status: PaceStatus;
+  eta: Date | null;
+  reached: boolean;
+  count: number;
+};
+
+export type EnergyModel = {
+  slots: { monday: Date; cur: boolean }[];
+  eat: (number | null)[];
+  maint: (number | null)[];
+  bal: (number | null)[];
+  target: number | null;
+  targetBal: number | null;
+  eatNow: number | null;
+  maintNow: number;
+  balance: number;
+  balNote: string;
+  realRate: number | null;
+  atTarget: number | null;
+  gapToTarget: number | null;
+  statsWeeks: number;
+  margin: number | null;
+};
+
+export type StrengthModel = {
+  slots: { monday: Date }[];
+  strength: (number | null)[];
+  weight: (number | null)[];
+  sNow: number | null;
+  wNow: number | null;
+  perKg: number | null;
+  lifts: number;
+};
+
+export type PhaseRecap = {
+  type: PlanType;
+  tab: string;
+  dir: number;
+  weeks: number;
+  startDate: Date | null;
+  startWeight: number;
+  endWeight: number;
+  change: number;
+  rate: number;
+  avgKcal: number | null;
+  strengthPct: number | null;
+  weightPct: number | null;
+  perKg: number | null;
+  maintenance: number | null;
+  measured: boolean;
+};
+
+export type SetsModel = {
+  rows: { name: string; cells: number[]; avg: number | null; shown: number }[];
+  total: number;
+  delta: number | null;
+  low: string[];
+  high: string[];
+  first: Date;
+};
+
+export type MonthRow = {
+  key: string;
+  name: string;
+  year: number;
+  count: number;
+  partial: boolean;
+  wEnd: number | null;
+  change: number | null;
+  kcal: number | null;
+  protein: number | null;
+  steps: number | null;
+  sessions: number;
+  sessionsDone: number;
+  planDone: number | null;
+  sets: number;
+  setsPerWeek: number | null;
+  prs: number;
+  hasData: boolean;
+  d: { kcal: number | null; protein: number | null; steps: number | null; setsPerWeek: number | null } | null;
+};
 
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 export const MAX_WEEKS = 26;
@@ -20,7 +180,7 @@ const LIVE_WEEKS = 10;
 const RATE_WINDOW = 12;
 const TDEE_WINDOW = 4;
 const MUSCLE_ORDER = ['Back', 'Chest', 'Delts', 'Biceps', 'Triceps', 'Quads', 'Hamstring', 'Glutes', 'Calves', 'Core'];
-const MUSCLE_ALIAS = {
+const MUSCLE_ALIAS: Record<string, string> = {
   Shoulders: 'Delts',
   Shoulder: 'Delts',
   Hamstrings: 'Hamstring',
@@ -32,22 +192,22 @@ const MUSCLE_ALIAS = {
 const MUSCLE_SKIP = ['Legs', 'Full Body', 'Other', 'Cardio'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-const pad = n => String(n).padStart(2, '0');
+const pad = (n: number): string => String(n).padStart(2, '0');
 
-export const toKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export const toKey = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-const parseKey = k => {
+const parseKey = (k: string): Date => {
   const [y, m, d] = k.split('-').map(Number);
   return new Date(y, m - 1, d);
 };
 
-export const addDays = (d, n) => {
+export const addDays = (d: Date, n: number): Date => {
   const x = new Date(d);
   x.setDate(x.getDate() + n);
   return x;
 };
 
-export const mondayOf = d => {
+export const mondayOf = (d: Date): Date => {
   const x = new Date(d);
   const day = x.getDay();
   x.setDate(x.getDate() - (day === 0 ? 6 : day - 1));
@@ -55,61 +215,63 @@ export const mondayOf = d => {
   return x;
 };
 
-const endOfDay = d => {
+const endOfDay = (d: Date): Date => {
   const x = new Date(d);
   x.setHours(23, 59, 59, 999);
   return x;
 };
 
-export const nums = a => a.filter(v => v != null && !Number.isNaN(v));
+export const nums = (a: Maybe[]): number[] => a.filter((v): v is number => v != null && !Number.isNaN(v));
 
-export const sum = a => nums(a).reduce((s, v) => s + v, 0);
+export const sum = (a: Maybe[]): number => nums(a).reduce((s, v) => s + v, 0);
 
-export const mean = a => {
+export const mean = (a: Maybe[]): number | null => {
   const n = nums(a);
   return n.length ? n.reduce((s, v) => s + v, 0) / n.length : null;
 };
 
-const median = a => {
+const median = (a: Maybe[]): number | null => {
   const n = nums(a).sort((x, y) => x - y);
   if (!n.length) return null;
   const m = n.length >> 1;
   return n.length % 2 ? n[m] : (n[m - 1] + n[m]) / 2;
 };
 
-export const fmt1 = v => (v == null ? '--' : v.toFixed(1));
+export const fmt1 = (v: Maybe): string => (v == null ? '--' : v.toFixed(1));
 
-export const sg = (v, d = 1) => {
+export const sg = (v: number, d = 1): string => {
   const a = Math.abs(v).toFixed(d);
   if (Number(a) === 0) return '0';
   return `${v < 0 ? '-' : '+'}${a}`;
 };
 
-export const kfmt = v => (v == null ? '--' : Math.round(v).toLocaleString('en-US'));
+export const kfmt = (v: Maybe): string => (v == null ? '--' : Math.round(v).toLocaleString('en-US'));
 
-export const shortDate = d => `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
+export const shortDate = (d: Date): string => `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
 
-const tsDate = t => {
+const isTsLike = (t: unknown): t is TsLike => typeof (t as Partial<TsLike>).toDate === 'function';
+
+const tsDate = (t: unknown): Date | null => {
   if (!t) return null;
-  if (typeof t.toDate === 'function') return t.toDate();
-  const d = t instanceof Date ? t : new Date(t);
+  if (isTsLike(t)) return t.toDate();
+  const d = t instanceof Date ? t : new Date(t as string | number);
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
-export const normMuscle = raw => {
+export const normMuscle = (raw: unknown): string | null => {
   if (!raw || typeof raw !== 'string') return null;
   const t = raw.trim();
   const m = MUSCLE_ALIAS[t] || t;
   return MUSCLE_SKIP.includes(m) ? null : m;
 };
 
-export const dirOf = type => (type === 'muscle_gain' ? 1 : type === 'weight_loss' ? -1 : 0);
+export const dirOf = (type: string | null | undefined): number => (type === 'muscle_gain' ? 1 : type === 'weight_loss' ? -1 : 0);
 
-export const buildWeeks = (src, now = new Date()) => {
+export const buildWeeks = (src: BuildSource, now: Date = new Date()): { weeks: WeekRow[]; lifts: Lift[] } => {
   const { weightIns = [], weeklyNutrition = [], dailySteps, workouts = [], getNutrition, getSteps, calc1RM } = src;
-  const wMap = new Map();
-  const nMap = new Map();
-  const byWeek = new Map();
+  const wMap = new Map<string, WeightInWeek>();
+  const nMap = new Map<string, NutritionSnap>();
+  const byWeek = new Map<string, WorkoutDoc[]>();
 
   weightIns.forEach(e => e?.weekStart && wMap.set(e.weekStart, e));
   weeklyNutrition.forEach(e => e?.weekStart && nMap.set(e.weekStart, e));
@@ -117,22 +279,23 @@ export const buildWeeks = (src, now = new Date()) => {
     const d = tsDate(doc?.timestamp);
     if (!d) return;
     const k = toKey(mondayOf(d));
-    if (!byWeek.has(k)) byWeek.set(k, []);
-    byWeek.get(k).push(doc);
+    const list = byWeek.get(k) || [];
+    if (!byWeek.has(k)) byWeek.set(k, list);
+    list.push(doc);
   });
 
   const keys = [...wMap.keys(), ...nMap.keys(), ...byWeek.keys()].sort();
   if (!keys.length) return { weeks: [], lifts: [] };
   const firstNutrition = [...nMap.keys()].sort()[0] ?? null;
-  const best = new Map();
+  const best = new Map<string, number>();
 
   const cur = mondayOf(now);
-  const count = Math.min(MAX_HISTORY_WEEKS, Math.max(1, Math.round((cur - parseKey(keys[0])) / WEEK_MS) + 1));
+  const count = Math.min(MAX_HISTORY_WEEKS, Math.max(1, Math.round((cur.getTime() - parseKey(keys[0]).getTime()) / WEEK_MS) + 1));
   const start = addDays(cur, -(count - 1) * 7);
   const todayKey = toKey(now);
-  const raw = new Map();
+  const raw = new Map<string, { loaded: boolean; wk: Map<number, Slot> }>();
 
-  const weeks = Array.from({ length: count }, (_, i) => {
+  const weeks: WeekRow[] = Array.from({ length: count }, (_, i) => {
     const monday = addDays(start, i * 7);
     const key = toKey(monday);
     const isCurrent = i === count - 1;
@@ -144,9 +307,9 @@ export const buildWeeks = (src, now = new Date()) => {
     const wAvg = we ? (we.average ?? mean(wVals)) : null;
     const w = wAvg != null && wDays >= (isCurrent ? MIN_CURRENT_DAYS : 1) ? Number(wAvg) : null;
 
-    let kcal = null;
-    let protein = null;
-    let steps = null;
+    let kcal: number | null = null;
+    let protein: number | null = null;
+    let steps: number | null = null;
     let nd = 0;
     const snap = overlayWeekSteps(nMap.get(key), dailySteps);
     if (snap && !isCurrent) {
@@ -170,22 +333,22 @@ export const buildWeeks = (src, now = new Date()) => {
       protein = null;
     }
 
-    const docs = (byWeek.get(key) || []).sort((a, b) => tsDate(a.timestamp) - tsDate(b.timestamp));
-    const sets = {};
+    const docs = (byWeek.get(key) || []).sort((a, b) => (tsDate(a.timestamp)?.getTime() ?? 0) - (tsDate(b.timestamp)?.getTime() ?? 0));
+    const sets: Record<string, number> = {};
     let prs = 0;
     docs.forEach(doc => {
-      const sess = new Map();
+      const sess = new Map<string, Slot>();
       (doc.exercises || []).forEach(ex => {
-        const valid = (ex.sets || []).filter(s => parseInt(s.reps, 10) > 0);
+        const valid = (ex.sets || []).filter(s => parseInt(String(s.reps), 10) > 0);
         if (!valid.length) return;
         const m = normMuscle(ex.muscleGroup);
         if (m) sets[m] = (sets[m] || 0) + valid.length;
         const name = ex.exerciseName;
         if (!name) return;
-        const sb = sess.get(name) || { e: null, r: null };
+        const sb: Slot = sess.get(name) || { e: null, r: null };
         valid.forEach(s => {
-          const kg = parseFloat(s.weight) || 0;
-          const r = parseInt(s.reps, 10);
+          const kg = parseFloat(String(s.weight)) || 0;
+          const r = parseInt(String(s.reps), 10);
           if (kg > 0) {
             const e = calc1RM(kg, r);
             sb.e = sb.e == null ? e : Math.max(sb.e, e);
@@ -194,11 +357,11 @@ export const buildWeeks = (src, now = new Date()) => {
         });
         sess.set(name, sb);
         if (!raw.has(name)) raw.set(name, { loaded: false, wk: new Map() });
-        const lf = raw.get(name);
-        const slot = lf.wk.get(i) || { e: null, r: null };
+        const lf = raw.get(name)!;
+        const slot: Slot = lf.wk.get(i) || { e: null, r: null };
         valid.forEach(s => {
-          const kg = parseFloat(s.weight) || 0;
-          const r = parseInt(s.reps, 10);
+          const kg = parseFloat(String(s.weight)) || 0;
+          const r = parseInt(String(s.reps), 10);
           if (kg > 0) {
             lf.loaded = true;
             const e = calc1RM(kg, r);
@@ -209,7 +372,7 @@ export const buildWeeks = (src, now = new Date()) => {
         lf.wk.set(i, slot);
       });
       sess.forEach((sb, name) => {
-        const v = sb.e != null ? sb.e : sb.r;
+        const v = sb.e ?? sb.r ?? 0;
         const prev = best.get(name);
         if (prev != null && v > prev + 0.01) prs += 1;
         if (prev == null || v > prev) best.set(name, v);
@@ -233,7 +396,7 @@ export const buildWeeks = (src, now = new Date()) => {
     };
   });
 
-  const lifts = [...raw.entries()]
+  const lifts: Lift[] = [...raw.entries()]
     .map(([name, lf]) => ({
       name,
       loaded: lf.loaded,
@@ -248,10 +411,10 @@ export const buildWeeks = (src, now = new Date()) => {
   return { weeks, lifts };
 };
 
-export const withRates = (weeks, dir) => {
-  let prev = null;
-  return weeks.map((wk, i) => {
-    const blank = { ...wk, delta: null, gap: null, dw: null, chg: null, rate: null };
+export const withRates = (weeks: WeekRow[], dir: number): RatedWeek[] => {
+  let prev: { i: number; w: number } | null = null;
+  return weeks.map((wk, i): RatedWeek => {
+    const blank: RatedWeek = { ...wk, delta: null, gap: null, dw: null, chg: null, rate: null };
     if (wk.w == null) return blank;
     if (!prev) {
       prev = { i, w: wk.w };
@@ -265,23 +428,24 @@ export const withRates = (weeks, dir) => {
   });
 };
 
-const lastWeight = weeks => {
+const lastWeight = (weeks: WeekRow[]): number | null => {
   for (let i = weeks.length - 1; i >= 0; i--) if (weeks[i].w != null) return weeks[i].w;
   return null;
 };
 
-export const phaseInfo = (userData, weeks, now = new Date()) => {
+export const phaseInfo = (userData: UserData | null | undefined, weeks: WeekRow[], now: Date = new Date()): PhaseInfo => {
   const plan = userData?.weightChangePlan;
-  const type = plan?.type ?? 'maintenance';
+  const type: PlanType = plan?.type ?? 'maintenance';
   const dir = dirOf(type);
-  const goal = userData?.targetWeight ?? plan?.goalWeight ?? null;
+  const goalRaw = userData?.targetWeight ?? plan?.goalWeight ?? null;
+  const goal = goalRaw == null ? null : Number(goalRaw);
   const gs = userData?.goalSwitchDate ? new Date(userData.goalSwitchDate) : null;
   const hasSwitch = gs && !Number.isNaN(gs.getTime()) && gs < now;
   const phaseStart = hasSwitch ? gs : null;
-  const phaseWeeks = hasSwitch ? Math.max(1, Math.ceil((now - gs) / WEEK_MS)) : Math.max(1, weeks.length);
+  const phaseWeeks = gs && hasSwitch ? Math.max(1, Math.ceil((now.getTime() - gs.getTime()) / WEEK_MS)) : Math.max(1, weeks.length);
   const planRate = plan?.ratePerWeek != null && plan.ratePerWeek !== 0 ? Math.abs(plan.ratePerWeek) : null;
   const latest = lastWeight(weeks);
-  let remaining = null;
+  let remaining: number | null = null;
   if (goal != null && latest != null) {
     remaining = dir > 0 ? Math.max(0, goal - latest) : dir < 0 ? Math.max(0, latest - goal) : Math.abs(latest - goal);
   }
@@ -301,7 +465,7 @@ export const phaseInfo = (userData, weeks, now = new Date()) => {
   };
 };
 
-export const rangeOptions = info => {
+export const rangeOptions = (info: PhaseInfo): { key: string; label: string; n: number }[] => {
   const out = [
     { key: '8W', label: '8W', n: 8 },
     { key: '12W', label: '12W', n: 12 },
@@ -310,9 +474,9 @@ export const rangeOptions = info => {
   return out;
 };
 
-export const paceModel = (weeks, n, info, now = new Date()) => {
+export const paceModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, now: Date = new Date()): PaceModel | null => {
   const slots = weeks.slice(-n);
-  const win = slots.filter(w => w.rate != null);
+  const win = slots.filter((w): w is RatedWeek & { rate: number } => w.rate != null);
   if (win.length < 2) return null;
 
   const rate = mean(win.map(w => w.rate));
@@ -320,25 +484,27 @@ export const paceModel = (weeks, n, info, now = new Date()) => {
   const total = sum(win.map(w => w.chg));
   const lastRate = win[win.length - 1].rate;
   const rest = win.slice(0, -1).map(w => w.rate);
-  const spike = win.length >= 4 && lastRate >= 1.8 * mean(rest) && lastRate - mean(rest) >= 0.3;
+  const restMean = mean(rest) ?? 0;
+  const spike = win.length >= 4 && lastRate >= 1.8 * restMean && lastRate - restMean >= 0.3;
 
+  const rateNum = rate ?? 0;
   const done = info.dir !== 0 && info.reached;
   const plan = info.dir === 0 || done ? null : info.planRate;
-  const diff = plan != null ? rate - plan : null;
-  let status = 'on';
+  const diff = plan != null ? rateNum - plan : null;
+  let status: PaceStatus = 'on';
   if (done) status = 'reached';
-  else if (info.dir === 0) status = rate < 0.25 ? 'steady' : 'drift';
+  else if (info.dir === 0) status = rateNum < 0.25 ? 'steady' : 'drift';
   else if (diff != null && diff > 0.15) status = 'ahead';
   else if (diff != null && diff > 0.05) status = 'slightly-ahead';
   else if (diff != null && diff < -0.05) status = 'behind';
 
-  const roll = new Map();
+  const roll = new Map<number, number | null>();
   win.forEach((w, k) => {
     const trail = win.slice(Math.max(0, k - 3), k + 1);
     roll.set(w.i, trail.length >= 3 ? mean(trail.map(x => x.rate)) : null);
   });
   const rate12 = mean(weeks.filter(w => w.rate != null).slice(-RATE_WINDOW).map(w => w.rate));
-  let eta = null;
+  let eta: Date | null = null;
   let reached = false;
   if (info.dir !== 0 && info.remaining != null) {
     if (info.reached) reached = true;
@@ -361,7 +527,7 @@ export const paceModel = (weeks, n, info, now = new Date()) => {
   };
 };
 
-export const paceTip = (m, info) => {
+export const paceTip = (m: PaceModel, info: PhaseInfo): string => {
   if (m.status === 'reached') return '';
   const word = info.dir > 0 ? 'bulk' : 'cut';
   if (info.dir === 0) {
@@ -385,25 +551,27 @@ export const paceTip = (m, info) => {
   return `Right on plan over ${m.count} weeks.`;
 };
 
-const tdeeWindow = (weeks, end) =>
-  weeks.slice(Math.max(0, end - TDEE_WINDOW + 1), end + 1).filter(w => w.kcal != null && w.dw != null);
+type FullWeek = RatedWeek & { kcal: number; dw: number };
 
-const maintSeries = weeks =>
+const tdeeWindow = (weeks: RatedWeek[], end: number): FullWeek[] =>
+  weeks.slice(Math.max(0, end - TDEE_WINDOW + 1), end + 1).filter((w): w is FullWeek => w.kcal != null && w.dw != null);
+
+const maintSeries = (weeks: RatedWeek[]): (number | null)[] =>
   weeks.map((_, i) => {
     const win = tdeeWindow(weeks, i);
     if (win.length < 2) return null;
-    return calculateRealTDEE(mean(win.map(w => w.kcal)), mean(win.map(w => w.dw)));
+    return calculateRealTDEE(mean(win.map(w => w.kcal)), mean(win.map(w => w.dw)) ?? 0);
   });
 
-export const balanceNote = (balance, weeks) => {
+export const balanceNote = (balance: number, weeks: number): string => {
   const side = Math.abs(balance) < 50 ? 'around' : balance < 0 ? 'below' : 'above';
   return `${side} maintenance \u00b7 ${weeks}-week avg`;
 };
 
-const estimatorWeeks = weeks =>
-  weeks.map(w => ({ weekStart: w.key, daysLogged: w.nd, avgCalories: w.kcal, avgSteps: w.steps }));
+const estimatorWeeks = (weeks: RatedWeek[]): WeekStats[] =>
+  weeks.map(w => ({ weekStart: w.key, daysLogged: w.nd, avgCalories: w.kcal ?? 0, avgSteps: w.steps }));
 
-export const energyModel = (weeks, n, info, weightIns, now = new Date()) => {
+export const energyModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, weightIns: WeightInWeek[] | null | undefined, now: Date = new Date()): EnergyModel | null => {
   const legacy = maintSeries(weeks);
   const ew = weightIns?.length ? estimatorWeeks(weeks) : null;
   const measured = ew ? maintenanceSeries(weightIns, ew, now) : null;
@@ -422,14 +590,18 @@ export const energyModel = (weeks, n, info, weightIns, now = new Date()) => {
 
   const reg = ew ? estimateMaintenanceRegression(weightIns, ew, now) : null;
   const eatNow = reg ? reg.avgCalories : mean(win.map(w => w.kcal));
-  const maintNow = reg ? reg.maintenance : calculateRealTDEE(eatNow, mean(win.map(w => w.dw)));
+  const maintNow = reg ? reg.maintenance : calculateRealTDEE(eatNow, mean(win.map(w => w.dw)) ?? 0);
   if (maintNow == null) return null;
 
-  const balance = eatNow - maintNow;
-  const bal = eat.map((v, i) => (v != null && maint[i] != null ? v - maint[i] : null));
+  const eatNum = eatNow ?? 0;
+  const balance = eatNum - maintNow;
+  const bal = eat.map((v, i) => {
+    const mi = maint[i];
+    return v != null && mi != null ? v - mi : null;
+  });
   const realRate = reg ? (info.dir === 0 ? Math.abs(reg.rateKgPerWeek) : info.dir * reg.rateKgPerWeek) : mean(win.map(w => w.rate));
   const target = info.target;
-  let atTarget = null;
+  let atTarget: number | null = null;
   if (target != null && info.dir !== 0) {
     const raw = info.dir < 0 ? (maintNow - target) : (target - maintNow);
     atTarget = Math.max(0, (raw * 7) / KCAL_PER_KG);
@@ -450,38 +622,39 @@ export const energyModel = (weeks, n, info, weightIns, now = new Date()) => {
     balNote: balanceNote(balance, reg ? reg.weeksUsed : win.length),
     realRate,
     atTarget,
-    gapToTarget: target != null ? target - eatNow : null,
+    gapToTarget: target != null ? target - eatNum : null,
     statsWeeks: reg ? reg.weeksUsed : win.length,
     margin: reg ? reg.margin : null,
   };
 };
 
-export const energyTip = (m, info) => {
+export const energyTip = (m: EnergyModel, info: PhaseInfo): string => {
   const verb = info.dir > 0 ? 'gain' : info.dir < 0 ? 'lose' : 'change';
   const plan = info.planRate;
-  if (plan != null && m.realRate < plan * 0.8) {
+  if (plan != null && (m.realRate ?? 0) < plan * 0.8) {
     const need = info.dir < 0 ? m.maintNow - (plan * KCAL_PER_KG) / 7 : m.maintNow + (plan * KCAL_PER_KG) / 7;
     return `You ${verb} ${fmt1(m.realRate)} kg/wk against a ${fmt1(plan)} plan. Your real maintenance looks like ${kfmt(m.maintNow)} kcal, so plan pace needs about ${kfmt(need)}.`;
   }
-  const adverse = info.dir < 0 ? m.gapToTarget < 0 : info.dir > 0 ? m.gapToTarget > 0 : true;
-  if (adverse && m.target != null && m.atTarget != null && Math.abs(m.gapToTarget) > m.target * 0.05) {
-    const side = m.gapToTarget > 0 ? 'under' : 'over';
-    return `You eat ~${kfmt(Math.abs(m.gapToTarget))} kcal ${side} the ${kfmt(m.target)} target. At target you would ${verb} about ${fmt1(m.atTarget)} kg/wk, at ${kfmt(m.eatNow)} you ${verb} ${fmt1(m.realRate)}.`;
+  const gap = m.gapToTarget ?? 0;
+  const adverse = info.dir < 0 ? gap < 0 : info.dir > 0 ? gap > 0 : true;
+  if (adverse && m.target != null && m.atTarget != null && Math.abs(gap) > m.target * 0.05) {
+    const side = gap > 0 ? 'under' : 'over';
+    return `You eat ~${kfmt(Math.abs(gap))} kcal ${side} the ${kfmt(m.target)} target. At target you would ${verb} about ${fmt1(m.atTarget)} kg/wk, at ${kfmt(m.eatNow)} you ${verb} ${fmt1(m.realRate)}.`;
   }
   return '';
 };
 
-const relDrop = (loaded, top, best, wBest, wNow) => {
+const relDrop = (loaded: boolean, top: number, best: number, wBest: number | null, wNow: number | null): number => {
   if (!loaded || !wBest || !wNow) return 1 - top / best;
   return 1 - top / wNow / (best / wBest);
 };
 
-export const liftSpan = info => Math.max(8, Math.min(info.phaseWeeks, MAX_WEEKS));
+export const liftSpan = (info: PhaseInfo): number => Math.max(8, Math.min(info.phaseWeeks, MAX_WEEKS));
 
-export const liftStats = (weeks, lifts, span = MAX_WEEKS) => {
+export const liftStats = (weeks: WeekRow[], lifts: Lift[], span: number = MAX_WEEKS): { up: number; flat: number; stalled: { name: string; weeks: number }[] } => {
   const L = weeks.length;
   const s = Math.max(0, L - span);
-  const wAt = i => {
+  const wAt = (i: number): number | null => {
     for (let k = i; k >= 0; k--) if (weeks[k].w != null) return weeks[k].w;
     for (let k = i + 1; k < L; k++) if (weeks[k].w != null) return weeks[k].w;
     return null;
@@ -489,7 +662,7 @@ export const liftStats = (weeks, lifts, span = MAX_WEEKS) => {
   const wNow = wAt(L - 1);
   let up = 0;
   let flat = 0;
-  const stalled = [];
+  const stalled: { name: string; weeks: number }[] = [];
   lifts.forEach(lf => {
     const v = lf.values.slice(s);
     const n = v.length;
@@ -516,22 +689,22 @@ export const liftStats = (weeks, lifts, span = MAX_WEEKS) => {
   return { up, flat, stalled };
 };
 
-export const strengthModel = (weeks, lifts, n) => {
+export const strengthModel = (weeks: WeekRow[], lifts: Lift[], n: number): StrengthModel | null => {
   const L = weeks.length;
   const s = Math.max(0, L - n);
-  const curves = [];
+  const curves: (number | null)[][] = [];
   lifts.forEach(lf => {
-    const obs = [];
+    const obs: number[] = [];
     for (let i = s; i < L; i++) if (lf.values[i] != null) obs.push(i);
     if (obs.length < 3) return;
     const sm = obs.map((_, k) => mean(obs.slice(Math.max(0, k - 2), k + 1).map(i => lf.values[i])));
     const base = sm[1];
     if (!base) return;
-    const c = new Array(L).fill(null);
+    const c: (number | null)[] = new Array(L).fill(null);
     let k = 1;
     for (let i = obs[1]; i < L; i++) {
       while (k + 1 < obs.length && obs[k + 1] <= i) k += 1;
-      c[i] = sm[k] / base;
+      c[i] = (sm[k] ?? 0) / base;
     }
     curves.push(c);
   });
@@ -544,9 +717,10 @@ export const strengthModel = (weeks, lifts, n) => {
 
   const first = idx[b];
   const w0 = slots[b].w;
+  if (first == null || w0 == null) return null;
   const strength = idx.map((v, j) => (j >= b && v != null ? (v / first - 1) * 100 : null));
   const weight = slots.map((w, j) => (j >= b && w.w != null ? (w.w / w0 - 1) * 100 : null));
-  const lastOf = a => {
+  const lastOf = (a: (number | null)[]): number | null => {
     for (let i = a.length - 1; i >= 0; i--) if (a[i] != null) return a[i];
     return null;
   };
@@ -564,7 +738,7 @@ export const strengthModel = (weeks, lifts, n) => {
   };
 };
 
-export const strengthTip = (m, info) => {
+export const strengthTip = (m: StrengthModel, info: PhaseInfo): string => {
   if (m.sNow == null) return '';
   if (info.dir < 0) {
     if (m.sNow >= 1) return 'A good sign the cut is taking fat, not muscle.';
@@ -579,11 +753,17 @@ export const strengthTip = (m, info) => {
   return m.sNow >= 0 ? 'Getting stronger at a steady weight.' : 'Strength is trending down at maintenance.';
 };
 
-export const phaseRecap = (userData, weeks, info, energy, strength) => {
+export const phaseRecap = (
+  userData: UserData | null | undefined,
+  weeks: RatedWeek[],
+  info: PhaseInfo,
+  energy: EnergyModel | null | undefined,
+  strength: StrengthModel | null | undefined,
+): PhaseRecap | null => {
   if (info.dir === 0 || !info.reached || info.phaseWeeks < RECAP_MIN_WEEKS) return null;
 
   const inPhase = weeks.slice(-info.phaseWeeks);
-  const rated = inPhase.filter(w => w.delta != null);
+  const rated = inPhase.filter((w): w is RatedWeek & { w: number; delta: number } => w.delta != null);
   if (!rated.length) return null;
 
   const endWeight = rated[rated.length - 1].w;
@@ -591,8 +771,10 @@ export const phaseRecap = (userData, weeks, info, energy, strength) => {
   const span = sum(rated.map(w => w.gap));
   const avgKcal = mean(inPhase.filter(w => !w.isCurrent).map(w => w.kcal));
 
-  const hasStrength = strength?.sNow != null && strength?.wNow != null;
-  const perKg = hasStrength ? ((1 + strength.sNow / 100) / (1 + strength.wNow / 100) - 1) * 100 : null;
+  const sNow = strength?.sNow ?? null;
+  const wNow = strength?.wNow ?? null;
+  const hasStrength = sNow != null && wNow != null;
+  const perKg = sNow != null && wNow != null ? ((1 + sNow / 100) / (1 + wNow / 100) - 1) * 100 : null;
 
   const measured = energy?.maintNow ?? null;
   const base = measured ?? userData?.maintenanceCalories ?? userData?.weightChangePlan?.tdee ?? null;
@@ -608,21 +790,21 @@ export const phaseRecap = (userData, weeks, info, energy, strength) => {
     change,
     rate: Math.abs(change) / span,
     avgKcal,
-    strengthPct: hasStrength ? strength.sNow : null,
-    weightPct: hasStrength ? strength.wNow : null,
+    strengthPct: hasStrength ? sNow : null,
+    weightPct: hasStrength ? wNow : null,
     perKg,
     maintenance: base != null ? Math.round(base) : null,
     measured: measured != null,
   };
 };
 
-export const recapTip = r => {
+export const recapTip = (r: PhaseRecap): string => {
   if (r.maintenance == null) return 'Set a new goal in Profile to start the next phase.';
   const basis = r.measured ? 'Your measured maintenance is' : 'Your estimated maintenance is';
   return `${basis} about ${kfmt(r.maintenance)} kcal. Switching makes it your target and starts a new phase at ${fmt1(r.endWeight)} kg.`;
 };
 
-export const recapEntry = (r, now = new Date()) => ({
+export const recapEntry = (r: PhaseRecap, now: Date = new Date()) => ({
   type: r.type,
   startDate: r.startDate ? r.startDate.toISOString() : null,
   endDate: now.toISOString(),
@@ -634,9 +816,9 @@ export const recapEntry = (r, now = new Date()) => ({
   weightPct: r.weightPct != null ? Number(r.weightPct.toFixed(1)) : null,
 });
 
-export const setsModel = (weeks, n) => {
+export const setsModel = (weeks: WeekRow[], n: number): SetsModel | null => {
   const slots = weeks.slice(-n);
-  const names = new Set();
+  const names = new Set<string>();
   slots.forEach(w => Object.keys(w.sets).forEach(k => names.add(k)));
   const done = weeks.filter(w => !w.isCurrent);
   if (!names.size || !done.length) return null;
@@ -649,7 +831,7 @@ export const setsModel = (weeks, n) => {
   const prev4 = done.slice(-8, -4);
   const rows = order.map(name => {
     const avg = mean(last4.map(w => w.sets[name] || 0));
-    return { name, cells: slots.map(w => w.sets[name] || 0), avg, shown: Math.round(avg) };
+    return { name, cells: slots.map(w => w.sets[name] || 0), avg, shown: Math.round(avg ?? 0) };
   });
   const total = sum(rows.map(r => r.avg));
   const prevTotal = prev4.length ? sum(order.map(name => mean(prev4.map(w => w.sets[name] || 0)))) : null;
@@ -660,9 +842,9 @@ export const setsModel = (weeks, n) => {
   return { rows, total, delta, low, high, first: slots[0].monday };
 };
 
-const joinNames = a => (a.length === 1 ? a[0] : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);
+const joinNames = (a: string[]): string => (a.length === 1 ? a[0] : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);
 
-export const setsTip = m => {
+export const setsTip = (m: SetsModel): string => {
   if (m.low.length) {
     if (m.low.length > 3) return `${m.low.length} muscles sit under ${SETS_LOW} hard sets a week.`;
     const verb = m.low.length === 1 ? 'sits' : 'sit';
@@ -673,12 +855,16 @@ export const setsTip = m => {
   return `Every muscle is inside the ${SETS_LOW}-${SETS_HIGH} range.`;
 };
 
-export const monthsModel = (weeks, planned = null) => {
-  const g = new Map();
+export const monthsModel = (weeks: RatedWeek[], planned: number | null = null): MonthRow[] => {
+  const g = new Map<string, { key: string; month: number; year: number; ws: RatedWeek[] }>();
   weeks.forEach(w => {
     const k = `${w.monday.getFullYear()}-${pad(w.monday.getMonth() + 1)}`;
-    if (!g.has(k)) g.set(k, { key: k, month: w.monday.getMonth(), year: w.monday.getFullYear(), ws: [] });
-    g.get(k).ws.push(w);
+    let entry = g.get(k);
+    if (!entry) {
+      entry = { key: k, month: w.monday.getMonth(), year: w.monday.getFullYear(), ws: [] };
+      g.set(k, entry);
+    }
+    entry.ws.push(w);
   });
 
   const list = [...g.values()]
@@ -708,9 +894,9 @@ export const monthsModel = (weeks, planned = null) => {
     .filter(m => m.hasData)
     .reverse();
 
-  return list.map((m, i) => {
+  return list.map((m, i): MonthRow => {
     const p = list[i + 1];
-    const diff = (a, b) => (a != null && b != null ? a - b : null);
+    const diff = (a: number | null, b: number | null): number | null => (a != null && b != null ? a - b : null);
     return {
       ...m,
       d: p
@@ -725,7 +911,7 @@ export const monthsModel = (weeks, planned = null) => {
   });
 };
 
-export const countPlanned = schedule => {
+export const countPlanned = (schedule: Record<string, { exercises?: unknown[] } | null | undefined> | null | undefined): number | null => {
   if (!schedule) return null;
   return Object.values(schedule).filter(d => (d?.exercises?.length ?? 0) > 0).length || null;
 };
