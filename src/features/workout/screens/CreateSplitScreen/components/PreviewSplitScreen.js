@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { colors, spacing } from '../../../../../shared/theme';
@@ -163,6 +164,16 @@ const PreviewSplitScreen = ({ route, navigation }) => {
     }
   }, [split?.id, refreshUserData]);
 
+  const editedRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!editedRef.current) return;
+      editedRef.current = false;
+      handleRefresh();
+    }, [handleRefresh])
+  );
+
   const handleStartWorkout = useCallback((workout) => {
     if (!workout || activeWorkout) return;
     navigation.navigate('StartWorkout', {
@@ -171,8 +182,9 @@ const PreviewSplitScreen = ({ route, navigation }) => {
   }, [navigation, activeWorkout]);
 
   const handleEditSplit = useCallback(() => {
+    editedRef.current = true;
     navigation.navigate('CreateSplit', {
-      splitId: split.id,
+      split,
       isEditing: true,
     });
   }, [navigation, split]);
