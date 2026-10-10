@@ -1,11 +1,12 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../auth/services/firebaseConfigService';
+import type { DateInput, UserData, WeightDisplayData } from '../../../shared/types';
 
-const memoryCache = new Map();
+const memoryCache = new Map<string, UserData>();
 
 export class WeightService {
-    static getWeekStartDate(date) {
+    static getWeekStartDate(date: DateInput): Date {
         const d = new Date(date);
         const day = d.getDay();
         const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -14,18 +15,18 @@ export class WeightService {
         return weekStart;
     }
 
-    static formatDateKey(date) {
+    static formatDateKey(date: Date): string {
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
         const d = String(date.getDate()).padStart(2, '0');
         return `${y}-${m}-${d}`;
     }
 
-    static getLocalWeekStartKey(date) {
+    static getLocalWeekStartKey(date: DateInput): string {
         return this.formatDateKey(this.getWeekStartDate(date));
     }
 
-    static async invalidateCache(userId) {
+    static async invalidateCache(userId: string): Promise<void> {
         memoryCache.delete(userId);
         try {
             await AsyncStorage.removeItem(`user_${userId}`);
@@ -34,14 +35,14 @@ export class WeightService {
         }
     }
 
-    static isFresh(data, maxAgeMs = 5 * 60 * 1000) {
+    static isFresh(data: UserData | null | undefined, maxAgeMs = 5 * 60 * 1000): boolean {
         if (!data) return false;
         const cacheTime = new Date(data.lastWeightUpdate || 0).getTime();
         if (!cacheTime) return false;
         return Date.now() - cacheTime < maxAgeMs;
     }
 
-    static async getUserWeightData(userId) {
+    static async getUserWeightData(userId: string): Promise<UserData | null> {
         try {
             const cached = memoryCache.get(userId);
             if (cached && this.isFresh(cached)) return cached;
@@ -51,7 +52,7 @@ export class WeightService {
             const cachedData = await AsyncStorage.getItem(cacheKey);
 
             if (cachedData) {
-                const parsed = JSON.parse(cachedData);
+                const parsed: UserData = JSON.parse(cachedData);
                 if (this.isFresh(parsed)) {
                     memoryCache.set(userId, parsed);
                     return parsed;
@@ -62,7 +63,7 @@ export class WeightService {
             const userDoc = await getDoc(userDocRef);
 
             if (userDoc.exists()) {
-                const userData = userDoc.data();
+                const userData = userDoc.data() as UserData;
                 memoryCache.set(userId, userData);
                 await AsyncStorage.setItem(cacheKey, JSON.stringify(userData));
                 return userData;
@@ -76,7 +77,7 @@ export class WeightService {
     }
 
     /** Push freshly written user data into both caches so readers see it immediately. */
-    static async setCachedUserData(userId, userData) {
+    static async setCachedUserData(userId: string, userData: UserData | null | undefined): Promise<void> {
         if (!userId || !userData) return;
         memoryCache.set(userId, userData);
         try {
@@ -86,7 +87,7 @@ export class WeightService {
         }
     }
 
-    static async getWeightDisplayData(userId, selectedDate = new Date()) {
+    static async getWeightDisplayData(userId: string, selectedDate: DateInput = new Date()): Promise<WeightDisplayData> {
         try {
             const userData = await this.getUserWeightData(userId);
             if (!userData || !userData.weightIns) {
@@ -100,7 +101,7 @@ export class WeightService {
             }
 
             const sortedWeeks = [...userData.weightIns].sort((a, b) =>
-                new Date(b.weekStart) - new Date(a.weekStart)
+                new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime()
             );
 
             const weekStartDate = this.getLocalWeekStartKey(selectedDate);

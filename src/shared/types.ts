@@ -185,6 +185,46 @@ export type WeeklySnapshot = {
   createdAt: string;
 };
 
+export type DateInput = Date | string | number;
+
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snacks';
+
+export type LoggedFood = FoodItem & {
+  id: string;
+  productName?: string;
+  fiber?: Numeric | null;
+  sugar?: Numeric | null;
+  salt?: Numeric | null;
+  saturatedFats?: Numeric | null;
+  quantity?: Numeric;
+  unit?: string;
+  usageCount?: number;
+  mealType?: string;
+  timestamp?: unknown;
+};
+
+export type MealsByType = Record<MealType, LoggedFood[]>;
+
+export type MealGroup = {
+  date: string;
+  mealType: MealType;
+  foods: LoggedFood[];
+};
+
+export type MealDayDoc = Partial<MealsByType> & {
+  uid: string;
+  date: string;
+  timestamp?: unknown;
+};
+
+export type WeightDisplayData = {
+  currentWeight: Numeric | null;
+  weeklyAverage: number | null;
+  lastWeekAverage: number | null;
+  weeklyTrend: number | null;
+  weighInCount: number;
+};
+
 export type MealCacheLike = {
   getDateRange: (start: Date, end: Date) => { date: string; meals: DayMeals | null | undefined }[];
   getStepsRange: (start: Date, end: Date) => { date: string; steps: number }[];
