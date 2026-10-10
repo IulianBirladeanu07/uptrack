@@ -77,6 +77,17 @@ export const fetchMealsForDate = async (uid, date) => {
     };
 };
 
+export const fetchRawMealsForDate = async (uid, date) => {
+    const snap = await getDoc(dayDocRef(uid, date));
+    const data = snap.exists() ? snap.data() : {};
+    return {
+        breakfast: data.breakfast || [],
+        lunch:     data.lunch     || [],
+        dinner:    data.dinner    || [],
+        snacks:    data.snacks    || [],
+    };
+};
+
 export const fetchLast30DaysMeals = async (uid) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

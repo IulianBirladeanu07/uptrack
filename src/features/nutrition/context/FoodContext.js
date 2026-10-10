@@ -7,7 +7,7 @@ import { AuthContext } from '../../auth/context/AuthContext';
 import GoogleFitStepDisplay from '../../../shared/components/GoogleFitStepDisplay/GoogleFitStepDisplay';
 
 import {
-    writeMealType, consolidateFoodData, buildAddUndo, applyAddUndo, fetchLast30DaysMeals,
+    writeMealType, consolidateFoodData, buildAddUndo, applyAddUndo, fetchLast30DaysMeals, fetchRawMealsForDate,
 } from '../services/mealService';
 import { getLocalWeekStart } from '../helpers/weightTrackerUtils';
 import { getRollingWeekStats, checkAndCompleteLearning, calculateLearningStats, checkAndRunWeeklyEval, checkAndBackfillStepsBonus } from '../helpers/learningCompletionService';
@@ -356,10 +356,25 @@ export const FoodProvider = ({ children, initialUserData }) => {
         Alert.alert("Couldn't save", 'Check your connection and try again.');
     }, []);
 
+    const ensureDayLoaded = useCallback(async (dateKey, uid) => {
+        if (mealCache.current.has(dateKey)) return;
+        const day = await fetchRawMealsForDate(uid, dateKey);
+        if (!mountedRef.current || mealCache.current.has(dateKey)) return;
+        mealCache.current.set(dateKey, day);
+    }, []);
+
     const handleAddMeal = useCallback(async (mealType, foods, mealDate) => {
         if (!currentUser || !mealType || !foods?.length) throw new Error('Invalid meal parameters');
         const dateKey = formatDate(mealDate || selectedDateRef.current);
         const uid     = currentUser.uid;
+
+        try {
+            await ensureDayLoaded(dateKey, uid);
+        } catch (error) {
+            handleError(error, 'load meals');
+            showSaveFailedAlert();
+            throw error;
+        }
 
         const existing     = mealCache.current.get(dateKey)[mealType];
         const consolidated = consolidateFoodData(existing, foods);
@@ -383,7 +398,7 @@ export const FoodProvider = ({ children, initialUserData }) => {
             showSaveFailedAlert();
             throw error;
         }
-    }, [currentUser, updateMealState, executeWithLock, handleError, serializeCacheForPersist, showSaveFailedAlert]);
+    }, [currentUser, ensureDayLoaded, updateMealState, executeWithLock, handleError, serializeCacheForPersist, showSaveFailedAlert]);
 
     const handleDeleteMeal = useCallback(async (mealType, foodId) => {
         if (!currentUser || !mealType || !foodId) return false;
@@ -465,7 +480,17 @@ export const FoodProvider = ({ children, initialUserData }) => {
     const handleDateChange = useCallback((date) => {
         setSelectedDate(date);
         updateCurrentDayMeals(date);
-    }, [updateCurrentDayMeals]);
+        const uid     = currentUserRef.current?.uid;
+        const dateKey = formatDate(date);
+        if (!uid || mealCache.current.has(dateKey)) return;
+        ensureDayLoaded(dateKey, uid)
+            .then(() => {
+                if (!mountedRef.current || formatDate(selectedDateRef.current) !== dateKey) return;
+                updateCurrentDayMeals(date);
+                setCacheVersion(v => v + 1);
+            })
+            .catch(error => console.error('load day failed:', error));
+    }, [updateCurrentDayMeals, ensureDayLoaded]);
 
     const initializeAppData = useCallback(async (user) => {
         if (initializationRef.current || !mountedRef.current) return;

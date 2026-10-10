@@ -12,7 +12,10 @@ class MealCache {
 
     set(key, value) {
         if (this.data.size >= this.maxSize && !this.data.has(key)) {
-            const oldestKey = Array.from(this.data.keys())[0];
+            let oldestKey = null;
+            for (const k of this.data.keys()) {
+                if (oldestKey === null || k < oldestKey) oldestKey = k;
+            }
             this.data.delete(oldestKey);
         }
         this.data.set(key, value);

@@ -71,16 +71,15 @@ export const sendWorkoutDataToFirestore = async (
                         {
                             text: 'Proceed',
                             onPress: async () => {
-                                await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName);
-                                resolve(true);
+                                const saved = await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName);
+                                resolve(saved);
                             },
                         },
                     ]
                 );
             });
         } else {
-            await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName);
-            return true;
+            return await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName);
         }
     } catch (error) {
         console.error('Error adding workout data:', error.message);
@@ -153,9 +152,11 @@ async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMe
             timestamp: timestamp.toDateString() + ' ' + timestamp.toLocaleTimeString(),
             workoutName: templateName || null,
         });
+        return true;
     } catch (error) {
         console.error('Error finishing workout:', error.message);
         openAnimatedMessage(`Error: ${error.message}`);
+        return false;
     }
 }
 

@@ -6,18 +6,16 @@ const getEnvVars = () => {
     return {
       supabaseUrl: Constants.expoConfig.extra.supabaseUrl,
       supabaseAnonKey: Constants.expoConfig.extra.supabaseAnonKey,
-      supabaseServiceKey: Constants.expoConfig.extra.supabaseServiceRoleKey,
     };
   }
   
   return {
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   };
 };
 
-const { supabaseUrl, supabaseAnonKey, supabaseServiceKey } = getEnvVars();
+const { supabaseUrl, supabaseAnonKey } = getEnvVars();
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
@@ -26,6 +24,5 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-export { supabase, supabaseAdmin };
+export { supabase };

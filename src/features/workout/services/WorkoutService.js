@@ -54,8 +54,11 @@ class WorkoutService {
 
     batch(callback) {
         this.batchingUpdates = true;
-        callback();
-        this.batchingUpdates = false;
+        try {
+            callback();
+        } finally {
+            this.batchingUpdates = false;
+        }
         this.notifyListeners();
     }
 

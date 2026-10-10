@@ -75,7 +75,6 @@ module.exports = {
       firebaseStorageURL: process.env.FIREBASE_STORAGE_URL,
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-      supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
       defaultFoodIconUri: process.env.DEFAULT_FOOD_ICON_URI,
       googleRedirectUri: "com.iulianbirladeanu.uptrack://auth",
       expo: {
