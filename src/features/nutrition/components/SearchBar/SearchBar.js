@@ -45,10 +45,6 @@ const SearchBar = memo(({
       const saved = await AsyncStorage.getItem(SEARCH.STORAGE_KEY);
       if (saved) {
         setRecentSearches(JSON.parse(saved));
-      } else {
-        const testSearches = ['chicken breast', 'banana', 'oats'];
-        setRecentSearches(testSearches);
-        saveRecentSearches(testSearches);
       }
     } catch (error) {
       console.error('Error loading recent searches:', error);
