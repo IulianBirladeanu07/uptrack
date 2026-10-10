@@ -11,7 +11,8 @@ const WorkoutProgramLibrary = ({
   navigation, 
   refreshControl, 
   onCreateSplit, 
-  onActivateSplit 
+  onActivateSplit,
+  onSplitDeleted,
 }) => {
   const [expandedCards, setExpandedCards] = useState({});
 
@@ -39,6 +40,7 @@ const WorkoutProgramLibrary = ({
           onPress: async () => {
             try {
               await deleteSplitFromFirestore(split.id);
+              onSplitDeleted(split.id);
             } catch (error) {
               Alert.alert('Error', 'Failed to delete split.');
             }
@@ -46,7 +48,7 @@ const WorkoutProgramLibrary = ({
         }
       ]
     );
-  }, []);
+  }, [onSplitDeleted]);
 
   const toggleExpanded = useCallback((id) => {
     setExpandedCards((prev) => ({

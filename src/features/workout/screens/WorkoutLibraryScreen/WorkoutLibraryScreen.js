@@ -46,9 +46,8 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
         }
     }, [userData?.activeSplitId]);
 
-    const fetchData = useCallback(async (force = false) => {
-        if (!force && hasFetchedRef.current) return;
-        setLoading(true);
+    const fetchData = useCallback(async () => {
+        if (!hasFetchedRef.current) setLoading(true);
         try {
             const [splitsData, templatesData] = await Promise.all([
                 fetchSplitsFromFirestore(),
@@ -90,7 +89,7 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
     const refreshData = useCallback(async () => {
         setRefreshing(true);
         hasFetchedRef.current = false;
-        await fetchData(true);
+        await fetchData();
         setRefreshing(false);
     }, [fetchData]);
 
@@ -105,6 +104,10 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
         } catch (error) {
             Alert.alert('Error', 'Failed to delete template.');
         }
+    }, []);
+
+    const handleSplitDeleted = useCallback((splitId) => {
+        setSplits(prev => prev.filter(s => s.id !== splitId));
     }, []);
 
     const handleActivateSplit = useCallback(async (split) => {
@@ -184,6 +187,7 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
                         refreshControl={refreshControl}
                         onCreateSplit={handleCreate}
                         onActivateSplit={handleActivateSplit}
+                        onSplitDeleted={handleSplitDeleted}
                     />
                 )}
             </SafeAreaView>
