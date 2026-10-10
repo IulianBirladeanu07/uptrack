@@ -354,7 +354,7 @@ export const fetchTemplatesFromFirestore = async () => {
     const querySnapshot = await getDocs(templatesQuery);
 
     if (querySnapshot.empty) {
-      console.log('No templates found for user:', user.uid);
+      console.log('No templates found');
       return [];
     }
 
@@ -817,7 +817,7 @@ export const fetchSplitsFromFirestore = async () => {
     const querySnapshot = await getDocs(splitsQuery);
 
     if (querySnapshot.empty) {
-      console.log('No splits found for user:', uid);
+      console.log('No splits found');
       return [];
     }
 
