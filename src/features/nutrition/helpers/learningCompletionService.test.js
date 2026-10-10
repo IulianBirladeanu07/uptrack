@@ -151,7 +151,7 @@ describe('snapshotPreviousWeek', () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ weeklyNutrition: [{ weekStart: '2026-01-19', avgCalories: 2100 }] }) });
 
     const mealCache = new MealCache();
-    const weekStart = new Date('2026-01-26');
+    const weekStart = new Date(2026, 0, 26);
     for (let i = 0; i < 6; i++) {
       putDay(mealCache, addDays(weekStart, i), { calories: 2200, protein: 160, carbs: 220, fats: 65, steps: 9000 });
     }
@@ -171,6 +171,24 @@ describe('snapshotPreviousWeek', () => {
     expect(payload.weeklyNutrition).toHaveLength(2);
     expect(payload.weeklyNutrition.map(w => w.weekStart)).toEqual(['2026-01-19', '2026-01-26']);
     expect(payload.weeksSinceCutStart).toBe(1);
+  });
+
+  test('reads the local Monday-Sunday week named by weekStart, not the UTC one', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({}) });
+    const mealCache = new MealCache();
+    const range = jest.spyOn(mealCache, 'getDateRange');
+    putDay(mealCache, new Date(2026, 0, 25), { calories: 9000 });
+    for (let i = 0; i < 7; i++) {
+      putDay(mealCache, new Date(2026, 0, 26 + i), { calories: 2000 });
+    }
+
+    const result = await snapshotPreviousWeek('u1', { weekStart: '2026-01-26' }, mealCache, {});
+
+    const [start, end] = range.mock.calls[0];
+    expect([start.getFullYear(), start.getMonth(), start.getDate(), start.getHours()]).toEqual([2026, 0, 26, 0]);
+    expect([end.getMonth(), end.getDate()]).toEqual([1, 1]);
+    expect(result.daysLoggedNutrition).toBe(7);
+    expect(result.avgCalories).toBe(2000);
   });
 
   test('returns null when nothing was logged that week', async () => {

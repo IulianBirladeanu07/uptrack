@@ -80,7 +80,8 @@ export const snapshotPreviousWeek = async (
   if (!previousWeekEntry?.weekStart) return null;
 
   const weekStart = previousWeekEntry.weekStart;
-  const start     = new Date(weekStart);
+  const [y, m, d] = weekStart.split('-').map(Number);
+  const start     = new Date(y, m - 1, d);
   const end       = new Date(start);
   end.setDate(start.getDate() + 6);
   end.setHours(23, 59, 59, 999);
