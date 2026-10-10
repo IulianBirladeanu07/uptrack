@@ -112,7 +112,7 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
 
     const handleActivateSplit = useCallback(async (split) => {
         if (activeSplitId === split.id) {
-            navigation.navigate('SplitSchedule', { split });
+            navigation.navigate('PreviewSplit', { splitData: split });
             return;
         }
 
