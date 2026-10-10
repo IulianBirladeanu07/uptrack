@@ -28,3 +28,16 @@ export type MaintenanceEstimate = {
   weighIns: number;
   windowed: true;
 };
+
+export type TrendPoint = {
+  date: Date;
+  rawWeight: number;
+  trendWeight: number;
+};
+
+export type StatusBadge = {
+  type: 'good' | 'warn' | 'bad';
+  icon: string;
+  label: string;
+  message: string;
+};

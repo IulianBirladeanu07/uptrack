@@ -1,27 +1,30 @@
+import type { DayKey, StatusBadge, TrendPoint, WeightEntry, WeightInWeek } from '../../../shared/types';
+
 const EMA_ALPHA = 0.1;
 const PLATEAU_THRESHOLD_PERCENT = 0.0015;
-const DAY_KEYS_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const DAY_KEYS_ORDER: DayKey[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
-export const flattenWeightInsChronological = (weightIns) => {
+export const flattenWeightInsChronological = (weightIns: WeightInWeek[] | null | undefined): WeightEntry[] => {
   if (!weightIns?.length) return [];
 
-  const entries = [];
+  const entries: WeightEntry[] = [];
   weightIns.forEach(week => {
-    if (!week.days || !week.weekStart) return;
+    const days = week.days;
+    if (!days || !week.weekStart) return;
     const [y, m, d] = week.weekStart.split('-').map(Number);
     DAY_KEYS_ORDER.forEach((dayKey, index) => {
-      const weight = week.days[dayKey];
-      if (weight == null || isNaN(weight)) return;
+      const weight = days[dayKey];
+      if (weight == null || isNaN(Number(weight))) return;
       const date = new Date(y, m - 1, d + index);
-      entries.push({ date, weight: parseFloat(weight) });
+      entries.push({ date, weight: parseFloat(String(weight)) });
     });
   });
 
-  return entries.sort((a, b) => a.date - b.date);
+  return entries.sort((a, b) => a.date.getTime() - b.date.getTime());
 };
 
-export const computeEmaSeries = (chronologicalEntries, alpha = EMA_ALPHA) => {
-  let trend = null;
+export const computeEmaSeries = (chronologicalEntries: WeightEntry[], alpha: number = EMA_ALPHA): TrendPoint[] => {
+  let trend: number | null = null;
 
   return chronologicalEntries.map(entry => {
     trend = trend == null ? entry.weight : trend + alpha * (entry.weight - trend);
@@ -29,15 +32,15 @@ export const computeEmaSeries = (chronologicalEntries, alpha = EMA_ALPHA) => {
   });
 };
 
-export const buildWeightTrendSeries = (weightIns, alpha = EMA_ALPHA) =>
+export const buildWeightTrendSeries = (weightIns: WeightInWeek[] | null | undefined, alpha: number = EMA_ALPHA): TrendPoint[] =>
   computeEmaSeries(flattenWeightInsChronological(weightIns), alpha);
 
-export const getCurrentTrendWeight = (weightIns) => {
+export const getCurrentTrendWeight = (weightIns: WeightInWeek[] | null | undefined): number | null => {
   const series = buildWeightTrendSeries(weightIns);
   return series.length ? series[series.length - 1].trendWeight : null;
 };
 
-export const getRecentAverageWeight = (weightIns, days = 7, minEntries = 3) => {
+export const getRecentAverageWeight = (weightIns: WeightInWeek[] | null | undefined, days = 7, minEntries = 3): number | null => {
   const entries = flattenWeightInsChronological(weightIns);
   if (!entries.length) return null;
 
@@ -48,28 +51,28 @@ export const getRecentAverageWeight = (weightIns, days = 7, minEntries = 3) => {
   return parseFloat((recent.reduce((sum, e) => sum + e.weight, 0) / recent.length).toFixed(2));
 };
 
-export const shiftWeekStart = (weekStart, n) => {
+export const shiftWeekStart = (weekStart: string, n: number): string => {
   const [y, m, d] = weekStart.split('-').map(Number);
   const date = new Date(y, m - 1, d + 7 * n);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
-export const getWeekAverageWeight = (weightIns, weekStart, minEntries = 3) => {
-  const week = (weightIns || []).find(w => w.weekStart === weekStart);
-  if (!week?.days) return null;
-  const v = DAY_KEYS_ORDER.map(k => week.days[k]).filter(x => x != null && !isNaN(x)).map(parseFloat);
+export const getWeekAverageWeight = (weightIns: WeightInWeek[] | null | undefined, weekStart: string, minEntries = 3): number | null => {
+  const days = (weightIns || []).find(w => w.weekStart === weekStart)?.days;
+  if (!days) return null;
+  const v = DAY_KEYS_ORDER.map(k => days[k]).filter((x): x is number | string => x != null && !isNaN(Number(x))).map(x => parseFloat(String(x)));
   if (v.length < minEntries) return null;
   return v.reduce((a, b) => a + b, 0) / v.length;
 };
 
-export const getWindowRateKgPerWeek = (weightIns, firstWeekStart, weeks) => {
+export const getWindowRateKgPerWeek = (weightIns: WeightInWeek[] | null | undefined, firstWeekStart: string, weeks: number): number | null => {
   const before = getWeekAverageWeight(weightIns, shiftWeekStart(firstWeekStart, -1));
   const last = getWeekAverageWeight(weightIns, shiftWeekStart(firstWeekStart, weeks - 1));
   if (before == null || last == null) return null;
   return parseFloat(((last - before) / weeks).toFixed(3));
 };
 
-export const calculateWeeklyRateOfChange = (trendSeries, windowDays = 14) => {
+export const calculateWeeklyRateOfChange = (trendSeries: TrendPoint[] | null | undefined, windowDays = 14): number | null => {
   if (!trendSeries || trendSeries.length < 4) return null;
 
   const cutoff = trendSeries[trendSeries.length - 1].date.getTime() - windowDays * 86400000;
@@ -93,34 +96,34 @@ export const calculateWeeklyRateOfChange = (trendSeries, windowDays = 14) => {
   return slopePerDay * 7;
 };
 
-export const detectPlateau = (actualWeeklyRateKg, currentWeight) => {
+export const detectPlateau = (actualWeeklyRateKg: number | null | undefined, currentWeight: number | null | undefined): boolean => {
   if (actualWeeklyRateKg == null || !currentWeight) return false;
   const threshold = currentWeight * PLATEAU_THRESHOLD_PERCENT;
   return Math.abs(actualWeeklyRateKg) < threshold;
 };
 
-export const isGoalReached = (currentTrendWeight, targetWeight, toleranceKg = 0.5, planType = null) => {
+export const isGoalReached = (currentTrendWeight: number | null | undefined, targetWeight: number | null | undefined, toleranceKg = 0.5, planType: string | null = null): boolean => {
   if (currentTrendWeight == null || targetWeight == null) return false;
   if (planType === 'weight_loss') return currentTrendWeight <= targetWeight + toleranceKg;
   if (planType === 'muscle_gain') return currentTrendWeight >= targetWeight - toleranceKg;
   return Math.abs(currentTrendWeight - targetWeight) <= toleranceKg;
 };
 
-export const isSuspiciousWeightEntry = (newWeight, currentTrendWeight, maxPercentDelta = 0.05) => {
+export const isSuspiciousWeightEntry = (newWeight: number, currentTrendWeight: number | null | undefined, maxPercentDelta = 0.05): boolean => {
   if (currentTrendWeight == null) return false;
   const delta = Math.abs(newWeight - currentTrendWeight);
   return delta > currentTrendWeight * maxPercentDelta;
 };
 
-const PHASE_LABEL = {
+const PHASE_LABEL: Record<string, string> = {
   weight_loss: 'Cutting',
   muscle_gain: 'Bulking',
   maintenance: 'Maintaining',
 };
 
-export const getPhaseLabel = (planType) => PHASE_LABEL[planType] ?? 'Maintaining';
+export const getPhaseLabel = (planType: string | null | undefined): string => (planType ? PHASE_LABEL[planType] : undefined) ?? 'Maintaining';
 
-export const getWeightPhaseStatus = (weightDeltaKg, targetRateKgPerWeek, toleranceBand = 0.15) => {
+export const getWeightPhaseStatus = (weightDeltaKg: number | null | undefined, targetRateKgPerWeek: number | null | undefined, toleranceBand = 0.15): StatusBadge | null => {
   if (weightDeltaKg == null || targetRateKgPerWeek == null) return null;
 
   const sameDirection =
@@ -165,7 +168,7 @@ export const getWeightPhaseStatus = (weightDeltaKg, targetRateKgPerWeek, toleran
   };
 };
 
-const STRENGTH_STATUS_TABLE = {
+const STRENGTH_STATUS_TABLE: Record<string, Record<'up' | 'flat' | 'down', StatusBadge>> = {
   muscle_gain: {
     up: { type: 'good', icon: 'trending-up', label: 'Working', message: 'Surplus is converting to strength' },
     flat: { type: 'warn', icon: 'remove-circle', label: 'Stalling', message: 'Weight is up but strength is flat — mostly fat, not muscle' },
@@ -183,16 +186,16 @@ const STRENGTH_STATUS_TABLE = {
   },
 };
 
-export const getStrengthPhaseStatus = (e1rmDeltaKg, planType, currentE1rmKg = null, toleranceBand = 1.5) => {
+export const getStrengthPhaseStatus = (e1rmDeltaKg: number | null | undefined, planType: string | null | undefined, currentE1rmKg: number | null = null, toleranceBand = 1.5): StatusBadge | null => {
   if (e1rmDeltaKg == null) return null;
 
   const band = currentE1rmKg != null ? Math.max(toleranceBand, currentE1rmKg * 0.02) : toleranceBand;
   const direction = Math.abs(e1rmDeltaKg) < band ? 'flat' : e1rmDeltaKg > 0 ? 'up' : 'down';
 
-  return (STRENGTH_STATUS_TABLE[planType] ?? STRENGTH_STATUS_TABLE.maintenance)[direction];
+  return ((planType ? STRENGTH_STATUS_TABLE[planType] : undefined) ?? STRENGTH_STATUS_TABLE.maintenance)[direction];
 };
 
-export const getPlanConfidence = (trendSeries, weeklyCalorieData) => {
+export const getPlanConfidence = (trendSeries: TrendPoint[], weeklyCalorieData: { daysLogged?: number }[] | null | undefined): 'calibrated' | 'estimated' => {
   const MIN_WINDOW_DAYS = 14;
   const MIN_LOGGED_DAYS = 10;
 
