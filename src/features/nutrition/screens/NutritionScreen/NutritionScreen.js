@@ -24,7 +24,6 @@ const NutritionScreen = () => {
         dinnerFoods,
         snacksFoods,
         handleDeleteMeal,
-        updateFoods,
         selectedDate,
         setSelectedDate,
         remainingCalories,
@@ -81,17 +80,10 @@ const NutritionScreen = () => {
         const { mealType, id } = item;
         try {
             await handleDeleteMeal(mealType, id);
-            const mealUpdaters = {
-                breakfast: () => updateFoods('breakfast', breakfastFoods.filter(f => f.id !== id)),
-                lunch:     () => updateFoods('lunch', lunchFoods.filter(f => f.id !== id)),
-                dinner:    () => updateFoods('dinner', dinnerFoods.filter(f => f.id !== id)),
-                snacks:    () => updateFoods('snacks', snacksFoods.filter(f => f.id !== id)),
-            };
-            if (mealUpdaters[mealType]) mealUpdaters[mealType]();
         } catch (error) {
             Alert.alert('Error', 'Failed to delete meal.');
         }
-    }, [breakfastFoods, lunchFoods, dinnerFoods, snacksFoods, handleDeleteMeal, updateFoods]);
+    }, [handleDeleteMeal]);
 
     const handleWeightPress = useCallback(() => {
         navigation.navigate('WeightTracker', {
