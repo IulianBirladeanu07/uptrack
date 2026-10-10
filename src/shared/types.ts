@@ -2,6 +2,7 @@ export type DayKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' 
 
 export type WeightInWeek = {
   weekStart: string;
+  createdAt?: string;
   average?: number | null;
   days?: Partial<Record<DayKey, number | string | null>>;
 };
@@ -104,7 +105,10 @@ export type UserData = PlanFormData & {
   stepsBonusAppliedAt?: string | null;
   targetsSource?: 'formula' | 'learning';
   targetsInitializedAt?: string;
-  startWeight?: number;
+  startWeight?: Numeric;
+  lastSnapshotWeek?: string;
+  lastWeightUpdate?: string;
+  weeklyTrend?: number | null;
   phaseHistory?: PhaseHistoryEntry[];
 };
 
