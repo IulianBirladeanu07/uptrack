@@ -11,5 +11,15 @@ service firebase.storage {
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
     }
+
+    match /exercise_images/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /nutrition_images/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
   }
 }
