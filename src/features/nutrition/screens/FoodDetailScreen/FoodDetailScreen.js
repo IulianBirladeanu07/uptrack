@@ -13,6 +13,7 @@ import NutrientRow from './NutrientRow';
 import ServingSizeSelector from './ServingSizeSelector';
 import UnitPickerModal from './UnitPickerModal';
 import { calculateTotalNutrients, handleFoodAddition } from '../../helpers/useFoodDetails';
+import { convertQuantity } from '../../helpers/unitConversion';
 
 const DEFAULT_SERVING = Object.freeze({
   quantity: 100,
@@ -40,8 +41,8 @@ const FoodDetailScreen = () => {
   const foods = useMemo(() => (isMultipleFoods ? meal.foods : (food ? [food] : [])), [isMultipleFoods, meal, food]);
 
   const memoizedTotalNutrients = useMemo(() => 
-    calculateTotalNutrients(foods, servingQuantity),
-    [foods, servingQuantity]
+    calculateTotalNutrients(foods, servingQuantity, servingUnit),
+    [foods, servingQuantity, servingUnit]
   );
 
   const handleNavigateBack = useCallback(() => {
@@ -60,11 +61,14 @@ const FoodDetailScreen = () => {
   }, []);
 
   const handleUnitSelect = useCallback((newUnit) => {
-    if (VALID_UNITS.includes(newUnit)) {
+    if (!VALID_UNITS.includes(newUnit)) return;
+    if (newUnit !== servingUnit) {
+      const converted = convertQuantity(servingQuantity, servingUnit, newUnit, food?.quantity, food?.unit);
+      setServingQuantity(Math.min(MAX_QUANTITY, converted));
       setServingUnit(newUnit);
-      setUnitPickerVisible(false);
     }
-  }, []);
+    setUnitPickerVisible(false);
+  }, [servingQuantity, servingUnit, food?.quantity, food?.unit]);
 
   const handleAddFood = useCallback(async () => {
     const result = await handleFoodAddition({

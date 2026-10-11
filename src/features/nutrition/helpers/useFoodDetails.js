@@ -1,24 +1,24 @@
 import { Alert } from 'react-native';
+import { scalingFactor } from './unitConversion';
 
-export const calculateNutrientValue = (foodItem, desiredQuantity) => {
-  const originalQuantity = foodItem.quantity || 100;
-  const scalingFactor = desiredQuantity / originalQuantity;
-  
+export const calculateNutrientValue = (foodItem, desiredQuantity, desiredUnit) => {
+  const factor = scalingFactor(desiredQuantity, desiredUnit, foodItem.quantity, foodItem.unit);
+
   return {
-    calories: (parseFloat(foodItem.calories || 0) * scalingFactor).toFixed(1),
-    carbohydrates: (parseFloat(foodItem.carbohydrates || 0) * scalingFactor).toFixed(1),
-    fats: (parseFloat(foodItem.fats || 0) * scalingFactor).toFixed(1),
-    protein: (parseFloat(foodItem.protein || 0) * scalingFactor).toFixed(1),
-    fiber: (parseFloat(foodItem.fiber || 0) * scalingFactor).toFixed(1),
-    sugar: (parseFloat(foodItem.sugar || 0) * scalingFactor).toFixed(1),
-    salt: (parseFloat(foodItem.salt || 0) * scalingFactor).toFixed(1),
-    saturatedFats: (parseFloat(foodItem.saturatedFats || 0) * scalingFactor).toFixed(1),
+    calories: (parseFloat(foodItem.calories || 0) * factor).toFixed(1),
+    carbohydrates: (parseFloat(foodItem.carbohydrates || 0) * factor).toFixed(1),
+    fats: (parseFloat(foodItem.fats || 0) * factor).toFixed(1),
+    protein: (parseFloat(foodItem.protein || 0) * factor).toFixed(1),
+    fiber: (parseFloat(foodItem.fiber || 0) * factor).toFixed(1),
+    sugar: (parseFloat(foodItem.sugar || 0) * factor).toFixed(1),
+    salt: (parseFloat(foodItem.salt || 0) * factor).toFixed(1),
+    saturatedFats: (parseFloat(foodItem.saturatedFats || 0) * factor).toFixed(1),
   };
 };
 
-export const calculateTotalNutrients = (foods, quantity = 100) => {
+export const calculateTotalNutrients = (foods, quantity = 100, unit) => {
   return foods.reduce((totals, food) => {
-    const scaledValues = calculateNutrientValue(food, quantity);
+    const scaledValues = calculateNutrientValue(food, quantity, unit);
     
     return {
       calories: (parseFloat(totals.calories) || 0) + (parseFloat(scaledValues.calories) || 0),
@@ -68,7 +68,7 @@ export const handleFoodAddition = async ({
   }
 
   const currentFoodId = foodId || generateRandomHexId();
-  const nutrients = calculateNutrientValue(food, quantity);
+  const nutrients = calculateNutrientValue(food, quantity, unit);
 
   const updatedFoodDetails = {
     id: currentFoodId,
@@ -90,7 +90,7 @@ export const handleFoodAddition = async ({
       unit,
       isFavorite: isFavorite,
       mealType: foodItem.mealType || meal,
-      ...calculateNutrientValue(foodItem, quantity),
+      ...calculateNutrientValue(foodItem, quantity, unit),
     }));
 
     addMultipleFoods(meal, updatedFoods).catch(() => {});
