@@ -9,7 +9,13 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "noPropertyAccessFromIndexSignature": true
   },
-  "include": ["src/**/*", "App.tsx", "index.js"]
+  "include": [
+    "src/**/*",
+    "App.tsx",
+    "index.js"
+  ]
 }

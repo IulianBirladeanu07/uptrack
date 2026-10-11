@@ -266,8 +266,10 @@ export const getSetsFromLastWorkout = async (exerciseName: string): Promise<Work
     const querySnapshot = await getDocs(workoutQuery);
 
     for (const snap of querySnapshot.docs) {
-      const workoutData = snap.data();
-      const exercises = (workoutData.exercises || []) as Array<{ exerciseName?: string; sets?: Array<{ weight?: unknown; reps?: unknown }> }>;
+      const workoutData = snap.data() as {
+        exercises?: Array<{ exerciseName?: string; sets?: Array<{ weight?: unknown; reps?: unknown }> }>;
+      };
+      const exercises = workoutData.exercises || [];
       const exercise = exercises.find(ex => ex.exerciseName === exerciseName);
       
       if (exercise && exercise.sets && exercise.sets.length > 0) {
@@ -334,7 +336,7 @@ export const getLastWorkout = async (): Promise<DocumentData | null> => {
     const querySnapshot = await getDocs(workoutsQuery);
 
     if (!querySnapshot.empty) {
-      return querySnapshot.docs[0].data();
+      return querySnapshot.docs[0].data() as DocumentData;
     } else {
       return null;
     }
@@ -584,7 +586,7 @@ const fetchExercisesFromFirestore = async (): Promise<ExerciseGroup[]> => {
     if (!querySnapshot.empty) {
       querySnapshot.forEach(doc => {
         const muscleGroup = doc.id;
-        const exercises = doc.data().exercises || [];
+        const exercises = (doc.data() as { exercises?: CatalogExercise[] }).exercises || [];
 
         if (exercises.length > 0) {
           const validExercises = (exercises as CatalogExercise[])
@@ -775,7 +777,7 @@ export const fetchLastMeasurements = async (): Promise<BodyMeasurements | null> 
     const querySnapshot = await getDocs(measurementsQuery);
 
     if (!querySnapshot.empty) {
-      return querySnapshot.docs[0].data();
+      return querySnapshot.docs[0].data() as DocumentData;
     } else {
       return null;
     }
@@ -873,28 +875,30 @@ export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
       return [];
     }
 
-    const splits = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      data: doc.data()
+    const splits: WorkoutSplit[] = querySnapshot.docs.map(docSnap => ({
+      ...(docSnap.data() as WorkoutSplit),
+      id: docSnap.id,
     }));
 
     const templates = await fetchTemplatesFromFirestore();
-    const templateMap = new Map(templates.map(t => [t.id, t.data]));
+    const templateMap = new Map(templates.map(tmpl => [tmpl.id, tmpl]));
 
     splits.forEach(split => {
-      const schedule = split.data.schedule || {};
+      const schedule = (split.schedule || {}) as Record<string, Record<string, unknown>>;
       Object.keys(schedule).forEach(day => {
-        const dayData = schedule[day];
-        const template = dayData?.templateId && templateMap.get(dayData.templateId);
+        const dayData = schedule[day] || {};
+        const templateId = dayData['templateId'] as string | undefined;
+        const template = templateId ? templateMap.get(templateId) : undefined;
         if (template) {
           schedule[day] = {
             ...dayData,
-            templateName: template.templateName || dayData.templateName,
-            exercises: template.exercises || dayData.exercises,
-            duration: template.duration ?? dayData.duration,
+            templateName: template.templateName || dayData['templateName'],
+            exercises: template.exercises || dayData['exercises'],
+            duration: template.duration ?? dayData['duration'],
           };
         }
       });
+      split.schedule = schedule;
     });
 
     return splits;
@@ -920,10 +924,10 @@ export const addSplitToFirestore = async (splitData: WorkoutSplit): Promise<stri
     Object.keys(schedule).forEach(day => {
       const dayData = schedule[day];
       sanitizedSchedule[day] = {
-        templateId: dayData.templateId || 'rest-day',
-        templateName: dayData.templateName || 'Rest Day',
-        exercises: dayData.exercises || [],
-        duration: dayData.duration || '0'
+        templateId: dayData['templateId'] || 'rest-day',
+        templateName: dayData['templateName'] || 'Rest Day',
+        exercises: dayData['exercises'] || [],
+        duration: dayData['duration'] || '0'
       };
     });
 
@@ -958,10 +962,10 @@ export const updateSplitDay = async (splitId: string, day: string, workoutData: 
     const splitDocRef = doc(db, 'workoutSplits', splitId);
     
     const sanitizedWorkoutData = {
-      templateId: workoutData.templateId || 'rest-day',
-      templateName: workoutData.templateName || 'Rest Day',
-      exercises: workoutData.exercises || [],
-      duration: workoutData.duration || '0'
+      templateId: workoutData['templateId'] || 'rest-day',
+      templateName: workoutData['templateName'] || 'Rest Day',
+      exercises: workoutData['exercises'] || [],
+      duration: workoutData['duration'] || '0'
     };
     
     await updateDoc(splitDocRef, {
@@ -1038,8 +1042,12 @@ export const getExerciseHistory = async (exerciseName: string): Promise<Document
         const sessions: DocumentData[] = [];
 
         for (const snap of querySnapshot.docs) {
-            const data = snap.data();
-            const exercises = (data.exercises || []) as Array<{ exerciseName?: string; sets?: Array<{ weight?: string | number; reps?: string | number }> }>;
+            const data = snap.data() as {
+              exercises?: Array<{ exerciseName?: string; sets?: Array<{ weight?: string | number; reps?: string | number }> }>;
+              timestamp?: unknown;
+              workoutName?: string;
+            };
+            const exercises = data.exercises || [];
             const exercise = exercises.find((ex) => ex.exerciseName === exerciseName);
             if (!exercise || !exercise.sets?.length) continue;
 

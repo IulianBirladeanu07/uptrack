@@ -219,7 +219,7 @@ flowchart TB
 2. Typed Firestore converters for `users` and `meals`, then remove the `as` casts.
 3. `supabase gen types typescript`, then convert `NutritionHandler.js`.
 4. Then `WorkoutHandler.js`, `WorkoutService.js` and `WorkoutContext.js`.
-5. Stricter flags, by measured cost: `exactOptionalPropertyTypes` (2 errors), `noPropertyAccessFromIndexSignature` (6, style only), `noUncheckedIndexedAccess` (111 in 9 files).
+5. Stricter flags: `exactOptionalPropertyTypes` and `noPropertyAccessFromIndexSignature` enabled. `noUncheckedIndexedAccess` deferred (~140 errors).
 
 ### 20. Android steps: Google Fit to Health Connect
 

@@ -135,7 +135,7 @@ export const calculateMinCalories = (bmr: number, tdee: number, currentWeight: n
 };
 
 export const getTargetROLPercent = (stressLevel: string | null | undefined): number => {
-  const stressMultiplier = pick(STRESS_MULTIPLIERS, stressLevel) || STRESS_MULTIPLIERS.moderate;
+  const stressMultiplier = pick(STRESS_MULTIPLIERS, stressLevel) || STRESS_MULTIPLIERS['moderate'];
   return STANDARD_ROL_PERCENT * stressMultiplier;
 };
 
@@ -189,7 +189,7 @@ export const calculateWeightChangePlan = (formData: PlanFormData): WeightChangeP
   const stepsBonus = calculateStepsTDEEBonus(avgDailySteps, weight);
   const tdee = Math.round(tdeeMifflin + stepsBonus);
 
-  const stressMultiplier = pick(STRESS_MULTIPLIERS, stressLevel) || STRESS_MULTIPLIERS.moderate;
+  const stressMultiplier = pick(STRESS_MULTIPLIERS, stressLevel) || STRESS_MULTIPLIERS['moderate'];
 
   let goalCalories: number;
   let ratePerWeek = 0;
@@ -213,8 +213,8 @@ export const calculateWeightChangePlan = (formData: PlanFormData): WeightChangeP
     weeksToGoal = ratePerWeek > 0 ? Math.ceil(weightDiff / ratePerWeek) : 0;
 
   } else if (goal === 'muscle_gain') {
-    const bulkRates = pick(BULKING_RATE_KG_PER_MONTH, gender) || BULKING_RATE_KG_PER_MONTH.male;
-    const baseRate = pick(bulkRates, expLevel) || bulkRates.intermediate;
+    const bulkRates = pick(BULKING_RATE_KG_PER_MONTH, gender) || BULKING_RATE_KG_PER_MONTH['male'];
+    const baseRate = pick(bulkRates, expLevel) || bulkRates['intermediate'];
     const targetRatePerMonth = baseRate * stressMultiplier;
     const targetRatePerWeek = targetRatePerMonth / WEEKS_PER_MONTH;
 
@@ -312,7 +312,7 @@ export const calculateMaintenanceEstimate = (userData: UserData | null | undefin
 
 export const refreshWeightChangePlan = (
   userData: UserData | null | undefined,
-  { targetCalories, maintenance, ratePerWeek }: { targetCalories?: number | null; maintenance?: number | null; ratePerWeek?: number | null } = {},
+  { targetCalories, maintenance, ratePerWeek }: { targetCalories?: number | null | undefined; maintenance?: number | null | undefined; ratePerWeek?: number | null | undefined } = {},
 ): WeightChangePlan | null => {
   const plan = userData?.weightChangePlan;
   if (!plan) return null;

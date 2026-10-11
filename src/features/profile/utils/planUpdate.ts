@@ -77,7 +77,7 @@ export const buildPlanUpdate = ({ userData, form, original, now }: { userData: U
     });
   } else if (userData?.weightChangePlan && Object.keys(diff).some(k => k !== 'autoAdjustEnabled')) {
     const refreshed = refreshWeightChangePlan({ ...userData, ...diff }, {});
-    if (refreshed) payload.weightChangePlan = refreshed;
+    if (refreshed) payload['weightChangePlan'] = refreshed;
   }
 
   if (goalChanged) {

@@ -192,7 +192,7 @@ export const getStrengthPhaseStatus = (e1rmDeltaKg: number | null | undefined, p
   const band = currentE1rmKg != null ? Math.max(toleranceBand, currentE1rmKg * 0.02) : toleranceBand;
   const direction = Math.abs(e1rmDeltaKg) < band ? 'flat' : e1rmDeltaKg > 0 ? 'up' : 'down';
 
-  return ((planType ? STRENGTH_STATUS_TABLE[planType] : undefined) ?? STRENGTH_STATUS_TABLE.maintenance)[direction];
+  return ((planType ? STRENGTH_STATUS_TABLE[planType] : undefined) ?? STRENGTH_STATUS_TABLE['maintenance'])[direction];
 };
 
 export const getPlanConfidence = (trendSeries: TrendPoint[], weeklyCalorieData: { daysLogged?: number }[] | null | undefined): 'calibrated' | 'estimated' => {

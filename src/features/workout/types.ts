@@ -53,7 +53,7 @@ export type WorkoutTemplate = {
   uid?: string;
   createdAt?: unknown;
   updatedAt?: unknown;
-  [key: string]: unknown;
+  workoutType?: string;
 };
 
 export type WorkoutSplitDay = {
@@ -67,14 +67,17 @@ export type WorkoutSplit = {
   id?: string;
   name?: string;
   splitName?: string;
+  description?: string;
+  type?: string;
+  durationWeeks?: number;
   uid?: string;
   days?: WorkoutSplitDay[] | Record<string, unknown>;
-  schedule?: unknown;
+  schedule?: Record<string, Record<string, unknown>> | unknown;
   currentWeek?: number;
   rotationStartDate?: string;
   createdAt?: unknown;
   updatedAt?: unknown;
-  [key: string]: unknown;
+  data?: unknown;
 };
 
 export type BodyMeasurements = {
