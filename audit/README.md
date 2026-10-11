@@ -6,9 +6,9 @@ Output of a security, bug and TypeScript audit of `master` at `fad590d`, done on
 |---|---|
 | `FINDINGS.md` | All 40 findings with evidence and status, false positives, TypeScript notes, verification, and what was not verified |
 | `PLAN.md` | Owner tasks, decisions to collect, and the prioritized fix plan |
-| `rules/firestore.rules` | Proposed Firestore rules. Not deployed and not emulator-tested. |
-| `rules/storage.rules` | Proposed Storage rules for profile pictures. Not deployed. |
-| `rules/supabase-rls.sql` | Proposed row-level security for the two product tables. Not run. |
+| `rules/firestore.rules` | Firestore rules, deployed 2026-10-11. Not emulator-tested. |
+| `rules/storage.rules` | Storage rules, deployed 2026-10-11. |
+| `rules/supabase-rls.sql` | Row-level security for the two product tables, applied 2026-10-11. |
 
 ## Commits
 
