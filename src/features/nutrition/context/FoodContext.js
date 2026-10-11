@@ -655,7 +655,6 @@ export const FoodProvider = ({ children }) => {
         addMultipleFoods: handleAddMeal,
         handleDeleteMeal,
         updateMealInDatabase,
-        updateFoods:      updateMealState,
         getTrendData,
         dailySteps,
         updateDailySteps,

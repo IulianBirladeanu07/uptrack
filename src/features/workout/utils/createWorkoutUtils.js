@@ -12,8 +12,6 @@ export const SPLIT_STEPS = [
   { id: 'review', icon: 'checkmark-circle-outline', title: 'Review' }
 ];
 
-export const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
-
 export const validateBasicInfo = (templateName) => {
   if (!templateName.trim()) {
     if (Platform.OS === 'android') {
@@ -55,13 +53,6 @@ export const validateForm = (templateName, exercises) => {
          !exercises.find(ex => !ex.numSets || !ex.repRange);
 };
 
-export const showNotification = (message, isError = false) => {
-  if (Platform.OS === 'android') {
-    ToastAndroid.show(message, isError ? ToastAndroid.LONG : ToastAndroid.SHORT);
-  } else {
-    Alert.alert(isError ? 'Error' : 'Success', message);
-  }
-};
 
 export const createExerciseFromSelection = (selectedExercises) => {
   

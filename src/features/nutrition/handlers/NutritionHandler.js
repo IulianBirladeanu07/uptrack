@@ -1,38 +1,8 @@
 import { getAuth } from 'firebase/auth';
 import { collection, query, where, orderBy, limit, getDocs, } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService'
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../../shared/services/supabaseClient'
 import { Timestamp } from 'firebase/firestore';
-
-const handleCache = {
-  async get(key) {
-    try {
-      const cachedData = await AsyncStorage.getItem(key);
-      if (cachedData) {
-        const { data, timestamp } = JSON.parse(cachedData);
-        if (Date.now() - timestamp < 5 * 60 * 1000) {
-          return data;
-        }
-      }
-      return null;
-    } catch (error) {
-      console.warn('Cache read error:', error);
-      return null;
-    }
-  },
-
-  async set(key, data) {
-    try {
-      await AsyncStorage.setItem(key, JSON.stringify({
-        data,
-        timestamp: Date.now()
-      }));
-    } catch (error) {
-      console.warn('Cache write error:', error);
-    }
-  }
-};
 
 export const fetchNonBarcodedProducts = async (
   filters = [], 

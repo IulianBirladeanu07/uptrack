@@ -1,9 +1,8 @@
-import { useState, useCallback, memo, useRef, useEffect } from 'react';
+import { useCallback, memo, useRef, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, Keyboard } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors, spacing, fontSize, fontWeight, radius, SEARCH } from '../../../../shared/theme';
+import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
 const SearchBar = memo(({
@@ -17,39 +16,10 @@ const SearchBar = memo(({
 }) => {
   const navigation = useNavigation();
   const inputRef = useRef(null);
-  const [recentSearches, setRecentSearches] = useState([]);
-  const [showRecentSearches, setShowRecentSearches] = useState(false);
 
-  useEffect(() => {
-    loadRecentSearches();
-  }, []);
 
-  useEffect(() => {
-    if (isSearching && (!searchQuery || searchQuery.trim() === '')) {
-      setShowRecentSearches(true);
-    } else {
-      setShowRecentSearches(false);
-    }
-  }, [isSearching, searchQuery]);
 
-  const saveRecentSearches = async (searches) => {
-    try {
-      await AsyncStorage.setItem(SEARCH.STORAGE_KEY, JSON.stringify(searches));
-    } catch (error) {
-      console.error('Error saving recent searches:', error);
-    }
-  };
 
-  const loadRecentSearches = async () => {
-    try {
-      const saved = await AsyncStorage.getItem(SEARCH.STORAGE_KEY);
-      if (saved) {
-        setRecentSearches(JSON.parse(saved));
-      }
-    } catch (error) {
-      console.error('Error loading recent searches:', error);
-    }
-  };
 
   const handleFocus = useCallback(() => {
     onFocus?.();
@@ -64,15 +34,6 @@ const SearchBar = memo(({
     }
   }, [isSearching]);
 
-  const addToRecentSearches = useCallback((text) => {
-    if (!text || text.trim() === '') return;
-    const trimmedText = text.trim();
-    setRecentSearches(prev => {
-      const updated = [trimmedText, ...prev.filter(item => item.toLowerCase() !== trimmedText.toLowerCase())].slice(0, SEARCH.MAX_RECENT_SEARCHES);
-      saveRecentSearches(updated);
-      return updated;
-    });
-  }, []);
 
   const handleChangeText = useCallback((text) => {
     setSearchQuery?.(text || '');
@@ -80,15 +41,13 @@ const SearchBar = memo(({
 
   const handleSubmitEditing = useCallback(() => {
     if (searchQuery?.trim()) {
-      addToRecentSearches(searchQuery);
       Keyboard.dismiss();
     }
-  }, [searchQuery, addToRecentSearches]);
+  }, [searchQuery]);
 
   const handleClearPress = useCallback(() => {
     setSearchQuery?.('');
     inputRef.current?.focus();
-    setShowRecentSearches(true);
   }, [setSearchQuery]);
 
   const handleBackPress = useCallback(() => {
