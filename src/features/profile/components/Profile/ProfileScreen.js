@@ -1,4 +1,4 @@
-import { useState, useContext, useCallback } from 'react';
+import { useState, useContext, useCallback, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Switch } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import { OptionRow, NumberStepper } from '../../../../shared/components/FormCont
 import { ACTIVITY_OPTIONS, EXPERIENCE_OPTIONS, STRESS_OPTIONS } from '../../utils/profileOptions';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
+import { seedProfileForm, seedProfileIdentity, seedProfilePicture } from '../../utils/profileSeed';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -42,25 +43,16 @@ const ProfileScreen = ({ navigation }) => {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const [form, setForm] = useState({
-    age:               userData?.age               || 24,
-    height:            userData?.height             || 175,
-    gender:            userData?.gender             || 'male',
-    currentWeight:     userData?.currentWeight      || 80,
-    targetWeight:      userData?.targetWeight       || 80,
-    activityLevel:     userData?.activityLevel      || 'moderately_active',
-    experienceLevel:   userData?.experienceLevel    || 'intermediate',
-    stressLevel:       userData?.stressLevel        || 'moderate',
-    autoAdjustEnabled: userData?.autoAdjustEnabled  ?? true,
-  });
-  const [original, setOriginal] = useState({ ...form });
+  const [form, setForm] = useState(() => seedProfileForm(userData));
+  const [original, setOriginal] = useState(() => seedProfileForm(userData));
 
-  const [identity, setIdentity] = useState({
-    username: userData?.username || '',
-    email:    userData?.email || auth.currentUser?.email || '',
-  });
-  const [savedIdentity, setSavedIdentity] = useState({ ...identity });
-  const [picture, setPicture] = useState(userData?.profilePicture || null);
+  const [identity, setIdentity] = useState(() =>
+    seedProfileIdentity(userData, auth.currentUser?.email),
+  );
+  const [savedIdentity, setSavedIdentity] = useState(() =>
+    seedProfileIdentity(userData, auth.currentUser?.email),
+  );
+  const [picture, setPicture] = useState(() => seedProfilePicture(userData));
   const [pendingUri, setPendingUri] = useState(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -68,6 +60,18 @@ const ProfileScreen = ({ navigation }) => {
   const identityCount = ['username', 'email'].filter(k => identity[k] !== savedIdentity[k]).length + (pendingUri ? 1 : 0);
   const changedCount = planCount + identityCount;
   const hasChanges = changedCount > 0;
+
+  useEffect(() => {
+    if (hasChanges) return;
+    const nextForm = seedProfileForm(userData);
+    const nextIdentity = seedProfileIdentity(userData, auth.currentUser?.email);
+    setForm(nextForm);
+    setOriginal(nextForm);
+    setIdentity(nextIdentity);
+    setSavedIdentity(nextIdentity);
+    setPicture(seedProfilePicture(userData));
+    setPendingUri(null);
+  }, [userData, hasChanges, auth.currentUser?.email]);
 
   const update = useCallback((key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
