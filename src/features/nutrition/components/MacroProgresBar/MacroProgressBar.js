@@ -1,31 +1,19 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import styles from '../../screens/NutritionScreen/NutritionScreenStyles';
+import { getMacroBarState } from '../../helpers/macroBar';
 
-const getMacroEstimate = (value, macroType) => {
-  const estimates = {
-    carbs: Math.max(Math.round(value * 1.5), 150),
-    protein: Math.max(Math.round(value * 1.3), 80),
-    fat: Math.max(Math.round(value * 1.4), 70),
-  };
-  return estimates[macroType.toLowerCase()] || Math.max(Math.round(value * 1.5), 100);
-};
-
-const MacroProgressBar = React.memo(({ 
-  value, 
-  maxValue, 
-  label, 
-  color, 
-  hasTargets, 
-  testID 
+const MacroProgressBar = React.memo(({
+  value,
+  maxValue,
+  label,
+  color,
+  hasTargets,
+  testID
 }) => {
-  hasTargets = true;
-  const safeValue = Math.round(value || 0);
-  const safeMaxValue = Math.round(maxValue || 0);
-  const displayMax = hasTargets ? safeMaxValue : getMacroEstimate(safeValue, label);
-  const fillPercentage = Math.min(Math.round((safeValue / displayMax) * 100), 100);
-  const progressColor = hasTargets ? color : '#64748B';
-  const opacity = hasTargets ? 1 : 0.7;
+  const { safeValue, safeMaxValue, hasTarget, displayMax, fillPercentage } = getMacroBarState(value, maxValue, hasTargets, label);
+  const progressColor = hasTarget ? color : '#64748B';
+  const opacity = hasTarget ? 1 : 0.7;
 
   return (
     <View style={styles.macroItem} testID={testID}>
@@ -35,7 +23,7 @@ const MacroProgressBar = React.memo(({
       <View 
         style={styles.macroProgressContainer}
         accessibilityRole="progressbar"
-        accessibilityValue={{ min: 0, max: displayMax, now: Math.round(value) }}
+        accessibilityValue={{ min: 0, max: displayMax, now: safeValue }}
       >
         <View 
           style={[
@@ -49,11 +37,11 @@ const MacroProgressBar = React.memo(({
         />
       </View>
       <Text style={styles.macroValues} accessibilityLabel={
-        hasTargets 
+        hasTarget
           ? `${safeValue} out of ${safeMaxValue} grams`
           : `${safeValue} grams consumed`
       }>
-        {hasTargets 
+        {hasTarget
           ? `${safeValue} / ${safeMaxValue}g`
           : `${safeValue}g`
         }
