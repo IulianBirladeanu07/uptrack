@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../../context/AuthContext';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -19,19 +19,39 @@ const LoginScreen = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
+  const [unverified, setUnverified] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const navigation = useNavigation();
   const { setAuthenticated, setProfileSetupComplete } = useContext(AuthContext);
 
   const handleSignIn = async () => {
     setError(null);
+    setUnverified(false);
     setLoading(true);
     try {
       await firebaseAuthService.signInWithEmailAndPassword(email, password, setAuthenticated, setProfileSetupComplete);
     } catch (e) {
       setError(e.message);
+      setUnverified(e.code === 'auth/email-not-verified');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setError(null);
+    setResending(true);
+    try {
+      const sent = await firebaseAuthService.resendVerificationEmail(email, password);
+      if (sent) {
+        setUnverified(false);
+        Alert.alert('Verification Email Sent', 'Open the link in the email, then log in.');
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setResending(false);
     }
   };
 
@@ -67,7 +87,7 @@ const LoginScreen = () => {
         <TextInput
           style={styles.input}
           value={email}
-          onChangeText={(v) => { setEmail(v); setError(null); }}
+          onChangeText={(v) => { setEmail(v); setError(null); setUnverified(false); }}
           placeholder="Email"
           placeholderTextColor={colors.text.tertiary}
           autoCapitalize="none"
@@ -80,7 +100,7 @@ const LoginScreen = () => {
         <TextInput
           style={styles.input}
           value={password}
-          onChangeText={(v) => { setPassword(v); setError(null); }}
+          onChangeText={(v) => { setPassword(v); setError(null); setUnverified(false); }}
           placeholder="Password"
           placeholderTextColor={colors.text.tertiary}
           secureTextEntry={!showPassword}
@@ -95,6 +115,12 @@ const LoginScreen = () => {
           <Ionicons name="alert-circle-outline" size={spacing[5]} color={colors.accent.error} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
+      )}
+
+      {unverified && (
+        <TouchableOpacity onPress={handleResend} disabled={resending}>
+          {resending ? <ActivityIndicator color={colors.text.primary} /> : <Text style={styles.linkText}>Resend verification email</Text>}
+        </TouchableOpacity>
       )}
 
       <TouchableOpacity style={styles.button} onPress={handleSignIn} disabled={loading}>

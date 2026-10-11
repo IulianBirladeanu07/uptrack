@@ -98,7 +98,7 @@ flowchart TB
 ```
 
 - Arrows mean "renders". `MainApp` (in `App.js`) shows exactly one branch: Splash while auth loads, the sign-in screens when signed out, onboarding until `profileSetupComplete`, otherwise the main stack.
-- `AuthProvider` is `src/features/auth/context/AuthContext.tsx`. Its auth listener loads `users/{uid}`, fills in profile defaults, and clears device-wide caches on sign-out.
+- `AuthProvider` is `src/features/auth/context/AuthContext.tsx`. Its auth listener loads `users/{uid}`, fills in profile defaults, and clears device-wide caches on sign-out. It treats a password account with an unverified email as signed out; the sign-in and sign-up services sign the user out themselves (`auth/utils/emailVerification.ts`).
 - `FoodProvider` (`nutrition/context/FoodContext.js`) owns the selected date and the day's meals (through `mealService.ts` and `MealCache.ts`). It applies writes to the screen first and rolls them back if the save fails. It also handles daily totals, step sync and the weekly calorie evaluation.
 - `WorkoutProvider` (`workout/context/WorkoutContext.js`) loads workout history and templates and restores the active workout. Screens call `workout/handlers/WorkoutHandler.js` directly for splits, templates and exercises.
 - The food and workout providers live inside the main stack, so their React state resets on sign-out. Module-level singletons such as `workoutService` do not.

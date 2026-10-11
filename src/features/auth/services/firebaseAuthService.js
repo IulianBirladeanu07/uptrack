@@ -1,12 +1,15 @@
-import { signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, GoogleAuthProvider, signInWithCredential, sendPasswordResetEmail as firebaseSendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, signOut, GoogleAuthProvider, signInWithCredential, sendPasswordResetEmail as firebaseSendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../auth/services/firebaseConfigService';
 import Constants from 'expo-constants';
+import { needsEmailVerification } from '../utils/emailVerification';
 
 const handleFirebaseError = (error) => {
   switch (error.code) {
     case 'auth/wrong-password':
       return 'Invalid password. Please try again.';
+    case 'auth/invalid-credential':
+      return 'Invalid email or password.';
     case 'auth/email-already-in-use':
       return 'Email is already in use. Please use a different email.';
     case 'auth/too-many-requests':
@@ -20,8 +23,11 @@ const signInWithEmailAndPassword = async (email, password, setAuthenticated, set
   const response = await firebaseSignInWithEmailAndPassword(auth, email, password);
   const user = response.user;
 
-  if (!user.emailVerified) {
-    throw new Error('Email not verified. Please verify your email before logging in.');
+  if (needsEmailVerification(user)) {
+    await signOut(auth);
+    const error = new Error('Email not verified. Please verify your email before logging in.');
+    error.code = 'auth/email-not-verified';
+    throw error;
   }
 
   const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -36,15 +42,38 @@ const signUpWithEmailAndPassword = async (email, password) => {
     const response = await createUserWithEmailAndPassword(auth, email, password);
     const user = response.user;
 
-    await setDoc(doc(db, 'users', user.uid), {
-      email,
-      profileSetupComplete: false,
-      createdAt: serverTimestamp(),
-    });
+    try {
+      await setDoc(doc(db, 'users', user.uid), {
+        email,
+        profileSetupComplete: false,
+        createdAt: serverTimestamp(),
+      });
 
-    await sendEmailVerification(user);
+      await sendEmailVerification(user);
+    } finally {
+      await signOut(auth);
+    }
 
     return user;
+  } catch (error) {
+    throw new Error(handleFirebaseError(error));
+  }
+};
+
+const resendVerificationEmail = async (email, password) => {
+  try {
+    const response = await firebaseSignInWithEmailAndPassword(auth, email, password);
+    const user = response.user;
+
+    if (!needsEmailVerification(user)) return false;
+
+    try {
+      await sendEmailVerification(user);
+    } finally {
+      await signOut(auth);
+    }
+
+    return true;
   } catch (error) {
     throw new Error(handleFirebaseError(error));
   }
@@ -115,6 +144,7 @@ export const getCurrentUser = () => {
 export default {
   signInWithEmailAndPassword,
   signUpWithEmailAndPassword,
+  resendVerificationEmail,
   signInWithGoogle,
   sendPasswordResetEmail,
   getGoogleAndroidClientId,

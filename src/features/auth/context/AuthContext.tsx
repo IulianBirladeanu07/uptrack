@@ -10,6 +10,7 @@ import { SPLITS_CACHE_KEY } from '../../workout/handlers/WorkoutHandler';
 import { SEARCH } from '../../../shared/theme/constants';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import type { UserData } from '../../../shared/types';
+import { needsEmailVerification } from '../utils/emailVerification';
 
 export type AuthContextValue = {
   authenticated: boolean;
@@ -75,7 +76,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
-        if (user) {
+        if (user && !needsEmailVerification(user)) {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() || {});
           data = await applyProfileDefaults(user.uid, data);
