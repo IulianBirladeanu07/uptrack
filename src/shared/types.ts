@@ -85,6 +85,7 @@ export type PlanFormData = {
 };
 
 export type UserData = PlanFormData & {
+  email?: string;
   weightIns?: WeightInWeek[];
   weightChangePlan?: WeightChangePlan | null;
   targetCalories?: number | null;

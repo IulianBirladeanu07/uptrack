@@ -11,6 +11,7 @@ import { SEARCH } from '../../../shared/theme/constants';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import type { UserData } from '../../../shared/types';
 import { needsEmailVerification } from '../utils/emailVerification';
+import { syncAuthEmail } from '../services/emailSyncService';
 
 export type AuthContextValue = {
   authenticated: boolean;
@@ -80,6 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() || {});
           data = await applyProfileDefaults(user.uid, data);
+          data = await syncAuthEmail(user.uid, user.email, data);
 
           setAuthenticated(true);
           setProfileSetupComplete(!!data.profileSetupComplete);

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getAuth, updateEmail } from 'firebase/auth';
+import { getAuth, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { db } from '../../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { buildPlanUpdate, planView, changedFields } from '../../utils/planUpdate';
@@ -38,6 +38,7 @@ const ProfileScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { userData, refreshUserData, logout } = useContext(AuthContext);
   const auth = getAuth();
+  const isPasswordAccount = !!auth.currentUser?.providerData.some(p => p.providerId === 'password');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -135,9 +136,11 @@ const ProfileScreen = ({ navigation }) => {
         ? buildPlanUpdate({ userData, form, original, now: new Date().toISOString() })
         : {};
 
-      if (email !== user.email) {
+      let emailChangePending = false;
+      if (isPasswordAccount && email.toLowerCase() !== (user.email || '').toLowerCase()) {
         try {
-          await updateEmail(user, email);
+          await verifyBeforeUpdateEmail(user, email);
+          emailChangePending = true;
         } catch (err) {
           if (err.code === 'auth/requires-recent-login') {
             Alert.alert('Re-authentication required', 'Log out and back in, then change your email again.');
@@ -148,18 +151,25 @@ const ProfileScreen = ({ navigation }) => {
       }
 
       if (username !== savedIdentity.username) payload.username = username;
-      if (email !== savedIdentity.email) payload.email = email;
       if (pendingUri) payload.profilePicture = await uploadPicture(user.uid, pendingUri);
 
       await setDoc(doc(db, 'users', user.uid), payload, { merge: true });
       await refreshUserData();
 
       setOriginal({ ...form });
-      setIdentity({ username, email });
-      setSavedIdentity({ username, email });
+      const shownEmail = emailChangePending ? savedIdentity.email : email;
+      setIdentity({ username, email: shownEmail });
+      setSavedIdentity({ username, email: shownEmail });
       if (payload.profilePicture) setPicture(payload.profilePicture);
       setPendingUri(null);
-      Alert.alert('Done', planChanged ? 'Your plan has been updated.' : 'Profile updated.');
+      if (emailChangePending) {
+        Alert.alert(
+          'Confirm Your New Email',
+          `Open the link we sent to ${email} to change your email. You will need to log in again afterwards.`
+        );
+      } else {
+        Alert.alert('Done', planChanged ? 'Your plan has been updated.' : 'Profile updated.');
+      }
     } catch (err) {
       console.error('Profile save error:', err);
       Alert.alert('Error', 'Failed to save. Try again.');
@@ -330,6 +340,7 @@ const ProfileScreen = ({ navigation }) => {
             placeholder="Email"
             keyboardType="email-address"
             autoCapitalize="none"
+            editable={isPasswordAccount}
             error={errors.email}
           />
         </View>
