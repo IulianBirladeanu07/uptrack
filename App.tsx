@@ -3,6 +3,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { RootStackParamList, AuthenticatedStackParamList } from './src/shared/navigation';
 import { AuthProvider, AuthContext } from './src/features/auth/context/AuthContext';
 import { FoodProvider } from './src/features/nutrition/context/FoodContext';
 import { WorkoutProvider } from './src/features/workout/context/WorkoutContext';
@@ -44,46 +45,47 @@ if (typeof ErrorUtils !== 'undefined') {
   });
 }
 
-const Stack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+const AppStack = createNativeStackNavigator<AuthenticatedStackParamList>();
 
 const AuthenticatedScreens = React.memo(() => (
   <FoodProvider>
     <WorkoutProvider>
-      <Stack.Navigator>
-        <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Workout" component={WorkoutScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Nutrition" component={NutritionScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Progress" component={ProgressScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="CustomFood" component={CustomFoodScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="WorkoutHistory" component={WorkoutHistory} options={{ headerShown: false }} />
-        <Stack.Screen name="WorkoutDetails" component={WorkoutDetails} options={{ headerShown: false }} />
-        <Stack.Screen name="StartWorkout" component={StartWorkout} options={{ headerShown: false }} />
-        <Stack.Screen name="ExerciseSelection" component={ExerciseSelectionScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="WorkoutLibrary" component={WorkoutLibraryScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="CreateTemplate" component={CreateTemplateScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="FoodSelection" component={FoodSelectionScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="FoodDetail" component={FoodDetailScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="CreateSplit" component={CreateSplitScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="WeightTracker" component={WeightTracker} options={{ headerShown: false }} />
-        <Stack.Screen name="PreviewSplit" component={PreviewSplitScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="CreateExercise" component={CreateExerciseScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="WeightHistory" component={WeightHistoryScreen} options= {{ headerShown: false}} />
-        <Stack.Screen name="ExerciseHistory" component={ExerciseHistoryScreen} options= {{ headerShown: false}} />
-      </Stack.Navigator>
+      <AppStack.Navigator>
+        <AppStack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="Workout" component={WorkoutScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="Nutrition" component={NutritionScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="Progress" component={ProgressScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="CustomFood" component={CustomFoodScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="WorkoutHistory" component={WorkoutHistory} options={{ headerShown: false }} />
+        <AppStack.Screen name="WorkoutDetails" component={WorkoutDetails} options={{ headerShown: false }} />
+        <AppStack.Screen name="StartWorkout" component={StartWorkout} options={{ headerShown: false }} />
+        <AppStack.Screen name="ExerciseSelection" component={ExerciseSelectionScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="WorkoutLibrary" component={WorkoutLibraryScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="CreateTemplate" component={CreateTemplateScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="FoodSelection" component={FoodSelectionScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="FoodDetail" component={FoodDetailScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="CreateSplit" component={CreateSplitScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="WeightTracker" component={WeightTracker} options={{ headerShown: false }} />
+        <AppStack.Screen name="PreviewSplit" component={PreviewSplitScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="CreateExercise" component={CreateExerciseScreen} options={{ headerShown: false }} />
+        <AppStack.Screen name="WeightHistory" component={WeightHistoryScreen} options= {{ headerShown: false}} />
+        <AppStack.Screen name="ExerciseHistory" component={ExerciseHistoryScreen} options= {{ headerShown: false}} />
+      </AppStack.Navigator>
     </WorkoutProvider>
   </FoodProvider>
 ));
 
 const MainApp = () => {
-  const { authenticated, loading, profileSetupComplete } = useContext(AuthContext);
+  const { authenticated, loading, profileSetupComplete } = useContext(AuthContext)!;
   
   const routes = useMemo(() => {
     if (loading) {
       return (
-        <Stack.Screen
+        <RootStack.Screen
           name="Splash"
           component={SplashScreen}
           options={{ headerShown: false }}
@@ -94,15 +96,15 @@ const MainApp = () => {
     if (!authenticated) {
       return (
         <>
-          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Registration" component={RegistrationScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false }} />
+          <RootStack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+          <RootStack.Screen name="Registration" component={RegistrationScreen} options={{ headerShown: false }} />
+          <RootStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false }} />
         </>
       );
     }
     if (profileSetupComplete) {
       return (
-        <Stack.Screen
+        <RootStack.Screen
           name="AuthenticatedScreens"
           component={AuthenticatedScreens}
           options={{ headerShown: false }}
@@ -111,12 +113,12 @@ const MainApp = () => {
     }
     return (
       <>
-        <Stack.Screen
+        <RootStack.Screen
           name="OnboardingFlow"
           component={OnboardingFlow}
           options={{ headerShown: false }}
         />
-        <Stack.Screen
+        <RootStack.Screen
           name="PlanSummary"
           component={PlanSummaryScreen}
           options={{ headerShown: false }}
@@ -125,7 +127,7 @@ const MainApp = () => {
     );
   }, [authenticated, loading, profileSetupComplete]);
 
-  return <Stack.Navigator>{routes}</Stack.Navigator>;
+  return <RootStack.Navigator>{routes}</RootStack.Navigator>;
 };
 
 export default function App() {

@@ -11,5 +11,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src/**/*", "App.js", "index.js"]
+  "include": ["src/**/*", "App.tsx", "index.js"]
 }
