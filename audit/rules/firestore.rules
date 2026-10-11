@@ -23,7 +23,7 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow get, create, update: if isSelf(uid);
+      allow get, create, update, delete: if isSelf(uid);
     }
 
     match /meals/{mealId} {
@@ -35,15 +35,16 @@ service cloud.firestore {
       allow list: if ownsDoc();
       allow create: if claimsDoc() && mealId == request.auth.uid + '_' + request.resource.data.date;
       allow update: if ownsDoc() && ownDayId() && keepsOwner() && request.resource.data.date == resource.data.date;
+      allow delete: if ownsDoc() && ownDayId();
     }
 
     match /workoutHistory/{workoutId} {
-      allow read: if ownsDoc();
+      allow read, delete: if ownsDoc();
       allow create: if claimsDoc();
     }
 
     match /measurements/{measurementId} {
-      allow read: if ownsDoc();
+      allow read, delete: if ownsDoc();
       allow create: if claimsDoc();
     }
 

@@ -6,7 +6,7 @@ service firebase.storage {
         return request.auth != null && fileName == request.auth.uid + '.jpg';
       }
 
-      allow read: if isOwnFile();
+      allow read, delete: if isOwnFile();
       allow create, update: if isOwnFile()
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');

@@ -10,6 +10,7 @@ import { getAuth, updateEmail } from 'firebase/auth';
 import { db } from '../../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { buildPlanUpdate, planView, changedFields } from '../../utils/planUpdate';
+import DeleteAccountModal from './DeleteAccountModal';
 import { OptionRow, NumberStepper } from '../../../../shared/components/FormControls/FormControls';
 import { ACTIVITY_OPTIONS, EXPERIENCE_OPTIONS, STRESS_OPTIONS } from '../../utils/profileOptions';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
@@ -60,6 +61,7 @@ const ProfileScreen = ({ navigation }) => {
   const [savedIdentity, setSavedIdentity] = useState({ ...identity });
   const [picture, setPicture] = useState(userData?.profilePicture || null);
   const [pendingUri, setPendingUri] = useState(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const planCount = Object.keys(changedFields(form, original)).length;
   const identityCount = ['username', 'email'].filter(k => identity[k] !== savedIdentity[k]).length + (pendingUri ? 1 : 0);
@@ -414,7 +416,13 @@ const ProfileScreen = ({ navigation }) => {
           <MaterialCommunityIcons name="logout" size={spacing.icon} color={colors.accent.error} />
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.deleteAccountButton} onPress={() => setDeleteOpen(true)} activeOpacity={0.7}>
+          <Text style={styles.deleteAccountText}>Delete Account</Text>
+        </TouchableOpacity>
       </ScrollView>
+
+      <DeleteAccountModal visible={deleteOpen} onClose={() => setDeleteOpen(false)} />
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing[4]) }]}>
         <TouchableOpacity
@@ -490,6 +498,8 @@ const styles = createStyles(() => ({
   automationTextCol:   { flex: 1, paddingRight: spacing[4] },
   logoutButton:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2], backgroundColor: colors.faded.errorAlt, borderRadius: radius[4], height: spacing.buttonHeight, borderWidth: 1, borderColor: colors.border.error, marginTop: spacing[2] },
   logoutText:          { color: colors.accent.error, fontWeight: fontWeight.semibold, fontSize: fontSize[16] },
+  deleteAccountButton: { alignItems: 'center', paddingVertical: spacing[4], marginTop: spacing[2] },
+  deleteAccountText:   { color: colors.text.quaternary, fontWeight: fontWeight.medium, fontSize: fontSize[14] },
   footer:              { paddingHorizontal: spacing[4], paddingTop: spacing[3], backgroundColor: colors.background.primary },
   saveBtn:             { backgroundColor: colors.accent.primary, borderRadius: radius[4], paddingVertical: spacing[4], alignItems: 'center', justifyContent: 'center' },
   saveBtnDisabled:     { backgroundColor: colors.background.secondary, borderWidth: 1, borderColor: colors.border.default },
