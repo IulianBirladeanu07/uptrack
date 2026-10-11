@@ -35,13 +35,13 @@ import {
     setsModel,
     setsTip,
     monthsModel,
-    countPlanned,
     dirOf,
     shortDate,
     fmt1,
     sg,
     kfmt,
 } from '../../utils/progressEngine';
+import { getWorkoutsPerWeek } from '../../../workout/utils/splitSchedule';
 import styles from './ProgressScreenStyles';
 
 const TABS = [
@@ -511,7 +511,7 @@ const ProgressScreen = () => {
                         return;
                     }
                     const raw = splits.find(s => (s.id ?? s.data?.id) === userData?.activeSplitId) ?? splits[0];
-                    setPlanned(countPlanned(raw.schedule ?? raw.data?.schedule));
+                    setPlanned(getWorkoutsPerWeek(raw) || null);
                 } catch (e) {
                     console.error('Progress split load error:', e.message);
                 }

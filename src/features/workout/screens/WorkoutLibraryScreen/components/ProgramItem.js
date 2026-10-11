@@ -4,6 +4,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 import { colors, fontSize } from '../../../../../shared/theme';
 import styles from '../WorkoutLibraryScreenStyle';
+import { isRotationSplit } from '../../../utils/splitSchedule';
 
 const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit, onActivate, onPreviewSplit, isActive }) => {
     const split = item;
@@ -17,12 +18,17 @@ const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit,
     const totalExercises = Object.values(schedule).reduce((total, day) => total + (day?.exercises?.length || 0), 0);
     const durationWeeks = split.durationWeeks || 8;
 
+    const isRotation = isRotationSplit(split);
+
     const workoutDays = useMemo(() => {
-        return dayOrder
-            .map(dayName => [dayName, schedule[dayName]])
+        const keys = isRotation
+            ? Object.keys(schedule).sort((a, b) => Number(a) - Number(b))
+            : dayOrder;
+        return keys
+            .map(key => [key, schedule[key]])
             .filter(([day, workout]) => workout?.exercises?.length > 0)
-            .slice(0, isExpanded ? 7 : 3);
-    }, [schedule, isExpanded]);
+            .slice(0, isExpanded ? keys.length : 3);
+    }, [schedule, isExpanded, isRotation]);
 
     const hasMoreThanThreeDays = Object.values(schedule).filter(day => day?.exercises?.length > 0).length > 3;
 
@@ -69,7 +75,7 @@ const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit,
                                 <View style={styles.exerciseDetails}>
                                     <View style={styles.exerciseInfoContainer}>
                                         <Text style={styles.exerciseName} numberOfLines={1}>
-                                            {dayName.charAt(0).toUpperCase() + dayName.slice(1)}
+                                            {isRotation ? `Day ${dayName}` : dayName.charAt(0).toUpperCase() + dayName.slice(1)}
                                         </Text>
                                         <Text style={styles.exerciseMuscleGroup}>
                                             {workout?.templateName || workout?.name || 'Training Session'}

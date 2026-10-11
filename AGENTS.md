@@ -111,11 +111,11 @@ Firestore. Every user-data query filters on a `uid` field or uses a uid-based do
 
 | Collection | Document ID | Contents |
 |---|---|---|
-| `users` | uid | Profile, plan targets, `weightIns`, `dailySteps`, `weeklyNutrition`, `activeSplitId`. Many modules write here with `setDoc(..., { merge: true })`. |
+| `users` | uid | Profile, plan targets, `weightIns`, `dailySteps`, `weeklyNutrition`, `activeSplitId`, `rotationStartDate`. Many modules write here with `setDoc(..., { merge: true })`. |
 | `meals` | `{uid}_{YYYY-MM-DD}`, local date | One document per day |
 | `workoutHistory` | auto | Finished workouts, `uid` field |
 | `workoutTemplates` | `{templateName}_{uid}` | `uid` field |
-| `workoutSplits` | auto | `uid` field. `schedule` is keyed by weekday names, or `"1"` to `"n"` for rotation splits. |
+| `workoutSplits` | auto | `uid` field. `schedule` is keyed by weekday names, or `"1"` to `"n"` for rotation splits. Today's rotation day is the whole days since `users.rotationStartDate`, mod n, plus 1 (`workout/utils/splitSchedule.ts`). |
 | `measurements` | auto | `uid` field |
 | `exercises` | muscle group | Shared catalog. Clients only read it. |
 | `customExercises` | auto | `uid` field. Each user's own exercises, merged into the catalog by `fetchExercises`. |

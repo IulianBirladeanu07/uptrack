@@ -22,6 +22,7 @@ import styles from './PreviewSplitScreenStyle';
 import DaySelector from './DaySelector';
 import MuscleCoverageCard from './MuscleCoverageCard';
 import WorkoutExercisePreview, { ExercisePreviewList } from '../../../components/WorkoutExercisePreview/WorkoutExercisePreview';
+import { getCycleLength, getWorkoutsPerWeek, isRotationSplit, toDateKey } from '../../../utils/splitSchedule';
 
 const MAJOR_MUSCLE_GROUPS = ['Chest', 'Back', 'Biceps', 'Quads', 'Hamstring', 'Delts', 'Triceps'];
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -66,7 +67,7 @@ const PreviewSplitScreen = ({ route, navigation }) => {
         { id: 'sunday', name: 'Sunday', shortLabel: 'S' },
       ];
     } else if (split?.type === 'rotation') {
-      const dayCount = Object.keys(split.schedule).length;
+      const dayCount = getCycleLength(split);
       return Array.from({ length: dayCount }, (_, i) => ({
         id: `${i + 1}`,
         name: `Day ${i + 1}`,
@@ -194,14 +195,14 @@ const PreviewSplitScreen = ({ route, navigation }) => {
 
     setActivating(true);
     try {
-      const schedule = split.schedule || {};
-      const targetWorkouts = Object.values(schedule).filter(day => day?.exercises?.length > 0).length;
+      const update = {
+        activeSplitId: split.id,
+        targetWorkoutsPerWeek: getWorkoutsPerWeek(split) || 5,
+      };
+      if (isRotationSplit(split)) update.rotationStartDate = toDateKey(new Date());
       const uid = getAuth().currentUser?.uid;
 
-      await setDoc(doc(db, 'users', uid), {
-        activeSplitId: split.id,
-        targetWorkoutsPerWeek: targetWorkouts || 5,
-      }, { merge: true });
+      await setDoc(doc(db, 'users', uid), update, { merge: true });
 
       await refreshUserData();
       Alert.alert('Split Activated', `"${split.name}" is now your active split.`);

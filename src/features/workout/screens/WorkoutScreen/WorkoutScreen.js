@@ -11,15 +11,11 @@ import ApplicationCustomScreen from '../../../../shared/components/ApplicationCu
 import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
 import { fetchSplitsFromFirestore } from '../../handlers/WorkoutHandler';
 import { WorkoutContext } from '../../context/WorkoutContext';
+import { getScheduledDay, getWeekSchedule, getCycleLength } from '../../utils/splitSchedule';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { colors, spacing } from '../../../../shared/theme';
 import { ExercisePreviewList } from '../../components/WorkoutExercisePreview/WorkoutExercisePreview';
 import styles from './WorkoutScreenStyles';
-
-const DAYS_MAP = {
-    0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday',
-    4: 'thursday', 5: 'friday', 6: 'saturday',
-};
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -507,14 +503,14 @@ const WorkoutScreen = () => {
             const active = {
                 id: raw.id ?? raw.data?.id,
                 name: raw.name ?? raw.data?.name,
+                type: raw.type ?? raw.data?.type,
                 schedule: raw.schedule ?? raw.data?.schedule ?? {},
             };
             setActiveSplit(active);
 
-            const todayIdx = new Date().getDay();
-            const todayKey = DAYS_MAP[todayIdx];
-            const schedule = active.schedule;
-            const todayData = schedule?.[todayKey];
+            const now = new Date();
+            const startDate = userData?.rotationStartDate;
+            const todayData = getScheduledDay(active, now, startDate);
 
             setTodayWorkout(todayData?.exercises?.length > 0 ? {
                 name: todayData.templateName ?? 'Workout',
@@ -523,16 +519,16 @@ const WorkoutScreen = () => {
             } : null);
 
             const upcoming = [];
-            for (let i = 1; i <= 13 && upcoming.length < 4; i++) {
-                const futureDay = (todayIdx + i) % 7;
-                const futureKey = DAYS_MAP[futureDay];
-                const w = schedule?.[futureKey];
+            const horizon = Math.max(13, getCycleLength(active));
+            for (let i = 1; i <= horizon && upcoming.length < 4; i++) {
+                const futureDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+                const w = getScheduledDay(active, futureDate, startDate);
                 const exercises = w?.exercises ?? [];
 
                 if (exercises.length > 0) {
                     upcoming.push({
                         name: w.templateName,
-                        day: DAY_LABELS[futureDay],
+                        day: DAY_LABELS[futureDate.getDay()],
                         exercises,
                         duration: w.duration ? `${w.duration} min` : '45 min',
                         isRest: false,
@@ -547,9 +543,14 @@ const WorkoutScreen = () => {
             hasLoadedOnceRef.current = true;
             setLoading(false);
         }
-    }, [userData?.activeSplitId]);
+    }, [userData?.activeSplitId, userData?.rotationStartDate]);
 
     useFocusEffect(useCallback(() => { loadActiveSplit(); }, [loadActiveSplit]));
+
+    const weekSchedule = useMemo(
+        () => (activeSplit ? getWeekSchedule(activeSplit, new Date(), userData?.rotationStartDate) : null),
+        [activeSplit, userData?.rotationStartDate],
+    );
 
     const isRestDay = useMemo(() => !todayWorkout?.exercises?.length, [todayWorkout]);
 
@@ -654,7 +655,7 @@ const WorkoutScreen = () => {
 
                 <ThisWeekCard
                     completedDays={userStats.completedDaysThisWeek}
-                    schedule={activeSplit?.schedule}
+                    schedule={weekSchedule}
                     onDayPress={handlePreviewWorkout}
                 />
 

@@ -22,6 +22,7 @@ import WorkoutTemplateLibrary from './WorkoutTemplateLibrary';
 import WorkoutProgramLibrary from './WorkoutProgramLibrary';
 import SegmentedControl from './components/SegmentedControls';
 import LoadingSpinner from './components/LoadingSpinner';
+import { getWorkoutsPerWeek, isRotationSplit, toDateKey } from '../../utils/splitSchedule';
 
 const WorkoutLibraryScreen = ({ navigation, route }) => {
     const [splits, setSplits] = useState([]);
@@ -117,15 +118,14 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
         }
 
         try {
-            const schedule = split.schedule || {};
-            const targetWorkouts = Object.values(schedule)
-                .filter(day => day.exercises?.length > 0).length;
+            const update = {
+                activeSplitId: split.id,
+                targetWorkoutsPerWeek: getWorkoutsPerWeek(split) || 5,
+            };
+            if (isRotationSplit(split)) update.rotationStartDate = toDateKey(new Date());
 
             const uid = getAuth().currentUser?.uid;
-            await setDoc(doc(db, 'users', uid), {
-                activeSplitId: split.id,
-                targetWorkoutsPerWeek: targetWorkouts || 5,
-            }, { merge: true });
+            await setDoc(doc(db, 'users', uid), update, { merge: true });
 
             setActiveSplitId(split.id);
             await refreshUserData();
