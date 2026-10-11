@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../../auth/services/firebaseConfigService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { AuthContext } from '../../auth/context/AuthContext';
-import GoogleFitStepDisplay from '../../../shared/components/GoogleFitStepDisplay/GoogleFitStepDisplay';
+import StepDisplay from '../../../shared/components/StepDisplay/StepDisplay';
 
 import {
     writeMealType, consolidateFoodData, buildAddUndo, applyAddUndo, fetchLast30DaysMeals, fetchRawMealsForDate,
@@ -684,7 +684,7 @@ export const FoodProvider = ({ children }) => {
 
     return (
         <FoodContext.Provider value={contextValue}>
-            <GoogleFitStepDisplay
+            <StepDisplay
                 ref={stepsDisplayRef}
                 onStepsUpdate={updateDailySteps}
                 onStepsHistory={handleStepsHistory}

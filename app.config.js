@@ -3,7 +3,7 @@ module.exports = {
     name: "uptrack",
     slug: "uptrack",
     platforms: ["ios", "android"],
-    version: "2.0.4",
+    version: "2.0.5",
     orientation: "portrait",
     icon: "./assets/uptrack-icon.png",
     userInterfaceStyle: "light",
@@ -11,8 +11,8 @@ module.exports = {
       "expo-font",
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
-      "./plugins/withGoogleFitVersions",
       "react-native-health",
+      "react-native-health-connect",
       [
         "expo-build-properties",
         {
@@ -47,13 +47,13 @@ module.exports = {
     },
     android: {
       jsEngine: "hermes",
-      permissions: ["CAMERA", "ACTIVITY_RECOGNITION"],
+      permissions: ["CAMERA", "android.permission.health.READ_STEPS"],
       adaptiveIcon: {
         foregroundImage: "./assets/uptrack-icon.png",
         backgroundColor: "#ffffff",
       },
       package: "com.iulianbirladeanu.uptrack",
-      versionCode: 2,
+      versionCode: 3,
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
     },
     web: {
@@ -81,7 +81,7 @@ module.exports = {
       expo: {
         doctor: {
           reactNativeDirectoryCheck: {
-            exclude: ["lucide-react-native", "react-native-google-fit"],
+            exclude: ["lucide-react-native"],
             listUnknownPackages: false,
           },
         },

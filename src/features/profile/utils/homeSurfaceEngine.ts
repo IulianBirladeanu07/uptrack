@@ -82,7 +82,7 @@ export const getStepsPermissionNotice = (
     id: 'steps_permission',
     type: 'steps_permission',
     title: 'Track steps automatically',
-    body: 'Connect Google Fit or Apple Health so we can factor your activity into your plan.',
+    body: 'Allow access to Health Connect or Apple Health so we can factor your activity into your plan.',
   };
 };
 

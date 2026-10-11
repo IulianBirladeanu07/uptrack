@@ -1,6 +1,6 @@
 # Android steps: Google Fit → Health Connect
 
-Status: plan only. No code change in this commit.
+Status: implemented. Android reads steps from Health Connect through `src/shared/services/healthConnectSteps.ts`; `react-native-google-fit` and its config plugin are removed.
 Deadline: Google Fit APIs supported until **end of 2026** (no exact day published). New Fit API signups closed 2024-05-01.
 
 ## What the app does today

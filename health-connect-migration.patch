@@ -1,0 +1,620 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index f09d211..99887e3 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -15,7 +15,7 @@ Uptrack is an Expo / React Native app for tracking nutrition, weight and workout
+ - React Navigation 6 with a single native stack. There is no tab navigator.
+ - Firebase JS SDK 10.14.1: Auth (email and password, plus Google), Firestore, Storage.
+ - Supabase JS v2 with the anon key, for food search and barcode lookup.
+-- Health data: `react-native-health` (iOS HealthKit) and `react-native-google-fit` (Android).
++- Health data: `react-native-health` (iOS HealthKit) and `react-native-health-connect` (Android Health Connect).
+ - Jest 29 with babel-jest. TypeScript ~5.9 with `allowJs`; most of the app is still JavaScript.
+ - One patch-package patch, `patches/react-native+0.81.5.patch`. It makes the Event phase constants writable.
+ 
+@@ -71,7 +71,6 @@ Baseline on `master`: 0 rules-of-hooks errors and 38 exhaustive-deps warnings. A
+ ```text
+ App.js                 providers and the single stack navigator
+ app.config.js          Expo config: plugins, permissions, env-driven extra
+-plugins/               local config plugin withGoogleFitVersions
+ patches/               patch-package patches
+ src/features/<area>/   auth, dashboard, nutrition, profile, progress, workout
+   components/, screens/      UI
+diff --git a/app.config.js b/app.config.js
+index 6ef0e31..808f544 100644
+--- a/app.config.js
++++ b/app.config.js
+@@ -3,7 +3,7 @@ module.exports = {
+     name: "uptrack",
+     slug: "uptrack",
+     platforms: ["ios", "android"],
+-    version: "2.0.4",
++    version: "2.0.5",
+     orientation: "portrait",
+     icon: "./assets/uptrack-icon.png",
+     userInterfaceStyle: "light",
+@@ -11,8 +11,8 @@ module.exports = {
+       "expo-font",
+       "expo-web-browser",
+       "@react-native-google-signin/google-signin",
+-      "./plugins/withGoogleFitVersions",
+       "react-native-health",
++      "react-native-health-connect",
+       [
+         "expo-build-properties",
+         {
+@@ -47,13 +47,13 @@ module.exports = {
+     },
+     android: {
+       jsEngine: "hermes",
+-      permissions: ["CAMERA", "ACTIVITY_RECOGNITION"],
++      permissions: ["CAMERA", "android.permission.health.READ_STEPS"],
+       adaptiveIcon: {
+         foregroundImage: "./assets/uptrack-icon.png",
+         backgroundColor: "#ffffff",
+       },
+       package: "com.iulianbirladeanu.uptrack",
+-      versionCode: 2,
++      versionCode: 3,
+       googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
+     },
+     web: {
+@@ -81,7 +81,7 @@ module.exports = {
+       expo: {
+         doctor: {
+           reactNativeDirectoryCheck: {
+-            exclude: ["lucide-react-native", "react-native-google-fit"],
++            exclude: ["lucide-react-native"],
+             listUnknownPackages: false,
+           },
+         },
+diff --git a/audit/HEALTH_CONNECT_MIGRATION.md b/audit/HEALTH_CONNECT_MIGRATION.md
+index b620c95..4d87a95 100644
+--- a/audit/HEALTH_CONNECT_MIGRATION.md
++++ b/audit/HEALTH_CONNECT_MIGRATION.md
+@@ -1,6 +1,6 @@
+ # Android steps: Google Fit → Health Connect
+ 
+-Status: plan only. No code change in this commit.
++Status: implemented. Android reads steps from Health Connect through `src/shared/services/healthConnectSteps.ts`; `react-native-google-fit` and its config plugin are removed.
+ Deadline: Google Fit APIs supported until **end of 2026** (no exact day published). New Fit API signups closed 2024-05-01.
+ 
+ ## What the app does today
+diff --git a/jest.config.js b/jest.config.js
+index 0aa9062..3854708 100644
+--- a/jest.config.js
++++ b/jest.config.js
+@@ -13,6 +13,7 @@ module.exports = {
+     '<rootDir>/src/features/workout/utils/**/*.test.{js,ts}',
+     '<rootDir>/src/features/workout/services/**/*.test.{js,ts}',
+     '<rootDir>/src/shared/firestore/**/*.test.{js,ts}',
++    '<rootDir>/src/shared/services/**/*.test.{js,ts}',
+   ],
+   moduleFileExtensions: ['js', 'ts', 'json'],
+   transform: {
+diff --git a/package-lock.json b/package-lock.json
+index 4a4e571..4c076b0 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -40,8 +40,8 @@
+         "react-native-chart-kit": "^6.12.0",
+         "react-native-draggable-flatlist": "^4.0.3",
+         "react-native-gesture-handler": "~2.28.0",
+-        "react-native-google-fit": "^0.21.0",
+         "react-native-health": "^1.19.0",
++        "react-native-health-connect": "^4.1.3",
+         "react-native-reanimated": "~4.1.1",
+         "react-native-safe-area-context": "~5.6.0",
+         "react-native-screens": "~4.16.0",
+@@ -9804,15 +9804,6 @@
+         "node": ">=10"
+       }
+     },
+-    "node_modules/moment": {
+-      "version": "2.31.0",
+-      "resolved": "https://registry.npmjs.org/moment/-/moment-2.31.0.tgz",
+-      "integrity": "sha512-0acOTfMiWOheYS4eoWb80yYMb/JLvVv9SHbs2PehaDzfUG0Bw855SKyk0IKTnPGa5+U2bmi3W68l1+sGLX/pvw==",
+-      "license": "MIT",
+-      "engines": {
+-        "node": "*"
+-      }
+-    },
+     "node_modules/ms": {
+       "version": "2.1.3",
+       "resolved": "https://registry.npmjs.org/ms/-/ms-2.1.3.tgz",
+@@ -10874,18 +10865,6 @@
+         "react-native": "*"
+       }
+     },
+-    "node_modules/react-native-google-fit": {
+-      "version": "0.21.4",
+-      "resolved": "https://registry.npmjs.org/react-native-google-fit/-/react-native-google-fit-0.21.4.tgz",
+-      "integrity": "sha512-8jbDZDVwLc7pJP9Vi5guDWY7lhfQ2AM9UkIJAwwhYdSEvL50L0OYF7lNBFttJ2bmVAT8TLyNknXsoXJZNHtY2g==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "moment": "^2.29.4"
+-      },
+-      "peerDependencies": {
+-        "react-native": ">=0.60.0"
+-      }
+-    },
+     "node_modules/react-native-health": {
+       "version": "1.19.0",
+       "resolved": "https://registry.npmjs.org/react-native-health/-/react-native-health-1.19.0.tgz",
+@@ -10901,6 +10880,36 @@
+         "react-native": ">=0.67.3"
+       }
+     },
++    "node_modules/react-native-health-connect": {
++      "version": "4.1.3",
++      "resolved": "https://registry.npmjs.org/react-native-health-connect/-/react-native-health-connect-4.1.3.tgz",
++      "integrity": "sha512-osiWh4RD4tNHdHeggzOeGZFeEVaLQQr0+Yezq61WsPRvN1Yb6eA10rMfSU0+dqcfm6ZvIXSr2tYns+Yg1s37nw==",
++      "license": "MIT",
++      "workspaces": [
++        "example",
++        "docs"
++      ],
++      "engines": {
++        "node": ">= 16.0.0"
++      },
++      "funding": {
++        "url": "https://github.com/matinzd/react-native-health-connect?sponsor=1"
++      },
++      "peerDependencies": {
++        "@expo/config-plugins": ">= 6.0.2",
++        "expo": "*",
++        "react": "*",
++        "react-native": "*"
++      },
++      "peerDependenciesMeta": {
++        "@expo/config-plugins": {
++          "optional": true
++        },
++        "expo": {
++          "optional": true
++        }
++      }
++    },
+     "node_modules/react-native-health/node_modules/@babel/code-frame": {
+       "version": "7.10.4",
+       "resolved": "https://registry.npmjs.org/@babel/code-frame/-/code-frame-7.10.4.tgz",
+diff --git a/package.json b/package.json
+index c33be11..1e52c55 100644
+--- a/package.json
++++ b/package.json
+@@ -45,8 +45,8 @@
+     "react-native-chart-kit": "^6.12.0",
+     "react-native-draggable-flatlist": "^4.0.3",
+     "react-native-gesture-handler": "~2.28.0",
+-    "react-native-google-fit": "^0.21.0",
+     "react-native-health": "^1.19.0",
++    "react-native-health-connect": "^4.1.3",
+     "react-native-reanimated": "~4.1.1",
+     "react-native-safe-area-context": "~5.6.0",
+     "react-native-screens": "~4.16.0",
+@@ -70,7 +70,6 @@
+       "reactNativeDirectoryCheck": {
+         "exclude": [
+           "lucide-react-native",
+-          "react-native-google-fit",
+           "react-native-health",
+           "react-native-vector-icons",
+           "@react-native-google-signin/google-signin"
+diff --git a/plugins/withGoogleFitVersions.js b/plugins/withGoogleFitVersions.js
+deleted file mode 100644
+index 6f0d2bd..0000000
+--- a/plugins/withGoogleFitVersions.js
++++ /dev/null
+@@ -1,24 +0,0 @@
+-const { withProjectBuildGradle } = require('@expo/config-plugins');
+-
+-const AUTH_VERSION = '20.7.0';
+-const FITNESS_VERSION = '21.1.0';
+-
+-const withGoogleFitVersions = (config) => {
+-    return withProjectBuildGradle(config, (config) => {
+-        if (config.modResults.language !== 'groovy') {
+-            return config;
+-        }
+-
+-        if (config.modResults.contents.includes('authVersion =')) {
+-            return config;
+-        }
+-
+-        config.modResults.contents =
+-            `ext {\n    authVersion = "${AUTH_VERSION}"\n    fitnessVersion = "${FITNESS_VERSION}"\n}\n\n` +
+-            config.modResults.contents;
+-
+-        return config;
+-    });
+-};
+-
+-module.exports = withGoogleFitVersions;
+diff --git a/src/features/nutrition/context/FoodContext.js b/src/features/nutrition/context/FoodContext.js
+index 0ac1709..a9b3c78 100644
+--- a/src/features/nutrition/context/FoodContext.js
++++ b/src/features/nutrition/context/FoodContext.js
+@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
+ import { auth } from '../../auth/services/firebaseConfigService';
+ import { onAuthStateChanged } from 'firebase/auth';
+ import { AuthContext } from '../../auth/context/AuthContext';
+-import GoogleFitStepDisplay from '../../../shared/components/GoogleFitStepDisplay/GoogleFitStepDisplay';
++import StepDisplay from '../../../shared/components/StepDisplay/StepDisplay';
+ 
+ import {
+     writeMealType, consolidateFoodData, buildAddUndo, applyAddUndo, fetchLast30DaysMeals, fetchRawMealsForDate,
+@@ -684,7 +684,7 @@ export const FoodProvider = ({ children }) => {
+ 
+     return (
+         <FoodContext.Provider value={contextValue}>
+-            <GoogleFitStepDisplay
++            <StepDisplay
+                 ref={stepsDisplayRef}
+                 onStepsUpdate={updateDailySteps}
+                 onStepsHistory={handleStepsHistory}
+diff --git a/src/features/profile/utils/homeSurfaceEngine.ts b/src/features/profile/utils/homeSurfaceEngine.ts
+index 570ad58..3f0dc81 100644
+--- a/src/features/profile/utils/homeSurfaceEngine.ts
++++ b/src/features/profile/utils/homeSurfaceEngine.ts
+@@ -82,7 +82,7 @@ export const getStepsPermissionNotice = (
+     id: 'steps_permission',
+     type: 'steps_permission',
+     title: 'Track steps automatically',
+-    body: 'Connect Google Fit or Apple Health so we can factor your activity into your plan.',
++    body: 'Allow access to Health Connect or Apple Health so we can factor your activity into your plan.',
+   };
+ };
+ 
+diff --git a/src/shared/components/GoogleFitStepDisplay/GoogleFitStepDisplay.js b/src/shared/components/StepDisplay/StepDisplay.js
+similarity index 51%
+rename from src/shared/components/GoogleFitStepDisplay/GoogleFitStepDisplay.js
+rename to src/shared/components/StepDisplay/StepDisplay.js
+index b625e1d..0441d41 100644
+--- a/src/shared/components/GoogleFitStepDisplay/GoogleFitStepDisplay.js
++++ b/src/shared/components/StepDisplay/StepDisplay.js
+@@ -1,20 +1,19 @@
+ import { forwardRef, useState, useEffect, useRef, useImperativeHandle } from 'react';
+-import { Platform, PermissionsAndroid } from 'react-native';
++import { Platform } from 'react-native';
+ 
+-let AppleHealthKit, GoogleFit, Scopes;
++let AppleHealthKit, HealthConnectSteps;
+ 
+ if (Platform.OS === 'ios') {
+     AppleHealthKit = require('react-native-health').default;
+ } else {
+-    GoogleFit = require('react-native-google-fit').default;
+-    Scopes = require('react-native-google-fit').Scopes;
++    HealthConnectSteps = require('../../services/healthConnectSteps');
+ }
+ 
+-const PREFERRED_SOURCES = [
+-    'com.google.android.gms:estimated_steps',
+-    'com.google.android.gms:merge_step_deltas',
+-    'derived:com.google.step_count.delta',
+-];
++const ACCESS_ERRORS = {
++    unavailable: 'health_connect_unavailable',
++    update_required: 'health_connect_update_required',
++    permission_denied: 'permission_denied',
++};
+ 
+ const STEPS_LOOKBACK_DAYS = 30;
+ const ROLLOVER_LOOKBACK_DAYS = 3;
+@@ -22,47 +21,7 @@ const ROLLOVER_LOOKBACK_DAYS = 3;
+ const formatDate = (date) =>
+     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+ 
+-const getLocalISOString = (date) => {
+-    const tzo = -date.getTimezoneOffset();
+-    const dif = tzo >= 0 ? '+' : '-';
+-    const pad = (num) => (num < 10 ? '0' : '') + num;
+-    return date.getFullYear() +
+-        '-' + pad(date.getMonth() + 1) +
+-        '-' + pad(date.getDate()) +
+-        'T' + pad(date.getHours()) +
+-        ':' + pad(date.getMinutes()) +
+-        ':' + pad(date.getSeconds()) +
+-        dif + pad(Math.floor(Math.abs(tzo) / 60)) +
+-        ':' + pad(Math.abs(tzo) % 60);
+-};
+-
+-const getStepsForDate = (result, dateKey) => {
+-    for (const sourceName of PREFERRED_SOURCES) {
+-        const source = result.find(d => d.source === sourceName);
+-        const entry = source?.steps?.find(s => s.date === dateKey);
+-        if (entry) return entry.value || 0;
+-    }
+-    let best = null;
+-    result.forEach(source => {
+-        const entry = source.steps?.find(s => s.date === dateKey);
+-        if (entry && (best === null || (entry.value || 0) > best)) best = entry.value || 0;
+-    });
+-    return best;
+-};
+-
+-const mergeStepsAcrossSources = (result) => {
+-    const byDate = new Map();
+-    if (!result?.length) return byDate;
+-    const dateKeys = new Set();
+-    result.forEach(source => (source.steps || []).forEach(s => dateKeys.add(s.date)));
+-    dateKeys.forEach(dateKey => {
+-        const value = getStepsForDate(result, dateKey);
+-        if (value !== null) byDate.set(dateKey, value);
+-    });
+-    return byDate;
+-};
+-
+-const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStepsError, onStepsLoading, onConnectedChange }, ref) => {
++const StepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStepsError, onStepsLoading, onConnectedChange }, ref) => {
+     const [initialized, setInitialized] = useState(false);
+     const initializingRef = useRef(false);
+     const lastDayKeyRef = useRef(null);
+@@ -81,31 +40,6 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
+         });
+     };
+ 
+-    const requestAndroidPermission = async () => {
+-        if (Platform.OS !== 'android') return true;
+-        try {
+-            if (Platform.Version >= 29) {
+-                const checkResult = await PermissionsAndroid.check(
+-                    PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
+-                );
+-                if (checkResult) return true;
+-                const granted = await PermissionsAndroid.request(
+-                    PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
+-                    {
+-                        title: 'Step Counter Permission',
+-                        message: 'This app needs access to your physical activity to count steps.',
+-                        buttonPositive: 'Allow',
+-                    }
+-                );
+-                return granted === PermissionsAndroid.RESULTS.GRANTED;
+-            }
+-            return true;
+-        } catch (err) {
+-            console.log('[Steps] permission error:', err);
+-            return false;
+-        }
+-    };
+-
+     const fetchTodaySteps = async () => {
+         const today = new Date();
+         today.setHours(0, 0, 0, 0);
+@@ -121,12 +55,8 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
+         }
+ 
+         try {
+-            const result = await GoogleFit.getDailyStepCountSamples({
+-                startDate: getLocalISOString(today),
+-                endDate: getLocalISOString(now),
+-            });
+-            const todayKey = formatDate(today);
+-            return getStepsForDate(result, todayKey);
++            const byDate = await HealthConnectSteps.readDailySteps(today, now);
++            return byDate[formatDate(today)] ?? null;
+         } catch (err) {
+             console.log('[Steps] fetchToday error:', err);
+             return null;
+@@ -160,11 +90,8 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
+         }
+ 
+         try {
+-            const stepsData = await GoogleFit.getDailyStepCountSamples({
+-                startDate: getLocalISOString(startDate),
+-                endDate: getLocalISOString(now),
+-            });
+-            mergeStepsAcrossSources(stepsData).forEach((totalSteps, dateKey) => {
++            const byDate = await HealthConnectSteps.readDailySteps(startDate, now);
++            Object.entries(byDate).forEach(([dateKey, totalSteps]) => {
+                 entries[dateKey] = totalSteps;
+                 onStepsUpdate?.(totalSteps, dateKey);
+             });
+@@ -186,7 +113,7 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
+         if (onStepsUpdate) onStepsUpdate(steps, todayKey);
+     };
+ 
+-    const initialize = async () => {
++    const initialize = async (userInitiated = false) => {
+         if (initializingRef.current || initialized) return;
+         initializingRef.current = true;
+         onStepsLoading?.(true);
+@@ -194,21 +121,12 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
+             if (Platform.OS === 'ios') {
+                 await initializeHealthKit();
+             } else {
+-                const permissionGranted = await requestAndroidPermission();
+-                if (!permissionGranted) {
+-                    onStepsError?.('permission_denied');
+-                    onConnectedChange?.(false);
+-                    throw new Error('Permission denied');
+-                }
+-
+-                const options = {
+-                    scopes: [Scopes.FITNESS_ACTIVITY_READ, Scopes.FITNESS_BODY_READ],
+-                };
+-                const authResult = await GoogleFit.authorize(options);
+-                if (!authResult.success) {
+-                    onStepsError?.('auth_failed');
++                const access = await HealthConnectSteps.ensureStepsAccess();
++                if (access !== 'ready') {
++                    onStepsError?.(ACCESS_ERRORS[access]);
+                     onConnectedChange?.(false);
+-                    throw new Error('Authorization failed');
++                    if (userInitiated) HealthConnectSteps.openAccessHelp(access);
++                    throw new Error(`Health Connect ${access}`);
+                 }
+             }
+ 
+@@ -227,7 +145,7 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
+         }
+     };
+ 
+-    useImperativeHandle(ref, () => ({ retry: initialize }));
++    useImperativeHandle(ref, () => ({ retry: () => initialize(true) }));
+ 
+     useEffect(() => {
+         initialize();
+@@ -242,4 +160,4 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
+     return null;
+ });
+ 
+-export default GoogleFitStepDisplay;
+\ No newline at end of file
++export default StepDisplay;
+\ No newline at end of file
+diff --git a/src/shared/services/healthConnectSteps.ts b/src/shared/services/healthConnectSteps.ts
+new file mode 100644
+index 0000000..8b168e4
+--- /dev/null
++++ b/src/shared/services/healthConnectSteps.ts
+@@ -0,0 +1,58 @@
++import { Linking } from 'react-native';
++import {
++  SdkAvailabilityStatus,
++  aggregateGroupByPeriod,
++  getGrantedPermissions,
++  getSdkStatus,
++  initialize,
++  openHealthConnectSettings,
++  requestPermission,
++} from 'react-native-health-connect';
++import { bucketsToDailySteps, type DailySteps } from './stepBuckets';
++
++export type StepsAccess = 'ready' | 'unavailable' | 'update_required' | 'permission_denied';
++
++export const MAX_LOOKBACK_DAYS = 29;
++
++const INSTALL_URL =
++  'market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding';
++
++const STEPS_READ = { accessType: 'read', recordType: 'Steps' } as const;
++
++const hasStepsRead = (granted: ReadonlyArray<{ recordType: string }>): boolean =>
++  granted.some(p => p.recordType === 'Steps' && 'accessType' in p && p.accessType === 'read');
++
++export const ensureStepsAccess = async (): Promise<StepsAccess> => {
++  try {
++    const status = await getSdkStatus();
++    if (status === SdkAvailabilityStatus.SDK_UNAVAILABLE) return 'unavailable';
++    if (status === SdkAvailabilityStatus.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) return 'update_required';
++    if (!(await initialize())) return 'unavailable';
++    if (hasStepsRead(await getGrantedPermissions())) return 'ready';
++    return hasStepsRead(await requestPermission([STEPS_READ])) ? 'ready' : 'permission_denied';
++  } catch (err) {
++    console.log('[Steps] Health Connect access failed:', err);
++    return 'unavailable';
++  }
++};
++
++export const openAccessHelp = (access: StepsAccess): void => {
++  if (access === 'unavailable' || access === 'update_required') {
++    Linking.openURL(INSTALL_URL).catch(() => undefined);
++    return;
++  }
++  if (access === 'permission_denied') openHealthConnectSettings();
++};
++
++export const readDailySteps = async (from: Date, to: Date): Promise<DailySteps> => {
++  const earliest = new Date(to);
++  earliest.setDate(earliest.getDate() - MAX_LOOKBACK_DAYS);
++  earliest.setHours(0, 0, 0, 0);
++  const start = from < earliest ? earliest : from;
++  const groups = await aggregateGroupByPeriod({
++    recordType: 'Steps',
++    timeRangeFilter: { operator: 'between', startTime: start.toISOString(), endTime: to.toISOString() },
++    timeRangeSlicer: { period: 'DAYS', length: 1 },
++  });
++  return bucketsToDailySteps(groups);
++};
+diff --git a/src/shared/services/stepBuckets.test.ts b/src/shared/services/stepBuckets.test.ts
+new file mode 100644
+index 0000000..7ae84d4
+--- /dev/null
++++ b/src/shared/services/stepBuckets.test.ts
+@@ -0,0 +1,51 @@
++import { bucketsToDailySteps, toDateKey } from './stepBuckets';
++
++describe('toDateKey', () => {
++  it('uses the date part of a local date time', () => {
++    expect(toDateKey('2026-10-11T00:00')).toBe('2026-10-11');
++    expect(toDateKey('2026-10-11T00:00:00')).toBe('2026-10-11');
++  });
++
++  it('converts an instant to the local date', () => {
++    const local = new Date(2026, 9, 11, 0, 0, 0);
++    expect(toDateKey(local.toISOString())).toBe('2026-10-11');
++  });
++
++  it('converts an offset time to the local date', () => {
++    const local = new Date(2026, 0, 5, 12, 0, 0);
++    expect(toDateKey(local.toISOString().replace('Z', '+00:00'))).toBe('2026-01-05');
++  });
++});
++
++describe('bucketsToDailySteps', () => {
++  it('maps each bucket to its day', () => {
++    expect(
++      bucketsToDailySteps([
++        { startTime: '2026-10-10T00:00', result: { COUNT_TOTAL: 8123 } },
++        { startTime: '2026-10-11T00:00', result: { COUNT_TOTAL: 4010 } },
++      ]),
++    ).toEqual({ '2026-10-10': 8123, '2026-10-11': 4010 });
++  });
++
++  it('keeps explicit zeros and skips days without data', () => {
++    expect(
++      bucketsToDailySteps([
++        { startTime: '2026-10-09T00:00', result: { COUNT_TOTAL: 0 } },
++        { startTime: '2026-10-10T00:00', result: {} },
++      ]),
++    ).toEqual({ '2026-10-09': 0 });
++  });
++
++  it('sums buckets that fall on the same day', () => {
++    expect(
++      bucketsToDailySteps([
++        { startTime: '2026-10-11T00:00', result: { COUNT_TOTAL: 100 } },
++        { startTime: '2026-10-11T00:00', result: { COUNT_TOTAL: 50 } },
++      ]),
++    ).toEqual({ '2026-10-11': 150 });
++  });
++
++  it('returns an empty object for no buckets', () => {
++    expect(bucketsToDailySteps([])).toEqual({});
++  });
++});
+diff --git a/src/shared/services/stepBuckets.ts b/src/shared/services/stepBuckets.ts
+new file mode 100644
+index 0000000..05a0fa1
+--- /dev/null
++++ b/src/shared/services/stepBuckets.ts
+@@ -0,0 +1,28 @@
++export type DailySteps = Record<string, number>;
++
++export type StepBucket = {
++  startTime: string;
++  result: { COUNT_TOTAL?: number };
++};
++
++const ZONED = /(Z|[+-]\d{2}:?\d{2})$/;
++
++const pad = (n: number): string => String(n).padStart(2, '0');
++
++export const toDateKey = (startTime: string): string => {
++  const timePart = startTime.split('T')[1] ?? '';
++  if (!ZONED.test(timePart)) return startTime.slice(0, 10);
++  const d = new Date(startTime);
++  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
++};
++
++export const bucketsToDailySteps = (buckets: StepBucket[]): DailySteps => {
++  const byDate: DailySteps = {};
++  buckets.forEach(({ startTime, result }) => {
++    const total = result.COUNT_TOTAL;
++    if (typeof total !== 'number' || !Number.isFinite(total)) return;
++    const key = toDateKey(startTime);
++    byDate[key] = (byDate[key] ?? 0) + total;
++  });
++  return byDate;
++};

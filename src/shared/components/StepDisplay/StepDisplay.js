@@ -1,20 +1,19 @@
 import { forwardRef, useState, useEffect, useRef, useImperativeHandle } from 'react';
-import { Platform, PermissionsAndroid } from 'react-native';
+import { Platform } from 'react-native';
 
-let AppleHealthKit, GoogleFit, Scopes;
+let AppleHealthKit, HealthConnectSteps;
 
 if (Platform.OS === 'ios') {
     AppleHealthKit = require('react-native-health').default;
 } else {
-    GoogleFit = require('react-native-google-fit').default;
-    Scopes = require('react-native-google-fit').Scopes;
+    HealthConnectSteps = require('../../services/healthConnectSteps');
 }
 
-const PREFERRED_SOURCES = [
-    'com.google.android.gms:estimated_steps',
-    'com.google.android.gms:merge_step_deltas',
-    'derived:com.google.step_count.delta',
-];
+const ACCESS_ERRORS = {
+    unavailable: 'health_connect_unavailable',
+    update_required: 'health_connect_update_required',
+    permission_denied: 'permission_denied',
+};
 
 const STEPS_LOOKBACK_DAYS = 30;
 const ROLLOVER_LOOKBACK_DAYS = 3;
@@ -22,47 +21,7 @@ const ROLLOVER_LOOKBACK_DAYS = 3;
 const formatDate = (date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-const getLocalISOString = (date) => {
-    const tzo = -date.getTimezoneOffset();
-    const dif = tzo >= 0 ? '+' : '-';
-    const pad = (num) => (num < 10 ? '0' : '') + num;
-    return date.getFullYear() +
-        '-' + pad(date.getMonth() + 1) +
-        '-' + pad(date.getDate()) +
-        'T' + pad(date.getHours()) +
-        ':' + pad(date.getMinutes()) +
-        ':' + pad(date.getSeconds()) +
-        dif + pad(Math.floor(Math.abs(tzo) / 60)) +
-        ':' + pad(Math.abs(tzo) % 60);
-};
-
-const getStepsForDate = (result, dateKey) => {
-    for (const sourceName of PREFERRED_SOURCES) {
-        const source = result.find(d => d.source === sourceName);
-        const entry = source?.steps?.find(s => s.date === dateKey);
-        if (entry) return entry.value || 0;
-    }
-    let best = null;
-    result.forEach(source => {
-        const entry = source.steps?.find(s => s.date === dateKey);
-        if (entry && (best === null || (entry.value || 0) > best)) best = entry.value || 0;
-    });
-    return best;
-};
-
-const mergeStepsAcrossSources = (result) => {
-    const byDate = new Map();
-    if (!result?.length) return byDate;
-    const dateKeys = new Set();
-    result.forEach(source => (source.steps || []).forEach(s => dateKeys.add(s.date)));
-    dateKeys.forEach(dateKey => {
-        const value = getStepsForDate(result, dateKey);
-        if (value !== null) byDate.set(dateKey, value);
-    });
-    return byDate;
-};
-
-const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStepsError, onStepsLoading, onConnectedChange }, ref) => {
+const StepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStepsError, onStepsLoading, onConnectedChange }, ref) => {
     const [initialized, setInitialized] = useState(false);
     const initializingRef = useRef(false);
     const lastDayKeyRef = useRef(null);
@@ -81,31 +40,6 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
         });
     };
 
-    const requestAndroidPermission = async () => {
-        if (Platform.OS !== 'android') return true;
-        try {
-            if (Platform.Version >= 29) {
-                const checkResult = await PermissionsAndroid.check(
-                    PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
-                );
-                if (checkResult) return true;
-                const granted = await PermissionsAndroid.request(
-                    PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
-                    {
-                        title: 'Step Counter Permission',
-                        message: 'This app needs access to your physical activity to count steps.',
-                        buttonPositive: 'Allow',
-                    }
-                );
-                return granted === PermissionsAndroid.RESULTS.GRANTED;
-            }
-            return true;
-        } catch (err) {
-            console.log('[Steps] permission error:', err);
-            return false;
-        }
-    };
-
     const fetchTodaySteps = async () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -121,12 +55,8 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
         }
 
         try {
-            const result = await GoogleFit.getDailyStepCountSamples({
-                startDate: getLocalISOString(today),
-                endDate: getLocalISOString(now),
-            });
-            const todayKey = formatDate(today);
-            return getStepsForDate(result, todayKey);
+            const byDate = await HealthConnectSteps.readDailySteps(today, now);
+            return byDate[formatDate(today)] ?? null;
         } catch (err) {
             console.log('[Steps] fetchToday error:', err);
             return null;
@@ -160,11 +90,8 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
         }
 
         try {
-            const stepsData = await GoogleFit.getDailyStepCountSamples({
-                startDate: getLocalISOString(startDate),
-                endDate: getLocalISOString(now),
-            });
-            mergeStepsAcrossSources(stepsData).forEach((totalSteps, dateKey) => {
+            const byDate = await HealthConnectSteps.readDailySteps(startDate, now);
+            Object.entries(byDate).forEach(([dateKey, totalSteps]) => {
                 entries[dateKey] = totalSteps;
                 onStepsUpdate?.(totalSteps, dateKey);
             });
@@ -186,7 +113,7 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
         if (onStepsUpdate) onStepsUpdate(steps, todayKey);
     };
 
-    const initialize = async () => {
+    const initialize = async (userInitiated = false) => {
         if (initializingRef.current || initialized) return;
         initializingRef.current = true;
         onStepsLoading?.(true);
@@ -194,21 +121,12 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
             if (Platform.OS === 'ios') {
                 await initializeHealthKit();
             } else {
-                const permissionGranted = await requestAndroidPermission();
-                if (!permissionGranted) {
-                    onStepsError?.('permission_denied');
+                const access = await HealthConnectSteps.ensureStepsAccess();
+                if (access !== 'ready') {
+                    onStepsError?.(ACCESS_ERRORS[access]);
                     onConnectedChange?.(false);
-                    throw new Error('Permission denied');
-                }
-
-                const options = {
-                    scopes: [Scopes.FITNESS_ACTIVITY_READ, Scopes.FITNESS_BODY_READ],
-                };
-                const authResult = await GoogleFit.authorize(options);
-                if (!authResult.success) {
-                    onStepsError?.('auth_failed');
-                    onConnectedChange?.(false);
-                    throw new Error('Authorization failed');
+                    if (userInitiated) HealthConnectSteps.openAccessHelp(access);
+                    throw new Error(`Health Connect ${access}`);
                 }
             }
 
@@ -227,7 +145,7 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
         }
     };
 
-    useImperativeHandle(ref, () => ({ retry: initialize }));
+    useImperativeHandle(ref, () => ({ retry: () => initialize(true) }));
 
     useEffect(() => {
         initialize();
@@ -242,4 +160,4 @@ const GoogleFitStepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStep
     return null;
 });
 
-export default GoogleFitStepDisplay;
+export default StepDisplay;

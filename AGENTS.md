@@ -15,7 +15,7 @@ Uptrack is an Expo / React Native app for tracking nutrition, weight and workout
 - React Navigation 6 with a single native stack. There is no tab navigator.
 - Firebase JS SDK 10.14.1: Auth (email and password, plus Google), Firestore, Storage.
 - Supabase JS v2 with the anon key, for food search and barcode lookup.
-- Health data: `react-native-health` (iOS HealthKit) and `react-native-google-fit` (Android).
+- Health data: `react-native-health` (iOS HealthKit) and `react-native-health-connect` (Android Health Connect).
 - Jest 29 with babel-jest. TypeScript ~5.9 with `allowJs`; most of the app is still JavaScript.
 - One patch-package patch, `patches/react-native+0.81.5.patch`. It makes the Event phase constants writable.
 
@@ -71,7 +71,6 @@ Baseline on `master`: 0 rules-of-hooks errors and 38 exhaustive-deps warnings. A
 ```text
 App.js                 providers and the single stack navigator
 app.config.js          Expo config: plugins, permissions, env-driven extra
-plugins/               local config plugin withGoogleFitVersions
 patches/               patch-package patches
 src/features/<area>/   auth, dashboard, nutrition, profile, progress, workout
   components/, screens/      UI
