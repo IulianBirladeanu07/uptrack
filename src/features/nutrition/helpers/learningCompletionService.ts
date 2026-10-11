@@ -175,12 +175,15 @@ const blendMaintenance = (stored: number | null | undefined, measured: number | 
   return stored ? Math.round((stored + measured) / 2) : measured;
 };
 
+const latestSnapshotWeek = (weeklyNutrition: WeeklySnapshot[] | null | undefined): string | null =>
+  (weeklyNutrition || []).reduce<string | null>((latest, w) => (w.weekStart && (!latest || w.weekStart > latest) ? w.weekStart : latest), null);
+
 const daysSince = (isoDateStr: string | null | undefined): number => {
   if (!isoDateStr) return Infinity;
   return (Date.now() - new Date(isoDateStr).getTime()) / DAY_MS;
 };
 
-const refreshMaintenanceOnly = async (userId: string, userData: UserData, weeklyCalorieData: WeekStats[]): Promise<WeeklyEvalResult | null> => {
+const refreshMaintenanceOnly = async (userId: string, userData: UserData, weeklyCalorieData: WeekStats[], latestWeek: string | null): Promise<WeeklyEvalResult | null> => {
   if (userData.autoAdjustEnabled === false) return null;
   if (daysSince(userData.maintenanceUpdatedAt) < 6) return null;
 
@@ -191,6 +194,7 @@ const refreshMaintenanceOnly = async (userId: string, userData: UserData, weekly
   const updateData: Partial<UserData> = {
     maintenanceCalories,
     maintenanceUpdatedAt: new Date().toISOString(),
+    ...(latestWeek ? { lastEvaluatedWeek: latestWeek } : {}),
   };
   const weightChangePlan = refreshWeightChangePlan(userData, {
     targetCalories: userData.targetCalories,
@@ -219,8 +223,10 @@ export const evaluateWeeklyProgress = async (
   const weeklyCalorieData = getWeeklyCalorieStats(userData.weeklyNutrition || [], 8, userData.dailySteps);
   if (!weeklyCalorieData.length) return null;
 
+  const latestWeek = latestSnapshotWeek(userData.weeklyNutrition);
+
   const adjustment = calculatePlanAdjustment(userData, weeklyCalorieData);
-  if (!adjustment) return refreshMaintenanceOnly(userId, userData, weeklyCalorieData);
+  if (!adjustment) return refreshMaintenanceOnly(userId, userData, weeklyCalorieData, latestWeek);
 
   const now = new Date().toISOString();
   const confirmed: Partial<UserData> = { lastAdjustmentDate: now, planConfidence: adjustment.planConfidence };
@@ -256,7 +262,11 @@ export const evaluateWeeklyProgress = async (
     updateData = confirmed;
   }
 
-  updateData = { ...updateData, slowEvalPending: adjustment.slowEvalPending === true };
+  updateData = {
+    ...updateData,
+    slowEvalPending: adjustment.slowEvalPending === true,
+    ...(latestWeek ? { lastEvaluatedWeek: latestWeek } : {}),
+  };
 
   const maintenanceCalories = blendMaintenance(userData.maintenanceCalories, adjustment.measuredTDEE);
   if (maintenanceCalories) {
@@ -289,6 +299,13 @@ export const checkAndRunWeeklyEval = async (userId: string, userData: UserData |
 
   const weeklyNutrition = userData.weeklyNutrition || [];
   if (!weeklyNutrition.length) return null;
+
+  const latestWeek = latestSnapshotWeek(weeklyNutrition);
+  if (userData.lastEvaluatedWeek) {
+    if (latestWeek && latestWeek <= userData.lastEvaluatedWeek) return null;
+  } else if (userData.lastAdjustmentDate) {
+    return null;
+  }
 
   return evaluateWeeklyProgress(userId, userData, mealCache, new Date());
 };

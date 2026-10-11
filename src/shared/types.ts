@@ -100,6 +100,7 @@ export type UserData = PlanFormData & {
   weeksSinceCutStart?: number;
   maintenanceUpdatedAt?: string | null;
   lastAdjustmentDate?: string | null;
+  lastEvaluatedWeek?: string | null;
   lastCalorieAdjustment?: CalorieAdjustmentRecord | null;
   lastNutritionUpdate?: string;
   stepsBonusAppliedAt?: string | null;

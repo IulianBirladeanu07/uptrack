@@ -273,6 +273,18 @@ describe('evaluateWeeklyProgress', () => {
     expect(payload.lastAdjustmentDate).toBeDefined();
   });
 
+  test('records the newest snapshot week as evaluated', async () => {
+    const userData = {
+      ...baseUserData,
+      weeklyNutrition: [
+        { weekStart: '2026-01-19', avgCalories: 2400, daysLoggedNutrition: 6 },
+        { weekStart: '2026-01-26', avgCalories: 2400, daysLoggedNutrition: 6 },
+      ],
+    };
+    await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date());
+    expect(setDoc.mock.calls[0][1].lastEvaluatedWeek).toBe('2026-01-26');
+  });
+
   test('goal_reached branch persists a terminal lastCalorieAdjustment', async () => {
     const userData = { ...baseUserData, targetWeight: '93.2' };
     const result = await evaluateWeeklyProgress('u1', userData, new MealCache(), new Date());
@@ -302,6 +314,41 @@ describe('checkAndRunWeeklyEval', () => {
     const result = await checkAndRunWeeklyEval('u1', baseUserData, new MealCache());
     expect(result).not.toBeNull();
     expect(result.suggestion).toBeDefined();
+  });
+
+  describe('new snapshot guard', () => {
+    const weeks = [
+      { weekStart: '2026-01-19', avgCalories: 2400, daysLoggedNutrition: 6 },
+      { weekStart: '2026-01-26', avgCalories: 2400, daysLoggedNutrition: 6 },
+    ];
+    const longAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    test('does nothing when the newest snapshot was already evaluated', async () => {
+      const userData = { ...baseUserData, weeklyNutrition: weeks, lastEvaluatedWeek: '2026-01-26', lastAdjustmentDate: longAgo };
+      expect(await checkAndRunWeeklyEval('u1', userData, new MealCache())).toBeNull();
+      expect(setDoc).not.toHaveBeenCalled();
+    });
+
+    test('evaluates once a newer snapshot exists and records its week', async () => {
+      const userData = { ...baseUserData, weeklyNutrition: weeks, lastEvaluatedWeek: '2026-01-19', lastAdjustmentDate: longAgo };
+      const result = await checkAndRunWeeklyEval('u1', userData, new MealCache());
+      expect(result).not.toBeNull();
+      expect(result.lastEvaluatedWeek).toBe('2026-01-26');
+      expect(setDoc.mock.calls[0][1].lastEvaluatedWeek).toBe('2026-01-26');
+    });
+
+    test('leaves accounts adjusted before the marker existed to the weigh-in path', async () => {
+      const userData = { ...baseUserData, weeklyNutrition: weeks, lastAdjustmentDate: longAgo };
+      expect(await checkAndRunWeeklyEval('u1', userData, new MealCache())).toBeNull();
+      expect(setDoc).not.toHaveBeenCalled();
+    });
+
+    test('evaluates an account that was never adjusted', async () => {
+      const userData = { ...baseUserData, weeklyNutrition: weeks };
+      const result = await checkAndRunWeeklyEval('u1', userData, new MealCache());
+      expect(result).not.toBeNull();
+      expect(result.lastEvaluatedWeek).toBe('2026-01-26');
+    });
   });
 });
 
@@ -491,6 +538,7 @@ describe('evaluateWeeklyProgress - continuous maintenance and plan refresh', () 
       expect(payload.weightChangePlan.tdee).toBe(2850);
       expect(payload.targetCalories).toBeUndefined();
       expect(payload.lastAdjustmentDate).toBeUndefined();
+      expect(payload.lastEvaluatedWeek).toBe('2026-01-26');
     });
 
     test('does not write again within six days of the last refresh', async () => {
