@@ -32,6 +32,7 @@ export type AuthenticatedStackParamList = {
   ExerciseSelection: {
     onExercisesSelected?: (exercises: unknown[]) => void;
     selectedExercises?: unknown[];
+    previousScreen?: string;
   } | undefined;
   WorkoutLibrary: undefined;
   CreateTemplate: {

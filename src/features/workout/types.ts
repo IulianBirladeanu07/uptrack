@@ -5,6 +5,8 @@ export type WorkoutSet = {
   isValidated: boolean;
   repsModified: boolean;
   weightModified?: boolean;
+  isPR?: boolean;
+  estimated1RM?: string | number;
 };
 
 export type WorkoutExercise = {
@@ -17,6 +19,7 @@ export type WorkoutExercise = {
   repRange?: string;
   note?: string;
   sets: WorkoutSet[];
+  lastWorkoutSets?: WorkoutSet[];
   [key: string]: unknown;
 };
 
@@ -31,3 +34,60 @@ export type PersistedWorkoutState = {
 
 export type WorkoutListener = (data: WorkoutExercise[]) => void;
 export type TimerListener = (elapsedSeconds: number) => void;
+
+export type NumericSet = {
+  weight: number;
+  reps: number;
+  estimated1RM?: number;
+  isValidated?: boolean;
+  isPR?: boolean;
+};
+
+export type WorkoutTemplate = {
+  id?: string;
+  templateName: string;
+  exercises: WorkoutExercise[];
+  note?: string;
+  duration?: string | number;
+  preferredDays?: string[];
+  uid?: string;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+  [key: string]: unknown;
+};
+
+export type WorkoutSplitDay = {
+  day?: string;
+  workout?: unknown;
+  isRestDay?: boolean;
+  [key: string]: unknown;
+};
+
+export type WorkoutSplit = {
+  id?: string;
+  name?: string;
+  splitName?: string;
+  uid?: string;
+  days?: WorkoutSplitDay[] | Record<string, unknown>;
+  schedule?: unknown;
+  currentWeek?: number;
+  rotationStartDate?: string;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+  [key: string]: unknown;
+};
+
+export type BodyMeasurements = {
+  [key: string]: unknown;
+};
+
+export type CacheStatus = {
+  catalogLoaded?: boolean;
+  customLoaded?: boolean;
+  imageCount?: number;
+  hasMemoryCache?: boolean;
+  memoryCacheAge?: number | null;
+  memoryCacheSize?: number;
+  isLoading?: boolean;
+  [key: string]: unknown;
+};

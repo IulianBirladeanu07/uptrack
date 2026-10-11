@@ -1,42 +1,57 @@
 import { getAuth } from 'firebase/auth';
-import { 
-  collection, 
-  setDoc, 
-  getDocs, 
-  deleteDoc, 
-  doc, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  serverTimestamp, 
-  getFirestore,
+import {
+  collection,
+  setDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+  query,
+  where,
+  orderBy,
+  limit,
+  serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { db } from '../../auth/services/firebaseConfigService'
+import type { DocumentData } from 'firebase/firestore';
+import { db } from '../../auth/services/firebaseConfigService';
 import { Alert } from 'react-native';
 import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { customDocToExercise, mergeCustomExercises } from '../utils/exerciseCatalog';
+import type {
+  BodyMeasurements,
+  CacheStatus,
+  WorkoutExercise,
+  WorkoutSet,
+  WorkoutSplit,
+  WorkoutTemplate,
+} from '../types';
+import type { CatalogExercise, ExerciseGroup } from '../../../shared/types';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { AuthenticatedStackParamList } from '../../../shared/navigation';
+
+type AppNav = NativeStackNavigationProp<AuthenticatedStackParamList>;
+type MessageFn = (message: string) => void;
+type FormatTimeFn = (seconds: number) => string;
 
 export const SPLITS_CACHE_KEY = 'cached_splits';
 
-export const clearSplitsCache = async () => {
+export const clearSplitsCache = async (): Promise<void> => {
     try {
         await AsyncStorage.removeItem(SPLITS_CACHE_KEY);
     } catch {}
 };
 
 export const sendWorkoutDataToFirestore = async (
-    exerciseData,
-    inputText,
-    isValidationPressed,
-    navigation,
-    openAnimatedMessage,
-    formatTime,
-    elapsedTime,
+    exerciseData: WorkoutExercise[],
+    inputText: string,
+    isValidationPressed: boolean,
+    navigation: AppNav,
+    openAnimatedMessage: MessageFn,
+    formatTime: FormatTimeFn,
+    elapsedTime: number,
     templateName = '',
-) => {
+): Promise<boolean> => {
     try {
         const hasEmptyOrInvalidInputs = exerciseData.some(exercise =>
             exercise.sets.some(set => {
@@ -83,13 +98,21 @@ export const sendWorkoutDataToFirestore = async (
             return await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName);
         }
     } catch (error) {
-        console.error('Error adding workout data:', error.message);
-        openAnimatedMessage(`Error: ${error.message}`);
+        console.error('Error adding workout data:', (error as Error).message);
+        openAnimatedMessage(`Error: ${(error as Error).message}`);
         return false;
     }
 };
 
-async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName = '') {
+async function finishWorkout(
+    exerciseData: WorkoutExercise[],
+    inputText: string,
+    navigation: AppNav,
+    openAnimatedMessage: MessageFn,
+    formatTime: FormatTimeFn,
+    elapsedTime: number,
+    templateName = '',
+): Promise<boolean> {
     try {
         const auth = getAuth();
         const user = auth.currentUser;
@@ -111,12 +134,12 @@ async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMe
                 })))
                 : { estimated1RM: 0 };
 
-            const isExercisePR = best.estimated1RM > lastBest.estimated1RM;
+            const isExercisePR = best.estimated1RM > (lastBest.estimated1RM || 0);
 
             return {
                 ...exercise,
                 sets: exercise.sets.map(set => {
-                    const set1RM = calculate1RM(parseFloat(set.weight || 0), parseInt(set.reps || 0));
+                    const set1RM = calculate1RM(parseFloat(String(set.weight ?? 0)), parseInt(String(set.reps ?? 0), 10));
                     return {
                         ...set,
                         isPR: isExercisePR && Math.abs(set1RM - best.estimated1RM) < 0.01,
@@ -134,11 +157,11 @@ async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMe
             exercises: exercisesWithPR.map(exercise => ({
                 ...exercise,
                 sets: exercise.sets.map(set => ({
-                    weight: parseFloat(set.weight || 0),
-                    reps: parseInt(set.reps || 0, 10),
+                    weight: parseFloat(String(set.weight ?? 0)),
+                    reps: parseInt(String(set.reps ?? 0), 10),
                     isValidated: set.isValidated,
                     isPR: set.isPR || false,
-                    estimated1RM: set.reps > 0 ? calculate1RM(parseFloat(set.weight), parseInt(set.reps, 10)).toFixed(2) : 'N/A',
+                    estimated1RM: Number(set.reps) > 0 ? calculate1RM(parseFloat(String(set.weight)), parseInt(String(set.reps), 10)).toFixed(2) : 'N/A',
                 })),
             })),
         };
@@ -155,54 +178,56 @@ async function finishWorkout(exerciseData, inputText, navigation, openAnimatedMe
         });
         return true;
     } catch (error) {
-        console.error('Error finishing workout:', error.message);
-        openAnimatedMessage(`Error: ${error.message}`);
+        console.error('Error finishing workout:', (error as Error).message);
+        openAnimatedMessage(`Error: ${(error as Error).message}`);
         return false;
     }
 }
 
-export const calculate1RM = (weight, reps) => {
+export const calculate1RM = (weight: number, reps: number): number => {
   const clampedReps = Math.min(Math.max(reps, 1), 12);
   return weight / (1.0278 - 0.0278 * clampedReps);
 };
 
-export const countTotalPRs = (lastWorkoutData) => {
-  return lastWorkoutData.exercises.reduce(
-    (total, exercise) => total + exercise.sets.filter(set => set.isPR).length,
+export const countTotalPRs = (lastWorkoutData: { exercises?: { sets?: { isPR?: boolean }[] }[] } | null | undefined): number => {
+  return (lastWorkoutData?.exercises || []).reduce(
+    (total, exercise) => total + (exercise.sets || []).filter(set => set.isPR).length,
     0
   );
 };
 
-export const findBestSet = (sets) => {
-  return sets.reduce((best, set) => {
-    const current1RM = calculate1RM(parseFloat(set.weight), parseInt(set.reps, 10));
-    return current1RM > best.estimated1RM ? { ...set, estimated1RM: current1RM } : best;
-  }, { estimated1RM: 0 });
+export const findBestSet = (sets: Array<{ weight?: number | string; reps?: number | string; estimated1RM?: number | string }>): { weight: number; reps: number; estimated1RM: number } => {
+  return sets.reduce<{ weight: number; reps: number; estimated1RM: number }>((best, set) => {
+    const current1RM = calculate1RM(parseFloat(String(set.weight ?? 0)), parseInt(String(set.reps ?? 0), 10));
+    return current1RM > best.estimated1RM
+      ? { weight: Number(set.weight) || 0, reps: Number(set.reps) || 0, estimated1RM: current1RM }
+      : best;
+  }, { weight: 0, reps: 0, estimated1RM: 0 });
 };
 
-export const handleAddExercises = (navigation) => {
+export const handleAddExercises = (navigation: AppNav): void => {
   navigation.navigate('ExerciseSelection', { previousScreen: 'StartWorkout' });
 };
 
-export const handleValidation = (exerciseIndex, setIndex, exerciseData) => {
+export const handleValidation = (exerciseIndex: number, setIndex: number, exerciseData: WorkoutExercise[]): WorkoutExercise[] => {
   const updatedData = [...exerciseData];
   const currentSet = updatedData[exerciseIndex].sets[setIndex];
   currentSet.isValidated = !currentSet.isValidated;
   return updatedData;
 };
 
-export const handleInputChange = (text, setInputText) => {
+export const handleInputChange = (text: string, setInputText: (t: string) => void): void => {
   setInputText(text);
 };
 
-export const handleAddSet = (exerciseIndex, exerciseData, setExerciseData) => {
+export const handleAddSet = (exerciseIndex: number, exerciseData: WorkoutExercise[], setExerciseData: (d: WorkoutExercise[]) => void): void => {
   const updatedData = [...exerciseData];
-  const newSet = { weight: '', reps: '', isValidated: false };
+  const newSet: WorkoutSet = { id: `${Date.now()}`, weight: '', reps: '', isValidated: false, repsModified: false };
   updatedData[exerciseIndex].sets.push(newSet);
   setExerciseData(updatedData);
 };
 
-export const handleWeightChange = (text, exerciseIndex, setIndex, exerciseData) => {
+export const handleWeightChange = (text: string, exerciseIndex: number, setIndex: number, exerciseData: WorkoutExercise[]): WorkoutExercise[] | undefined => {
   if (text === '' || /^\d*\.?\d*$/.test(text)) {
     const updatedData = [...exerciseData];
     updatedData[exerciseIndex].sets[setIndex].weight = text;
@@ -212,7 +237,7 @@ export const handleWeightChange = (text, exerciseIndex, setIndex, exerciseData) 
   }
 };
 
-export const handleRepsChange = (text, exerciseIndex, setIndex, exerciseData) => {
+export const handleRepsChange = (text: string, exerciseIndex: number, setIndex: number, exerciseData: WorkoutExercise[]): WorkoutExercise[] | undefined => {
   if (text === '' || /^\d+$/.test(text)) {
     const updatedData = [...exerciseData];
     updatedData[exerciseIndex].sets[setIndex].reps = text;
@@ -222,7 +247,7 @@ export const handleRepsChange = (text, exerciseIndex, setIndex, exerciseData) =>
   }
 };
 
-export const getSetsFromLastWorkout = async (exerciseName) => {
+export const getSetsFromLastWorkout = async (exerciseName: string): Promise<WorkoutSet[]> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -240,27 +265,30 @@ export const getSetsFromLastWorkout = async (exerciseName) => {
     );
     const querySnapshot = await getDocs(workoutQuery);
 
-    for (const doc of querySnapshot.docs) {
-      const workoutData = doc.data();
-      const exercises = workoutData.exercises || [];
+    for (const snap of querySnapshot.docs) {
+      const workoutData = snap.data();
+      const exercises = (workoutData.exercises || []) as Array<{ exerciseName?: string; sets?: Array<{ weight?: unknown; reps?: unknown }> }>;
       const exercise = exercises.find(ex => ex.exerciseName === exerciseName);
       
       if (exercise && exercise.sets && exercise.sets.length > 0) {
-        return exercise.sets.map(set => ({
+        return exercise.sets.map((set, i) => ({
+          id: `${exerciseName}-${i}`,
           weight: set.weight !== undefined ? String(set.weight) : '',
-          reps: set.reps !== undefined ? String(set.reps) : ''
+          reps: set.reps !== undefined ? String(set.reps) : '',
+          isValidated: false,
+          repsModified: false,
         }));
       }
     }
     
     return [];
   } catch (error) {
-    console.error('Error retrieving sets from last workout:', error.message);
+    console.error('Error retrieving sets from last workout:', (error as Error).message);
     return [];
   }
 };
 
-export const countWorkoutsThisWeek = async () => {
+export const countWorkoutsThisWeek = async (): Promise<number> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -268,7 +296,7 @@ export const countWorkoutsThisWeek = async () => {
       throw new Error('User not authenticated.');
     }
 
-    const db = getFirestore();
+    
     const uid = user.uid;
 
     const workoutsRef = collection(db, 'workoutHistory');
@@ -285,12 +313,12 @@ export const countWorkoutsThisWeek = async () => {
 
     return workoutCount;
   } catch (error) {
-    console.error('Error counting workouts for this week:', error.message);
+    console.error('Error counting workouts for this week:', (error as Error).message);
     throw error;
   }
 };
 
-export const getLastWorkout = async () => {
+export const getLastWorkout = async (): Promise<DocumentData | null> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -298,7 +326,7 @@ export const getLastWorkout = async () => {
       throw new Error('User not authenticated.');
     }
 
-    const db = getFirestore();
+    
     const uid = user.uid;
 
     const workoutsRef = collection(db, 'workoutHistory');
@@ -311,12 +339,12 @@ export const getLastWorkout = async () => {
       return null;
     }
   } catch (error) {
-    console.error('Error fetching last workout:', error.message);
+    console.error('Error fetching last workout:', (error as Error).message);
     throw error;
   }
 };
 
-export const addTemplateToFirestore = async (templateData, templateName) => {
+export const addTemplateToFirestore = async (templateData: WorkoutTemplate, templateName: string): Promise<string> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -324,7 +352,6 @@ export const addTemplateToFirestore = async (templateData, templateName) => {
       throw new Error('User not authenticated.');
     }
 
-    const db = getFirestore();
     const formattedTemplateName = `${templateName}_${user.uid}`;
 
     const fullTemplateData = {
@@ -334,14 +361,14 @@ export const addTemplateToFirestore = async (templateData, templateName) => {
 
     const templateDocRef = doc(db, 'workoutTemplates', formattedTemplateName);
     await setDoc(templateDocRef, fullTemplateData);
-
+    return formattedTemplateName;
   } catch (error) {
-    console.error('Error adding template data to Firestore:', error.message);
+    console.error('Error adding template data to Firestore:', (error as Error).message);
     throw error;
   }
 };
 
-export const fetchTemplatesFromFirestore = async () => {
+export const fetchTemplatesFromFirestore = async (): Promise<WorkoutTemplate[]> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -349,7 +376,7 @@ export const fetchTemplatesFromFirestore = async () => {
       throw new Error('User not authenticated.');
     }
 
-    const db = getFirestore();
+    
     const templatesCollectionRef = collection(db, 'workoutTemplates');
     const templatesQuery = query(templatesCollectionRef, where("uid", "==", user.uid));
     const querySnapshot = await getDocs(templatesQuery);
@@ -359,19 +386,19 @@ export const fetchTemplatesFromFirestore = async () => {
       return [];
     }
 
-    const templates = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      data: doc.data()
+    const templates: WorkoutTemplate[] = querySnapshot.docs.map(docSnap => ({
+      ...(docSnap.data() as WorkoutTemplate),
+      id: docSnap.id,
     }));
 
     return templates;
   } catch (error) {
-    console.error('Error retrieving user templates from Firestore:', error.message);
+    console.error('Error retrieving user templates from Firestore:', (error as Error).message);
     throw error;
   }
 };
 
-export const deleteTemplateFromFirestore = async (templateId) => {
+export const deleteTemplateFromFirestore = async (templateId: string): Promise<boolean> => {
   try {
     if (!templateId) throw new Error('No template ID provided');
     
@@ -379,18 +406,18 @@ export const deleteTemplateFromFirestore = async (templateId) => {
     const user = auth.currentUser;
     if (!user) throw new Error('User not authenticated.');
 
-    const db = getFirestore();
+    
     const templateRef = doc(db, 'workoutTemplates', templateId);
     
     await deleteDoc(templateRef);
     return true;
   } catch (error) {
-    console.error('Error deleting template from Firestore:', error.message);
+    console.error('Error deleting template from Firestore:', (error as Error).message);
     throw error;
   }
 };
 
-export const sendMeasurementsToFirestore = async (measurements) => {
+export const sendMeasurementsToFirestore = async (measurements: BodyMeasurements): Promise<void> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -398,7 +425,7 @@ export const sendMeasurementsToFirestore = async (measurements) => {
       throw new Error('User not authenticated.');
     }
 
-    const db = getFirestore();
+    
     const uid = user.uid;
     const timestamp = new Date();
 
@@ -409,7 +436,7 @@ export const sendMeasurementsToFirestore = async (measurements) => {
 
     await setDoc(measurementDocRef, measurementsDataToSend);
   } catch (error) {
-    console.error('Error saving measurements:', error.message);
+    console.error('Error saving measurements:', (error as Error).message);
     throw error;
   }
 };
@@ -418,27 +445,34 @@ const CACHE_KEY = 'exercises_cache_v3';
 const CACHE_DURATION = 12 * 60 * 60 * 1000;
 const IMAGE_CACHE_KEY = 'exercise_images_cache';
 
-let memoryCache = {
+type MemoryCache = {
+  data: ExerciseGroup[] | null;
+  timestamp: number;
+  isLoading: boolean;
+  loadPromise: Promise<ExerciseGroup[]> | null;
+};
+
+let memoryCache: MemoryCache = {
   data: null,
   timestamp: 0,
   isLoading: false,
-  loadPromise: null
+  loadPromise: null,
 };
 
-const imagePrefetchStatus = new Map();
+const imagePrefetchStatus = new Map<string, boolean>();
 
-let customCache = { uid: null, data: null };
+let customCache: { uid: string | null; data: CatalogExercise[] | null } = { uid: null, data: null };
 
-const fetchCustomExercises = async (uid, forceRefresh = false) => {
+const fetchCustomExercises = async (uid: string, forceRefresh = false): Promise<CatalogExercise[]> => {
   if (!forceRefresh && customCache.uid === uid && customCache.data) return customCache.data;
-  const customQuery = query(collection(getFirestore(), 'customExercises'), where('uid', '==', uid));
+  const customQuery = query(collection(db, 'customExercises'), where('uid', '==', uid));
   const snap = await getDocs(customQuery);
-  const data = snap.docs.map(d => customDocToExercise(d.data())).filter(Boolean);
+  const data = snap.docs.map(d => customDocToExercise(d.data())).filter((x): x is CatalogExercise => x != null);
   customCache = { uid, data };
   return data;
 };
 
-export const fetchExercises = async (forceRefresh = false) => {
+export const fetchExercises = async (forceRefresh = false): Promise<ExerciseGroup[]> => {
   const user = getAuth().currentUser;
   if (!user) {
     throw new Error('User not authenticated.');
@@ -446,14 +480,14 @@ export const fetchExercises = async (forceRefresh = false) => {
   const [catalog, custom] = await Promise.all([
     loadCatalog(forceRefresh),
     fetchCustomExercises(user.uid, forceRefresh).catch(error => {
-      console.warn('Failed to load custom exercises:', error.message);
+      console.warn('Failed to load custom exercises:', (error as Error).message);
       return [];
     }),
   ]);
   return mergeCustomExercises(catalog, custom);
 };
 
-const loadCatalog = async (forceRefresh = false) => {
+const loadCatalog = async (forceRefresh = false): Promise<ExerciseGroup[]> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -532,20 +566,20 @@ const loadCatalog = async (forceRefresh = false) => {
     }
 
   } catch (error) {
-    console.error('Error retrieving exercises:', error.message);
+    console.error('Error retrieving exercises:', (error as Error).message);
     memoryCache.isLoading = false;
     memoryCache.loadPromise = null;
     throw error;
   }
 };
 
-const fetchExercisesFromFirestore = async () => {
-  const db = getFirestore();
+const fetchExercisesFromFirestore = async (): Promise<ExerciseGroup[]> => {
+  
   const exercisesCollectionRef = collection(db, 'exercises');
   
   try {
     const querySnapshot = await getDocs(exercisesCollectionRef);
-    const exercisesArray = [];
+    const exercisesArray: ExerciseGroup[] = [];
 
     if (!querySnapshot.empty) {
       querySnapshot.forEach(doc => {
@@ -553,10 +587,10 @@ const fetchExercisesFromFirestore = async () => {
         const exercises = doc.data().exercises || [];
 
         if (exercises.length > 0) {
-          const validExercises = exercises
-            .filter(exercise => exercise && exercise.name && !exercise.isCustom)
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map(exercise => ({
+          const validExercises = (exercises as CatalogExercise[])
+            .filter((exercise: CatalogExercise & { isCustom?: boolean }) => exercise && exercise.name && !exercise.isCustom)
+            .sort((a: CatalogExercise, b: CatalogExercise) => a.name.localeCompare(b.name))
+            .map((exercise: CatalogExercise) => ({
               name: exercise.name,
               muscleGroup: exercise.muscleGroup || muscleGroup,
               category: exercise.category || 'General',
@@ -580,14 +614,14 @@ const fetchExercisesFromFirestore = async () => {
 
   } catch (firestoreError) {
     console.error('Firestore fetch error:', firestoreError);
-    throw new Error(`Failed to fetch exercises: ${firestoreError.message}`);
+    throw new Error(`Failed to fetch exercises: ${(firestoreError as Error).message}`);
   }
 };
 
-const prefetchExerciseImages = async (exercisesArray) => {
+const prefetchExerciseImages = async (exercisesArray: ExerciseGroup[] | null | undefined): Promise<void> => {
   if (!exercisesArray || !Array.isArray(exercisesArray)) return;
 
-  const imageUrls = [];
+  const imageUrls: string[] = [];
   
   exercisesArray.forEach(group => {
     if (group.exercises && Array.isArray(group.exercises)) {
@@ -608,11 +642,11 @@ const prefetchExerciseImages = async (exercisesArray) => {
     setTimeout(() => {
       batch.forEach(async (url) => {
         try {
-          imagePrefetchStatus.set(url, 'loading');
+          imagePrefetchStatus.set(url, true);
           await Image.prefetch(url);
-          imagePrefetchStatus.set(url, 'loaded');
+          imagePrefetchStatus.set(url, true);
         } catch (error) {
-          imagePrefetchStatus.set(url, 'error');
+          imagePrefetchStatus.set(url, false);
           console.warn('Failed to prefetch image:', url);
         }
       });
@@ -620,7 +654,7 @@ const prefetchExerciseImages = async (exercisesArray) => {
   }
 };
 
-export const clearExercisesCache = async (clearImages = false) => {
+export const clearExercisesCache = async (clearImages = false): Promise<void> => {
   memoryCache.data = null;
   memoryCache.timestamp = 0;
   memoryCache.isLoading = false;
@@ -638,7 +672,7 @@ export const clearExercisesCache = async (clearImages = false) => {
   }
 };
 
-export const prefetchExercises = async (priority = 'low') => {
+export const prefetchExercises = async (priority: 'low' | 'medium' | 'high' = 'low'): Promise<ExerciseGroup[] | void> => {
   try {
     if (memoryCache.data && 
         (Date.now() - memoryCache.timestamp < CACHE_DURATION)) {
@@ -662,17 +696,17 @@ export const prefetchExercises = async (priority = 'low') => {
   }
 };
 
-export const getCacheStatus = () => {
+export const getCacheStatus = (): CacheStatus => {
   return {
     hasMemoryCache: !!memoryCache.data,
     cacheAge: memoryCache.timestamp ? Date.now() - memoryCache.timestamp : 0,
     isLoading: memoryCache.isLoading,
-    exerciseCount: memoryCache.data ? memoryCache.data.reduce((count, group) => count + group.exercises.length, 0) : 0,
-    imagesPrefetched: Array.from(imagePrefetchStatus.values()).filter(status => status === 'loaded').length
+    exerciseCount: memoryCache.data ? (memoryCache.data || []).reduce((count: number, group: ExerciseGroup) => count + group.exercises.length, 0) : 0,
+    imagesPrefetched: Array.from(imagePrefetchStatus.values()).filter(status => status === true).length
   };
 };
 
-export const createCustomExercise = async (exerciseData) => {
+export const createCustomExercise = async (exerciseData: CatalogExercise & { uid?: string }): Promise<{ success: boolean; exercise: Record<string, unknown> }> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -680,7 +714,7 @@ export const createCustomExercise = async (exerciseData) => {
       throw new Error('User not authenticated.');
     }
 
-    const db = getFirestore();
+    
     const { muscleGroup, name, category, equipment, imageURL, difficulty } = exerciseData;
 
     if (!muscleGroup || !name) {
@@ -720,12 +754,12 @@ export const createCustomExercise = async (exerciseData) => {
     return { success: true, exercise: newExercise };
 
   } catch (error) {
-    console.error('Error creating custom exercise:', error.message);
+    console.error('Error creating custom exercise:', (error as Error).message);
     throw error;
   }
 };
 
-export const fetchLastMeasurements = async () => {
+export const fetchLastMeasurements = async (): Promise<BodyMeasurements | null> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -733,7 +767,7 @@ export const fetchLastMeasurements = async () => {
       throw new Error('User not authenticated.');
     }
 
-    const db = getFirestore();
+    
     const uid = user.uid;
 
     const measurementsRef = collection(db, 'measurements');
@@ -746,12 +780,12 @@ export const fetchLastMeasurements = async () => {
       return null;
     }
   } catch (error) {
-    console.error('Error fetching last measurements:', error.message);
+    console.error('Error fetching last measurements:', (error as Error).message);
     throw error;
   }
 };
 
-export const updateTemplateInFirestore = async (templateId, templateData) => {
+export const updateTemplateInFirestore = async (templateId: string, templateData: Partial<WorkoutTemplate>): Promise<string> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -764,7 +798,7 @@ export const updateTemplateInFirestore = async (templateId, templateData) => {
       throw new Error('Template ID is required for update');
     }
 
-    const db = getFirestore();
+    
     const templateRef = doc(db, 'workoutTemplates', templateId);
     
     const updateData = {
@@ -785,7 +819,7 @@ export const updateTemplateInFirestore = async (templateId, templateData) => {
   }
 };
 
-export const updateSplitInFirestore = async (splitId, splitData) => {
+export const updateSplitInFirestore = async (splitId: string, splitData: Partial<WorkoutSplit>): Promise<string> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -798,7 +832,7 @@ export const updateSplitInFirestore = async (splitId, splitData) => {
       throw new Error('Split ID is required for update');
     }
 
-    const db = getFirestore();
+    
     const splitRef = doc(db, 'workoutSplits', splitId);
     
     const updateData = {
@@ -819,7 +853,7 @@ export const updateSplitInFirestore = async (splitId, splitData) => {
   }
 };
 
-export const fetchSplitsFromFirestore = async () => {
+export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -827,7 +861,7 @@ export const fetchSplitsFromFirestore = async () => {
       throw new Error('User not authenticated.');
     }
 
-    const db = getFirestore();
+    
     const uid = user.uid;
 
     const splitsCollectionRef = collection(db, 'workoutSplits');
@@ -865,12 +899,12 @@ export const fetchSplitsFromFirestore = async () => {
 
     return splits;
   } catch (error) {
-    console.error('Error fetching user splits from Firestore:', error.message);
+    console.error('Error fetching user splits from Firestore:', (error as Error).message);
     throw error;
   }
 };
 
-export const addSplitToFirestore = async (splitData) => {
+export const addSplitToFirestore = async (splitData: WorkoutSplit): Promise<string> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -878,12 +912,13 @@ export const addSplitToFirestore = async (splitData) => {
       throw new Error('User not authenticated.');
     }
 
-    const db = getFirestore();
+    
     const uid = user.uid;
 
-    const sanitizedSchedule = {};
-    Object.keys(splitData.schedule || {}).forEach(day => {
-      const dayData = splitData.schedule[day];
+    const sanitizedSchedule: Record<string, Record<string, unknown>> = {};
+    const schedule = (splitData.schedule || {}) as Record<string, Record<string, unknown>>;
+    Object.keys(schedule).forEach(day => {
+      const dayData = schedule[day];
       sanitizedSchedule[day] = {
         templateId: dayData.templateId || 'rest-day',
         templateName: dayData.templateName || 'Rest Day',
@@ -906,12 +941,12 @@ export const addSplitToFirestore = async (splitData) => {
     await clearSplitsCache();
     return splitDocRef.id;
   } catch (error) {
-    console.error('Error saving split to Firestore:', error.message);
+    console.error('Error saving split to Firestore:', (error as Error).message);
     throw error;
   }
 };
 
-export const updateSplitDay = async (splitId, day, workoutData) => {
+export const updateSplitDay = async (splitId: string, day: string, workoutData: Record<string, unknown>): Promise<boolean> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -919,7 +954,7 @@ export const updateSplitDay = async (splitId, day, workoutData) => {
       throw new Error('User not authenticated.');
     }
 
-    const db = getFirestore();
+    
     const splitDocRef = doc(db, 'workoutSplits', splitId);
     
     const sanitizedWorkoutData = {
@@ -937,12 +972,12 @@ export const updateSplitDay = async (splitId, day, workoutData) => {
     await clearSplitsCache();
     return true;
   } catch (error) {
-    console.error('Error updating split day:', error.message);
+    console.error('Error updating split day:', (error as Error).message);
     throw error;
   }
 };
 
-export const deleteSplitFromFirestore = async (splitId) => {
+export const deleteSplitFromFirestore = async (splitId: string): Promise<boolean> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -950,19 +985,19 @@ export const deleteSplitFromFirestore = async (splitId) => {
       throw new Error('User not authenticated.');
     }
 
-    const db = getFirestore();
+    
     const splitDocRef = doc(db, 'workoutSplits', splitId);
     
     await deleteDoc(splitDocRef);
     await clearSplitsCache();
     return true;
   } catch (error) {
-    console.error('Error deleting split from Firestore:', error.message);
+    console.error('Error deleting split from Firestore:', (error as Error).message);
     throw error;
   }
 };
 
-export const updateSplitProgress = async (splitId, currentWeek) => {
+export const updateSplitProgress = async (splitId: string, currentWeek: number): Promise<boolean> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -970,7 +1005,7 @@ export const updateSplitProgress = async (splitId, currentWeek) => {
       throw new Error('User not authenticated.');
     }
 
-    const db = getFirestore();
+    
     const splitDocRef = doc(db, 'workoutSplits', splitId);
     
     await updateDoc(splitDocRef, {
@@ -980,12 +1015,12 @@ export const updateSplitProgress = async (splitId, currentWeek) => {
     
     return true;
   } catch (error) {
-    console.error('Error updating split progress:', error.message);
+    console.error('Error updating split progress:', (error as Error).message);
     throw error;
   }
 };
 
-export const getExerciseHistory = async (exerciseName) => {
+export const getExerciseHistory = async (exerciseName: string): Promise<DocumentData[]> => {
     try {
         const auth = getAuth();
         const user = auth.currentUser;
@@ -1000,38 +1035,38 @@ export const getExerciseHistory = async (exerciseName) => {
         );
         const querySnapshot = await getDocs(workoutQuery);
 
-        const sessions = [];
+        const sessions: DocumentData[] = [];
 
-        for (const doc of querySnapshot.docs) {
-            const data = doc.data();
-            const exercises = data.exercises || [];
-            const exercise = exercises.find(ex => ex.exerciseName === exerciseName);
+        for (const snap of querySnapshot.docs) {
+            const data = snap.data();
+            const exercises = (data.exercises || []) as Array<{ exerciseName?: string; sets?: Array<{ weight?: string | number; reps?: string | number }> }>;
+            const exercise = exercises.find((ex) => ex.exerciseName === exerciseName);
             if (!exercise || !exercise.sets?.length) continue;
 
-            const validSets = exercise.sets.filter(s =>
-                (parseFloat(s.weight) > 0 && parseInt(s.reps) > 0)
+            const validSets = exercise.sets.filter((s) =>
+                (parseFloat(String(s.weight)) > 0 && parseInt(String(s.reps), 10) > 0)
             );
             if (!validSets.length) continue;
 
-            const best = validSets.reduce((b, s) => {
-                const e1rm = calculate1RM(parseFloat(s.weight) || 0, parseInt(s.reps) || 0);
+            const best = validSets.reduce((b: { e1rm: number; weight?: string | number; reps?: string | number }, s) => {
+                const e1rm = calculate1RM(parseFloat(String(s.weight)) || 0, parseInt(String(s.reps), 10) || 0);
                 return e1rm > b.e1rm ? { ...s, e1rm } : b;
             }, { e1rm: 0 });
 
             sessions.push({
-                id: doc.id,
+                id: snap.id,
                 timestamp: data.timestamp,
                 workoutName: data.workoutName || 'Workout',
                 sets: validSets,
                 best,
-                totalVolume: validSets.reduce((sum, s) =>
-                    sum + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0),
+                totalVolume: validSets.reduce((sum: number, s) =>
+                    sum + (parseFloat(String(s.weight)) || 0) * (parseInt(String(s.reps), 10) || 0), 0),
             });
         }
 
         return sessions;
     } catch (error) {
-        console.error('Error fetching exercise history:', error.message);
+        console.error('Error fetching exercise history:', (error as Error).message);
         return [];
     }
 };
