@@ -5,14 +5,14 @@ Audit of `master` at `fad590d`, done on 2026-10-10 in two passes. All fixes are 
 ## Summary
 
 - 40 findings: 1 critical, 2 high, 15 medium, 21 low and 1 informational.
-- 21 are fixed and 19 are open. Most open items need an owner decision first.
+- 22 are fixed and 18 are open. Most open items need an owner decision first.
 - Most urgent: **SEC-01**. A Supabase service-role key was wired into the app config from the first commit (2025-11-19) until the audit. The value was never committed, but any build made with the variable set contains it, and it bypasses all database access rules. The owner must rotate it.
 
 | Severity | Fixed | Open |
 |---|---|---|
 | Critical | 0 | 1 |
 | High | 1 | 1 |
-| Medium | 8 | 7 |
+| Medium | 9 | 6 |
 | Low | 12 | 9 |
 | Info | 0 | 1 |
 
@@ -59,7 +59,7 @@ Open rows point at current `master`. Fixed rows point at the code before the fix
 | SEC-01 | Critical | app.config.js `extra`, eas.json env (2ccc212 to 2454bca) | Service-role key read from env into Expo `extra`, which ships in every build and update manifest. It bypasses RLS. The value was never committed. | Rotate the key, delete the EAS variable | Open, owner action (reference removed in 2454bca) |
 | SEC-02 | High | WorkoutHandler.js:648-698 | `createCustomExercise` rewrites the shared `exercises/{muscleGroup}` doc with `setDoc` (no merge, no transaction). Everyone sees everyone's custom exercises, concurrent adds are lost, and rules must let any user rewrite the catalog. | Per-user custom exercises | Fixed 8f2f79a |
 | SEC-03 | Medium | firebaseAuthService.js:23-25, :34-51; RegistrationScreen.js:42; AuthContext.tsx:76-86 | Login throws "verify email" after the user is already signed in. Sign-up leaves the new user signed in. The auth listener never checks `emailVerified`, so unverified accounts reach onboarding. | Gate password accounts on `emailVerified`, sign out on failure | Fixed bb77936 |
-| SEC-04 | Medium | useCustomFood.js:119-122 | Anonymous insert into the shared `barcoded_products` table with the public anon key. Anyone can add rows that every barcode lookup returns. RLS state unknown. | `rules/supabase-rls.sql` | Open, decision |
+| SEC-04 | Medium | useCustomFood.js:119-122 | Anonymous insert into the shared `barcoded_products` table with the public anon key. Anyone can add rows that every barcode lookup returns. RLS state unknown. | `rules/supabase-rls.sql` | Fixed 2026-10-11: applied in Supabase, checked with `scripts/verify-rls.js` |
 | SEC-05 | Medium (unverified) | no rules in repo; ProfileScreen.js:106-112 | Firestore and Storage access control exists only in the console, which I could not see. | `rules/firestore.rules`, `rules/storage.rules` | Open, deploy decision. Uploads send a content type since 3ad9e21. |
 | SEC-06 | Medium | AuthContext.js:74 | Logout removed only `auth_token`. The splits cache and both recent-search keys are device-wide, so the next account saw the previous user's splits and searches. | Remove them on sign-out | Fixed 6006516 |
 | SEC-07 | Medium | WorkoutService.js:65-118; WorkoutContext.js:61-75; StartWorkout.js:272-281 | `activeWorkout` is device-wide and restored on any sign-in. The `workoutService` singleton also keeps the previous user's workout in memory. The next account inherits it and saves it under its own uid. | Key by uid and reset the singleton on user change | Fixed 2eef841 |

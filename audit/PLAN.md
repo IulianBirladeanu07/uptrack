@@ -16,7 +16,7 @@ This plan is for the next agent working on the October 2026 audit findings. Read
 
 1. **SEC-01:** rotate the Supabase service-role key and delete `SUPABASE_SERVICE_ROLE_KEY` from EAS. Check whether any build or update made between 2025-11-19 and 2026-10-10 had it set.
 2. **SEC-05:** export the current Firestore and Storage rules from the console and compare them with `rules/`. Test in the Rules Playground or the emulator, then deploy. `firestore.rules` denies all writes to `exercises`, so finish SEC-02 first or custom exercises stop working.
-3. **SEC-04:** check whether RLS is on for `non_barcoded_products` and `barcoded_products`. Run `rules/supabase-rls.sql` once the insert decision is made. Its insert policy matches the columns that `transformForBarcodeDB` writes.
+3. **SEC-04:** done on 2026-10-11. RLS and the policies in `rules/supabase-rls.sql` are applied in Supabase and checked with `scripts/verify-rls.js`.
 4. **Builds:** an iOS dev-client or EAS build to confirm HealthKit steps (BUG-26), and an Android build after SEC-12.
 5. **Device checks** for paths that never ran in production:
    - "Create Custom Food" in empty search results (BUG-17).
