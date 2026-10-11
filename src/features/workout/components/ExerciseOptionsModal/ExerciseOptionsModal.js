@@ -19,10 +19,42 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 
+const OptionRow = ({ icon, label, onPress, danger = false }) => (
+    <TouchableOpacity style={styles.option} onPress={onPress} activeOpacity={0.65}>
+        <View style={[styles.iconWrap, { backgroundColor: danger ? colors.faded.error : colors.faded.surface }]}>
+            <Ionicons
+                name={icon}
+                size={normalize(16)}
+                color={danger ? colors.accent.error : colors.text.secondary}
+            />
+        </View>
+        <Text style={[styles.optionLabel, danger && styles.optionLabelDanger]}>{label}</Text>
+    </TouchableOpacity>
+);
+
+const MoveButton = ({ icon, onPress, disabled, label }) => (
+    <TouchableOpacity
+        style={[styles.moveButton, disabled && styles.moveButtonDisabled]}
+        onPress={onPress}
+        disabled={disabled}
+        activeOpacity={0.65}
+        hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+        accessibilityLabel={label}
+    >
+        <Ionicons
+            name={icon}
+            size={normalize(16)}
+            color={disabled ? colors.text.quaternary : colors.text.primary}
+        />
+    </TouchableOpacity>
+);
+
 const ExerciseOptionsModal = ({
     visible,
     onClose,
     exerciseName,
+    position = 1,
+    count = 1,
     onReplace,
     onDelete,
     onAddNote,
@@ -89,78 +121,59 @@ const ExerciseOptionsModal = ({
                         <Text style={styles.title} numberOfLines={1}>
                             {exerciseName}
                         </Text>
+                        {count > 1 && (
+                            <Text style={styles.subtitle}>
+                                Exercise {position} of {count}
+                            </Text>
+                        )}
 
-                        <TouchableOpacity
-                            style={styles.option}
-                            onPress={() => handleAction(onReplace)}
-                            activeOpacity={0.65}
-                        >
-                            <View style={[styles.iconWrap, { backgroundColor: colors.faded.primary }]}>
-                                <Ionicons name="swap-horizontal-outline" size={normalize(16)} color={colors.accent.primary} />
-                            </View>
-                            <Text style={styles.optionLabel}>Replace Exercise</Text>
-                        </TouchableOpacity>
-
-                        <View style={styles.divider} />
-
-                        <TouchableOpacity
-                            style={styles.option}
+                        <OptionRow
+                            icon="create-outline"
+                            label="Add Note"
                             onPress={() => handleAction(onAddNote)}
-                            activeOpacity={0.65}
-                        >
-                            <View style={[styles.iconWrap, { backgroundColor: colors.faded.cyanDark }]}>
-                                <Ionicons name="create-outline" size={normalize(16)} color={colors.accent.cyan} />
-                            </View>
-                            <Text style={styles.optionLabel}>Add Note</Text>
-                        </TouchableOpacity>
-
+                        />
                         <View style={styles.divider} />
+                        <OptionRow
+                            icon="swap-horizontal-outline"
+                            label="Replace Exercise"
+                            onPress={() => handleAction(onReplace)}
+                        />
 
-                        <TouchableOpacity
-                            style={styles.option}
-                            onPress={() => handleAction(onDelete)}
-                            activeOpacity={0.65}
-                        >
-                            <View style={[styles.iconWrap, { backgroundColor: colors.faded.error }]}>
-                                <Ionicons name="trash-outline" size={normalize(16)} color={colors.accent.error} />
-                            </View>
-                            <Text style={[styles.optionLabel, styles.optionLabelDanger]}>Delete Exercise</Text>
-                        </TouchableOpacity>
-
-                        {(canMoveUp || canMoveDown) && (
+                        {count > 1 && (
                             <>
-                                <View style={styles.sectionDivider} />
-                                <View style={styles.moveRow}>
-                                    <TouchableOpacity
-                                        style={styles.moveOption}
-                                        onPress={() => canMoveUp && handleAction(onMoveUp)}
-                                        activeOpacity={canMoveUp ? 0.65 : 1}
+                                <View style={styles.divider} />
+                                <View style={styles.option}>
+                                    <View style={[styles.iconWrap, { backgroundColor: colors.faded.surface }]}>
+                                        <Ionicons
+                                            name="swap-vertical-outline"
+                                            size={normalize(16)}
+                                            color={colors.text.secondary}
+                                        />
+                                    </View>
+                                    <Text style={[styles.optionLabel, styles.moveTitle]}>Reorder</Text>
+                                    <MoveButton
+                                        icon="arrow-up-outline"
+                                        label="Move up"
+                                        onPress={onMoveUp}
                                         disabled={!canMoveUp}
-                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                    >
-                                        <View style={[styles.iconWrap, styles.iconWrapSmall, { backgroundColor: colors.faded.surface }]}>
-                                            <Ionicons name="arrow-up-outline" size={normalize(14)} color={canMoveUp ? colors.text.secondary : colors.text.quaternary} />
-                                        </View>
-                                        <Text style={[styles.optionLabelSmall, !canMoveUp && styles.optionLabelDisabled]}>Move Up</Text>
-                                    </TouchableOpacity>
-
-                                    <View style={styles.moveDivider} />
-
-                                    <TouchableOpacity
-                                        style={styles.moveOption}
-                                        onPress={() => canMoveDown && handleAction(onMoveDown)}
-                                        activeOpacity={canMoveDown ? 0.65 : 1}
+                                    />
+                                    <MoveButton
+                                        icon="arrow-down-outline"
+                                        label="Move down"
+                                        onPress={onMoveDown}
                                         disabled={!canMoveDown}
-                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                    >
-                                        <View style={[styles.iconWrap, styles.iconWrapSmall, { backgroundColor: colors.faded.surface }]}>
-                                            <Ionicons name="arrow-down-outline" size={normalize(14)} color={canMoveDown ? colors.text.secondary : colors.text.quaternary} />
-                                        </View>
-                                        <Text style={[styles.optionLabelSmall, !canMoveDown && styles.optionLabelDisabled]}>Move Down</Text>
-                                    </TouchableOpacity>
+                                    />
                                 </View>
                             </>
                         )}
+
+                        <View style={styles.sectionDivider} />
+                        <OptionRow
+                            icon="trash-outline"
+                            label="Delete Exercise"
+                            onPress={() => handleAction(onDelete)}
+                            danger
+                        />
                     </Animated.View>
                 </Pressable>
             </Pressable>
@@ -201,48 +214,19 @@ const styles = StyleSheet.create({
         color: colors.text.tertiary,
         letterSpacing: 0.4,
         textTransform: 'uppercase',
-        marginBottom: spacing[1],
         paddingHorizontal: spacing[1],
+    },
+    subtitle: {
+        fontSize: fontSize[12],
+        color: colors.text.quaternary,
+        paddingHorizontal: spacing[1],
+        marginTop: spacing[1],
     },
     option: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: spacing[3],
         gap: spacing[3],
-    },
-    moveRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: spacing[3],
-        gap: spacing[4],
-    },
-    sectionDivider: {
-        height: 1,
-        backgroundColor: colors.border.light,
-        marginTop: spacing[1],
-    },
-    moveOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing[2],
-    },
-    moveDivider: {
-        width: 1,
-        height: spacing[6],
-        backgroundColor: colors.border.light,
-    },
-    iconWrapSmall: {
-        width: spacing[7],
-        height: spacing[7],
-    },
-    optionLabelSmall: {
-        fontSize: fontSize[14],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.primary,
-    },
-    optionLabelDisabled: {
-        color: colors.text.quaternary,
     },
     iconWrap: {
         width: spacing[8],
@@ -263,6 +247,24 @@ const styles = StyleSheet.create({
         height: 1,
         backgroundColor: colors.border.light,
         marginLeft: spacing[11],
+    },
+    moveTitle: {
+        flex: 1,
+    },
+    moveButton: {
+        width: spacing[9],
+        height: spacing[9],
+        borderRadius: radius[3],
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.faded.surface,
+    },
+    moveButtonDisabled: {
+        opacity: 0.4,
+    },
+    sectionDivider: {
+        height: 1,
+        backgroundColor: colors.border.light,
     },
 });
 

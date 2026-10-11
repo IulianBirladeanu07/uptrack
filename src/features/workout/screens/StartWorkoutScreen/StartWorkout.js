@@ -8,7 +8,6 @@ import ExerciseOptionsModal from '../../components/ExerciseOptionsModal/Exercise
 import { sendWorkoutDataToFirestore } from '../../handlers/WorkoutHandler';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { workoutService, createEmptySet } from '../../services/WorkoutService';
-import { workoutNotifications } from '../../services/WorkoutNotificationService';
 import { workoutTimer, useWorkoutTimer } from '../../services/WorkoutTimerService';
 import styles from './StartWorkoutStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,22 +44,6 @@ const StartWorkout = ({ route, navigation }) => {
     const isKeyboardVisibleRef = useRef(false);
     const pendingReplaceRef = useRef(null);
 
-    const updateNotification = useCallback(() => {
-        if (exerciseData.length === 0) return;
-        const current = exerciseData[0];
-        const completedSets = current.sets.filter(s => s.isValidated).length;
-        workoutNotifications.update(
-            current.exerciseName,
-            completedSets + 1,
-            current.sets.length,
-            workoutTimer.getFormattedTime()
-        );
-    }, [exerciseData]);
-
-    useEffect(() => {
-        updateNotification();
-    }, [updateNotification]);
-
     const openAnimatedMessage = useCallback((message) => {
         setAnimatedMessage(message);
         setTimeout(() => setAnimatedMessage(''), 2000);
@@ -90,17 +73,29 @@ const StartWorkout = ({ route, navigation }) => {
 
     const handleMenuDelete = useCallback(() => {
         if (!activeExerciseMenu) return;
-        workoutService.deleteExercise(activeExerciseMenu.exerciseIndex);
+        const { exerciseIndex } = activeExerciseMenu;
+        const target = workoutService.getExerciseData()[exerciseIndex];
+        const remove = () => workoutService.deleteExercise(exerciseIndex);
+        if (!target?.sets.some(s => s.isValidated)) {
+            remove();
+            return;
+        }
+        Alert.alert('Delete Exercise', `Delete ${target.exerciseName} and its logged sets?`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: remove },
+        ]);
     }, [activeExerciseMenu]);
 
     const handleMenuMoveUp = useCallback(() => {
         if (!activeExerciseMenu) return;
         workoutService.moveExercise(activeExerciseMenu.exerciseIndex, -1);
+        setActiveExerciseMenu(prev => (prev ? { ...prev, exerciseIndex: prev.exerciseIndex - 1 } : prev));
     }, [activeExerciseMenu]);
 
     const handleMenuMoveDown = useCallback(() => {
         if (!activeExerciseMenu) return;
         workoutService.moveExercise(activeExerciseMenu.exerciseIndex, 1);
+        setActiveExerciseMenu(prev => (prev ? { ...prev, exerciseIndex: prev.exerciseIndex + 1 } : prev));
     }, [activeExerciseMenu]);
 
     const canMoveActiveExerciseUp = !!activeExerciseMenu && activeExerciseMenu.exerciseIndex > 0;
@@ -240,12 +235,13 @@ const StartWorkout = ({ route, navigation }) => {
         }
 
         const lastSets = await workoutService.fetchLastSets(newName);
+        const replaced = currentData[targetIndex];
         const newExercise = {
             exerciseName: newName,
             imageURL: incoming.imageURL || '',
-            sets: [createEmptySet()],
+            sets: replaced.sets.map(() => createEmptySet()),
             lastWorkoutSets: lastSets,
-            repRange: incoming.repRange || '',
+            repRange: incoming.repRange || replaced.repRange || '',
         };
 
         workoutService.replaceExercise(targetIndex, newExercise);
@@ -281,7 +277,6 @@ const StartWorkout = ({ route, navigation }) => {
                 }
                 setIsInitializing(false);
             }
-            workoutNotifications.init();
             refreshAllData();
         };
 
@@ -319,7 +314,6 @@ const StartWorkout = ({ route, navigation }) => {
     const confirmExit = useCallback(async () => {
         workoutTimer.stop();
         await workoutService.clearWorkout();
-        await workoutNotifications.clear();
         await refreshAllData(true);
         navigation.goBack();
     }, [navigation, refreshAllData]);
@@ -348,8 +342,7 @@ const StartWorkout = ({ route, navigation }) => {
             }
             workoutTimer.stop();
             await workoutService.clearWorkout();
-            await workoutNotifications.clear();
-            await refreshAllData(true);
+                await refreshAllData(true);
             isFinishingWorkout.current = false;
         } catch (error) {
             console.error('Error finishing workout:', error.message);
@@ -600,6 +593,8 @@ const StartWorkout = ({ route, navigation }) => {
                 visible={!!activeExerciseMenu}
                 onClose={handleMenuClose}
                 exerciseName={activeExerciseMenu?.exercise?.exerciseName || ''}
+                position={(activeExerciseMenu?.exerciseIndex ?? 0) + 1}
+                count={exerciseData.length}
                 onReplace={handleMenuReplace}
                 onDelete={handleMenuDelete}
                 onAddNote={handleMenuAddNote}
