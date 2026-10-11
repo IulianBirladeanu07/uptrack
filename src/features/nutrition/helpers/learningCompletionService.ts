@@ -1,4 +1,5 @@
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { userConverter } from '../../../shared/firestore/converters';
 import { db } from '../../auth/services/firebaseConfigService';
 import {
   calculatePlanAdjustment,
@@ -114,9 +115,9 @@ export const snapshotPreviousWeek = async (
   };
 
   try {
-    const userDocRef = doc(db, 'users', userId);
+    const userDocRef = doc(db, 'users', userId).withConverter(userConverter);
     const userDoc    = await getDoc(userDocRef);
-    const stored     = userDoc.data() as UserData | undefined;
+    const stored     = userDoc.data();
     const existing: WeeklySnapshot[] = stored?.weeklyNutrition || [];
     const st = weekStepStats(stored?.dailySteps, weekStart, k => cacheSteps.get(k), todayKey);
     snapshot.daysLoggedSteps = st.days;

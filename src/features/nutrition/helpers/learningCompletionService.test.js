@@ -1,5 +1,9 @@
 jest.mock('firebase/firestore', () => ({
-  doc: jest.fn((db, collection, id) => ({ db, collection, id })),
+  doc: jest.fn((db, collection, id) => {
+    const ref = { db, collection, id };
+    ref.withConverter = () => ref;
+    return ref;
+  }),
   setDoc: jest.fn(() => Promise.resolve()),
   getDoc: jest.fn(),
 }));

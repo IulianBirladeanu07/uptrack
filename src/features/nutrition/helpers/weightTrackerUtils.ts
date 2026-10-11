@@ -1,4 +1,5 @@
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { userConverter } from '../../../shared/firestore/converters';
 import { Animated } from 'react-native';
 import { db } from '../../auth/services/firebaseConfigService';
 import {
@@ -87,10 +88,10 @@ export const loadUserWeightData = async (
   setGoalSwitchDate: Setter<string | null>,
 ): Promise<void> => {
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId));
+    const userDoc = await getDoc(doc(db, 'users', userId).withConverter(userConverter));
     if (!userDoc.exists()) return;
 
-    const data      = userDoc.data() as UserData;
+    const data      = userDoc.data()!;
     const weightIns = data.weightIns || [];
 
     setCurrentWeight(data.currentWeight);
@@ -148,9 +149,9 @@ export const handleSaveLogic = async (
     const weekStartDate = getLocalWeekStart(today);
     const dayKey        = getDayKey(today);
 
-    const userDocRef  = doc(db, 'users', userId);
+    const userDocRef  = doc(db, 'users', userId).withConverter(userConverter);
     const userDoc     = await getDoc(userDocRef);
-    const currentData = (userDoc.exists() ? userDoc.data() : {}) as UserData;
+    const currentData = userDoc.exists() ? userDoc.data()! : ({} as UserData);
 
     const weightIns: WeightInWeek[] = Array.isArray(currentData.weightIns) ? [...currentData.weightIns] : [];
 

@@ -1,4 +1,5 @@
 import { doc, getDoc } from 'firebase/firestore';
+import { userConverter } from '../../../shared/firestore/converters';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../auth/services/firebaseConfigService';
 import type { DateInput, UserData, WeightDisplayData } from '../../../shared/types';
@@ -59,11 +60,11 @@ export class WeightService {
                 }
             }
 
-            const userDocRef = doc(db, 'users', userId);
+            const userDocRef = doc(db, 'users', userId).withConverter(userConverter);
             const userDoc = await getDoc(userDocRef);
 
             if (userDoc.exists()) {
-                const userData = userDoc.data() as UserData;
+                const userData = userDoc.data();
                 memoryCache.set(userId, userData);
                 await AsyncStorage.setItem(cacheKey, JSON.stringify(userData));
                 return userData;

@@ -2,6 +2,7 @@ import { createContext, useState, useEffect, useCallback, useMemo } from 'react'
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { userConverter } from '../../../shared/firestore/converters';
 import { auth, db } from '../services/firebaseConfigService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { deriveStartWeight } from '../../nutrition/helpers/learningCompletionService';
@@ -63,8 +64,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const user = auth.currentUser;
       if (!user) return undefined;
 
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() || {});
+      const userDoc = await getDoc(doc(db, 'users', user.uid).withConverter(userConverter));
+      let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() ?? {});
       data = await applyProfileDefaults(user.uid, data);
       setUserData(data);
       return data;
@@ -78,8 +79,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (user && !needsEmailVerification(user)) {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() || {});
+          const userDoc = await getDoc(doc(db, 'users', user.uid).withConverter(userConverter));
+          let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() ?? {});
           data = await applyProfileDefaults(user.uid, data);
           data = await syncAuthEmail(user.uid, user.email, data);
 

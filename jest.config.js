@@ -11,6 +11,7 @@ module.exports = {
     '<rootDir>/src/features/progress/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/workout/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/workout/services/**/*.test.{js,ts}',
+    '<rootDir>/src/shared/firestore/**/*.test.{js,ts}',
   ],
   moduleFileExtensions: ['js', 'ts', 'json'],
   transform: {

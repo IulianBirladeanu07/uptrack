@@ -1,6 +1,7 @@
 import { doc, setDoc, getDoc, updateDoc, Timestamp, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
 import { formatDate } from '../utils/dateUtils';
+import { mealDayConverter } from '../../../shared/firestore/converters';
 import type { LoggedFood, MealDayDoc, MealGroup, MealType, MealsByType } from '../../../shared/types';
 
 type AddUndoSpec = { id: string; previous: LoggedFood | null };
@@ -52,7 +53,10 @@ export const applyAddUndo = (currentFoods: LoggedFood[], undoSpecs: AddUndoSpec[
     return result;
 };
 
-const dayDocRef = (uid: string, date: string) => doc(db, 'meals', `${uid}_${date}`);
+const dayDocRef = (uid: string, date: string) =>
+    doc(db, 'meals', `${uid}_${date}`).withConverter(mealDayConverter);
+
+const mealsCollection = () => collection(db, 'meals').withConverter(mealDayConverter);
 
 export const writeMealType = async (uid: string, mealType: MealType, foods: LoggedFood[], date: string): Promise<LoggedFood[]> => {
     const ref  = dayDocRef(uid, date);
@@ -73,7 +77,7 @@ export const writeMealType = async (uid: string, mealType: MealType, foods: Logg
 export const fetchMealsForDate = async (uid: string, date: string): Promise<MealsByType> => {
     const snap = await getDoc(dayDocRef(uid, date));
     if (!snap.exists()) return { breakfast: [], lunch: [], dinner: [], snacks: [] };
-    const data = snap.data() as MealDayDoc;
+    const data = snap.data()!;
     return {
         breakfast: (data.breakfast || []).map(f => ({ ...f, mealType: 'breakfast', timestamp: data.timestamp })),
         lunch:     (data.lunch     || []).map(f => ({ ...f, mealType: 'lunch',     timestamp: data.timestamp })),
@@ -84,7 +88,7 @@ export const fetchMealsForDate = async (uid: string, date: string): Promise<Meal
 
 export const fetchRawMealsForDate = async (uid: string, date: string): Promise<MealsByType> => {
     const snap = await getDoc(dayDocRef(uid, date));
-    const data: Partial<MealsByType> = snap.exists() ? (snap.data() as MealDayDoc) : {};
+    const data: Partial<MealsByType> = snap.exists() ? (snap.data() ?? {}) : {};
     return {
         breakfast: data.breakfast || [],
         lunch:     data.lunch     || [],
@@ -99,7 +103,7 @@ export const fetchLast30DaysMeals = async (uid: string): Promise<MealGroup[]> =>
     const dateStr = formatDate(thirtyDaysAgo);
 
     const q = query(
-        collection(db, 'meals'),
+        mealsCollection(),
         where('uid', '==', uid),
         where('date', '>=', dateStr),
         orderBy('date', 'desc')
@@ -107,7 +111,7 @@ export const fetchLast30DaysMeals = async (uid: string): Promise<MealGroup[]> =>
 
     const snap = await getDocs(q);
     return snap.docs.flatMap(d => {
-        const data = d.data() as MealDayDoc;
+        const data = d.data();
         return MEAL_TYPES
             .filter(mealType => (data[mealType] || []).length > 0)
             .map(mealType => ({ date: data.date, mealType, foods: data[mealType] ?? [] }));
@@ -119,7 +123,7 @@ export const deleteMealItem = async (uid: string, mealType: MealType, foodId: st
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error('Meal document does not exist');
 
-    const updated = ((snap.data() as MealDayDoc)[mealType] || []).filter(f => f.id !== foodId);
+    const updated = ((snap.data()!)[mealType] || []).filter(f => f.id !== foodId);
     await updateDoc(ref, { [mealType]: updated });
     return updated;
 };
@@ -135,7 +139,7 @@ export const updateMealItem = async (
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error('Meal document does not exist');
 
-    const updated = ((snap.data() as MealDayDoc)[mealType] || []).map(f =>
+    const updated = ((snap.data()!)[mealType] || []).map(f =>
         f.id === foodId ? { ...updatedFood, id: foodId, usageCount: f.usageCount || 1 } : f
     );
     await updateDoc(ref, { [mealType]: updated });
