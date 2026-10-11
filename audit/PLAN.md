@@ -14,7 +14,7 @@ This plan is for the next agent working on the October 2026 audit findings. Read
 
 ## Owner tasks
 
-1. **SEC-01:** rotate the Supabase service-role key and delete `SUPABASE_SERVICE_ROLE_KEY` from EAS. Check whether any build or update made between 2025-11-19 and 2026-10-10 had it set.
+1. **SEC-01:** done on 2026-10-11. The app uses a publishable key, the legacy API keys are disabled, the legacy JWT secret is revoked and `SUPABASE_SERVICE_ROLE_KEY` is deleted from EAS.
 2. **SEC-05:** export the current Firestore and Storage rules from the console and compare them with `rules/`. Test in the Rules Playground or the emulator, then deploy. `firestore.rules` denies all writes to `exercises`, so finish SEC-02 first or custom exercises stop working.
 3. **SEC-04:** done on 2026-10-11. RLS and the policies in `rules/supabase-rls.sql` are applied in Supabase and checked with `scripts/verify-rls.js`.
 4. **Builds:** an iOS dev-client or EAS build to confirm HealthKit steps (BUG-26), and an Android build after SEC-12.
@@ -57,7 +57,6 @@ flowchart TB
 
 - Boxes are tasks. An arrow means "do this first".
 - "Owner" boxes are console, build or device work that an agent cannot do.
-- SEC-01 (rotate the key) depends on nothing. Do it now.
 
 ## Tasks, in priority order
 
