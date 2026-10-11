@@ -1,14 +1,16 @@
-export const UNIT_OPTIONS = [
+import type { ProfileOption } from '../../../shared/types';
+
+export const UNIT_OPTIONS: ProfileOption[] = [
   { label: 'Metric (kg, cm)', value: 'metric' },
   { label: 'Imperial (lbs, ft/in)', value: 'imperial' },
 ];
 
-export const GENDER_OPTIONS = [
+export const GENDER_OPTIONS: ProfileOption[] = [
   { label: 'Male', value: 'male' },
   { label: 'Female', value: 'female' },
 ];
 
-export const ACTIVITY_OPTIONS = [
+export const ACTIVITY_OPTIONS: ProfileOption[] = [
   { label: 'Sedentary',         value: 'sedentary',         desc: 'Desk job, little movement' },
   { label: 'Lightly Active',    value: 'lightly_active',    desc: '2-3 workouts/week' },
   { label: 'Moderately Active', value: 'moderately_active', desc: '3-4 workouts/week' },
@@ -16,7 +18,7 @@ export const ACTIVITY_OPTIONS = [
   { label: 'Extremely Active',  value: 'extremely_active',  desc: '5-7 workouts/week' },
 ];
 
-export const EXPERIENCE_OPTIONS = [
+export const EXPERIENCE_OPTIONS: ProfileOption[] = [
   { label: 'Novice',       value: 'novice',       desc: '<6 months training' },
   { label: 'Beginner',     value: 'beginner',     desc: '6mo - 2 years' },
   { label: 'Intermediate', value: 'intermediate', desc: '2-5 years' },
@@ -24,7 +26,7 @@ export const EXPERIENCE_OPTIONS = [
   { label: 'Elite',        value: 'elite',        desc: '7+ years' },
 ];
 
-export const STRESS_OPTIONS = [
+export const STRESS_OPTIONS: ProfileOption[] = [
   { label: 'Low',      value: 'low',      desc: 'Relaxed, minimal stress' },
   { label: 'Moderate', value: 'moderate', desc: 'Occasional work stress' },
   { label: 'High',     value: 'high',     desc: 'Constant pressure daily' },

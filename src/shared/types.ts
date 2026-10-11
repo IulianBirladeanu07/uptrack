@@ -306,3 +306,71 @@ export type BarcodedProduct = {
   category?: string | null;
   last_updated?: string;
 };
+
+export type ProfileOption = {
+  label: string;
+  value: string;
+  desc?: string;
+};
+
+export type OnboardingFormData = {
+  unitSystem?: string;
+  gender?: string;
+  stressLevel?: string;
+  experienceLevel?: string;
+  activityLevel?: string;
+  age?: number;
+  height?: number;
+  currentWeight?: number;
+  targetWeight?: number;
+  avgDailySteps?: number;
+  height_feet?: number;
+  height_inches?: number;
+  currentWeight_lbs?: number;
+  targetWeight_lbs?: number;
+};
+
+export type OnboardingChange = (key: string, value: string | number) => void;
+
+export type UnitConfig = {
+  unit: string;
+  min: number;
+  max: number;
+  step: number;
+  decimals?: number;
+};
+
+type OnboardingFieldBase = {
+  title: string;
+  description: string;
+  skipIf?: (formData: OnboardingFormData) => boolean;
+};
+
+export type PickerField = OnboardingFieldBase & {
+  type: 'picker';
+  key: 'unitSystem' | 'gender' | 'stressLevel' | 'experienceLevel' | 'activityLevel';
+  optionsKey: 'UNIT_OPTIONS' | 'GENDER_OPTIONS' | 'ACTIVITY_OPTIONS' | 'EXPERIENCE_OPTIONS' | 'STRESS_OPTIONS';
+};
+
+export type StepperField = OnboardingFieldBase & UnitConfig & {
+  type: 'stepper';
+  key: 'age' | 'avgDailySteps';
+};
+
+export type HeightField = OnboardingFieldBase & {
+  type: 'unit_input';
+  key: 'height';
+  metric: UnitConfig;
+  imperial: { feet: UnitConfig; inches: UnitConfig };
+  convertToMetric: boolean;
+};
+
+export type WeightField = OnboardingFieldBase & {
+  type: 'unit_input';
+  key: 'currentWeight' | 'targetWeight';
+  metric: UnitConfig;
+  imperial: UnitConfig;
+  convertToMetric: boolean;
+};
+
+export type OnboardingField = PickerField | StepperField | HeightField | WeightField;

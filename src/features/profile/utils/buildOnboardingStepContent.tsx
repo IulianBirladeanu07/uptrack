@@ -2,23 +2,24 @@ import { View } from 'react-native';
 import { OptionRow, NumberStepper } from '../../../shared/components/FormControls/FormControls';
 import * as ProfileOptions from './profileOptions';
 import onboardingFieldConfig from './onboardingFieldConfig';
+import type { HeightField, Numeric, OnboardingChange, OnboardingField, OnboardingFormData, PickerField, StepperField, WeightField } from '../../../shared/types';
 
-const convertLbsToKg = (lbs) => parseFloat((parseFloat(lbs) * 0.453592).toFixed(1));
-const convertFtInToCm = (feet, inches) => {
-  const totalInches = (parseFloat(feet) * 12) + parseFloat(inches || 0);
+const convertLbsToKg = (lbs: Numeric) => parseFloat((parseFloat(String(lbs)) * 0.453592).toFixed(1));
+const convertFtInToCm = (feet: Numeric, inches: Numeric) => {
+  const totalInches = (parseFloat(String(feet)) * 12) + parseFloat(String(inches || 0));
   return parseFloat((totalInches * 2.54).toFixed(1));
 };
-const convertKgToLbs = (kg) => parseFloat((parseFloat(kg) / 0.453592).toFixed(1));
-const convertCmToFtIn = (cm) => {
-  const totalInches = parseFloat(cm) / 2.54;
+const convertKgToLbs = (kg: Numeric) => parseFloat((parseFloat(String(kg)) / 0.453592).toFixed(1));
+const convertCmToFtIn = (cm: Numeric) => {
+  const totalInches = parseFloat(String(cm)) / 2.54;
   const feet = Math.floor(totalInches / 12);
   const inches = Math.round(totalInches - feet * 12);
   return { feet, inches };
 };
 
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-const renderPicker = (field, formData, handleChange) => {
+const renderPicker = (field: PickerField, formData: OnboardingFormData, handleChange: OnboardingChange) => {
   const options = ProfileOptions[field.optionsKey];
   return (
     <View>
@@ -27,14 +28,14 @@ const renderPicker = (field, formData, handleChange) => {
           key={opt.value}
           option={opt}
           selected={formData[field.key] === opt.value}
-          onPress={(v) => handleChange(field.key, v)}
+          onPress={(v: string) => handleChange(field.key, v)}
         />
       ))}
     </View>
   );
 };
 
-const renderStepper = (field, formData, handleChange) => {
+const renderStepper = (field: StepperField, formData: OnboardingFormData, handleChange: OnboardingChange) => {
   const value = formData[field.key] ?? field.min;
   const decimals = field.decimals || 0;
   return (
@@ -48,36 +49,35 @@ const renderStepper = (field, formData, handleChange) => {
   );
 };
 
-const renderUnitInput = (field, formData, handleChange) => {
+const renderUnitInput = (field: HeightField | WeightField, formData: OnboardingFormData, handleChange: OnboardingChange) => {
   const unitSystem = formData.unitSystem || 'metric';
-  const { key } = field;
 
   if (unitSystem === 'metric') {
     const cfg = field.metric;
-    const value = formData[key] ?? cfg.min;
+    const value = formData[field.key] ?? cfg.min;
     const decimals = cfg.decimals || 0;
     return (
       <NumberStepper
         label={field.title}
         value={decimals ? value.toFixed(decimals) : value}
         unit={cfg.unit}
-        onDecrement={() => handleChange(key, clamp(parseFloat((value - cfg.step).toFixed(decimals)), cfg.min, cfg.max))}
-        onIncrement={() => handleChange(key, clamp(parseFloat((value + cfg.step).toFixed(decimals)), cfg.min, cfg.max))}
+        onDecrement={() => handleChange(field.key, clamp(parseFloat((value - cfg.step).toFixed(decimals)), cfg.min, cfg.max))}
+        onIncrement={() => handleChange(field.key, clamp(parseFloat((value + cfg.step).toFixed(decimals)), cfg.min, cfg.max))}
       />
     );
   }
 
-  if (key === 'height') {
+  if (field.key === 'height') {
     const feetCfg   = field.imperial.feet;
     const inchesCfg = field.imperial.inches;
-    const derivedHeight = formData[key] != null ? convertCmToFtIn(formData[key]) : { feet: 5, inches: 6 };
-    const feet   = formData[`${key}_feet`]   ?? derivedHeight.feet;
-    const inches = formData[`${key}_inches`] ?? derivedHeight.inches;
+    const derivedHeight = formData.height != null ? convertCmToFtIn(formData.height) : { feet: 5, inches: 6 };
+    const feet   = formData.height_feet   ?? derivedHeight.feet;
+    const inches = formData.height_inches ?? derivedHeight.inches;
 
-    const updateHeight = (nextFeet, nextInches) => {
-      handleChange(`${key}_feet`, nextFeet);
-      handleChange(`${key}_inches`, nextInches);
-      if (field.convertToMetric) handleChange(key, convertFtInToCm(nextFeet, nextInches));
+    const updateHeight = (nextFeet: number, nextInches: number) => {
+      handleChange('height_feet', nextFeet);
+      handleChange('height_inches', nextInches);
+      if (field.convertToMetric) handleChange(field.key, convertFtInToCm(nextFeet, nextInches));
     };
 
     return (
@@ -101,11 +101,13 @@ const renderUnitInput = (field, formData, handleChange) => {
   }
 
   const cfg = field.imperial;
-  const derivedLbs = formData[key] != null ? convertKgToLbs(formData[key]) : 165;
-  const lbs = formData[`${key}_lbs`] ?? derivedLbs;
-  const updateWeight = (nextLbs) => {
-    handleChange(`${key}_lbs`, nextLbs);
-    if (field.convertToMetric) handleChange(key, convertLbsToKg(nextLbs));
+  const kg = formData[field.key];
+  const derivedLbs = kg != null ? convertKgToLbs(kg) : 165;
+  const lbsKey = `${field.key}_lbs` as const;
+  const lbs = formData[lbsKey] ?? derivedLbs;
+  const updateWeight = (nextLbs: number) => {
+    handleChange(lbsKey, nextLbs);
+    if (field.convertToMetric) handleChange(field.key, convertLbsToKg(nextLbs));
   };
 
   return (
@@ -119,14 +121,14 @@ const renderUnitInput = (field, formData, handleChange) => {
   );
 };
 
-const renderField = (field, formData, handleChange) => {
+const renderField = (field: OnboardingField, formData: OnboardingFormData, handleChange: OnboardingChange) => {
   if (field.type === 'picker')     return renderPicker(field, formData, handleChange);
   if (field.type === 'stepper')    return renderStepper(field, formData, handleChange);
   if (field.type === 'unit_input') return renderUnitInput(field, formData, handleChange);
   return null;
 };
 
-const buildOnboardingStepContent = (formData, handleChange) =>
+const buildOnboardingStepContent = (formData: OnboardingFormData, handleChange: OnboardingChange) =>
   onboardingFieldConfig
     .filter(field => !(field.skipIf && field.skipIf(formData)))
     .map(field => ({

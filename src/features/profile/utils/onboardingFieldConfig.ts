@@ -1,4 +1,6 @@
-const onboardingFieldConfig = [
+import type { OnboardingField } from '../../../shared/types';
+
+const onboardingFieldConfig: OnboardingField[] = [
   {
     key: 'unitSystem',
     type: 'picker',
