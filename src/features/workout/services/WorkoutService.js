@@ -14,6 +14,7 @@ export const createEmptySet = () => ({
 
 class WorkoutService {
     constructor() {
+        this.uid = null;
         this.listeners = [];
         this.exerciseData = [];
         this.batchingUpdates = false;
@@ -23,6 +24,41 @@ class WorkoutService {
         this.lastSetCache = new Map();
         this._persistTimeout = null;
         this._notifyTimeout = null;
+    }
+
+    storageKey() {
+        return this.uid ? `activeWorkout_${this.uid}` : null;
+    }
+
+    async setUser(uid) {
+        const next = uid || null;
+        if (next === this.uid) return;
+
+        let flush = null;
+        if (this._persistTimeout) {
+            clearTimeout(this._persistTimeout);
+            this._persistTimeout = null;
+            flush = this.persistWorkout();
+        }
+        if (this._notifyTimeout) {
+            clearTimeout(this._notifyTimeout);
+            this._notifyTimeout = null;
+        }
+
+        this.uid = next;
+        this.exerciseData = [];
+        this.workoutStartTime = null;
+        this.workoutNote = '';
+        this.workoutTemplateName = '';
+        this.lastSetCache.clear();
+        this.listeners.forEach(listener => listener([]));
+
+        try {
+            await flush;
+            await AsyncStorage.removeItem('activeWorkout');
+        } catch (error) {
+            console.error('Failed to switch workout user:', error);
+        }
     }
 
     subscribe(listener) {
@@ -63,8 +99,10 @@ class WorkoutService {
     }
 
     async persistWorkout() {
+        const key = this.storageKey();
+        if (!key) return;
         if (this.exerciseData.length === 0) {
-            await AsyncStorage.removeItem('activeWorkout');
+            await AsyncStorage.removeItem(key);
             return;
         }
         const workoutState = {
@@ -75,13 +113,15 @@ class WorkoutService {
             isActive: true,
             lastSaved: Date.now(),
         };
-        await AsyncStorage.setItem('activeWorkout', JSON.stringify(workoutState));
+        await AsyncStorage.setItem(key, JSON.stringify(workoutState));
     }
 
     async restoreWorkout() {
+        const key = this.storageKey();
+        if (!key) return null;
         try {
-            const saved = await AsyncStorage.getItem('activeWorkout');
-            if (!saved) return null;
+            const saved = await AsyncStorage.getItem(key);
+            if (!saved || key !== this.storageKey()) return null;
             const state = JSON.parse(saved);
             if (state.isActive) {
                 this.exerciseData = (state.exercises || []).map(ex => ({
@@ -114,7 +154,8 @@ class WorkoutService {
         this.workoutNote = '';
         this.workoutTemplateName = '';
         this.lastSetCache.clear();
-        await AsyncStorage.removeItem('activeWorkout');
+        const key = this.storageKey();
+        if (key) await AsyncStorage.removeItem(key);
         this.notifyListeners();
     }
 

@@ -59,7 +59,8 @@ export const WorkoutProvider = ({ children }) => {
     }, []);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(getAuth(), (user) => {
+        const unsubscribe = onAuthStateChanged(getAuth(), async (user) => {
+            await workoutService.setUser(user ? user.uid : null);
             if (user) {
                 fetchWorkoutHistory();
                 fetchTemplates();
