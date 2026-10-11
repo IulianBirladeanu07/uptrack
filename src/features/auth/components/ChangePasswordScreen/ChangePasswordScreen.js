@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import { passwordChangeError } from '../../utils/passwordChangeError';
 
 const ChangePasswordScreen = ({ navigation }) => {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -65,7 +66,7 @@ const ChangePasswordScreen = ({ navigation }) => {
         throw new Error('User not found.');
       }
     } catch (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', passwordChangeError(error.code));
     } finally {
       setLoading(false);
     }

@@ -423,6 +423,24 @@ const ProfileScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {isPasswordAccount && (
+          <>
+            <SectionTitle>Security</SectionTitle>
+            <View style={styles.card}>
+              <TouchableOpacity
+                style={styles.stepperRow}
+                onPress={() => navigation.navigate('ChangePassword')}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Change password"
+              >
+                <Text style={styles.stepperLabel}>Change Password</Text>
+                <Ionicons name="chevron-forward" size={spacing.icon} color={colors.text.quaternary} />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
           <MaterialCommunityIcons name="logout" size={spacing.icon} color={colors.accent.error} />
           <Text style={styles.logoutText}>Log Out</Text>
