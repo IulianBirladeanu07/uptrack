@@ -6,6 +6,7 @@ module.exports = {
     '<rootDir>/src/features/profile/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/profile/services/**/*.test.{js,ts}',
     '<rootDir>/src/features/nutrition/helpers/**/*.test.{js,ts}',
+    '<rootDir>/src/features/nutrition/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/nutrition/handlers/**/*.test.{js,ts}',
     '<rootDir>/src/features/nutrition/services/**/*.test.{js,ts}',
     '<rootDir>/src/features/progress/utils/**/*.test.{js,ts}',

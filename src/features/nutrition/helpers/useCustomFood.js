@@ -3,7 +3,7 @@ import { Alert, Keyboard } from 'react-native';
 import { supabase } from '../../../shared/services/supabaseClient';
 import { productCache } from '../utils/productCache';
 import { validateFoodData } from '../utils/customFoodValidators';
-import { formatFoodDataForSubmission, getInitialFoodData, transformForBarcodeDB, transformForCustomFood } from '../utils/customFoodDataUtils';
+import { formatFoodDataForSubmission, getInitialFoodData, passesBarcodedProductsInsertPolicy, transformForBarcodeDB, transformForCustomFood } from '../utils/customFoodDataUtils';
 
 export const useCustomFood = (type, navigation, remainingCalories, barcode = '', meal, selectedDate) => {
     const inputRefs = useRef({});
@@ -117,6 +117,10 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
                 }
                 
                 const foodItem = transformForBarcodeDB(formattedData);
+                if (!passesBarcodedProductsInsertPolicy(foodItem)) {
+                    Alert.alert('Invalid product', 'Barcode or nutrition values do not meet the database rules.');
+                    return;
+                }
                 const { error } = await supabase
                     .from('barcoded_products')
                     .insert([foodItem]);

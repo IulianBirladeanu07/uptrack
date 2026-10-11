@@ -14,7 +14,7 @@ export const validateField = (field, value, type) => {
     
     const isValidBarcode = (val) => {
         if (!val) return false;
-        return /^[0-9]{8}$|^[0-9]{12,14}$/.test(val);
+        return /^[0-9]{8,14}$/.test(val);
     };
     
     switch (field) {
@@ -34,7 +34,7 @@ export const validateField = (field, value, type) => {
       case 'barcode':
         if (type === 'foodWithBarcode') {
           if (!value) return 'Barcode is required';
-          if (!isValidBarcode(value)) return 'Please enter a valid barcode (8, 12, 13, or 14 digits)';
+          if (!isValidBarcode(value)) return 'Please enter a valid barcode (8 to 14 digits)';
         }
         return null;
         

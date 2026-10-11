@@ -96,3 +96,14 @@ export const transformBarcodeDBToFoodDetail = (barcodeData) => ({
     category: barcodeData.category || '',
     isFavorite: false,
 });
+
+export const passesBarcodedProductsInsertPolicy = (item) => {
+    if (!item || typeof item !== 'object') return false;
+    const barcode = String(item.barcode_id ?? '');
+    const name = String(item.product_name ?? '');
+    if (!/^[0-9]{8,14}$/.test(barcode)) return false;
+    if (name.length < 1 || name.length > 200) return false;
+    const nums = [item.calories, item.protein, item.carbohydrates, item.fats];
+    if (nums.some(n => typeof n !== 'number' || Number.isNaN(n) || n < 0)) return false;
+    return true;
+};
