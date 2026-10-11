@@ -66,9 +66,17 @@ const PlanSummaryScreen = () => {
     }
 
     try {
-      await refreshUserData();
+      const data = await refreshUserData();
+      if (data === undefined) {
+        Alert.alert('Error', 'Your plan was saved, but we could not load your profile. Please try again.');
+        setSaving(false);
+        return;
+      }
     } catch (error) {
       console.error('PlanSummaryScreen refresh error:', error);
+      Alert.alert('Error', 'Your plan was saved, but we could not load your profile. Please try again.');
+      setSaving(false);
+      return;
     }
 
     setProfileSetupComplete(true);
