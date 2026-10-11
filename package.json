@@ -10,6 +10,7 @@
     "build": "dotenv -e .env.prod expo build",
     "eas-build": "dotenv -e .env.prod eas build",
     "postinstall": "patch-package",
+    "verify:rls": "dotenv -e .env -- node scripts/verify-rls.js",
     "android:build:prod": "dotenv -e .env.prod -- eas build --platform android"
   },
   "dependencies": {
