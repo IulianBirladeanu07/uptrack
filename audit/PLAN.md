@@ -223,7 +223,12 @@ flowchart TB
 
 ### 20. Android steps: Google Fit to Health Connect
 
-`react-native-google-fit` uses the Google Fit APIs, which Google has deprecated in favor of Health Connect. Check the current shutdown date, then plan the move with the owner.
+`react-native-google-fit` uses the Google Fit APIs. Google supports them until **end of 2026** (no exact day). For mobile step reads, migrate to **Health Connect**.
+
+Full plan: `audit/HEALTH_CONNECT_MIGRATION.md`.
+
+Owner decisions: approve HC, target a Play build before 2026-11-01, optional in-app notice.
+Implementation is a native rebuild (not OTA): new dependency, config plugin, replace Android branch in `GoogleFitStepDisplay`, remove Fit + `withGoogleFitVersions`.
 
 ## Weekly evaluation notes
 
