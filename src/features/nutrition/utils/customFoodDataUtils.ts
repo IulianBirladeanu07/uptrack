@@ -1,14 +1,15 @@
 import Constants from 'expo-constants';
+import type { BarcodedProduct, FoodFormData, FormattedFoodData, Numeric } from '../../../shared/types';
 
-const { defaultFoodIconUri } = Constants.expoConfig?.extra || {};
+const { defaultFoodIconUri } = (Constants.expoConfig?.extra || {}) as { defaultFoodIconUri?: string };
 
-export const formatFoodDataForSubmission = (foodData) => {
-    const safeParseFloat = (value) => {
+export const formatFoodDataForSubmission = (foodData: FoodFormData): FormattedFoodData => {
+    const safeParseFloat = (value: Numeric | null | undefined): number => {
         if (value === undefined || value === null || value === '') return 0;
-        const parsed = parseFloat(value);
+        const parsed = parseFloat(String(value));
         return isNaN(parsed) ? 0 : parsed;
     };
-    const formattedData = {
+    const formattedData: FormattedFoodData = {
         productName: (foodData.productName || '').trim(),
         calories: safeParseFloat(foodData.calories),
         carbohydrates: safeParseFloat(foodData.carbohydrates),
@@ -22,11 +23,11 @@ export const formatFoodDataForSubmission = (foodData) => {
         unit: foodData.unit || 'g',
         isFavorite: false,
     };
-    
+
     if (foodData.barcode) {
         formattedData.barcode = foodData.barcode.trim();
     }
-    
+
     return formattedData;
 };
 
@@ -45,7 +46,7 @@ export const getInitialFoodData = () => ({
     barcode: '',
 });
 
-export const transformForBarcodeDB = (formattedData) => ({
+export const transformForBarcodeDB = (formattedData: FormattedFoodData) => ({
     barcode_id: formattedData.barcode,
     product_name: formattedData.productName,
     calories: formattedData.calories,
@@ -63,7 +64,7 @@ export const transformForBarcodeDB = (formattedData) => ({
     last_updated: new Date().toISOString(),
 });
 
-export const transformForCustomFood = (formattedData) => ({
+export const transformForCustomFood = (formattedData: FormattedFoodData & { category?: string; amount?: number }) => ({
     productName: formattedData.productName,
     calories: formattedData.calories,
     carbohydrates: formattedData.carbohydrates || formattedData.carbohydrates,
@@ -80,7 +81,7 @@ export const transformForCustomFood = (formattedData) => ({
     isFavorite: formattedData.isFavorite || false,
 });
 
-export const transformBarcodeDBToFoodDetail = (barcodeData) => ({
+export const transformBarcodeDBToFoodDetail = (barcodeData: BarcodedProduct) => ({
     productName: barcodeData.product_name,
     calories: barcodeData.calories,
     carbohydrates: barcodeData.carbohydrates,
@@ -97,7 +98,9 @@ export const transformBarcodeDBToFoodDetail = (barcodeData) => ({
     isFavorite: false,
 });
 
-export const passesBarcodedProductsInsertPolicy = (item) => {
+export const passesBarcodedProductsInsertPolicy = (
+    item: Partial<Record<'barcode_id' | 'product_name' | 'calories' | 'protein' | 'carbohydrates' | 'fats', unknown>> | null | undefined
+): boolean => {
     if (!item || typeof item !== 'object') return false;
     const barcode = String(item.barcode_id ?? '');
     const name = String(item.product_name ?? '');

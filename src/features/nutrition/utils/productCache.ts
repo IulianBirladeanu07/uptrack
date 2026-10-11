@@ -1,11 +1,19 @@
 import { fetchBarcodedProducts } from "../handlers/NutritionHandler";
+import type { BarcodedProduct } from '../../../shared/types';
 
 const CACHE_DURATION = 15 * 60 * 1000;
 
-export const productCache = {
+type ProductCache = {
+  data: BarcodedProduct[] | null;
+  lastFetched: number | null;
+  getProducts: () => Promise<BarcodedProduct[] | null>;
+  invalidate: () => void;
+};
+
+export const productCache: ProductCache = {
   data: null,
   lastFetched: null,
-  
+
   async getProducts() {
     const now = new Date().getTime();
     if (
@@ -15,11 +23,11 @@ export const productCache = {
     ) {
       return this.data;
     }
-    
+
     const products = await fetchBarcodedProducts();
     this.data = products;
     this.lastFetched = now;
-    
+
     return products;
   },
 

@@ -1,6 +1,6 @@
 import { FOOD_NAME } from '../theme';
 
-const formatFoodName = (productName) => {
+const formatFoodName = (productName?: string | null): string => {
   const rawName = productName || 'No Name';
   let foodName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
   foodName = foodName.replace(/[\-\,\.;:!?]+(\s*)$/, '').trim();

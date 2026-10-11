@@ -255,3 +255,54 @@ export type MealCacheLike = {
   getStepsRange: (start: Date, end: Date) => { date: string; steps: number }[];
   formatDate: (date: Date | string | number) => string;
 };
+
+export type FoodFormData = {
+  productName?: string | null;
+  calories?: Numeric | null;
+  carbohydrates?: Numeric | null;
+  protein?: Numeric | null;
+  fats?: Numeric | null;
+  fiber?: Numeric | null;
+  sugar?: Numeric | null;
+  saturatedFats?: Numeric | null;
+  salt?: Numeric | null;
+  amount?: Numeric | null;
+  unit?: string | null;
+  barcode?: string | null;
+};
+
+export type FoodFormErrors = Partial<Record<keyof FoodFormData | 'macroNutrients', string>>;
+
+export type FormattedFoodData = {
+  productName: string;
+  calories: number;
+  carbohydrates: number;
+  fats: number;
+  protein: number;
+  fiber: number;
+  sugar: number;
+  salt: number;
+  saturatedFats: number;
+  quantity: number;
+  unit: string;
+  isFavorite: boolean;
+  barcode?: string;
+};
+
+export type BarcodedProduct = {
+  barcode_id: string;
+  product_name: string;
+  calories: number;
+  carbohydrates: number;
+  fats: number;
+  protein: number;
+  fiber: number;
+  sugar: number;
+  salt: number;
+  saturated_fats: number;
+  serving_size_unit: string;
+  serving_size_value: number;
+  image?: string | null;
+  category?: string | null;
+  last_updated?: string;
+};
