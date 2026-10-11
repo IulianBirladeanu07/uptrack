@@ -4,6 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-na
 import { useNavigation } from '@react-navigation/native';
 import FoodItem from './FoodItem';
 import { createStyles } from '../../../../shared/theme/createStyles';
+import { mealItemPropsEqual, foodItemPropsEqual } from '../../helpers/mealItemMemo';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 
 const formatMealTitle = (date, mealType) => {
@@ -66,22 +67,14 @@ const MemoizedFoodItem = memo(({ food, onPress, onPlusPress, isChecked, showPlus
       ...food,
       calories: parseFloat(food.calories || 0).toFixed(0)
     }}
-    onPress={onPress}
-    onPlusPress={onPlusPress}
+    onPress={() => onPress?.(food)}
+    onPlusPress={() => onPlusPress?.(food)}
     isChecked={isChecked}
     showPlusButton={showPlusButton}
     isFoodDeletable={isFoodDeletable}
     foodContainer={styles.foodItemContainer}
   />
-), (prevProps, nextProps) => {
-  return (
-    prevProps.food.id === nextProps.food.id &&
-    prevProps.food.calories === nextProps.food.calories &&
-    prevProps.isChecked === nextProps.isChecked &&
-    prevProps.showPlusButton === nextProps.showPlusButton &&
-    prevProps.isFoodDeletable === nextProps.isFoodDeletable
-  );
-});
+), foodItemPropsEqual);
 
 const isMealVisible = (item, meal) => {
   if (!meal) return true;
@@ -209,12 +202,11 @@ const MealItemContent = ({
             <View key={food.id || `food-${index}`} style={styles.foodItemWrapper}>
               <MemoizedFoodItem
                 food={food}
-                onPress={() => handleNavigateToFoodDetail(food)}
-                onPlusPress={() => handlePlusPressInternal(food)}
+                onPress={handleNavigateToFoodDetail}
+                onPlusPress={handlePlusPressInternal}
                 isChecked={checkedFoods[food.id] || false}
                 showPlusButton={!isMealAdded && showPlusButton}
                 isFoodDeletable={isFoodDeletable}
-                foodContainer={styles.foodItemContainer}
               />
             </View>
           ))}
@@ -283,25 +275,7 @@ const MealItem = memo(({
       isFoodDeletable={isFoodDeletable}
     />
   );
-}, (prevProps, nextProps) => {
-  const prevItem = prevProps.item;
-  const nextItem = nextProps.item;
-
-  if (!prevItem && !nextItem) return true;
-  if (!prevItem || !nextItem) return false;
-
-  if (prevItem === nextItem) return true;
-
-  return (
-    prevItem.id === nextItem.id &&
-    prevItem.date === nextItem.date &&
-    prevItem.mealType === nextItem.mealType &&
-    prevItem.foods?.length === nextItem.foods?.length &&
-    prevProps.showPlusButton === nextProps.showPlusButton &&
-    prevProps.isFoodDeletable === nextProps.isFoodDeletable &&
-    prevProps.meal === nextProps.meal
-  );
-});
+}, mealItemPropsEqual);
 
 const styles = createStyles(() => ({
   mealItem: {
