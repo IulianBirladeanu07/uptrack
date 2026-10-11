@@ -14,7 +14,7 @@ import { normalize } from '../../../../shared/hooks/useResponsive';
 import styles from './WorkoutLibraryScreenStyle';
 import { fetchSplitsFromFirestore, fetchTemplatesFromFirestore, deleteTemplateFromFirestore } from '../../handlers/WorkoutHandler';
 import { getAuth } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteField } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebaseConfigService';
 import { colors } from '../../../../shared/theme';
 import { AuthContext } from '../../../auth/context/AuthContext';
@@ -23,6 +23,7 @@ import WorkoutProgramLibrary from './WorkoutProgramLibrary';
 import SegmentedControl from './components/SegmentedControls';
 import LoadingSpinner from './components/LoadingSpinner';
 import { getWorkoutsPerWeek, isRotationSplit, toDateKey } from '../../utils/splitSchedule';
+import { afterSplitDelete } from '../../utils/activeSplit';
 
 const WorkoutLibraryScreen = ({ navigation, route }) => {
     const [splits, setSplits] = useState([]);
@@ -107,9 +108,22 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
         }
     }, []);
 
-    const handleSplitDeleted = useCallback((splitId) => {
-        setSplits(prev => prev.filter(s => s.id !== splitId));
-    }, []);
+    const handleSplitDeleted = useCallback(async (splitId) => {
+        const remaining = splits.filter(s => s.id !== splitId);
+        setSplits(remaining);
+
+        const next = afterSplitDelete(splitId, remaining, activeSplitId, userData?.activeSplitId);
+        setActiveSplitId(next.localActiveId);
+        if (!next.clearPersisted) return;
+
+        try {
+            const uid = getAuth().currentUser?.uid;
+            await setDoc(doc(db, 'users', uid), { activeSplitId: deleteField() }, { merge: true });
+            await refreshUserData();
+        } catch (error) {
+            console.error('Failed to clear the active split:', error);
+        }
+    }, [splits, activeSplitId, userData?.activeSplitId, refreshUserData]);
 
     const handleActivateSplit = useCallback(async (split) => {
         if (activeSplitId === split.id) {
