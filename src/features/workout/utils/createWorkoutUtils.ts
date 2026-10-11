@@ -1,4 +1,6 @@
 import { Platform, Alert, ToastAndroid } from 'react-native';
+import type { CatalogExercise } from '../../../shared/types';
+import type { TemplateExercise } from '../types';
 
 export const TEMPLATE_STEPS = [
   { icon: 'create-outline', title: 'Basic Info' },
@@ -12,7 +14,7 @@ export const SPLIT_STEPS = [
   { id: 'review', icon: 'checkmark-circle-outline', title: 'Review' }
 ];
 
-export const validateBasicInfo = (templateName) => {
+export const validateBasicInfo = (templateName: string): boolean => {
   if (!templateName.trim()) {
     if (Platform.OS === 'android') {
       ToastAndroid.show('Please enter a workout name', ToastAndroid.SHORT);
@@ -24,7 +26,7 @@ export const validateBasicInfo = (templateName) => {
   return true;
 };
 
-export const validateExercises = (exercises) => {
+export const validateExercises = (exercises: TemplateExercise[]): boolean => {
   if (exercises.length === 0) {
     if (Platform.OS === 'android') {
       ToastAndroid.show('Add at least one exercise', ToastAndroid.SHORT);
@@ -33,7 +35,7 @@ export const validateExercises = (exercises) => {
     }
     return false;
   }
-  
+
   const incompleteExercise = exercises.find(ex => !ex.numSets || !ex.repRange);
   if (incompleteExercise) {
     if (Platform.OS === 'android') {
@@ -43,50 +45,58 @@ export const validateExercises = (exercises) => {
     }
     return false;
   }
-  
+
   return true;
 };
 
-export const validateForm = (templateName, exercises) => {
-  return templateName.trim() && 
-         exercises.length > 0 && 
+export const validateForm = (templateName: string, exercises: TemplateExercise[]) => {
+  return templateName.trim() &&
+         exercises.length > 0 &&
          !exercises.find(ex => !ex.numSets || !ex.repRange);
 };
 
 
-export const createExerciseFromSelection = (selectedExercises) => {
-  
+export const createExerciseFromSelection = (
+  selectedExercises: Partial<CatalogExercise>[] | Partial<CatalogExercise> | null | undefined
+): TemplateExercise[] | TemplateExercise | null => {
+
   if (Array.isArray(selectedExercises)) {
-    
+
     return selectedExercises.map(exercise => ({
       exerciseName: exercise.name || '',
       name: exercise.name || '',
       muscleGroup: exercise.muscleGroup || '',
       category: exercise.category || '',
       imageURL: exercise.imageURL || '',
-      numSets: '', 
-      repRange: '', 
+      numSets: '',
+      repRange: '',
       note: '',
     }));
   } else if (selectedExercises && typeof selectedExercises === 'object') {
-    
+
     return {
       exerciseName: selectedExercises.name || '',
       name: selectedExercises.name || '',
       muscleGroup: selectedExercises.muscleGroup || '',
       category: selectedExercises.category || '',
       imageURL: selectedExercises.imageURL || '',
-      numSets: '3', 
-      repRange: '8-12', 
+      numSets: '3',
+      repRange: '8-12',
       note: '',
     };
   }
-  
+
   console.error('Invalid selected exercise format:', selectedExercises);
   return null;
 };
 
-export const createTemplateData = (templateName, exercises, note, duration, preferredDays) => ({
+export const createTemplateData = (
+  templateName: string,
+  exercises: TemplateExercise[],
+  note: string,
+  duration?: string | number,
+  preferredDays?: string[]
+) => ({
   templateName: templateName.trim(),
   exercises: exercises.map(ex => ({
     exerciseName: ex.name || ex.exerciseName || '',

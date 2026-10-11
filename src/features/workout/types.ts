@@ -23,6 +23,18 @@ export type WorkoutExercise = {
   [key: string]: unknown;
 };
 
+export type TemplateExercise = {
+  exerciseName?: string;
+  name?: string;
+  muscleGroup?: string;
+  category?: string;
+  imageURL?: string;
+  numSets?: string | number;
+  repRange?: string;
+  restTime?: number;
+  note?: string;
+};
+
 export type PersistedWorkoutState = {
   startTime: number;
   exercises: WorkoutExercise[];
