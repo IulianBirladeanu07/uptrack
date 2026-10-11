@@ -117,7 +117,8 @@ Firestore. Every user-data query filters on a `uid` field or uses a uid-based do
 | `workoutTemplates` | `{templateName}_{uid}` | `uid` field |
 | `workoutSplits` | auto | `uid` field. `schedule` is keyed by weekday names, or `"1"` to `"n"` for rotation splits. |
 | `measurements` | auto | `uid` field |
-| `exercises` | muscle group | Shared catalog. Custom exercises are currently written into it (SEC-02). |
+| `exercises` | muscle group | Shared catalog. Clients only read it. |
+| `customExercises` | auto | `uid` field. Each user's own exercises, merged into the catalog by `fetchExercises`. |
 
 Storage holds profile pictures at `profilePictures/{uid}.jpg`.
 
@@ -132,7 +133,7 @@ AsyncStorage:
 |---|---|
 | `meal_cache_v2_{uid}`, `user_{uid}`, `home_*_{uid}` | Per user |
 | `cached_splits`, `@food_recent_searches`, `@recent_searches` | Device-wide, removed on sign-out in `AuthContext.tsx` |
-| `exercises_cache_v2`, `exercise_images_cache` | Device-wide copy of the shared catalog |
+| `exercises_cache_v3`, `exercise_images_cache` | Device-wide copy of the shared catalog. Never holds custom exercises. |
 | `activeWorkout` | Device-wide and never cleared, so it leaks across accounts (SEC-07) |
 | `auth_token` | Holds the uid. Written, never read. |
 

@@ -94,6 +94,7 @@ describe('deleteAccount', () => {
       'list:workoutSplits:u1',
       'list:measurements:u1',
       'batch:measurements:1',
+      'list:customExercises:u1',
       'deleteDoc:users:u1',
       'deleteUser',
       'workoutReset',

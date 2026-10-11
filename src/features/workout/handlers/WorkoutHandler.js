@@ -17,6 +17,7 @@ import { db } from '../../auth/services/firebaseConfigService'
 import { Alert } from 'react-native';
 import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { customDocToExercise, mergeCustomExercises } from '../utils/exerciseCatalog';
 
 export const SPLITS_CACHE_KEY = 'cached_splits';
 
@@ -413,7 +414,7 @@ export const sendMeasurementsToFirestore = async (measurements) => {
   }
 };
 
-const CACHE_KEY = 'exercises_cache_v2';
+const CACHE_KEY = 'exercises_cache_v3';
 const CACHE_DURATION = 12 * 60 * 60 * 1000;
 const IMAGE_CACHE_KEY = 'exercise_images_cache';
 
@@ -426,7 +427,33 @@ let memoryCache = {
 
 const imagePrefetchStatus = new Map();
 
+let customCache = { uid: null, data: null };
+
+const fetchCustomExercises = async (uid, forceRefresh = false) => {
+  if (!forceRefresh && customCache.uid === uid && customCache.data) return customCache.data;
+  const customQuery = query(collection(getFirestore(), 'customExercises'), where('uid', '==', uid));
+  const snap = await getDocs(customQuery);
+  const data = snap.docs.map(d => customDocToExercise(d.data())).filter(Boolean);
+  customCache = { uid, data };
+  return data;
+};
+
 export const fetchExercises = async (forceRefresh = false) => {
+  const user = getAuth().currentUser;
+  if (!user) {
+    throw new Error('User not authenticated.');
+  }
+  const [catalog, custom] = await Promise.all([
+    loadCatalog(forceRefresh),
+    fetchCustomExercises(user.uid, forceRefresh).catch(error => {
+      console.warn('Failed to load custom exercises:', error.message);
+      return [];
+    }),
+  ]);
+  return mergeCustomExercises(catalog, custom);
+};
+
+const loadCatalog = async (forceRefresh = false) => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -454,7 +481,7 @@ export const fetchExercises = async (forceRefresh = false) => {
         if (cachedData) {
           const { data, timestamp, version = 1 } = JSON.parse(cachedData);
           if (
-            version === 2 &&
+            version === 3 &&
             Date.now() - timestamp < CACHE_DURATION && 
             data && 
             data.length > 0
@@ -486,7 +513,7 @@ export const fetchExercises = async (forceRefresh = false) => {
           await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
             data: exercisesArray,
             timestamp,
-            version: 2
+            version: 3
           }));
         } catch (storageError) {
           console.warn('Failed to save cache to storage:', storageError);
@@ -527,7 +554,7 @@ const fetchExercisesFromFirestore = async () => {
 
         if (exercises.length > 0) {
           const validExercises = exercises
-            .filter(exercise => exercise && exercise.name)
+            .filter(exercise => exercise && exercise.name && !exercise.isCustom)
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(exercise => ({
               name: exercise.name,
@@ -660,44 +687,35 @@ export const createCustomExercise = async (exerciseData) => {
       throw new Error('Muscle group and exercise name are required.');
     }
 
-    const muscleGroupDocRef = doc(db, 'exercises', muscleGroup);
+    const trimmed = name.trim();
+    const lower = trimmed.toLowerCase();
+    const [catalog, custom] = await Promise.all([
+      loadCatalog(false),
+      fetchCustomExercises(user.uid, true),
+    ]);
 
-    const muscleGroupQuery = query(
-      collection(db, 'exercises'), 
-      where('__name__', '==', muscleGroup)
-    );
-    const muscleGroupSnapshot = await getDocs(muscleGroupQuery);
-    
-    let currentExercises = [];
-    if (!muscleGroupSnapshot.empty) {
-      currentExercises = muscleGroupSnapshot.docs[0].data().exercises || [];
-    }
-
-    const exerciseExists = currentExercises.some(exercise => 
-      exercise.name.toLowerCase() === name.toLowerCase()
-    );
+    const exerciseExists =
+      catalog.some(g => g.muscleGroup === muscleGroup && g.exercises.some(e => e.name.toLowerCase() === lower)) ||
+      custom.some(e => e.muscleGroup === muscleGroup && e.name.toLowerCase() === lower);
 
     if (exerciseExists) {
       throw new Error('An exercise with this name already exists in this muscle group.');
     }
 
     const newExercise = {
-      name: name.trim(),
+      uid: user.uid,
+      name: trimmed,
       muscleGroup,
       category: category || 'General',
       equipment: equipment || 'Bodyweight',
       imageURL: imageURL || '',
       difficulty: difficulty || 'Intermediate',
-      createdBy: user.uid,
       createdAt: new Date().toISOString(),
-      isCustom: true
     };
 
-    const updatedExercises = [...currentExercises, newExercise].sort((a, b) => a.name.localeCompare(b.name));
+    await setDoc(doc(collection(db, 'customExercises')), newExercise);
 
-    await setDoc(muscleGroupDocRef, { exercises: updatedExercises });
-
-    await clearExercisesCache();
+    customCache = { uid: null, data: null };
 
     return { success: true, exercise: newExercise };
 

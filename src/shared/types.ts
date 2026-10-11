@@ -187,6 +187,20 @@ export type WeeklySnapshot = {
   createdAt: string;
 };
 
+export type CatalogExercise = {
+  name: string;
+  muscleGroup: string;
+  category: string;
+  imageURL: string;
+  equipment: string;
+  difficulty: string;
+};
+
+export type ExerciseGroup = {
+  muscleGroup: string;
+  exercises: CatalogExercise[];
+};
+
 export type DateInput = Date | string | number;
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snacks';

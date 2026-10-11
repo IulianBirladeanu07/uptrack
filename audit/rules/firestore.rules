@@ -60,6 +60,12 @@ service cloud.firestore {
       allow update: if ownsDoc() && keepsOwner();
     }
 
+    match /customExercises/{exerciseId} {
+      allow read, delete: if ownsDoc();
+      allow create: if claimsDoc();
+      allow update: if ownsDoc() && keepsOwner();
+    }
+
     match /exercises/{muscleGroup} {
       allow read: if signedIn();
     }

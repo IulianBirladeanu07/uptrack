@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../auth/services/firebaseConfigService';
 import { workoutService } from '../../workout/services/WorkoutService';
 
-const OWNED_COLLECTIONS = ['meals', 'workoutHistory', 'workoutTemplates', 'workoutSplits', 'measurements'];
+const OWNED_COLLECTIONS = ['meals', 'workoutHistory', 'workoutTemplates', 'workoutSplits', 'measurements', 'customExercises'];
 const BATCH_SIZE = 400;
 
 const deleteOwned = async (name: string, uid: string): Promise<void> => {
