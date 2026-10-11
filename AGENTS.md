@@ -103,7 +103,7 @@ flowchart TB
 - `WorkoutProvider` (`workout/context/WorkoutContext.js`) loads workout history and templates and restores the active workout. Screens call `workout/handlers/WorkoutHandler.js` directly for splits, templates and exercises.
 - The food and workout providers live inside the main stack, so their React state resets on sign-out. Module-level singletons such as `workoutService` do not.
 
-Route names are plain strings with no typed param list. Check that a route is registered in `App.js` before navigating to it. `BatchScanResults` is still unregistered (BUG-11).
+Route names are plain strings with no typed param list. Check that a route is registered in `App.js` before navigating to it.
 
 ## Data
 

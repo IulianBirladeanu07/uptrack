@@ -4,11 +4,9 @@ import { Animated } from 'react-native';
 import { transformBarcodeDBToFoodDetail } from '../utils/customFoodDataUtils';
 
 export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDate) => {
-  const [scannedProducts, setScannedProducts] = useState([]);
   const [isScanning, setIsScanning] = useState(true);
   const [loadingProduct, setLoadingProduct] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
-  const [batchMode, setBatchMode] = useState(false);
   const [instructionsVisible, setInstructionsVisible] = useState(true);
   
   const successOpacity = useRef(new Animated.Value(0)).current;
@@ -44,21 +42,13 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
         showSuccessAnimation();
         const transformedProduct = transformBarcodeDBToFoodDetail(product);
         setCurrentProduct(transformedProduct);
-        
-        if (batchMode) {
-          addProductToBatch(transformedProduct);
-          Vibration.vibrate([0, 50, 50, 50]);
-          setTimeout(() => {
-            setIsScanning(true);
-          }, 500);
-        } else {
-          navigation.navigate('FoodDetail', { 
-            food: transformedProduct, 
-            meal, 
-            selectedDate,
-            returnToBarcodeScanner: true
-          });
-        }
+
+        navigation.navigate('FoodDetail', { 
+          food: transformedProduct, 
+          meal, 
+          selectedDate,
+          returnToBarcodeScanner: true
+        });
 
         if (instructionsVisible) {
           setInstructionsVisible(false);
@@ -74,22 +64,6 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
     } finally {
       setLoadingProduct(false);
     }
-  };
-
-  const addProductToBatch = (product) => {
-    setScannedProducts(prev => {
-      const exists = prev.some(p => p.barcode_id === product.barcode_id);
-      if (exists) {
-        Alert.alert(
-          'Product Already Scanned',
-          `"${product.name}" is already in your batch.`,
-          [{ text: 'OK' }],
-          { cancelable: true }
-        );
-        return prev;
-      }
-      return [...prev, product];
-    });
   };
 
   const showSuccessAnimation = () => {
@@ -127,45 +101,18 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
   const handleProductNotFound = (barcode) => {
     Alert.alert(
       'Product Not Found',
-      `No product found with barcode: ${barcode}${batchMode ? '\n\nNote: Creating a custom food will exit batch mode.' : ''}`,
+      `No product found with barcode: ${barcode}`,
       [
         {
           text: 'Create Custom Food',
           onPress: () => {
-            if (batchMode && scannedProducts.length > 0) {
-              Alert.alert(
-                'Exit Batch Mode?',
-                'Creating a custom food will exit batch mode. Would you like to complete your batch first?',
-                [
-                  {
-                    text: 'Complete Batch First',
-                    onPress: handleBatchScanComplete
-                  },
-                  {
-                    text: 'Create Food Now',
-                    onPress: () => {
-                      setBatchMode(false);
-                      navigation.navigate('CustomFood', {
-                        barcode,
-                        type: 'foodWithBarcode',
-                        meal,
-                        selectedDate,
-                        returnToBarcodeScanner: true
-                      });
-                    }
-                  }
-                ]
-              );
-            } else {
-              if (batchMode) setBatchMode(false);
-              navigation.navigate('CustomFood', {
-                barcode,
-                type: 'foodWithBarcode',
-                meal,
-                selectedDate,
-                returnToBarcodeScanner: true
-              });
-            }
+            navigation.navigate('CustomFood', {
+              barcode,
+              type: 'foodWithBarcode',
+              meal,
+              selectedDate,
+              returnToBarcodeScanner: true
+            });
           }
         },
         {
@@ -189,54 +136,14 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
     setIsScanning(true);
   }, []);
 
-  const toggleBatchMode = () => {
-    if (batchMode && scannedProducts.length > 0) {
-      handleBatchScanComplete();
-    } else {
-      setBatchMode(prev => !prev);
-      setIsScanning(true);
-    }
-  };
-
-  const handleBatchScanComplete = () => {
-    if (scannedProducts.length > 0) {
-      setIsScanning(false);
-      
-      navigation.navigate('BatchScanResults', { 
-        products: scannedProducts,
-        meal,
-        selectedDate
-      });
-      
-      setBatchMode(false);
-      setScannedProducts([]);
-    } else {
-      Alert.alert(
-        'No Products Scanned', 
-        'Please scan at least one product before completing batch mode.'
-      );
-      setIsScanning(true);
-    }
-  };
-
-  const removeFromBatch = (productId) => {
-    setScannedProducts(prev => prev.filter(product => product.id !== productId));
-  };
-
   return {
-    scannedProducts,
     isScanning,
     loadingProduct,
     currentProduct,
-    batchMode,
     instructionsVisible,
     successOpacity,
     errorOpacity,
     handleBarcodeScanned,
     resumeScanning,
-    toggleBatchMode,
-    setBatchMode,
-    handleBatchScanComplete,
-    removeFromBatch,
   };
 };

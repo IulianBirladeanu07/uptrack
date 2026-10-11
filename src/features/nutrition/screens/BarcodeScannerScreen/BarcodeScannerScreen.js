@@ -75,29 +75,25 @@ const BarcodeScannerScreen = ({ navigation }) => {
   const { selectedDate, meal } = route.params;
 
   const {
-    scannedProducts,
     isScanning,
     loadingProduct,
     currentProduct,
-    batchMode,
     instructionsVisible,
     successOpacity,
     errorOpacity,
     handleBarcodeScanned,
     resumeScanning,
-    toggleBatchMode,
-    handleBatchScanComplete,
   } = useBarcodeScanner(barcodedProducts, navigation, meal, selectedDate);
 
   useEffect(() => {
-    if (currentProduct && !isScanning && !batchMode) {
+    if (currentProduct && !isScanning) {
       navigation.navigate('FoodDetail', { 
         food: currentProduct, 
         meal, 
         selectedDate 
       });
     }
-  }, [currentProduct, isScanning, batchMode, navigation, meal, selectedDate]);
+  }, [currentProduct, isScanning, navigation, meal, selectedDate]);
 
   useEffect(() => {
     const loadBarcodedProducts = async () => {
@@ -158,40 +154,8 @@ const BarcodeScannerScreen = ({ navigation }) => {
   }, []);
 
   const closeScanner = () => {
-    if (batchMode && scannedProducts.length > 0) {
-      Alert.alert(
-        'Complete Batch Scan?',
-        'You have products in your batch. Would you like to view them before exiting?',
-        [
-          {
-            text: 'View Products',
-            onPress: () => {
-              navigation.navigate('BatchScanResults', { 
-                products: scannedProducts,
-                meal,
-                selectedDate 
-              });
-            }
-          },
-          {
-            text: 'Exit Anyway',
-            onPress: () => {
-              if (navigation && navigation.goBack) {
-                navigation.goBack();
-              }
-            },
-            style: 'destructive'
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel'
-          }
-        ]
-      );
-    } else {
-      if (navigation && navigation.goBack) {
-        navigation.goBack();
-      }
+    if (navigation && navigation.goBack) {
+      navigation.goBack();
     }
   };
 
@@ -268,52 +232,6 @@ const BarcodeScannerScreen = ({ navigation }) => {
         successOpacity={successOpacity}
         errorOpacity={errorOpacity}
       />
-
-      {isScanning && (
-        <View style={styles.cameraControls}>
-          <TouchableOpacity
-            style={[
-              styles.controlButton,
-              batchMode ? styles.activeModeButton : {}
-            ]}
-            onPress={toggleBatchMode}
-          >
-            <Ionicons 
-              name={batchMode ? "layers" : "scan-outline"} 
-              size={24} 
-              color="white" 
-            />
-            {batchMode && (
-              <View style={styles.batchCounter}>
-                <Text style={styles.batchCounterText}>{scannedProducts.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {}
-      {isScanning && batchMode && (
-        <View style={styles.batchModeIndicator}>
-          <Text style={styles.batchModeText}>
-            Batch Mode: {scannedProducts.length} item{scannedProducts.length !== 1 ? 's' : ''} scanned
-          </Text>
-          <Text style={styles.batchModeSubtext}>
-            Scan multiple items consecutively
-          </Text>
-        </View>
-      )}
-
-      {}
-      {isScanning && batchMode && (
-        <TouchableOpacity
-          style={styles.doneButton}
-          onPress={handleBatchScanComplete}
-        >
-          <Text style={styles.doneButtonText}>Done ({scannedProducts.length})</Text>
-          <Ionicons name="checkmark-circle" size={20} color="white" />
-        </TouchableOpacity>
-      )}
 
       {loadingProduct && (
         <View style={styles.loadingContainer}>
