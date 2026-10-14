@@ -1,10 +1,32 @@
-import React, { useRef, useCallback, useMemo } from 'react';
+import { memo, useRef, useCallback, useMemo, useEffect, useState } from 'react';
+import type { ComponentProps } from 'react';
 import { View, TouchableOpacity, Text, Animated, Easing, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import type { AppNavigationProp } from '../../../../shared/navigation';
 
-const menuItems = [
+type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+type MenuItem = {
+  icon: IconName;
+  label: string;
+  sublabel: string;
+  type: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+};
+
+type AddFoodMenuProps = {
+  isExpanded: boolean;
+  onClose: () => void;
+  navigation: AppNavigationProp;
+  meal?: string | undefined;
+  selectedDate?: string | undefined;
+};
+
+const menuItems: MenuItem[] = [
   {
     icon: 'food-apple',
     label: 'New Food',
@@ -43,7 +65,7 @@ const menuItems = [
   }
 ];
 
-const AddFoodMenu = React.memo(({ isExpanded, onClose, navigation, meal, selectedDate }) => {
+const AddFoodMenu = memo(({ isExpanded, onClose, navigation, meal, selectedDate }: AddFoodMenuProps) => {
   const insets = useSafeAreaInsets();
   const animationValue = useRef(new Animated.Value(0)).current;
 
@@ -83,7 +105,7 @@ const AddFoodMenu = React.memo(({ isExpanded, onClose, navigation, meal, selecte
     }))
   }), [animationValue]);
 
-  const animate = useCallback((toExpanded) => {
+  const animate = useCallback((toExpanded: boolean) => {
     Animated.timing(animationValue, {
       toValue: toExpanded ? 1 : 0,
       duration: 250,
@@ -92,11 +114,11 @@ const AddFoodMenu = React.memo(({ isExpanded, onClose, navigation, meal, selecte
     }).start();
   }, [animationValue]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     animate(isExpanded);
   }, [isExpanded, animate]);
 
-  const handleItemPress = useCallback((type) => {
+  const handleItemPress = useCallback((type: string) => {
     onClose();
     setTimeout(() => {
       navigation.navigate('CustomFood', { type, meal, selectedDate });
@@ -144,11 +166,12 @@ const AddFoodMenu = React.memo(({ isExpanded, onClose, navigation, meal, selecte
     [animatedStyles.menuItems, handleItemPress]
   );
 
-  const [shouldRender, setShouldRender] = React.useState(false);
+  const [shouldRender, setShouldRender] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isExpanded) {
       setShouldRender(true);
+      return undefined;
     } else {
       const timer = setTimeout(() => setShouldRender(false), 250);
       return () => clearTimeout(timer);
