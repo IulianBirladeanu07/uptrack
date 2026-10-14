@@ -293,6 +293,21 @@ export type FormattedFoodData = {
 
 export type BarcodedProduct = Tables<'barcoded_products'>;
 
+export type NonBarcodedProduct = Tables<'non_barcoded_products'>;
+
+export type ScoredProduct = NonBarcodedProduct & {
+  similarity_score: number;
+  match_type: string;
+};
+
+export type ProductSearchResult = NonBarcodedProduct | ScoredProduct;
+
+type FilterScalar = string | number;
+
+export type ProductFilter =
+  | [field: keyof NonBarcodedProduct, operator: '==' | '!=' | '>' | '>=' | '<' | '<=' | 'array-contains', value: FilterScalar]
+  | [field: keyof NonBarcodedProduct, operator: 'in', value: FilterScalar[]];
+
 export type ProfileOption = {
   label: string;
   value: string;

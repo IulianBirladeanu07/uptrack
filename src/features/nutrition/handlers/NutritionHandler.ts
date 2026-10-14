@@ -1,16 +1,22 @@
-import { getAuth } from 'firebase/auth';
-import { collection, query, where, orderBy, limit, getDocs, } from 'firebase/firestore';
-import { db } from '../../auth/services/firebaseConfigService'
-import { supabase } from '../../../shared/services/supabaseClient'
-import { Timestamp } from 'firebase/firestore';
+import { supabase } from '../../../shared/services/supabaseClient';
+import type {
+  BarcodedProduct,
+  NonBarcodedProduct,
+  ProductFilter,
+  ProductSearchResult,
+  ScoredProduct,
+} from '../../../shared/types';
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
 export const fetchNonBarcodedProducts = async (
-  filters = [], 
-  order = null, 
-  limitCount = 20000, 
-  lastVisibleDoc = null, 
-  searchQuery = null
-) => {
+  filters: ProductFilter[] = [],
+  order: keyof NonBarcodedProduct | null = null,
+  limitCount = 20000,
+  lastVisibleDoc: string | null = null,
+  searchQuery: string | null = null
+): Promise<ProductSearchResult[]> => {
   try {
     if (searchQuery && searchQuery.trim()) {
       return await performEnhancedSearch(searchQuery.trim(), limitCount);
@@ -50,21 +56,24 @@ export const fetchNonBarcodedProducts = async (
       throw new Error(`Supabase error: ${error.message}`);
     }
 
-    return products;
+    return products ?? [];
   } catch (error) {
-    console.error('Error fetching non-barcoded products:', error.message);
+    console.error('Error fetching non-barcoded products:', errorMessage(error));
     throw error;
   }
 };
 
-const ilikeNames = (term) => {
+const ilikeNames = (term: string): string => {
   const v = `"%${term.replace(/[\\"]/g, '\\$&')}%"`;
   return `product_name_en.ilike.${v},product_name_ro.ilike.${v}`;
 };
 
-const performEnhancedSearch = async (searchQuery, limitCount = 50) => {
+const performEnhancedSearch = async (
+  searchQuery: string,
+  limitCount = 50
+): Promise<ProductSearchResult[]> => {
   try {
-    
+
     const { data: similarityResults, error: similarityError } = await supabase
       .rpc('search_products_similarity', {
         search_term: searchQuery,
@@ -76,11 +85,11 @@ const performEnhancedSearch = async (searchQuery, limitCount = 50) => {
       return similarityResults;
     }
     const searchTerms = searchQuery.toLowerCase().split(/\s+/).filter(term => term.length > 0);
-    
+
     let queryBuilder = supabase.from('non_barcoded_products').select('*');
 
     if (searchTerms.length === 1) {
-      const term = searchTerms[0];
+      const term = searchTerms[0]!;
       queryBuilder = queryBuilder.or(ilikeNames(term));
     } else {
       const conditions = searchTerms.map(ilikeNames).join(',');
@@ -96,7 +105,7 @@ const performEnhancedSearch = async (searchQuery, limitCount = 50) => {
     }
 
     if (ilikeResults && ilikeResults.length > 0) {
-      const scoredResults = ilikeResults.map(product => {
+      const scoredResults: ScoredProduct[] = ilikeResults.map(product => {
         const score = calculateRelevanceScore(product, searchQuery);
         return {
           ...product,
@@ -127,18 +136,21 @@ const performEnhancedSearch = async (searchQuery, limitCount = 50) => {
   }
 };
 
-const calculateRelevanceScore = (product, searchQuery) => {
-  const normalizedQuery = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const nameEn = (product.product_name_en || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const nameRo = (product.product_name_ro || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const stripAccents = (text: string): string =>
+  text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+const calculateRelevanceScore = (product: NonBarcodedProduct, searchQuery: string): number => {
+  const normalizedQuery = stripAccents(searchQuery);
+  const nameEn = stripAccents(product.product_name_en || '');
+  const nameRo = stripAccents(product.product_name_ro || '');
 
   let maxScore = 0;
-  
+
   [nameEn, nameRo].forEach(name => {
     if (!name) return;
-    
+
     let score = 0;
-    
+
     if (name === normalizedQuery) {
       score = 100;
     }
@@ -172,27 +184,30 @@ const calculateRelevanceScore = (product, searchQuery) => {
   return maxScore;
 };
 
-export const fetchBarcodedProducts = async (limitCount = null, lastVisibleDoc = null) => {
+export const fetchBarcodedProducts = async (
+  limitCount: number | null = null,
+  lastVisibleDoc: string | null = null
+): Promise<BarcodedProduct[]> => {
   try {
     let queryBuilder = supabase.from('barcoded_products').select('*');
-    
+
     if (limitCount) {
       queryBuilder = queryBuilder.limit(limitCount);
     }
-    
+
     if (lastVisibleDoc) {
       queryBuilder = queryBuilder.gt('id', lastVisibleDoc);
     }
-    
+
     const { data: products, error } = await queryBuilder;
-    
+
     if (error) {
       throw new Error(`Supabase error: ${error.message}`);
     }
-        
-    return products;
+
+    return products ?? [];
   } catch (error) {
-    console.error('Error fetching barcoded products:', error.message);
+    console.error('Error fetching barcoded products:', errorMessage(error));
     throw error;
   }
 };
