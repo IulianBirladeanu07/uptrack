@@ -5,7 +5,7 @@ import { Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { SWIPE } from '../theme';
 
-const useSwipeToDelete = (onDelete) => {
+const useSwipeToDelete = (onDelete?: () => void) => {
   const translateX = useSharedValue(0);
   const deleteProgress = useSharedValue(0);
   const hasTriggeredHaptic = useSharedValue(false);

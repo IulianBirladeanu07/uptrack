@@ -1,17 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 
-const getEnvVars = () => {
-  if (Constants.expoConfig?.extra) {
+interface EnvVars {
+  supabaseUrl: string | undefined;
+  supabaseAnonKey: string | undefined;
+}
+
+const getEnvVars = (): EnvVars => {
+  const extra = Constants.expoConfig?.extra;
+  if (extra) {
     return {
-      supabaseUrl: Constants.expoConfig.extra.supabaseUrl,
-      supabaseAnonKey: Constants.expoConfig.extra.supabaseAnonKey,
+      supabaseUrl: extra['supabaseUrl'],
+      supabaseAnonKey: extra['supabaseAnonKey'],
     };
   }
-  
+
   return {
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+    supabaseUrl: process.env['SUPABASE_URL'],
+    supabaseAnonKey: process.env['SUPABASE_ANON_KEY'],
   };
 };
 
