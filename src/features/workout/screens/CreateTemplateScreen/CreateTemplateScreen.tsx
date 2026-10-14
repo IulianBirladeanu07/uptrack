@@ -347,7 +347,7 @@ const CreateTemplate = () => {
     setExercises((prev) => prev.map((ex) => (ex.id === id ? { ...ex, note: value } : ex)));
   }, []);
 
-  const handleReorderExercises = useCallback(({ data }: { data: any }) => {
+  const handleReorderExercises = useCallback((data: any[]) => {
     setExercises(data);
   }, []);
 
