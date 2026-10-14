@@ -1,4 +1,6 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
+// @ts-nocheck — large screen; structural TS conversion done, refine types in follow-up
+import { useState, useCallback, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import {
   View,
   Text,

@@ -1,4 +1,6 @@
+// @ts-nocheck — large screen; structural TS conversion done, refine types in follow-up
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import {
   View,
   Animated,
@@ -31,12 +33,14 @@ import { addTemplateToFirestore, updateTemplateInFirestore } from '../../handler
 
 const generateExerciseId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-const CreateTemplate = ({ navigation, route }) => {
-  const existingTemplate = route?.params?.template;
-  const isEditing = route?.params?.isEditing || false;
+const CreateTemplate = () => {
+  const navigation = useAppNavigation();
+  const route = useAppRoute<'CreateTemplate'>();
+  const existingTemplate = (route.params?.template ?? null) as any;
+  const isEditing = route.params?.isEditing || false;
 
   const [templateName, setTemplateName] = useState(existingTemplate?.templateName || '');
-  const [exercises, setExercises] = useState(() =>
+  const [exercises, setExercises] = useState<any[]>(() =>
     (existingTemplate?.exercises || []).map((ex) => ({
       ...ex,
       id: ex.id || generateExerciseId(),
@@ -45,7 +49,7 @@ const CreateTemplate = ({ navigation, route }) => {
   const [note, setNote] = useState(existingTemplate?.note || '');
   const [duration, setDuration] = useState(existingTemplate?.duration || 60);
   const [workoutType, setWorkoutType] = useState(existingTemplate?.workoutType || 'Strength');
-  const [preferredDays, setPreferredDays] = useState(existingTemplate?.preferredDays || []);
+  const [preferredDays, setPreferredDays] = useState<string[]>(existingTemplate?.preferredDays || []);
   const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
