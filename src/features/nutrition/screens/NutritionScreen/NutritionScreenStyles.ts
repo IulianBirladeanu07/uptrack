@@ -80,7 +80,6 @@ const styles = createStyles(() => ({
     flex: 1,
     paddingRight: spacing[8],
     marginBottom: spacing[8],
-    minHeight: spacing[25],
     justifyContent: 'center',
   },
   rightMetricContainer: {
@@ -88,7 +87,6 @@ const styles = createStyles(() => ({
     flex: 1,
     marginBottom: spacing[8],
     paddingLeft: spacing[8],
-    minHeight: spacing[25],
     justifyContent: 'center',
   },
   circularProgressContainer: {
@@ -231,7 +229,6 @@ const styles = createStyles(() => ({
     fontWeight: fontWeight.bold,
     color: colors.accent.primary,
     textAlign: 'right',
-    minWidth: spacing[13],
   },
 }));
 

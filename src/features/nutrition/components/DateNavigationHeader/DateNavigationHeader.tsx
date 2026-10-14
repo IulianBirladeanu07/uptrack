@@ -2,12 +2,18 @@ import { useState } from 'react';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import type { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import styles from '../../screens/NutritionScreen/NutritionScreenStyles';
 
-const DateNavigationHeader = ({ selectedDate, onDateChange }) => {
+type DateNavigationHeaderProps = {
+  selectedDate: Date;
+  onDateChange: (date: Date) => void;
+};
+
+const DateNavigationHeader = ({ selectedDate, onDateChange }: DateNavigationHeaderProps) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const handleDateChange = (event, date) => {
+  const handleDateChange = (_event: DateTimePickerEvent, date?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (date) {
       onDateChange(date);

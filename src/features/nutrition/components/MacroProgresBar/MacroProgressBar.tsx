@@ -1,16 +1,25 @@
-import React from 'react';
+import { memo } from 'react';
 import { View, Text } from 'react-native';
 import styles from '../../screens/NutritionScreen/NutritionScreenStyles';
 import { getMacroBarState } from '../../helpers/macroBar';
 
-const MacroProgressBar = React.memo(({
+type MacroProgressBarProps = {
+  value: number;
+  maxValue: number;
+  label: string;
+  color: string;
+  hasTargets: boolean | null | undefined;
+  testID?: string;
+};
+
+const MacroProgressBar = memo(({
   value,
   maxValue,
   label,
   color,
   hasTargets,
   testID
-}) => {
+}: MacroProgressBarProps) => {
   const { safeValue, safeMaxValue, hasTarget, displayMax, fillPercentage } = getMacroBarState(value, maxValue, hasTargets, label);
   const progressColor = hasTarget ? color : '#64748B';
   const opacity = hasTarget ? 1 : 0.7;

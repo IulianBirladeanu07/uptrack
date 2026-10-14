@@ -50,8 +50,8 @@ export type AuthenticatedStackParamList = {
     remainingCalories?: number;
   } | undefined;
   BarcodeScanner: {
-    meal?: string;
-    selectedDate?: string;
+    meal?: string | undefined;
+    selectedDate?: string | undefined;
   } | undefined;
   FoodDetail: {
     food?: unknown;

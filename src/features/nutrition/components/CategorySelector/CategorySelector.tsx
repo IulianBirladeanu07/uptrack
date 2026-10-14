@@ -1,9 +1,15 @@
 import { useRef, useCallback, useEffect, memo } from 'react';
 import { View, TouchableOpacity, Text, Animated } from 'react-native';
-import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import { colors, fontWeight } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
-const CategorySelector = memo(({ selectedCategory, setSelectedCategory, loading }) => {
+type CategorySelectorProps = {
+    selectedCategory: string;
+    setSelectedCategory: (category: string) => void;
+    loading?: boolean | undefined;
+};
+
+const CategorySelector = memo(({ selectedCategory, setSelectedCategory, loading }: CategorySelectorProps) => {
     const categories = ['Frequent', 'Recent', 'Favorites'];
     const scaleAnims = useRef(categories.map(() => new Animated.Value(1))).current;
     const skeletonOpacity = useRef(new Animated.Value(0)).current;
@@ -30,7 +36,7 @@ const CategorySelector = memo(({ selectedCategory, setSelectedCategory, loading 
         return () => skeletonOpacity.stopAnimation();
     }, [loading]);
 
-    const handlePressIn = useCallback((index) => {
+    const handlePressIn = useCallback((index: number) => {
         Animated.spring(scaleAnims[index], {
             toValue: 0.95,
             useNativeDriver: true,
@@ -39,7 +45,7 @@ const CategorySelector = memo(({ selectedCategory, setSelectedCategory, loading 
         }).start();
     }, [scaleAnims]);
 
-    const handlePressOut = useCallback((index) => {
+    const handlePressOut = useCallback((index: number) => {
         Animated.spring(scaleAnims[index], {
             toValue: 1,
             useNativeDriver: true,
@@ -48,7 +54,7 @@ const CategorySelector = memo(({ selectedCategory, setSelectedCategory, loading 
         }).start();
     }, [scaleAnims]);
 
-    const handlePress = useCallback((category, index) => {
+    const handlePress = useCallback((category: string, index: number) => {
         if (selectedCategory !== category) {
             setSelectedCategory(category);
         }

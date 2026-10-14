@@ -1,12 +1,25 @@
-import React, { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import CircularProgress from '../../../../shared/components/CircularProgress/CircularProgress';
 import MacroProgressBar from '../MacroProgresBar/MacroProgressBar';
 import { colors } from '../../../../shared/theme';
 import styles from '../../screens/NutritionScreen/NutritionScreenStyles';
+import type useDailyNutrition from '../../helpers/useDailyNutrition';
+import type { LearningData, NutritionTotals, WeightDisplayData } from '../../../../shared/types';
 
-function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets, learningData, weightData, dailySteps, initialLoadComplete }) {
+type NutritionStatsProps = {
+    onWeightPress: () => void;
+    dailyNutrition: NutritionTotals;
+    userMacros: ReturnType<typeof useDailyNutrition>['userMacros'];
+    hasTargets: boolean;
+    learningData: LearningData | null | undefined;
+    weightData: WeightDisplayData | null | undefined;
+    dailySteps: number;
+    initialLoadComplete: boolean;
+};
+
+function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets, learningData, weightData, dailySteps, initialLoadComplete }: NutritionStatsProps) {
     const macroValues = useMemo(() => ({
         carbs:         dailyNutrition.carbs   || 0,
         protein:       dailyNutrition.protein || 0,
@@ -38,7 +51,7 @@ function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets,
                     </View>
                     {weightData?.currentWeight ? (
                         <>
-                            <Text style={styles.metricValue}>{weightData.currentWeight.toFixed(1)} kg</Text>
+                            <Text style={styles.metricValue}>{Number(weightData.currentWeight).toFixed(1)} kg</Text>
                             <Text style={styles.metricLabel}>Today's weight</Text>
                         </>
                     ) : (
@@ -114,7 +127,7 @@ function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets,
     );
 }
 
-export default React.memo(NutritionStats, (prev, next) => {
+export default memo(NutritionStats, (prev, next) => {
     return (
         prev.weightData === next.weightData &&
         prev.dailyNutrition === next.dailyNutrition &&

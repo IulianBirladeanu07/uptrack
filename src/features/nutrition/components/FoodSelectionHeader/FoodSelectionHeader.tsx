@@ -2,6 +2,16 @@ import { memo, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, StatusBar, Animated, Easing, TouchableOpacity } from 'react-native';
 import { Flame } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import type { FoodItem } from '../../../../shared/types';
+
+type FoodSelectionHeaderProps = {
+  date?: string | undefined;
+  dailyGoal?: number | undefined;
+  selectedFoods?: FoodItem[] | undefined;
+  currentCalories?: number | undefined;
+  targetCalories?: number | undefined;
+  onQuickActionsPress: () => void;
+};
 
 const FoodSelectionHeader = ({
   date,
@@ -10,7 +20,7 @@ const FoodSelectionHeader = ({
   currentCalories = 0,
   targetCalories = 2000,
   onQuickActionsPress,
-}) => {
+}: FoodSelectionHeaderProps) => {
   const { calculatedCurrentCalories, foodCount, calorieProgress } = useMemo(() => {
     const selectedFoodsCalories = Math.round(
       selectedFoods.reduce((total, food) => total + (Number(food.calories) || 0), 0)

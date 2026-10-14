@@ -1,9 +1,19 @@
 import { useCallback, memo, useRef, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, Keyboard } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useAppNavigation } from '../../../../shared/navigation/hooks';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
+
+type SearchBarProps = {
+  meal?: string | undefined;
+  searchQuery: string;
+  setSearchQuery?: ((query: string) => void) | undefined;
+  onClear?: (() => void) | undefined;
+  onFocus?: (() => void) | undefined;
+  selectedDate?: string | undefined;
+  isSearching: boolean;
+};
 
 const SearchBar = memo(({
   meal,
@@ -13,29 +23,23 @@ const SearchBar = memo(({
   onFocus,
   selectedDate,
   isSearching,
-}) => {
-  const navigation = useNavigation();
-  const inputRef = useRef(null);
-
-
-
-
+}: SearchBarProps) => {
+  const navigation = useAppNavigation();
+  const inputRef = useRef<TextInput>(null);
 
   const handleFocus = useCallback(() => {
     onFocus?.();
   }, [onFocus]);
 
   useEffect(() => {
-    if (isSearching && inputRef.current) {
-      const focusTimeout = setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-      return () => clearTimeout(focusTimeout);
-    }
+    if (!isSearching || !inputRef.current) return;
+    const focusTimeout = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+    return () => clearTimeout(focusTimeout);
   }, [isSearching]);
 
-
-  const handleChangeText = useCallback((text) => {
+  const handleChangeText = useCallback((text: string) => {
     setSearchQuery?.(text || '');
   }, [setSearchQuery]);
 
@@ -92,7 +96,6 @@ const SearchBar = memo(({
           selectionColor={colors.accent.primary}
           returnKeyType="search"
           autoFocus={false}
-          keyboardShouldPersistTaps="handled"
           clearButtonMode="never"
           autoCorrect={false}
           autoCapitalize="none"
