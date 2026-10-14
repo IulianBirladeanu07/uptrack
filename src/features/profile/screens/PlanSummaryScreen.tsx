@@ -2,20 +2,20 @@ import { useState, useContext } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
 import { doc, setDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { db } from '../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../auth/context/AuthContext';
 import { calculateWeightChangePlan, deriveFitnessGoal } from '../utils/nutritionPlanEngine';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../shared/theme';
+import { useRootNavigation, useRootRoute } from '../../../shared/navigation';
 import { createStyles } from '../../../shared/theme/createStyles';
 
 const PlanSummaryScreen = () => {
-  const navigation = useNavigation();
-  const route = useRoute();
+  const navigation = useRootNavigation();
+  const route = useRootRoute<'PlanSummary'>();
   const insets = useSafeAreaInsets();
-  const { setProfileSetupComplete, refreshUserData } = useContext(AuthContext);
+  const { setProfileSetupComplete, refreshUserData } = useContext(AuthContext)!;
   const [saving, setSaving] = useState(false);
 
   const formData = route.params?.formData || {};
