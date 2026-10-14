@@ -1,10 +1,11 @@
-// @ts-nocheck — large screen; structural TS conversion done, refine types in follow-up
-import { useState, useRef, useCallback, useEffect, memo } from 'react';
+import { useState, useRef, useCallback, useEffect, memo, type ReactNode } from 'react';
 import {
   View,
   Text,
   TextInput,
+  type TextInputProps,
   TouchableOpacity,
+  type TouchableOpacityProps,
   Animated,
   Easing,
   Modal,
@@ -28,6 +29,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import styles, { COLORS } from './ExerciseItemStyle';
 import { normalize } from '../../../../shared/hooks/useResponsive';
+import type { TemplateExercise } from '../../types';
 
 const SET_OPTIONS = [1, 2, 3, 4, 5];
 const REP_RANGE_OPTIONS = [
@@ -47,7 +49,7 @@ const SWIPE_THRESHOLD = 60;
 
 const BUTTON_HIT_SLOP = { top: 10, right: 10, bottom: 10, left: 10 };
 
-const formatRestTime = (seconds: number) => {
+const formatRestTime = (seconds?: number) => {
   if (!seconds) return '3m';
 
   if (seconds < 60) {
@@ -74,6 +76,14 @@ const formatRestTime = (seconds: number) => {
   return `${wholeMinutes}m ${remainingSeconds}s`;
 };
 
+type CustomButtonProps = Pick<
+  TouchableOpacityProps,
+  'onPress' | 'onPressIn' | 'onLongPress' | 'style' | 'accessibilityLabel' | 'activeOpacity' | 'hitSlop' | 'disabled'
+> & {
+  icon?: ReactNode;
+  children?: ReactNode;
+};
+
 const CustomButton = ({
   onPress,
   onPressIn,
@@ -85,7 +95,7 @@ const CustomButton = ({
   activeOpacity = 0.7,
   hitSlop = BUTTON_HIT_SLOP,
   disabled = false,
-}) => (
+}: CustomButtonProps) => (
   <TouchableOpacity
     style={style}
     onPress={onPress}
@@ -101,6 +111,17 @@ const CustomButton = ({
   </TouchableOpacity>
 );
 
+type ModalWrapperProps = {
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  value: string;
+  onChange: (value: string) => void;
+  onSave: () => void;
+  placeholder: string;
+  keyboardType?: TextInputProps['keyboardType'];
+};
+
 const ModalWrapper = ({
   visible,
   onClose,
@@ -110,7 +131,7 @@ const ModalWrapper = ({
   onSave,
   placeholder,
   keyboardType = 'default',
-}) => (
+}: ModalWrapperProps) => (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <TouchableWithoutFeedback onPress={onClose}>
       <View style={styles.modalContainer}>
@@ -144,7 +165,14 @@ const ModalWrapper = ({
   </Modal>
 );
 
-const RestTimeModal = ({ visible, onClose, currentValue, onSave }) => {
+type RestTimeModalProps = {
+  visible: boolean;
+  onClose: () => void;
+  currentValue?: number | undefined;
+  onSave: (seconds: number) => void;
+};
+
+const RestTimeModal = ({ visible, onClose, currentValue, onSave }: RestTimeModalProps) => {
   const [minutes, setMinutes] = useState('');
   const [seconds, setSeconds] = useState('');
 
@@ -157,12 +185,12 @@ const RestTimeModal = ({ visible, onClose, currentValue, onSave }) => {
     }
   }, [visible, currentValue]);
 
-  const handleMinutesChange = (text) => {
+  const handleMinutesChange = (text: string) => {
     const cleaned = text.replace(/[^0-9]/g, '');
     setMinutes(cleaned);
   };
 
-  const handleSecondsChange = (text) => {
+  const handleSecondsChange = (text: string) => {
     const cleaned = text.replace(/[^0-9]/g, '');
     const num = parseInt(cleaned) || 0;
     if (num <= 59) {
@@ -237,7 +265,14 @@ const RestTimeModal = ({ visible, onClose, currentValue, onSave }) => {
   );
 };
 
-const Chip = ({ label, isSelected, onPress, size = 'default' }) => (
+type ChipProps = {
+  label: string | undefined;
+  isSelected: boolean | undefined;
+  onPress: () => void;
+  size?: 'default' | 'small';
+};
+
+const Chip = ({ label, isSelected, onPress, size = 'default' }: ChipProps) => (
   <CustomButton
     onPress={onPress}
     style={[
@@ -257,13 +292,21 @@ const Chip = ({ label, isSelected, onPress, size = 'default' }) => (
   </CustomButton>
 );
 
-const RestTimeSelector = ({ selectedValue, onSelect, onCustomPress, hasUserSelection = false }) => {
+type RestTimeSelectorProps = {
+  selectedValue?: number | undefined;
+  onSelect: (value: number) => void;
+  onCustomPress: () => void;
+};
+
+const RestTimeSelector = ({ selectedValue, onSelect, onCustomPress }: RestTimeSelectorProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const expandAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   const isSelectedTime = selectedValue !== undefined && selectedValue !== null;
-  const isCustomRestTime = selectedValue && !REST_TIME_OPTIONS.some(opt => opt.value === selectedValue);
+  const isCustomRestTime = Boolean(
+    selectedValue && !REST_TIME_OPTIONS.some((opt) => opt.value === selectedValue)
+  );
 
   const toggleExpansion = useCallback(() => {
     const newValue = !isExpanded;
@@ -296,7 +339,7 @@ const RestTimeSelector = ({ selectedValue, onSelect, onCustomPress, hasUserSelec
     }
   }, [isExpanded, expandAnim, opacityAnim]);
 
-  const handleSelect = useCallback((value) => {
+  const handleSelect = useCallback((value: number) => {
     onSelect(value);
 
     Animated.parallel([
@@ -475,7 +518,7 @@ const RestTimeSelector = ({ selectedValue, onSelect, onCustomPress, hasUserSelec
   );
 };
 
-const areEqual = (prevProps, nextProps) => {
+const areEqual = (prevProps: ExerciseItemProps, nextProps: ExerciseItemProps) => {
   return (
     prevProps.exercise === nextProps.exercise &&
     prevProps.isExpanded === nextProps.isExpanded &&
@@ -491,17 +534,7 @@ const areEqual = (prevProps, nextProps) => {
   );
 };
 
-type ExerciseItemData = {
-  id: string;
-  exerciseName?: string;
-  name?: string;
-  muscleGroup?: string;
-  repRange?: string;
-  numSets?: number | string;
-  restTime?: number;
-  note?: string;
-  [key: string]: unknown;
-};
+type ExerciseItemData = TemplateExercise & { id: string };
 
 type ExerciseItemProps = {
   exercise: ExerciseItemData;
@@ -513,13 +546,13 @@ type ExerciseItemProps = {
   onRestBetweenSetsChange: (rest: number, id: string) => void;
   onDelete: (id: string) => void;
   onReplace?: (id: string) => void;
-  fadeAnim?: any;
+  fadeAnim?: Animated.Value;
   onDrag?: () => void;
   isDragging?: boolean;
 };
 
 const ExerciseItem = memo(
-  ({ exercise, isExpanded, onToggle, onSetsChange, onRepsChange, onNoteChange, onRestBetweenSetsChange, onDelete, onReplace, fadeAnim, onDrag, isDragging }: ExerciseItemProps) => {
+  ({ exercise, isExpanded, onToggle, onSetsChange, onRepsChange, onNoteChange, onRestBetweenSetsChange, onDelete, onReplace, onDrag, isDragging }: ExerciseItemProps) => {
     const [modalState, setModalState] = useState({
       customRep: { visible: false, value: exercise?.repRange || '' },
       customRest: { visible: false },
@@ -531,8 +564,9 @@ const ExerciseItem = memo(
 
     const exerciseName = exercise?.exerciseName || exercise?.name || '';
     const muscleGroup = exercise?.muscleGroup || '';
-    const isCustomRepRange =
-      exercise?.repRange && !REP_RANGE_OPTIONS.some((opt) => opt.value === exercise.repRange);
+    const isCustomRepRange = Boolean(
+      exercise?.repRange && !REP_RANGE_OPTIONS.some((opt) => opt.value === exercise.repRange)
+    );
 
     useEffect(() => {
       if (exercise.restTime === undefined) {
@@ -555,7 +589,9 @@ const ExerciseItem = memo(
               if (finished) {
                 swipeTranslateX.value = 0;
                 swipeProgress.value = 0;
-                runOnJS(onReplace)(exercise.id);
+                if (onReplace) {
+                  runOnJS(onReplace)(exercise.id);
+                }
                 runOnJS(Vibration.vibrate)(20);
               }
             });
@@ -600,11 +636,24 @@ const ExerciseItem = memo(
       }
     }, [onToggle, exercise.id]);
 
-    const handleModalChange = useCallback((modal, field, value) => {
-      setModalState((prev) => ({
-        ...prev,
-        [modal]: { ...prev[modal], [field]: value },
-      }));
+    const handleModalChange = useCallback((
+      modal: 'customRep' | 'customRest',
+      field: 'visible' | 'value',
+      value: boolean | string
+    ) => {
+      setModalState((prev) => {
+        if (modal === 'customRep') {
+          if (field === 'visible' && typeof value === 'boolean') {
+            return { ...prev, customRep: { ...prev.customRep, visible: value } };
+          }
+          if (field === 'value' && typeof value === 'string') {
+            return { ...prev, customRep: { ...prev.customRep, value } };
+          }
+        } else if (field === 'visible' && typeof value === 'boolean') {
+          return { ...prev, customRest: { visible: value } };
+        }
+        return prev;
+      });
     }, []);
 
     const saveRepModal = useCallback(() => {
@@ -615,7 +664,7 @@ const ExerciseItem = memo(
       handleModalChange('customRep', 'visible', false);
     }, [modalState.customRep.value, onRepsChange, exercise.id, handleModalChange]);
 
-    const handleRestTimeSelect = useCallback((restTime) => {
+    const handleRestTimeSelect = useCallback((restTime: number) => {
       onRestBetweenSetsChange(restTime, exercise.id);
     }, [onRestBetweenSetsChange, exercise.id]);
 
@@ -628,7 +677,7 @@ const ExerciseItem = memo(
       }));
     }, []);
 
-    const handleRestTimeSave = useCallback((totalSeconds) => {
+    const handleRestTimeSave = useCallback((totalSeconds: number) => {
       onRestBetweenSetsChange(totalSeconds, exercise.id);
     }, [onRestBetweenSetsChange, exercise.id]);
 

@@ -1,5 +1,4 @@
-// @ts-nocheck — large screen; structural TS conversion done, refine types in follow-up
-import { useState, useCallback, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { memo, useState, useCallback, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import {
   View,
@@ -18,10 +17,31 @@ import {
   InteractionManager,
 } from 'react-native';
 
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import styles, { COLORS } from './CreateExerciseScreenStyle';
 import { createCustomExercise } from '../../handlers/WorkoutHandler';
+
+type ExerciseFormData = {
+  name: string;
+  muscleGroup: string;
+  equipment: string;
+  category: string;
+};
+
+type FormField = keyof ExerciseFormData;
+type FormErrors = Partial<Record<FormField, string | null>>;
+type PickerType = keyof typeof EXERCISE_DATA;
+type PickerOption = (typeof EXERCISE_DATA)[PickerType][number];
+type ModalPickerHandle = { focus: () => void };
+type ModalPickerProps = {
+  label: string;
+  type: PickerType;
+  selectedValue: string;
+  onSelect: (value: string) => void;
+  error?: string | null | undefined;
+  placeholder: string;
+};
 
 const { height } = Dimensions.get('window');
 
@@ -57,19 +77,23 @@ const EXERCISE_DATA = {
     { name: 'Cardio', icon: 'heart-outline', desc: 'Cardiovascular exercise', color: '#EF4444' },
     { name: 'Stretching', icon: 'contract-outline', desc: 'Flexibility and mobility', color: '#10B981' }
   ]
-};
+} as const;
 
 const TOTAL_FIELDS = 4;
 
-const debounce = (func, delay) => {
-  let timeoutId;
-  return (...args) => {
+const debounce = (func: (value: string) => void, delay: number) => {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  return (value: string) => {
     clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
+    timeoutId = setTimeout(() => func(value), delay);
   };
 };
 
-const OptionItem = React.memo(({ option, isSelected, onSelect }) => (
+const OptionItem = memo(({ option, isSelected, onSelect }: {
+  option: PickerOption;
+  isSelected: boolean;
+  onSelect: () => void;
+}) => (
   <View style={styles.menuItemWrapper}>
     <TouchableOpacity
       style={[
@@ -110,12 +134,19 @@ const OptionItem = React.memo(({ option, isSelected, onSelect }) => (
   </View>
 ));
 
-const ModalPicker = forwardRef(({ label, type, selectedValue, onSelect, error, placeholder }, ref) => {
+const ModalPicker = forwardRef<ModalPickerHandle, ModalPickerProps>(({
+  label,
+  type,
+  selectedValue,
+  onSelect,
+  error,
+  placeholder,
+}, ref) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const slideAnim = useRef(new Animated.Value(1)).current;
-  const options = EXERCISE_DATA[type] || [];
+  const options = EXERCISE_DATA[type];
 
   const filteredOptions = useMemo(() => {
     if (!searchQuery) return options;
@@ -160,7 +191,7 @@ const ModalPicker = forwardRef(({ label, type, selectedValue, onSelect, error, p
     debounce(setSearchQuery, 100), []
   );
 
-  const renderItem = useCallback(({ item }) => (
+  const renderItem = useCallback(({ item }: { item: PickerOption }) => (
     <OptionItem
       option={item}
       isSelected={selectedValue === item.name}
@@ -171,7 +202,7 @@ const ModalPicker = forwardRef(({ label, type, selectedValue, onSelect, error, p
     />
   ), [selectedValue, onSelect, closeModal]);
 
-  const keyExtractor = useCallback((item) => item.name, []);
+  const keyExtractor = useCallback((item: PickerOption) => item.name, []);
 
   const modalTransform = slideAnim.interpolate({
     inputRange: [0, 1],
@@ -287,7 +318,7 @@ const ModalPicker = forwardRef(({ label, type, selectedValue, onSelect, error, p
             windowSize={10}
             removeClippedSubviews={Platform.OS === 'android'}
             updateCellsBatchingPeriod={50}
-            getItemLayout={(data, index) => ({
+            getItemLayout={(_data, index) => ({
               length: 70,
               offset: 70 * index,
               index,
@@ -306,20 +337,21 @@ const ModalPicker = forwardRef(({ label, type, selectedValue, onSelect, error, p
   );
 });
 
-const CreateExerciseScreen = ({ route }) => {
-  const navigation = useNavigation();
+const CreateExerciseScreen = () => {
+  const navigation = useAppNavigation();
+  const route = useAppRoute<'CreateExercise'>();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ExerciseFormData>({
     name: '',
     muscleGroup: '',
     equipment: '',
     category: ''
   });
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [focusedField, setFocusedField] = useState(null);
+  const [focusedField, setFocusedField] = useState<FormField | null>(null);
 
-  const muscleGroupPickerRef = useRef(null);
+  const muscleGroupPickerRef = useRef<ModalPickerHandle | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -358,7 +390,7 @@ const CreateExerciseScreen = ({ route }) => {
   }, [progress, isComplete, progressAnim, summaryAnim]);
 
   const validationErrors = useMemo(() => {
-    const errors = {};
+    const errors: FormErrors = {};
     const name = formData.name.trim();
     if (!name) errors.name = 'Exercise name is required';
     else if (name.length < 2) errors.name = 'Name must be at least 2 characters';
@@ -399,6 +431,8 @@ const CreateExerciseScreen = ({ route }) => {
         muscleGroup: formData.muscleGroup,
         equipment: formData.equipment,
         category: formData.category,
+        imageURL: '',
+        difficulty: 'Intermediate',
       });
 
       const { onExerciseCreated } = route.params || {};
@@ -415,13 +449,13 @@ const CreateExerciseScreen = ({ route }) => {
         ]
       );
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to create exercise. Please try again.');
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create exercise. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   }, [formData, validateForm, navigation, route.params, triggerShake]);
 
-  const updateField = useCallback((field, value) => {
+  const updateField = useCallback((field: FormField, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: null }));

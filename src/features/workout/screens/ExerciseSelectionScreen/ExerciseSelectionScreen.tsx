@@ -1,16 +1,46 @@
-// @ts-nocheck — large screen; structural TS conversion done, refine types in follow-up
 import { useState, useEffect, useCallback, memo, useMemo, useRef } from 'react';
-import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import { useAppRoute } from '../../../../shared/navigation';
 import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Animated, Easing, Platform } from 'react-native';
+import type { ListRenderItem, ListRenderItemInfo } from 'react-native';
+import type { NavigationProp, ParamListBase } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 import { fetchExercises, clearExercisesCache } from '../../handlers/WorkoutHandler';
 import { colors, spacing } from '../../../../shared/theme';
 import { styles } from './ExerciseSelectionScreenStyle.js';
+import type { CatalogExercise, ExerciseGroup } from '../../../../shared/types';
 
-const useDebounce = (value, delay) => {
+type ExerciseItemData = CatalogExercise & { id: string };
+type ExerciseCounts = { total: number; [muscleGroup: string]: number };
+type ExerciseSection = { title: string; data: ExerciseItemData[] };
+type ExerciseListRow =
+  | { type: 'header'; title: string; id: string }
+  | (ExerciseItemData & { type: 'item'; listId: string });
+type ExerciseSelectionProps = {
+  exercise: ExerciseItemData;
+  isSelected: boolean;
+  onToggle: (exerciseName: string) => void;
+};
+type FilterBarProps = {
+  activeFilter: string;
+  onFilterChange: (filter: string) => void;
+  muscleGroups: string[];
+  counts: ExerciseCounts;
+};
+type SearchHeaderProps = {
+  searchTerm: string;
+  onSearchChange: (text: string) => void;
+  onBack: () => void;
+  onCreateExercise: () => void;
+  activeFilter: string;
+  onFilterChange: (filter: string) => void;
+  muscleGroups: string[];
+  counts: ExerciseCounts;
+};
+
+const useDebounce = <T,>(value: T, delay: number): [T, boolean] => {
   const [debouncedValue, setDebouncedValue] = useState(value);
   const [isDebouncing, setIsDebouncing] = useState(false);
 
@@ -30,12 +60,12 @@ const useDebounce = (value, delay) => {
   return [debouncedValue, isDebouncing];
 };
 
-const useExerciseData = (allGroupedExercises) => {
+const useExerciseData = (allGroupedExercises: ExerciseGroup[]) => {
   return useMemo(() => {
-    const exerciseMap = new Map();
-    const muscleGroups = new Set();
-    const counts = { total: 0 };
-    const flatExercises = [];
+    const exerciseMap = new Map<string, ExerciseItemData>();
+    const muscleGroups = new Set<string>();
+    const counts: ExerciseCounts = { total: 0 };
+    const flatExercises: ExerciseItemData[] = [];
 
     if (!Array.isArray(allGroupedExercises)) {
       return { exerciseMap, muscleGroups: [], counts, flatExercises };
@@ -70,7 +100,7 @@ const useExerciseData = (allGroupedExercises) => {
   }, [allGroupedExercises]);
 };
 
-const ExerciseItem = memo(({ exercise, isSelected, onToggle }) => {
+const ExerciseItem = memo(({ exercise, isSelected, onToggle }: ExerciseSelectionProps) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [imageError, setImageError] = useState(false);
 
@@ -159,11 +189,11 @@ const ExerciseItem = memo(({ exercise, isSelected, onToggle }) => {
          prev.exercise.id === next.exercise.id;
 });
 
-const FilterBar = memo(({ activeFilter, onFilterChange, muscleGroups, counts }) => {
-  const scrollRef = useRef(null);
+const FilterBar = memo(({ activeFilter, onFilterChange, muscleGroups, counts }: FilterBarProps) => {
+  const scrollRef = useRef<ScrollView | null>(null);
   const filters = useMemo(() => ['All', ...muscleGroups], [muscleGroups]);
   const animationValues = useRef(
-    filters.reduce((acc, filter) => {
+    filters.reduce<Record<string, Animated.Value>>((acc, filter) => {
       acc[filter] = new Animated.Value(activeFilter === filter ? 1 : 0);
       return acc;
     }, {})
@@ -263,7 +293,16 @@ const FilterBar = memo(({ activeFilter, onFilterChange, muscleGroups, counts }) 
   );
 });
 
-const SearchHeader = memo(({ searchTerm, onSearchChange, onBack, onCreateExercise, activeFilter, onFilterChange, muscleGroups, counts }) => {
+const SearchHeader = memo(({
+  searchTerm,
+  onSearchChange,
+  onBack,
+  onCreateExercise,
+  activeFilter,
+  onFilterChange,
+  muscleGroups,
+  counts,
+}: SearchHeaderProps) => {
   const createButtonScale = useRef(new Animated.Value(1)).current;
 
   const handleCreatePress = useCallback(() => {
@@ -285,8 +324,6 @@ const SearchHeader = memo(({ searchTerm, onSearchChange, onBack, onCreateExercis
 
   return (
     <View style={styles.headerContainer}>
-      <View style={styles.headerGradientOverlay} />
-
       <View style={styles.headerTopRow}>
         <TouchableOpacity
           onPress={onBack}
@@ -354,7 +391,7 @@ const SearchHeader = memo(({ searchTerm, onSearchChange, onBack, onCreateExercis
   );
 });
 
-const SectionHeader = memo(({ title }) => (
+const SectionHeader = memo(({ title }: { title: string }) => (
   <View style={styles.sectionHeaderContainer}>
     <Text style={styles.sectionHeaderText}>
       {title.toUpperCase()}
@@ -362,14 +399,15 @@ const SectionHeader = memo(({ title }) => (
   </View>
 ));
 
-const ExerciseSelectionScreen = ({ route }) => {
-  const navigation = useNavigation();
+const ExerciseSelectionScreen = () => {
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const route = useAppRoute<'ExerciseSelection'>();
 
-  const [allGroupedExercises, setAllGroupedExercises] = useState([]);
+  const [allGroupedExercises, setAllGroupedExercises] = useState<ExerciseGroup[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedExercises, setSelectedExercises] = useState(new Set());
+  const [selectedExercises, setSelectedExercises] = useState<Set<string>>(() => new Set());
   const [activeFilter, setActiveFilter] = useState('All');
 
   const [debouncedSearchTerm, isSearching] = useDebounce(searchTerm, 200);
@@ -386,7 +424,7 @@ const ExerciseSelectionScreen = ({ route }) => {
       const data = await fetchExercises(true);
       setAllGroupedExercises(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.message || 'Failed to load exercises');
+      setError(err instanceof Error ? err.message : 'Failed to load exercises');
     } finally {
       setLoading(false);
     }
@@ -425,8 +463,8 @@ const ExerciseSelectionScreen = ({ route }) => {
       );
     }
 
-    const grouped = [];
-    const groups = {};
+    const grouped: ExerciseSection[] = [];
+    const groups: Record<string, ExerciseSection> = {};
 
     filtered.forEach(exercise => {
       const group = exercise.muscleGroup;
@@ -444,7 +482,7 @@ const ExerciseSelectionScreen = ({ route }) => {
   }, [flatExercises, debouncedSearchTerm, activeFilter]);
 
   const flatListData = useMemo(() => {
-    const result = [];
+    const result: ExerciseListRow[] = [];
     filteredAndGroupedExercises.forEach((section, sectionIndex) => {
       result.push({
         type: 'header',
@@ -471,15 +509,15 @@ const ExerciseSelectionScreen = ({ route }) => {
     }).start();
   }, [selectedExercises.size, doneButtonAnim]);
 
-  const handleSearchChange = useCallback((text) => {
+  const handleSearchChange = useCallback((text: string) => {
     setSearchTerm(text);
   }, []);
 
-  const handleFilterChange = useCallback((filter) => {
+  const handleFilterChange = useCallback((filter: string) => {
     setActiveFilter(filter);
   }, []);
 
-  const handleToggleExercise = useCallback((exerciseName) => {
+  const handleToggleExercise = useCallback((exerciseName: string) => {
     setSelectedExercises(prev => {
       const newSet = new Set(prev);
       if (newSet.has(exerciseName)) {
@@ -495,7 +533,7 @@ const ExerciseSelectionScreen = ({ route }) => {
     const { previousScreen = 'StartWorkout', replaceIndex } = route?.params || {};
     const selectedData = Array.from(selectedExercises)
       .map(name => exerciseMap.get(name))
-      .filter(Boolean);
+      .filter((exercise): exercise is ExerciseItemData => exercise !== undefined);
 
     navigation.navigate(previousScreen, {
       selectedExercises: selectedData,
@@ -512,7 +550,7 @@ const ExerciseSelectionScreen = ({ route }) => {
     navigation.navigate('CreateExercise', {});
   }, [navigation]);
 
-  const renderFlatListItem = useCallback(({ item }) => {
+  const renderFlatListItem: ListRenderItem<ExerciseListRow> = useCallback(({ item }: ListRenderItemInfo<ExerciseListRow>) => {
     if (item.type === 'header') {
       return <SectionHeader title={item.title} />;
     }
@@ -525,7 +563,8 @@ const ExerciseSelectionScreen = ({ route }) => {
     );
   }, [selectedExercises, handleToggleExercise]);
 
-  const flatListKeyExtractor = useCallback((item) => item.listId || item.id, []);
+  const flatListKeyExtractor = useCallback((item: ExerciseListRow) =>
+    item.type === 'item' ? item.listId : item.id, []);
 
   const renderListEmptyComponent = useCallback(() => (
     <View style={styles.emptyContainer}>
@@ -599,7 +638,7 @@ const ExerciseSelectionScreen = ({ route }) => {
         counts={counts}
       />
 
-      <FlatList
+      <FlatList<ExerciseListRow>
         data={flatListData}
         renderItem={renderFlatListItem}
         keyExtractor={flatListKeyExtractor}

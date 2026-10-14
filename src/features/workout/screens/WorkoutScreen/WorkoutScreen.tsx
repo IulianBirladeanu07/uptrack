@@ -1,25 +1,106 @@
-// @ts-nocheck — large screen; structural TS conversion done, refine types in follow-up
-import { useCallback, useMemo, useState, useContext, useRef } from 'react';
-import { useAppNavigation } from '../../../../shared/navigation';
+import React, { useCallback, useMemo, useState, useContext, useRef } from 'react';
 import {
     View, Text, TouchableOpacity, Modal, Pressable,
     ScrollView, ActivityIndicator, Animated, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
 import { fetchSplitsFromFirestore } from '../../handlers/WorkoutHandler';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { getScheduledDay, getWeekSchedule, getCycleLength } from '../../utils/splitSchedule';
+import type { SplitLike } from '../../utils/splitSchedule';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { colors, spacing } from '../../../../shared/theme';
 import { ExercisePreviewList } from '../../components/WorkoutExercisePreview/WorkoutExercisePreview';
+import type { AuthenticatedStackParamList } from '../../../../shared/navigation';
+import type { PersistedWorkoutState, TemplateExercise, WorkoutSet } from '../../types';
 import styles from './WorkoutScreenStyles';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+type AppNavigation = NativeStackNavigationProp<AuthenticatedStackParamList>;
+type WorkoutDisplayData = {
+    name: string;
+    duration: string;
+    exercises: TemplateExercise[];
+    day?: string | undefined;
+};
+type WorkoutPreview = WorkoutDisplayData;
+type WorkoutWeekSchedule = Record<string, WorkoutScheduleDay | null | undefined>;
+type WorkoutScheduleDay = {
+    templateName?: string;
+    duration?: string | number;
+    exercises?: TemplateExercise[];
+};
+type WorkoutSummaryExercise = {
+    name: string;
+    sets: number;
+    bestSet: string | null;
+};
+type WorkoutSummary = {
+    name: string;
+    duration: string;
+    totalSets: number;
+    exerciseCount: number;
+    exercises: WorkoutSummaryExercise[];
+};
+type WorkoutHistorySet = Pick<WorkoutSet, 'weight' | 'reps'>;
+type WorkoutHistoryExercise = {
+    exerciseName?: string;
+    name?: string;
+    sets?: WorkoutHistorySet[];
+};
+type WorkoutHistoryEntry = {
+    timestamp?: { toDate?: () => Date };
+    workoutName?: string;
+    templateName?: string;
+    duration?: string;
+    exercises?: WorkoutHistoryExercise[];
+};
+type ExerciseRowProps = {
+    sets?: string | number | null | undefined;
+    name?: string | null | undefined;
+    reps?: string | number | null | undefined;
+    isLast: boolean;
+};
+type WorkoutStatsMetaProps = {
+    duration?: string | number;
+    exerciseCount?: number;
+    totalSets?: number;
+};
+type MainWorkoutCardProps = {
+    workoutData: WorkoutDisplayData | null;
+    onStart: () => void;
+    onStartAgain: () => void;
+    onResume: () => void;
+    onPreview: (workout: WorkoutPreview) => void;
+    allExercises: string[];
+    isRestDay: boolean;
+    activeWorkout: PersistedWorkoutState | null;
+    isToday: boolean;
+    lastWorkoutStats: WorkoutSummary | null;
+    todayCompletedStats: WorkoutSummary | null;
+};
+type ThisWeekCardProps = {
+    completedDays: number[];
+    schedule: WorkoutWeekSchedule | null;
+    onDayPress: (workout: WorkoutPreview) => void;
+};
+type UpcomingWorkout = WorkoutPreview & { isRest: boolean };
+type UpcomingWorkoutRowProps = {
+    workout: UpcomingWorkout;
+    isLast: boolean;
+    onPreview: (workout: WorkoutPreview) => void;
+};
+type ComingUpCardProps = {
+    upcomingWorkouts: UpcomingWorkout[];
+    onPreview: (workout: WorkoutPreview) => void;
+    onViewAll: () => void;
+};
 
 const WEEK_DAYS = [
     { key: 'monday', jsDay: 1 }, { key: 'tuesday', jsDay: 2 },
@@ -28,7 +109,7 @@ const WEEK_DAYS = [
     { key: 'sunday', jsDay: 0 },
 ];
 
-const LiveTimer = ({ startTime }) => {
+const LiveTimer = ({ startTime }: { startTime: number }) => {
     const [elapsed, setElapsed] = useState(0);
 
     React.useEffect(() => {
@@ -41,7 +122,7 @@ const LiveTimer = ({ startTime }) => {
     const h = Math.floor(elapsed / 3600);
     const m = Math.floor((elapsed % 3600) / 60);
     const s = elapsed % 60;
-    const pad = n => (n < 10 ? '0' + n : n);
+    const pad = (n: number) => (n < 10 ? '0' + n : n);
     const fmt = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 
     return <Text style={styles.resumeTimer}>{fmt}</Text>;
@@ -62,7 +143,7 @@ const PulseDot = () => {
     return <Animated.View style={[styles.pulseDot, { transform: [{ scale }] }]} />;
 };
 
-const ExerciseRow = ({ sets, name, reps, isLast }) => (
+const ExerciseRow = ({ sets, name, reps, isLast }: ExerciseRowProps) => (
     <View style={[styles.exerciseRow, isLast && styles.exerciseRowLast]}>
         <Text style={styles.exerciseSetsInline}>{sets}x</Text>
         <Text style={styles.exerciseName}>{name}</Text>
@@ -70,7 +151,7 @@ const ExerciseRow = ({ sets, name, reps, isLast }) => (
     </View>
 );
 
-const WorkoutStatsMeta = ({ duration, exerciseCount, totalSets }) => (
+const WorkoutStatsMeta = ({ duration, exerciseCount, totalSets }: WorkoutStatsMetaProps) => (
     <View style={styles.workoutStatsMeta}>
         {!!duration && (
             <View style={styles.workoutMetaItem}>
@@ -96,7 +177,7 @@ const WorkoutStatsMeta = ({ duration, exerciseCount, totalSets }) => (
 const MainWorkoutCard = React.memo(({
     workoutData, onStart, onStartAgain, onResume, onPreview,
     allExercises, isRestDay, activeWorkout, isToday, lastWorkoutStats, todayCompletedStats,
-}) => {
+}: MainWorkoutCardProps) => {
     if (activeWorkout) {
         return (
             <View style={styles.workoutCard}>
@@ -222,7 +303,9 @@ const MainWorkoutCard = React.memo(({
         );
     }
 
-    const totalSets = workoutData.exercises?.reduce((acc, ex) => acc + (parseInt(ex.numSets) || 0), 0) ?? 0;
+    if (!workoutData) return null;
+
+    const totalSets = workoutData.exercises?.reduce((acc, ex) => acc + (parseInt(String(ex.numSets ?? 0), 10) || 0), 0) ?? 0;
     const visibleExercises = allExercises.slice(0, 3);
     const extraCount = allExercises.length - 3;
 
@@ -279,7 +362,7 @@ const MainWorkoutCard = React.memo(({
     );
 });
 
-const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }) => {
+const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }: ThisWeekCardProps) => {
     const today = new Date().getDay();
 
     const days = WEEK_DAYS.map(d => ({
@@ -345,7 +428,7 @@ const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }) => {
     );
 });
 
-const UpcomingWorkoutRow = React.memo(({ workout, isLast, onPreview }) => {
+const UpcomingWorkoutRow = React.memo(({ workout, isLast, onPreview }: UpcomingWorkoutRowProps) => {
     const muscleGroups = useMemo(() => {
         return [...new Set((workout.exercises ?? []).map(e => e.muscleGroup).filter(Boolean))].join(' · ');
     }, [workout]);
@@ -372,7 +455,7 @@ const UpcomingWorkoutRow = React.memo(({ workout, isLast, onPreview }) => {
     );
 });
 
-const ComingUpCard = React.memo(({ upcomingWorkouts, onPreview, onViewAll }) => {
+const ComingUpCard = React.memo(({ upcomingWorkouts, onPreview, onViewAll }: ComingUpCardProps) => {
     if (!upcomingWorkouts.length) return null;
 
     return (
@@ -395,7 +478,7 @@ const ComingUpCard = React.memo(({ upcomingWorkouts, onPreview, onViewAll }) => 
     );
 });
 
-const getFallbackWorkoutName = (entry) => {
+const getFallbackWorkoutName = (entry: WorkoutHistoryEntry) => {
     const hour = entry.timestamp?.toDate?.()?.getHours();
     if (hour === undefined) return 'Workout';
     if (hour >= 5 && hour < 12) return 'Morning Workout';
@@ -404,7 +487,7 @@ const getFallbackWorkoutName = (entry) => {
     return 'Night Workout';
 };
 
-const summarizeWorkoutEntry = (entry) => {
+const summarizeWorkoutEntry = (entry: WorkoutHistoryEntry): WorkoutSummary => {
     const exercises = entry.exercises ?? [];
     return {
         name: entry.workoutName || entry.templateName || getFallbackWorkoutName(entry),
@@ -414,10 +497,10 @@ const summarizeWorkoutEntry = (entry) => {
         exercises: exercises.map(ex => {
             const sets = ex.sets ?? [];
             const bestSet = sets.reduce((best, s) => {
-                return (parseFloat(s.weight) || 0) > (parseFloat(best.weight) || 0) ? s : best;
+                return (parseFloat(String(s.weight)) || 0) > (parseFloat(String(best.weight ?? 0)) || 0) ? s : best;
             }, sets[0] ?? {});
-            const weight = parseFloat(bestSet?.weight);
-            const reps = parseInt(bestSet?.reps);
+            const weight = parseFloat(String(bestSet?.weight ?? ''));
+            const reps = parseInt(String(bestSet?.reps ?? ''), 10);
             return {
                 name: ex.exerciseName ?? ex.name ?? '',
                 sets: sets.length,
@@ -428,22 +511,22 @@ const summarizeWorkoutEntry = (entry) => {
 };
 
 const WorkoutScreen = () => {
-    const navigation = useNavigation();
+    const navigation = useNavigation<AppNavigation>();
     const insets = useSafeAreaInsets();
     const navInset = useBottomNavInset();
     const [isModalVisible, setIsModalVisible] = useState(false);
-    const [previewWorkout, setPreviewWorkout] = useState(null);
-    const [activeSplit, setActiveSplit] = useState(null);
-    const [todayWorkout, setTodayWorkout] = useState(null);
-    const [upcomingWorkouts, setUpcomingWorkouts] = useState([]);
+    const [previewWorkout, setPreviewWorkout] = useState<WorkoutPreview | null>(null);
+    const [activeSplit, setActiveSplit] = useState<SplitLike>(null);
+    const [todayWorkout, setTodayWorkout] = useState<WorkoutDisplayData | null>(null);
+    const [upcomingWorkouts, setUpcomingWorkouts] = useState<UpcomingWorkout[]>([]);
     const [loading, setLoading] = useState(true);
     const hasLoadedOnceRef = useRef(false);
 
-    const { activeWorkout, workoutHistory } = useContext(WorkoutContext);
-    const { userData } = useContext(AuthContext);
+    const { activeWorkout, workoutHistory } = useContext(WorkoutContext)!;
+    const { userData } = useContext(AuthContext)!;
 
     const userStats = useMemo(() => {
-        const completedDaysThisWeek = [];
+        const completedDaysThisWeek: number[] = [];
         const now = new Date();
         const weekStart = new Date(now);
         const daysToMonday = now.getDay() === 0 ? 6 : now.getDay() - 1;
@@ -452,8 +535,9 @@ const WorkoutScreen = () => {
 
         let lastWorkoutStats = null;
 
-        if (workoutHistory?.length > 0) {
-            const sorted = [...workoutHistory].sort((a, b) => {
+        if (workoutHistory.length > 0) {
+            const history = workoutHistory as WorkoutHistoryEntry[];
+            const sorted = [...history].sort((a, b) => {
                 const at = a.timestamp?.toDate?.()?.getTime() ?? 0;
                 const bt = b.timestamp?.toDate?.()?.getTime() ?? 0;
                 return bt - at;
@@ -478,14 +562,15 @@ const WorkoutScreen = () => {
     const todayCompletedStats = useMemo(() => {
         if (!workoutHistory?.length) return null;
         const todayStr = new Date().toDateString();
-        const todaysEntries = workoutHistory.filter(w => w.timestamp?.toDate?.()?.toDateString() === todayStr);
+        const history = workoutHistory as WorkoutHistoryEntry[];
+        const todaysEntries = history.filter(w => w.timestamp?.toDate?.()?.toDateString() === todayStr);
         if (!todaysEntries.length) return null;
         const sorted = [...todaysEntries].sort((a, b) => {
             const at = a.timestamp?.toDate?.()?.getTime() ?? 0;
             const bt = b.timestamp?.toDate?.()?.getTime() ?? 0;
             return bt - at;
         });
-        return summarizeWorkoutEntry(sorted[0]);
+        return sorted[0] ? summarizeWorkoutEntry(sorted[0]) : null;
     }, [workoutHistory]);
 
     const loadActiveSplit = useCallback(async () => {
@@ -501,35 +586,43 @@ const WorkoutScreen = () => {
                 return;
             }
 
-            const raw = splits.find(s => (s.id ?? s.data?.id) === userData?.activeSplitId) ?? splits[0];
-            const active = {
-                id: raw.id ?? raw.data?.id,
-                name: raw.name ?? raw.data?.name,
-                type: raw.type ?? raw.data?.type,
-                schedule: raw.schedule ?? raw.data?.schedule ?? {},
+            const raw = splits.find(s => s.id === userData?.activeSplitId) ?? splits[0];
+            if (!raw) return;
+            const splitData = typeof raw.data === 'object' && raw.data !== null
+                ? raw.data as Record<string, unknown>
+                : undefined;
+            const splitType = raw.type ?? (typeof splitData?.['type'] === 'string' ? splitData['type'] : undefined);
+            const active: NonNullable<SplitLike> = {
+                ...(splitType ? { type: splitType } : {}),
+                schedule: (raw.schedule ?? splitData?.['schedule'] ?? {}) as Exclude<
+                    NonNullable<SplitLike>['schedule'],
+                    null | undefined
+                >,
             };
             setActiveSplit(active);
 
             const now = new Date();
             const startDate = userData?.rotationStartDate;
-            const todayData = getScheduledDay(active, now, startDate);
+            const todayData = getScheduledDay(active, now, startDate) as WorkoutScheduleDay | null;
 
-            setTodayWorkout(todayData?.exercises?.length > 0 ? {
+            const todayExercises = todayData?.exercises ?? [];
+            setTodayWorkout(todayData && todayExercises.length > 0 ? {
                 name: todayData.templateName ?? 'Workout',
                 duration: todayData.duration ? `${todayData.duration} min` : '45 min',
-                exercises: todayData.exercises,
+                exercises: todayExercises,
             } : null);
 
             const upcoming = [];
             const horizon = Math.max(13, getCycleLength(active));
             for (let i = 1; i <= horizon && upcoming.length < 4; i++) {
                 const futureDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-                const w = getScheduledDay(active, futureDate, startDate);
-                const exercises = w?.exercises ?? [];
+                const w = getScheduledDay(active, futureDate, startDate) as WorkoutScheduleDay | null;
+                if (!w) continue;
+                const exercises = w.exercises ?? [];
 
                 if (exercises.length > 0) {
                     upcoming.push({
-                        name: w.templateName,
+                        name: w.templateName ?? 'Workout',
                         day: DAY_LABELS[futureDate.getDay()],
                         exercises,
                         duration: w.duration ? `${w.duration} min` : '45 min',
@@ -550,7 +643,9 @@ const WorkoutScreen = () => {
     useFocusEffect(useCallback(() => { loadActiveSplit(); }, [loadActiveSplit]));
 
     const weekSchedule = useMemo(
-        () => (activeSplit ? getWeekSchedule(activeSplit, new Date(), userData?.rotationStartDate) : null),
+        () => (activeSplit
+            ? getWeekSchedule(activeSplit, new Date(), userData?.rotationStartDate) as WorkoutWeekSchedule
+            : null),
         [activeSplit, userData?.rotationStartDate],
     );
 
@@ -572,7 +667,7 @@ const WorkoutScreen = () => {
     }, [isRestDay, todayWorkout, upcomingWorkouts]);
 
     const allExercises = useMemo(
-        () => primaryWorkout?.workout?.exercises?.map(e => e.exerciseName) ?? [],
+        () => primaryWorkout?.workout?.exercises?.map(e => e.exerciseName ?? e.name ?? 'Exercise') ?? [],
         [primaryWorkout]
     );
 
@@ -604,7 +699,7 @@ const WorkoutScreen = () => {
         );
     }, [todayCompletedStats, handleStartWorkout]);
 
-    const handlePreviewWorkout = useCallback((workout) => {
+    const handlePreviewWorkout = useCallback((workout: WorkoutPreview) => {
         setPreviewWorkout(workout);
         setIsModalVisible(true);
     }, []);
@@ -701,14 +796,14 @@ const WorkoutScreen = () => {
                         <View style={styles.modalStatsRow}>
                             <View style={styles.modalStatItem}>
                                 <Text style={styles.modalStatValue}>
-                                    {previewWorkout?.duration?.replace(' min', 'm') ?? '0m'}
+                                    {previewWorkout?.duration.replace(' min', 'm') ?? '0m'}
                                 </Text>
                                 <Text style={styles.modalStatLabel}>Time</Text>
                             </View>
                             <View style={styles.modalStatDivider} />
                             <View style={styles.modalStatItem}>
                                 <Text style={styles.modalStatValue}>
-                                    {previewWorkout?.exercises?.reduce((a, e) => a + (parseInt(e.numSets) || 0), 0) ?? 0}
+                                    {previewWorkout?.exercises?.reduce((a, e) => a + (parseInt(String(e.numSets ?? 0), 10) || 0), 0) ?? 0}
                                 </Text>
                                 <Text style={styles.modalStatLabel}>Sets</Text>
                             </View>
