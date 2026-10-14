@@ -1,15 +1,32 @@
 import { forwardRef, useState, useEffect, useRef, useImperativeHandle } from 'react';
 import { Platform } from 'react-native';
+import type { DailySteps } from '../../types';
+import type { StepsAccess } from '../../services/healthConnectSteps';
 
-let AppleHealthKit, HealthConnectSteps;
+type HealthKit = typeof import('react-native-health').default;
+type HealthConnect = typeof import('../../services/healthConnectSteps');
 
-if (Platform.OS === 'ios') {
-    AppleHealthKit = require('react-native-health').default;
-} else {
-    HealthConnectSteps = require('../../services/healthConnectSteps');
-}
+type Backend =
+    | { kind: 'ios'; kit: HealthKit }
+    | { kind: 'android'; hc: HealthConnect };
 
-const ACCESS_ERRORS = {
+export type StepDisplayHandle = {
+    retry: () => void;
+};
+
+export type StepDisplayProps = {
+    onStepsUpdate?: (steps: number, dateKey: string) => void;
+    onStepsHistory?: (entries: DailySteps) => void;
+    onStepsError?: (errorCode: string) => void;
+    onStepsLoading?: (isLoading: boolean) => void;
+    onConnectedChange?: (connected: boolean) => void;
+};
+
+const backend: Backend = Platform.OS === 'ios'
+    ? { kind: 'ios', kit: require('react-native-health').default }
+    : { kind: 'android', hc: require('../../services/healthConnectSteps') };
+
+const ACCESS_ERRORS: Record<Exclude<StepsAccess, 'ready'>, string> = {
     unavailable: 'health_connect_unavailable',
     update_required: 'health_connect_update_required',
     permission_denied: 'permission_denied',
@@ -18,36 +35,38 @@ const ACCESS_ERRORS = {
 const STEPS_LOOKBACK_DAYS = 30;
 const ROLLOVER_LOOKBACK_DAYS = 3;
 
-const formatDate = (date) =>
+const formatDate = (date: Date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-const StepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStepsError, onStepsLoading, onConnectedChange }, ref) => {
+const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUpdate, onStepsHistory, onStepsError, onStepsLoading, onConnectedChange }, ref) => {
     const [initialized, setInitialized] = useState(false);
     const initializingRef = useRef(false);
-    const lastDayKeyRef = useRef(null);
+    const lastDayKeyRef = useRef<string | null>(null);
 
-    const initializeHealthKit = () => {
-        return new Promise((resolve, reject) => {
+    const initializeHealthKit = (kit: HealthKit) => {
+        return new Promise<void>((resolve, reject) => {
             const permissions = {
                 permissions: {
-                    read: [AppleHealthKit.Constants.Permissions.Steps],
+                    read: [kit.Constants.Permissions.Steps],
+                    write: [],
                 },
             };
-            AppleHealthKit.initHealthKit(permissions, (error) => {
+            kit.initHealthKit(permissions, (error) => {
                 if (error) reject(error);
                 else resolve();
             });
         });
     };
 
-    const fetchTodaySteps = async () => {
+    const fetchTodaySteps = async (): Promise<number | null> => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const now = new Date();
 
-        if (Platform.OS === 'ios') {
+        if (backend.kind === 'ios') {
+            const { kit } = backend;
             return new Promise((resolve) => {
-                AppleHealthKit.getStepCount(
+                kit.getStepCount(
                     { startDate: today.toISOString() },
                     (err, results) => resolve(err ? null : (results.value || 0))
                 );
@@ -55,7 +74,7 @@ const StepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStepsError, o
         }
 
         try {
-            const byDate = await HealthConnectSteps.readDailySteps(today, now);
+            const byDate = await backend.hc.readDailySteps(today, now);
             return byDate[formatDate(today)] ?? null;
         } catch (err) {
             console.log('[Steps] fetchToday error:', err);
@@ -63,16 +82,17 @@ const StepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStepsError, o
         }
     };
 
-    const fetchRecentSteps = async (days) => {
+    const fetchRecentSteps = async (days: number): Promise<void> => {
         const now = new Date();
         const startDate = new Date();
         startDate.setDate(now.getDate() - days);
         startDate.setHours(0, 0, 0, 0);
-        const entries = {};
+        const entries: DailySteps = {};
 
-        if (Platform.OS === 'ios') {
-            return new Promise((resolve) => {
-                AppleHealthKit.getDailyStepCountSamples(
+        if (backend.kind === 'ios') {
+            const { kit } = backend;
+            return new Promise<void>((resolve) => {
+                kit.getDailyStepCountSamples(
                     { startDate: startDate.toISOString(), endDate: now.toISOString() },
                     (err, results) => {
                         if (!err && results) {
@@ -90,7 +110,7 @@ const StepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStepsError, o
         }
 
         try {
-            const byDate = await HealthConnectSteps.readDailySteps(startDate, now);
+            const byDate = await backend.hc.readDailySteps(startDate, now);
             Object.entries(byDate).forEach(([dateKey, totalSteps]) => {
                 entries[dateKey] = totalSteps;
                 onStepsUpdate?.(totalSteps, dateKey);
@@ -118,14 +138,14 @@ const StepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStepsError, o
         initializingRef.current = true;
         onStepsLoading?.(true);
         try {
-            if (Platform.OS === 'ios') {
-                await initializeHealthKit();
+            if (backend.kind === 'ios') {
+                await initializeHealthKit(backend.kit);
             } else {
-                const access = await HealthConnectSteps.ensureStepsAccess();
+                const access = await backend.hc.ensureStepsAccess();
                 if (access !== 'ready') {
                     onStepsError?.(ACCESS_ERRORS[access]);
                     onConnectedChange?.(false);
-                    if (userInitiated) HealthConnectSteps.openAccessHelp(access);
+                    if (userInitiated) backend.hc.openAccessHelp(access);
                     throw new Error(`Health Connect ${access}`);
                 }
             }
@@ -137,7 +157,7 @@ const StepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStepsError, o
             setInitialized(true);
             onConnectedChange?.(true);
         } catch (err) {
-            console.log('[Steps] initialize failed:', err?.message || err);
+            console.log('[Steps] initialize failed:', err instanceof Error ? err.message : err);
             onConnectedChange?.(false);
         } finally {
             initializingRef.current = false;
@@ -145,7 +165,7 @@ const StepDisplay = forwardRef(({ onStepsUpdate, onStepsHistory, onStepsError, o
         }
     };
 
-    useImperativeHandle(ref, () => ({ retry: () => initialize(true) }));
+    useImperativeHandle(ref, () => ({ retry: () => { initialize(true); } }));
 
     useEffect(() => {
         initialize();

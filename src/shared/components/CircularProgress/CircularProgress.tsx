@@ -1,8 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { View, StyleSheet, Text, Animated } from "react-native";
+import { View, StyleSheet, Text, Animated, TouchableOpacity } from "react-native";
 import { Circle, Svg } from "react-native-svg";
-import { TouchableOpacity } from "react-native";
 import { normalize } from "../../hooks/useResponsive";
+
+type CircularProgressProps = {
+  value: number;
+  maxValue: number;
+  size?: number | undefined;
+  strokeWidth?: number | undefined;
+  color?: string | undefined;
+  trailColor?: string | undefined;
+  duration?: number | undefined;
+  measure?: string | undefined;
+  hasTargets?: boolean | undefined;
+  daysLogged?: number | undefined;
+  requiredDays?: number | undefined;
+  weeklyAvgCalories?: number | undefined;
+};
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const CircularProgress = ({
   value,
@@ -17,7 +33,7 @@ const CircularProgress = ({
   daysLogged = 0,
   requiredDays = 7,
   weeklyAvgCalories = 0,
-}) => {
+}: CircularProgressProps) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
 
@@ -34,7 +50,7 @@ const CircularProgress = ({
   const absoluteValue = hasTargets ? (isOverconsumed ? value - maxValue : maxValue - value) : value;
   const percentage = hasTargets && maxValue > 0 ? Math.min((value / maxValue) * 100, 100) : 0;
 
-  let progress;
+  let progress: number;
   if (isLearningMode) {
     progress = learningProgress;
   } else {
@@ -214,8 +230,6 @@ const CircularProgress = ({
         return null;
     }
   };
-
-  const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
   return (
     <TouchableOpacity onPress={changeView} style={styles.container}>

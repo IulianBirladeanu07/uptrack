@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import type { ComponentProps } from 'react';
 import { View, StyleSheet } from 'react-native';
+import type { LayoutChangeEvent, StyleProp, ViewStyle } from 'react-native';
 import { TextInput } from 'react-native-gesture-handler';
 import {
   GestureHandlerRootView,
@@ -38,6 +40,18 @@ Animated.addWhitelistedNativeProps({ text: true });
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
+type SliderProps = {
+  minimumValue?: number | undefined;
+  maximumValue?: number | undefined;
+  step?: number | undefined;
+  value: number;
+  onSlidingComplete?: ((value: number) => void) | undefined;
+  minimumTrackTintColor?: string | undefined;
+  maximumTrackTintColor?: string | undefined;
+  thumbTintColor?: string | undefined;
+  style?: StyleProp<ViewStyle>;
+};
+
 const Slider = ({
   minimumValue = 0,
   maximumValue = 120,
@@ -48,19 +62,19 @@ const Slider = ({
   maximumTrackTintColor = colors.borderLight,
   thumbTintColor = colors.primary,
   style,
-}) => {
+}: SliderProps) => {
   const offset = useSharedValue(0);
   const displayValue = useSharedValue(value || minimumValue);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  const handleLayout = (event) => {
+  const handleLayout = (event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
     setContainerWidth(width);
   };
 
   const effectiveWidth = containerWidth - HANDLE_SIZE;
 
-  const mapOffsetToValue = (offsetVal) => {
+  const mapOffsetToValue = (offsetVal: number): number => {
     'worklet';
     if (effectiveWidth <= 0) return minimumValue;
     const range = maximumValue - minimumValue;
@@ -69,7 +83,7 @@ const Slider = ({
     return Math.min(Math.max(minimumValue + stepped, minimumValue), maximumValue);
   };
 
-  const mapValueToOffset = (val) => {
+  const mapValueToOffset = (val: number): number => {
     'worklet';
     if (effectiveWidth <= 0) return 0;
     const range = maximumValue - minimumValue;
@@ -120,10 +134,11 @@ const Slider = ({
     backgroundColor: minimumTrackTintColor,
   }));
 
-  const animatedProps = useAnimatedProps(() => ({
-    text: `${Math.round(displayValue.value)} min`,
-    defaultValue: `${Math.round(displayValue.value)} min`,
-  }));
+  const animatedProps = useAnimatedProps<ComponentProps<typeof TextInput>>(() => {
+    const label = `${Math.round(displayValue.value)} min`;
+    const props = { text: label, defaultValue: label };
+    return props;
+  });
 
   return (
     <GestureHandlerRootView style={[styles.container, style]} onLayout={handleLayout}>
