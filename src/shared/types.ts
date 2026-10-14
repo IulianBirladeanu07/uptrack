@@ -1,3 +1,5 @@
+import type { Tables } from './database.types';
+
 export type DayKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 export type WeightInWeek = {
@@ -289,23 +291,7 @@ export type FormattedFoodData = {
   barcode?: string;
 };
 
-export type BarcodedProduct = {
-  barcode_id: string;
-  product_name: string;
-  calories: number;
-  carbohydrates: number;
-  fats: number;
-  protein: number;
-  fiber: number;
-  sugar: number;
-  salt: number;
-  saturated_fats: number;
-  serving_size_unit: string;
-  serving_size_value: number;
-  image?: string | null;
-  category?: string | null;
-  last_updated?: string;
-};
+export type BarcodedProduct = Tables<'barcoded_products'>;
 
 export type ProfileOption = {
   label: string;
