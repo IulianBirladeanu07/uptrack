@@ -1,13 +1,14 @@
-import { useState, useCallback, useMemo, useEffect, useContext } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, ActivityIndicator, Animated, Easing, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import buildOnboardingStepContent from '../utils/buildOnboardingStepContent';
 import { validateInput } from '../utils/nutritionPlanEngine';
 import OnboardingStepScreen from './OnboardingStepScreen';
 import { colors, spacing } from '../../../shared/theme';
+import { useRootNavigation } from '../../../shared/navigation';
+import type { OnboardingFormData } from '../../../shared/types';
 import { createStyles } from '../../../shared/theme/createStyles';
 
-const INITIAL_FORM_DATA = {
+const INITIAL_FORM_DATA: OnboardingFormData = {
   unitSystem:      'metric',
   gender:          'male',
   age:             25,
@@ -21,13 +22,13 @@ const INITIAL_FORM_DATA = {
 };
 
 const OnboardingFlow = () => {
-  const navigation = useNavigation();
+  const navigation = useRootNavigation();
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
   const [animatedProgress] = useState(new Animated.Value(0));
 
-  const handleChange = useCallback((key, value) => {
+  const handleChange = useCallback((key: string, value: string | number) => {
     setFormData(prev => ({ ...prev, [key]: value }));
   }, []);
 
@@ -48,7 +49,7 @@ const OnboardingFlow = () => {
     }).start();
   }, [progressPercentage, animatedProgress]);
 
-  const handleStepChange = useCallback((direction) => {
+  const handleStepChange = useCallback((direction: 'next' | 'back') => {
     const newStep = direction === 'next' ? safeStep + 1 : safeStep - 1;
     if (newStep < 1 || newStep > stepsArray.length) return;
     setStep(newStep);
