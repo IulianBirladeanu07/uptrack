@@ -1,9 +1,12 @@
 import { useState, useContext, useCallback, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Switch } from 'react-native';
+import type { TextInputProps } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { doc, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth, verifyBeforeUpdateEmail } from 'firebase/auth';
@@ -16,12 +19,20 @@ import { ACTIVITY_OPTIONS, EXPERIENCE_OPTIONS, STRESS_OPTIONS } from '../../util
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { seedProfileForm, seedProfileIdentity, seedProfilePicture } from '../../utils/profileSeed';
+import type { ProfileFormSeed, ProfileIdentitySeed } from '../../utils/profileSeed';
+import type { AuthenticatedStackParamList } from '../../../../shared/navigation';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const SectionTitle = ({ children }) => <Text style={styles.sectionTitle}>{children}</Text>;
+type IdentityErrors = { [K in keyof ProfileIdentitySeed]?: string | undefined };
 
-const InputRow = ({ label, error, ...props }) => (
+type StepKey = 'age' | 'height' | 'currentWeight' | 'targetWeight';
+
+type InputRowProps = TextInputProps & { label: string; error?: string | undefined };
+
+const SectionTitle = ({ children }: { children: ReactNode }) => <Text style={styles.sectionTitle}>{children}</Text>;
+
+const InputRow = ({ label, error, ...props }: InputRowProps) => (
   <View>
     <View style={styles.stepperRow}>
       <Text style={styles.stepperLabel}>{label}</Text>
@@ -35,13 +46,13 @@ const InputRow = ({ label, error, ...props }) => (
   </View>
 );
 
-const ProfileScreen = ({ navigation }) => {
+const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStackParamList, 'Profile'>) => {
   const insets = useSafeAreaInsets();
-  const { userData, refreshUserData, logout } = useContext(AuthContext);
+  const { userData, refreshUserData, logout } = useContext(AuthContext)!;
   const auth = getAuth();
   const isPasswordAccount = !!auth.currentUser?.providerData.some(p => p.providerId === 'password');
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<IdentityErrors>({});
 
   const [form, setForm] = useState(() => seedProfileForm(userData));
   const [original, setOriginal] = useState(() => seedProfileForm(userData));
@@ -53,11 +64,11 @@ const ProfileScreen = ({ navigation }) => {
     seedProfileIdentity(userData, auth.currentUser?.email),
   );
   const [picture, setPicture] = useState(() => seedProfilePicture(userData));
-  const [pendingUri, setPendingUri] = useState(null);
+  const [pendingUri, setPendingUri] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const planCount = Object.keys(changedFields(form, original)).length;
-  const identityCount = ['username', 'email'].filter(k => identity[k] !== savedIdentity[k]).length + (pendingUri ? 1 : 0);
+  const identityCount = (['username', 'email'] as const).filter(k => identity[k] !== savedIdentity[k]).length + (pendingUri ? 1 : 0);
   const changedCount = planCount + identityCount;
   const hasChanges = changedCount > 0;
 
@@ -73,16 +84,16 @@ const ProfileScreen = ({ navigation }) => {
     setPendingUri(null);
   }, [userData, hasChanges, auth.currentUser?.email]);
 
-  const update = useCallback((key, value) => {
+  const update = useCallback((key: keyof ProfileFormSeed, value: string | number | boolean) => {
     setForm(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  const updateIdentity = useCallback((key, value) => {
+  const updateIdentity = useCallback((key: keyof ProfileIdentitySeed, value: string) => {
     setIdentity(prev => ({ ...prev, [key]: value }));
     setErrors(prev => ({ ...prev, [key]: undefined }));
   }, []);
 
-  const stepValue = useCallback((key, delta, min, max, decimals = 0) => {
+  const stepValue = useCallback((key: StepKey, delta: number, min: number, max: number, decimals = 0) => {
     setForm(prev => {
       const next = parseFloat((prev[key] + delta).toFixed(decimals));
       return { ...prev, [key]: Math.min(max, Math.max(min, next)) };
@@ -110,7 +121,7 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
-  const uploadPicture = async (uid, uri) => {
+  const uploadPicture = async (uid: string, uri: string) => {
     const blob = await (await fetch(uri)).blob();
     const pictureRef = ref(getStorage(), `profilePictures/${uid}.jpg`);
     await uploadBytes(pictureRef, blob, { contentType: blob.type || 'image/jpeg' });
@@ -119,7 +130,7 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const validate = () => {
-    const e = {};
+    const e: IdentityErrors = {};
     if (!identity.username.trim()) e.username = 'Required';
     if (!EMAIL_RE.test(identity.email.trim())) e.email = 'Valid email required';
     setErrors(e);
@@ -146,7 +157,7 @@ const ProfileScreen = ({ navigation }) => {
           await verifyBeforeUpdateEmail(user, email);
           emailChangePending = true;
         } catch (err) {
-          if (err.code === 'auth/requires-recent-login') {
+          if ((err as { code?: string }).code === 'auth/requires-recent-login') {
             Alert.alert('Re-authentication required', 'Log out and back in, then change your email again.');
             return;
           }
@@ -154,8 +165,8 @@ const ProfileScreen = ({ navigation }) => {
         }
       }
 
-      if (username !== savedIdentity.username) payload.username = username;
-      if (pendingUri) payload.profilePicture = await uploadPicture(user.uid, pendingUri);
+      if (username !== savedIdentity.username) payload['username'] = username;
+      if (pendingUri) payload['profilePicture'] = await uploadPicture(user.uid, pendingUri);
 
       await setDoc(doc(db, 'users', user.uid), payload, { merge: true });
       await refreshUserData();
@@ -164,7 +175,7 @@ const ProfileScreen = ({ navigation }) => {
       const shownEmail = emailChangePending ? savedIdentity.email : email;
       setIdentity({ username, email: shownEmail });
       setSavedIdentity({ username, email: shownEmail });
-      if (payload.profilePicture) setPicture(payload.profilePicture);
+      if (payload['profilePicture']) setPicture(payload['profilePicture'] as string);
       setPendingUri(null);
       if (emailChangePending) {
         Alert.alert(
@@ -385,7 +396,7 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.card}>
           {ACTIVITY_OPTIONS.map((opt, i) => (
             <View key={opt.value}>
-              <OptionRow option={opt} selected={form.activityLevel === opt.value} onPress={v => update('activityLevel', v)} />
+              <OptionRow option={opt} selected={form.activityLevel === opt.value} onPress={(v: string) => update('activityLevel', v)} />
               {i < ACTIVITY_OPTIONS.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
@@ -395,7 +406,7 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.card}>
           {EXPERIENCE_OPTIONS.map((opt, i) => (
             <View key={opt.value}>
-              <OptionRow option={opt} selected={form.experienceLevel === opt.value} onPress={v => update('experienceLevel', v)} />
+              <OptionRow option={opt} selected={form.experienceLevel === opt.value} onPress={(v: string) => update('experienceLevel', v)} />
               {i < EXPERIENCE_OPTIONS.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
@@ -405,7 +416,7 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.card}>
           {STRESS_OPTIONS.map((opt, i) => (
             <View key={opt.value}>
-              <OptionRow option={opt} selected={form.stressLevel === opt.value} onPress={v => update('stressLevel', v)} />
+              <OptionRow option={opt} selected={form.stressLevel === opt.value} onPress={(v: string) => update('stressLevel', v)} />
               {i < STRESS_OPTIONS.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
