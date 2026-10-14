@@ -1,4 +1,3 @@
-// @ts-nocheck — refine types in follow-up (nav hooks in place)
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import {
@@ -30,37 +29,62 @@ import {
   TEMPLATE_STEPS
 } from '../../utils/createWorkoutUtils';
 import { addTemplateToFirestore, updateTemplateInFirestore } from '../../handlers/WorkoutHandler';
+import type { TemplateExercise } from '../../types';
+
+type ExerciseRow = TemplateExercise & { id: string };
+
+type UndoState = {
+  type: 'delete' | 'replace' | null;
+  exercise: ExerciseRow | null;
+  index: number | null;
+  replacedWithId: string | null;
+  isActive: boolean;
+};
+
+type NotifState = {
+  message: string;
+  isError: boolean;
+  action: { text: string; onPress?: () => void } | null;
+  visible: boolean;
+};
+
+type ExistingTemplate = {
+  id?: string;
+  templateName?: string;
+  exercises?: (TemplateExercise & { id?: string })[];
+  note?: string;
+  duration?: number;
+  preferredDays?: string[];
+};
 
 const generateExerciseId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 const CreateTemplate = () => {
   const navigation = useAppNavigation();
   const route = useAppRoute<'CreateTemplate'>();
-  const existingTemplate = (route.params?.template ?? null) as any;
+  const existingTemplate = (route.params?.template ?? null) as ExistingTemplate | null;
   const isEditing = route.params?.isEditing || false;
 
   const [templateName, setTemplateName] = useState(existingTemplate?.templateName || '');
-  const [exercises, setExercises] = useState<any[]>(() =>
+  const [exercises, setExercises] = useState<ExerciseRow[]>(() =>
     (existingTemplate?.exercises || []).map((ex) => ({
       ...ex,
       id: ex.id || generateExerciseId(),
     }))
   );
   const [note, setNote] = useState(existingTemplate?.note || '');
-  const [duration, setDuration] = useState(existingTemplate?.duration || 60);
-  const [workoutType, setWorkoutType] = useState(existingTemplate?.workoutType || 'Strength');
+  const [duration, setDuration] = useState<number>(existingTemplate?.duration || 60);
   const [preferredDays, setPreferredDays] = useState<string[]>(existingTemplate?.preferredDays || []);
   const [loading, setLoading] = useState(false);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [undoState, setUndoState] = useState({
+  const [, setUndoState] = useState<UndoState>({
     type: null,
     exercise: null,
     index: null,
     replacedWithId: null,
     isActive: false,
   });
-  const [notification, setNotification] = useState({
+  const [notification, setNotification] = useState<NotifState>({
     message: '',
     isError: false,
     action: null,
@@ -94,11 +118,10 @@ const CreateTemplate = () => {
     }, 500);
   }, []);
 
-  const memoizedSetTemplateName = useCallback((value) => setTemplateName(value), []);
-  const memoizedSetNote = useCallback((value) => setNote(value), []);
-  const memoizedSetDuration = useCallback((value) => setDuration(value), []);
-  const memoizedSetWorkoutType = useCallback((value) => setWorkoutType(value), []);
-  const memoizedSetPreferredDays = useCallback((value) => setPreferredDays(value), []);
+  const memoizedSetTemplateName = useCallback((value: string) => setTemplateName(value), []);
+  const memoizedSetNote = useCallback((value: string) => setNote(value), []);
+  const memoizedSetDuration = useCallback((value: number) => setDuration(value), []);
+  const memoizedSetPreferredDays = useCallback((value: string[] | ((prev: string[]) => string[])) => setPreferredDays(value), []);
 
   const handleBackPress = useCallback(() => {
     if (currentStep > 0) {
@@ -133,7 +156,6 @@ const CreateTemplate = () => {
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardVisible(true);
       Animated.timing(fabAnim, {
         toValue: 0,
         duration: 200,
@@ -141,7 +163,6 @@ const CreateTemplate = () => {
       }).start();
     });
     const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false);
       Animated.timing(fabAnim, {
         toValue: 1,
         duration: 200,
@@ -209,7 +230,7 @@ const CreateTemplate = () => {
     });
   }, [navigation]);
 
-  const addExerciseWithAnimation = useCallback((exercise: any) => {
+  const addExerciseWithAnimation = useCallback((exercise: TemplateExercise) => {
     if (!exercise) return;
     const isDuplicate = exercises.some(
       (existingExercise) =>
@@ -347,7 +368,7 @@ const CreateTemplate = () => {
     setExercises((prev) => prev.map((ex) => (ex.id === id ? { ...ex, note: value } : ex)));
   }, []);
 
-  const handleReorderExercises = useCallback((data: any[]) => {
+  const handleReorderExercises = useCallback((data: ExerciseRow[]) => {
     setExercises(data);
   }, []);
 
@@ -409,8 +430,6 @@ const CreateTemplate = () => {
             duration={duration}
             setNote={memoizedSetNote}
             setDuration={memoizedSetDuration}
-            workoutType={workoutType}
-            setWorkoutType={memoizedSetWorkoutType}
             preferredDays={preferredDays}
             setPreferredDays={memoizedSetPreferredDays}
           />
@@ -438,7 +457,6 @@ const CreateTemplate = () => {
             exercises={exercises}
             duration={duration}
             note={note}
-            preferredDays={preferredDays}
           />
         );
       default:

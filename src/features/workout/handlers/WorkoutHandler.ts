@@ -25,6 +25,7 @@ import type {
   WorkoutSet,
   WorkoutSplit,
   WorkoutTemplate,
+  TemplateInput,
 } from '../types';
 import type { CatalogExercise, ExerciseGroup } from '../../../shared/types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -346,7 +347,7 @@ export const getLastWorkout = async (): Promise<DocumentData | null> => {
   }
 };
 
-export const addTemplateToFirestore = async (templateData: WorkoutTemplate, templateName: string): Promise<string> => {
+export const addTemplateToFirestore = async (templateData: TemplateInput, templateName: string): Promise<string> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -787,7 +788,7 @@ export const fetchLastMeasurements = async (): Promise<BodyMeasurements | null> 
   }
 };
 
-export const updateTemplateInFirestore = async (templateId: string, templateData: Partial<WorkoutTemplate>): Promise<string> => {
+export const updateTemplateInFirestore = async (templateId: string, templateData: Partial<TemplateInput>): Promise<string> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;

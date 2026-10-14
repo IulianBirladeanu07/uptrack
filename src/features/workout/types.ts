@@ -35,6 +35,10 @@ export type TemplateExercise = {
   note?: string;
 };
 
+export type TemplateInput = Omit<WorkoutTemplate, 'exercises'> & {
+  exercises: TemplateExercise[];
+};
+
 export type PersistedWorkoutState = {
   startTime: number;
   exercises: WorkoutExercise[];

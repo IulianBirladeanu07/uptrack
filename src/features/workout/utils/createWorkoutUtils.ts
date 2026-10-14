@@ -1,14 +1,18 @@
+import type { ComponentProps } from 'react';
 import { Platform, Alert, ToastAndroid } from 'react-native';
+import type { Ionicons } from '@expo/vector-icons';
 import type { CatalogExercise } from '../../../shared/types';
 import type { TemplateExercise } from '../types';
 
-export const TEMPLATE_STEPS = [
+type StepIcon = ComponentProps<typeof Ionicons>['name'];
+
+export const TEMPLATE_STEPS: { icon: StepIcon; title: string }[] = [
   { icon: 'create-outline', title: 'Basic Info' },
   { icon: 'barbell-outline', title: 'Exercises' },
   { icon: 'checkmark-circle-outline', title: 'Review' }
 ];
 
-export const SPLIT_STEPS = [
+export const SPLIT_STEPS: { id: string; icon: StepIcon; title: string }[] = [
   { id: 'basic-info', icon: 'create-outline', title: 'Basic Info' },
   { id: 'schedule', icon: 'calendar-outline', title: 'Schedule' },
   { id: 'review', icon: 'checkmark-circle-outline', title: 'Review' }
@@ -50,9 +54,9 @@ export const validateExercises = (exercises: TemplateExercise[]): boolean => {
 };
 
 export const validateForm = (templateName: string, exercises: TemplateExercise[]) => {
-  return templateName.trim() &&
+  return !!(templateName.trim() &&
          exercises.length > 0 &&
-         !exercises.find(ex => !ex.numSets || !ex.repRange);
+         !exercises.find(ex => !ex.numSets || !ex.repRange));
 };
 
 
