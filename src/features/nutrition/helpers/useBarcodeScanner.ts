@@ -1,24 +1,32 @@
 import { useState, useRef, useCallback } from 'react';
 import { Vibration, Alert } from 'react-native';
 import { Animated } from 'react-native';
+import type { BarcodeScanningResult } from 'expo-camera';
 import { transformBarcodeDBToFoodDetail } from '../utils/customFoodDataUtils';
+import type { AppNavigationProp } from '../../../shared/navigation';
+import type { BarcodedProduct } from '../../../shared/types';
 
-export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDate) => {
+export const useBarcodeScanner = (
+  barcodedProducts: BarcodedProduct[],
+  navigation: AppNavigationProp,
+  meal: string | undefined,
+  selectedDate: string | undefined
+) => {
   const [isScanning, setIsScanning] = useState(true);
   const [loadingProduct, setLoadingProduct] = useState(false);
-  const [currentProduct, setCurrentProduct] = useState(null);
+  const [currentProduct, setCurrentProduct] = useState<ReturnType<typeof transformBarcodeDBToFoodDetail> | null>(null);
   const [instructionsVisible, setInstructionsVisible] = useState(true);
   
   const successOpacity = useRef(new Animated.Value(0)).current;
   const errorOpacity = useRef(new Animated.Value(0)).current;
-  const lastScannedRef = useRef(null);
-  const scanTimeoutRef = useRef(null);
+  const lastScannedRef = useRef<string | null>(null);
+  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const findProductByBarcode = (barcode) => {
+  const findProductByBarcode = (barcode: string) => {
     return barcodedProducts.find(product => product.barcode_id === barcode) || null;
   };
 
-  const handleBarcodeScanned = async ({ type, data }) => {
+  const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
     if (lastScannedRef.current === data && scanTimeoutRef.current) {
       return;
     }
@@ -98,7 +106,7 @@ export const useBarcodeScanner = (barcodedProducts, navigation, meal, selectedDa
     ]).start();
   };
 
-  const handleProductNotFound = (barcode) => {
+  const handleProductNotFound = (barcode: string) => {
     Alert.alert(
       'Product Not Found',
       `No product found with barcode: ${barcode}`,

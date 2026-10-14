@@ -66,6 +66,7 @@ export type AuthenticatedStackParamList = {
     barcode?: string;
     meal?: string | undefined;
     selectedDate?: string | undefined;
+    returnToBarcodeScanner?: boolean;
   } | undefined;
   CreateSplit: {
     split?: unknown;
