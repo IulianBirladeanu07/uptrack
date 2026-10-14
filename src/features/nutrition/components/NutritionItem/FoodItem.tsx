@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, memo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import Animated from 'react-native-reanimated';
 import { GestureDetector } from 'react-native-gesture-handler';
@@ -9,23 +10,69 @@ import { createStyles } from '../../../../shared/theme/createStyles';
 import useSwipeToDelete from '../../../../shared/hooks/useSwipeToDelete';
 import usePressAnimation from '../../../../shared/hooks/usePressAnimation';
 import formatFoodName from '../../../../shared/utils/formatFoodName';
+import type { Numeric } from '../../../../shared/types';
 
-const getMacros = (item, macroLabelStyle) => {
+export type FoodItemData = {
+  productName?: string | null;
+  image?: string | null;
+  icon?: string | null;
+  quantity?: Numeric | null;
+  unit?: string | null;
+  calories?: Numeric | null;
+  protein?: Numeric | null;
+  carbohydrates?: Numeric | null;
+  fats?: Numeric | null;
+};
+
+type Macro = {
+  value: number;
+  label: string;
+  style: StyleProp<TextStyle>[];
+};
+
+type FoodItemProps = {
+  item: FoodItemData;
+  onPress?: ((item: FoodItemData) => void) | undefined;
+  onSwipeableOpen?: ((item: FoodItemData) => void) | undefined;
+  isFoodDeletable?: boolean | undefined;
+  onPlusPress?: ((item: FoodItemData) => void) | undefined;
+  showPlusButton?: boolean | undefined;
+  isScrolling?: boolean | undefined;
+  compact?: boolean | undefined;
+  foodContainer?: StyleProp<ViewStyle>;
+  foodName?: StyleProp<TextStyle>;
+  foodCaloriesValue?: StyleProp<TextStyle>;
+  foodImage?: StyleProp<ViewStyle>;
+  foodItemContainer?: StyleProp<ViewStyle>;
+  foodContainerStyle?: StyleProp<ViewStyle>;
+  quantityLabel?: StyleProp<ViewStyle>;
+  quantityLabelText?: StyleProp<TextStyle>;
+  macroLabel?: StyleProp<TextStyle>;
+};
+
+const getMacros = (item: FoodItemData, macroLabelStyle: StyleProp<TextStyle>): Macro[] => {
   const baseStyle = macroLabelStyle || styles.macroLabel;
-  const macros = [];
-  if (item.carbohydrates > 0) {
-    macros.push({ value: Math.round(item.carbohydrates), label: 'C', style: [baseStyle, styles.macroCarbs] });
+  const macros: Macro[] = [];
+  if (Number(item.carbohydrates) > 0) {
+    macros.push({ value: Math.round(Number(item.carbohydrates)), label: 'C', style: [baseStyle, styles.macroCarbs] });
   }
-  if (item.protein > 0) {
-    macros.push({ value: Math.round(item.protein), label: 'P', style: [baseStyle, styles.macroProtein] });
+  if (Number(item.protein) > 0) {
+    macros.push({ value: Math.round(Number(item.protein)), label: 'P', style: [baseStyle, styles.macroProtein] });
   }
-  if (item.fats > 0) {
-    macros.push({ value: Math.round(item.fats), label: 'F', style: [baseStyle, styles.macroFat] });
+  if (Number(item.fats) > 0) {
+    macros.push({ value: Math.round(Number(item.fats)), label: 'F', style: [baseStyle, styles.macroFat] });
   }
   return macros;
 };
 
-const FoodImage = memo(({ uri, icon, isScrolling, style }) => (
+type FoodImageProps = {
+  uri?: string | null | undefined;
+  icon?: string | null | undefined;
+  isScrolling: boolean;
+  style: StyleProp<ViewStyle>;
+};
+
+const FoodImage = memo(({ uri, icon, isScrolling, style }: FoodImageProps) => (
   <View style={style}>
     {uri ? (
       <Image
@@ -41,7 +88,14 @@ const FoodImage = memo(({ uri, icon, isScrolling, style }) => (
   </View>
 ));
 
-const QuantityLabel = memo(({ quantity, unit, labelStyle, textStyle }) => {
+type QuantityLabelProps = {
+  quantity?: Numeric | null | undefined;
+  unit?: string | null | undefined;
+  labelStyle?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+};
+
+const QuantityLabel = memo(({ quantity, unit, labelStyle, textStyle }: QuantityLabelProps) => {
   if (!quantity || !unit) return null;
   return (
     <View style={labelStyle || styles.quantityLabel}>
@@ -52,7 +106,7 @@ const QuantityLabel = memo(({ quantity, unit, labelStyle, textStyle }) => {
   );
 });
 
-const MacroLabels = memo(({ macros }) => (
+const MacroLabels = memo(({ macros }: { macros: Macro[] }) => (
   <>
     {macros.map((macro, index) => (
       <Text key={index} style={macro.style}>
@@ -62,7 +116,13 @@ const MacroLabels = memo(({ macros }) => (
   </>
 ));
 
-const PlusButton = memo(({ isChecked, onPress, showButton }) => {
+type PlusButtonProps = {
+  isChecked: boolean;
+  onPress: () => void;
+  showButton: boolean;
+};
+
+const PlusButton = memo(({ isChecked, onPress, showButton }: PlusButtonProps) => {
   if (!showButton) return null;
   return (
     <View
@@ -87,30 +147,49 @@ const PlusButton = memo(({ isChecked, onPress, showButton }) => {
   );
 });
 
-const CaloriesDisplay = memo(({ calories, caloriesValueStyle }) => (
+type CaloriesDisplayProps = {
+  calories: number;
+  caloriesValueStyle: StyleProp<TextStyle>;
+};
+
+const CaloriesDisplay = memo(({ calories, caloriesValueStyle }: CaloriesDisplayProps) => (
   <View style={styles.caloriesDisplay}>
     <Text style={caloriesValueStyle}>{calories}</Text>
     <Text style={styles.caloriesLabel}>kcal</Text>
   </View>
 ));
 
+type FoodInfoProps = {
+  foodName: string;
+  calories: number;
+  quantity?: Numeric | null | undefined;
+  unit?: string | null | undefined;
+  macros: Macro[];
+  isChecked: boolean;
+  showPlusButton: boolean;
+  onPlusPress: () => void;
+  nameStyle: StyleProp<TextStyle>;
+  caloriesValueStyle: StyleProp<TextStyle>;
+  quantityLabelStyle?: StyleProp<ViewStyle>;
+  quantityLabelTextStyle?: StyleProp<TextStyle>;
+};
+
 const FoodInfo = memo(
-  ({ 
-    foodName, 
-    calories, 
-    quantity, 
-    unit, 
-    macros, 
-    isChecked, 
-    showPlusButton, 
-    onPlusPress, 
-    nameStyle, 
-    caloriesValueStyle, 
-    compact,
+  ({
+    foodName,
+    calories,
+    quantity,
+    unit,
+    macros,
+    isChecked,
+    showPlusButton,
+    onPlusPress,
+    nameStyle,
+    caloriesValueStyle,
     quantityLabelStyle,
     quantityLabelTextStyle,
-  }) => (
-    <View style={[styles.foodInfo, compact && styles.foodInfoCompact]}>
+  }: FoodInfoProps) => (
+    <View style={styles.foodInfo}>
       <Text style={nameStyle} numberOfLines={1}>
         {foodName}
       </Text>
@@ -152,12 +231,12 @@ const FoodItem = memo(
     quantityLabel: quantityLabelStyle,
     quantityLabelText: quantityLabelTextStyle,
     macroLabel: macroLabelStyle,
-  }) => {
+  }: FoodItemProps) => {
     const [isChecked, setIsChecked] = useState(false);
 
     const itemData = useMemo(
       () => ({
-        calories: Math.round(item.calories || 0),
+        calories: Math.round(Number(item.calories || 0)),
         foodName: formatFoodName(item.productName),
         macros: getMacros(item, macroLabelStyle),
       }),
@@ -212,7 +291,6 @@ const FoodItem = memo(
             onPlusPress={handlePlusPress}
             nameStyle={resolvedStyles.name}
             caloriesValueStyle={resolvedStyles.caloriesValue}
-            compact={compact}
             quantityLabelStyle={quantityLabelStyle}
             quantityLabelTextStyle={quantityLabelTextStyle}
           />

@@ -1,14 +1,51 @@
 import { useState, useCallback, memo } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { useNavigation } from '@react-navigation/native';
 import FoodItem from './FoodItem';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { mealItemPropsEqual, foodItemPropsEqual } from '../../helpers/mealItemMemo';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import type { DateInput, LoggedFood } from '../../../../shared/types';
 
-const formatMealTitle = (date, mealType) => {
-  const mealTypeNames = {
+type MealItemData = {
+  id?: string | undefined;
+  date: DateInput;
+  mealType: string;
+  foods: LoggedFood[];
+};
+
+type PlusPressHandler = (food: LoggedFood, toggleToAdd?: boolean) => void;
+
+type MealItemProps = {
+  item?: (Omit<MealItemData, 'foods'> & { foods?: LoggedFood[] | null | undefined }) | null | undefined;
+  onPress?: ((food: LoggedFood) => void) | undefined;
+  onPlusPress?: PlusPressHandler | undefined;
+  showPlusButton?: boolean | undefined;
+  isFoodDeletable?: boolean | undefined;
+  meal?: string | undefined;
+};
+
+type MealItemContentProps = {
+  item: MealItemData;
+  onPress?: ((food: LoggedFood) => void) | undefined;
+  onPlusPress?: PlusPressHandler | undefined;
+  showPlusButton: boolean;
+  isFoodDeletable: boolean;
+};
+
+type MemoizedFoodItemProps = {
+  food: LoggedFood;
+  onPress?: ((food: LoggedFood) => void) | undefined;
+  onPlusPress?: ((food: LoggedFood) => void) | undefined;
+  isChecked: boolean;
+  showPlusButton: boolean;
+  isFoodDeletable: boolean;
+};
+
+const hasFoods = (item: MealItemProps['item']): item is MealItemData => !!item && Array.isArray(item.foods);
+
+const formatMealTitle = (date: DateInput, mealType: string) => {
+  const mealTypeNames: Record<string, string> = {
     breakfast: 'Breakfast',
     lunch: 'Lunch',
     dinner: 'Dinner',
@@ -23,7 +60,7 @@ const formatMealTitle = (date, mealType) => {
   const today = new Date();
   const mealDate = new Date(date);
 
-  const resetTime = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const resetTime = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
   const isDateToday = resetTime(mealDate).getTime() === resetTime(today).getTime();
 
@@ -38,7 +75,7 @@ const formatMealTitle = (date, mealType) => {
     return `Yesterday's ${mealName}`;
   }
 
-  const daysDiff = Math.floor((today - mealDate) / (1000 * 60 * 60 * 24));
+  const daysDiff = Math.floor((today.getTime() - mealDate.getTime()) / (1000 * 60 * 60 * 24));
   
   if (daysDiff <= 7) {
     const dayName = mealDate.toLocaleDateString('en-US', { weekday: 'long' });
@@ -61,22 +98,21 @@ const formatMealTitle = (date, mealType) => {
   return `${fullDate} ${mealName}`;
 };
 
-const MemoizedFoodItem = memo(({ food, onPress, onPlusPress, isChecked, showPlusButton, isFoodDeletable }) => (
+const MemoizedFoodItem = memo(({ food, onPress, onPlusPress, showPlusButton, isFoodDeletable }: MemoizedFoodItemProps) => (
   <FoodItem
     item={{
       ...food,
-      calories: parseFloat(food.calories || 0).toFixed(0)
+      calories: parseFloat(String(food.calories || 0)).toFixed(0)
     }}
     onPress={() => onPress?.(food)}
     onPlusPress={() => onPlusPress?.(food)}
-    isChecked={isChecked}
     showPlusButton={showPlusButton}
     isFoodDeletable={isFoodDeletable}
     foodContainer={styles.foodItemContainer}
   />
 ), foodItemPropsEqual);
 
-const isMealVisible = (item, meal) => {
+const isMealVisible = (item: MealItemData, meal: string | undefined) => {
   if (!meal) return true;
 
   const currentMealType = meal.toLowerCase().trim();
@@ -95,15 +131,14 @@ const MealItemContent = ({
   onPlusPress,
   showPlusButton,
   isFoodDeletable,
-}) => {
-  const navigation = useNavigation();
+}: MealItemContentProps) => {
   const containerScale = useSharedValue(1);
 
-  const totalCalories = item.foods.reduce((total, food) => total + (parseFloat(food.calories) || 0), 0);
+  const totalCalories = item.foods.reduce((total, food) => total + (parseFloat(String(food.calories)) || 0), 0);
   const foodsCount = item.foods.length;
   const mealTitle = formatMealTitle(item.date, item.mealType);
 
-  const [checkedFoods, setCheckedFoods] = useState({});
+  const [checkedFoods, setCheckedFoods] = useState<Record<string, boolean>>({});
   const [isMealAdded, setIsMealAdded] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -111,7 +146,7 @@ const MealItemContent = ({
   const hasMoreItems = foodsCount > INITIAL_ITEMS_COUNT;
   const displayedFoods = isExpanded ? item.foods : item.foods.slice(0, INITIAL_ITEMS_COUNT);
 
-  const handlePlusPressInternal = useCallback((food) => {
+  const handlePlusPressInternal = useCallback((food: LoggedFood) => {
     setCheckedFoods(prev => ({
       ...prev,
       [food.id]: !prev[food.id],
@@ -119,7 +154,7 @@ const MealItemContent = ({
     onPlusPress?.(food);
   }, [onPlusPress]);
 
-  const handleNavigateToFoodDetail = useCallback((food) => {
+  const handleNavigateToFoodDetail = useCallback((food: LoggedFood) => {
     containerScale.value = withTiming(0.98, { duration: 100 }, () => {
       containerScale.value = withTiming(1, { duration: 100 });
     });
@@ -129,7 +164,7 @@ const MealItemContent = ({
   const handleToggleMeal = useCallback(() => {
     const toggleToAdd = !isMealAdded;
 
-    const newCheckedState = {};
+    const newCheckedState: Record<string, boolean> = {};
     item.foods.forEach(food => {
       newCheckedState[food.id] = toggleToAdd;
     });
@@ -253,8 +288,8 @@ const MealItem = memo(({
   showPlusButton = true,
   isFoodDeletable = false,
   meal,
-}) => {
-  if (!item?.foods || !Array.isArray(item.foods)) {
+}: MealItemProps) => {
+  if (!hasFoods(item)) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Meal data is missing or invalid!</Text>

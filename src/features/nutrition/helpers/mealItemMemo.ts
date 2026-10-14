@@ -1,5 +1,5 @@
 type FoodLike = {
-  id?: string | number | null;
+  id?: string | number | null | undefined;
   quantity?: unknown;
   unit?: unknown;
   calories?: unknown;
@@ -10,10 +10,10 @@ type FoodLike = {
 } | null | undefined;
 
 type MealItemLike = {
-  id?: string | number | null;
+  id?: string | number | null | undefined;
   date?: unknown;
   mealType?: unknown;
-  foods?: FoodLike[] | null;
+  foods?: FoodLike[] | null | undefined;
 } | null | undefined;
 
 export const sameFood = (a: FoodLike, b: FoodLike): boolean => {
@@ -48,16 +48,16 @@ export const mealItemPropsEqual = (
     item?: MealItemLike;
     onPress?: unknown;
     onPlusPress?: unknown;
-    showPlusButton?: boolean;
-    isFoodDeletable?: boolean;
+    showPlusButton?: boolean | undefined;
+    isFoodDeletable?: boolean | undefined;
     meal?: unknown;
   },
   next: {
     item?: MealItemLike;
     onPress?: unknown;
     onPlusPress?: unknown;
-    showPlusButton?: boolean;
-    isFoodDeletable?: boolean;
+    showPlusButton?: boolean | undefined;
+    isFoodDeletable?: boolean | undefined;
     meal?: unknown;
   },
 ): boolean => {
@@ -91,17 +91,17 @@ export const foodItemPropsEqual = (
     food?: FoodLike;
     onPress?: unknown;
     onPlusPress?: unknown;
-    isChecked?: boolean;
-    showPlusButton?: boolean;
-    isFoodDeletable?: boolean;
+    isChecked?: boolean | undefined;
+    showPlusButton?: boolean | undefined;
+    isFoodDeletable?: boolean | undefined;
   },
   next: {
     food?: FoodLike;
     onPress?: unknown;
     onPlusPress?: unknown;
-    isChecked?: boolean;
-    showPlusButton?: boolean;
-    isFoodDeletable?: boolean;
+    isChecked?: boolean | undefined;
+    showPlusButton?: boolean | undefined;
+    isFoodDeletable?: boolean | undefined;
   },
 ): boolean =>
   sameFood(prev.food, next.food) &&
