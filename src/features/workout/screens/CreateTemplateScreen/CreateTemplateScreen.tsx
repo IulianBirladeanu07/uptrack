@@ -1,4 +1,4 @@
-// @ts-nocheck — large screen; structural TS conversion done, refine types in follow-up
+// @ts-nocheck — refine types in follow-up (nav hooks in place)
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import {
@@ -72,7 +72,7 @@ const CreateTemplate = () => {
   const exercisesRef = useRef(exercises);
   useEffect(() => { exercisesRef.current = exercises; }, [exercises]);
 
-  const showNotification = useCallback((message, isError = false, action = null) => {
+  const showNotification = useCallback((message: string, isError = false, action: NotifState['action'] = null) => {
     setNotification({ message, isError, action, visible: true });
   }, []);
 
@@ -201,15 +201,15 @@ const CreateTemplate = () => {
     });
   }, [showNotification]);
 
-  const handleReplaceExercise = useCallback((id) => {
+  const handleReplaceExercise = useCallback((id: string) => {
     Keyboard.dismiss();
-    navigation.navigate('ExerciseSelection', {
+    (navigation as any).navigate('ExerciseSelection', {
       previousScreen: 'CreateTemplate',
       replaceIndex: id,
     });
   }, [navigation]);
 
-  const addExerciseWithAnimation = useCallback((exercise) => {
+  const addExerciseWithAnimation = useCallback((exercise: any) => {
     if (!exercise) return;
     const isDuplicate = exercises.some(
       (existingExercise) =>
@@ -226,7 +226,7 @@ const CreateTemplate = () => {
 
   useEffect(() => {
     if (route.params?.selectedExercises) {
-      const newExercises = createExerciseFromSelection(route.params.selectedExercises);
+      const newExercises = createExerciseFromSelection(route.params.selectedExercises as any);
       const replaceExerciseId = route.params?.replaceIndex;
       navigation.setParams({ selectedExercises: null, replaceIndex: null });
       if (replaceExerciseId) {
@@ -276,7 +276,7 @@ const CreateTemplate = () => {
         }
       } else {
         if (Array.isArray(newExercises)) {
-          newExercises.forEach((exercise) => {
+          newExercises.forEach((exercise: any) => {
             if (
               exercise &&
               typeof exercise === 'object' &&
@@ -305,24 +305,24 @@ const CreateTemplate = () => {
 
   const handleAddExercise = useCallback(() => {
     Keyboard.dismiss();
-    navigation.navigate('ExerciseSelection', {
+    (navigation as any).navigate('ExerciseSelection', {
       previousScreen: 'CreateTemplate',
     });
   }, [navigation]);
 
-  const handleSetsChange = useCallback((value, id) => {
+  const handleSetsChange = useCallback((value: any, id: string) => {
     setExercises((prev) => prev.map((ex) => (ex.id === id ? { ...ex, numSets: value } : ex)));
   }, []);
 
-  const handleRepsChange = useCallback((value, id) => {
+  const handleRepsChange = useCallback((value: any, id: string) => {
     setExercises((prev) => prev.map((ex) => (ex.id === id ? { ...ex, repRange: value } : ex)));
   }, []);
 
-  const handleRestTimeChange = useCallback((value, id) => {
+  const handleRestTimeChange = useCallback((value: any, id: string) => {
     setExercises((prev) => prev.map((ex) => (ex.id === id ? { ...ex, restTime: value } : ex)));
   }, []);
 
-  const handleDeleteExercise = useCallback((id) => {
+  const handleDeleteExercise = useCallback((id: string) => {
     const currentExercises = exercisesRef.current;
     const idx = currentExercises.findIndex((ex) => ex.id === id);
     if (idx === -1) return;
@@ -343,11 +343,11 @@ const CreateTemplate = () => {
     );
   }, [undoDeleteExercise, showNotification]);
 
-  const handleNoteChange = useCallback((value, id) => {
+  const handleNoteChange = useCallback((value: any, id: string) => {
     setExercises((prev) => prev.map((ex) => (ex.id === id ? { ...ex, note: value } : ex)));
   }, []);
 
-  const handleReorderExercises = useCallback(({ data }) => {
+  const handleReorderExercises = useCallback(({ data }: { data: any }) => {
     setExercises(data);
   }, []);
 
@@ -385,7 +385,7 @@ const CreateTemplate = () => {
         showNotification('Workout template created successfully!');
       }
 
-      navigation.navigate('WorkoutLibrary');
+      (navigation as any).navigate('WorkoutLibrary');
     } catch (error) {
       console.error('Error saving template:', error);
       showNotification(`Failed to ${isEditing ? 'update' : 'create'} workout template. Please try again.`, true);

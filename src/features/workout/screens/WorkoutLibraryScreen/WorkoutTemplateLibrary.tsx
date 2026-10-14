@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useCallback, useMemo, memo, type ReactElement } from 'react';
 import { FlatList, Alert } from 'react-native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
@@ -54,7 +53,7 @@ const WorkoutTemplateLibrary = ({ templates, navigation, refreshControl, onCreat
     };
   }, []);
 
-  const handleEditTemplate = useCallback((template) => {
+  const handleEditTemplate = useCallback((template: any) => {
     const id = template.id;
     const data = template.data || template;
     navigation.navigate('CreateTemplate', { 
@@ -63,11 +62,11 @@ const WorkoutTemplateLibrary = ({ templates, navigation, refreshControl, onCreat
     });
   }, [navigation]);
 
-  const handleStartWorkout = useCallback((template) => {
+  const handleStartWorkout = useCallback((template: any) => {
     navigation.navigate('StartWorkout', { selectedWorkout: template });
   }, [navigation]);
 
-  const handleDeletePress = useCallback((template) => {
+  const handleDeletePress = useCallback((template: any) => {
     const id = template.id;
     const name = template.data?.templateName || template.templateName || 'Workout';
 
@@ -109,14 +108,14 @@ const WorkoutTemplateLibrary = ({ templates, navigation, refreshControl, onCreat
     />
   ), [expandedCards, toggleExpanded, handleEditTemplate, handleStartWorkout, handleDeletePress, formatDate]);
 
-  const keyExtractor = useCallback((item) => item.id || Math.random().toString(), []);
+  const keyExtractor = useCallback((item: any) => item.id || Math.random().toString(), []);
 
   return (
     <FlatList
       data={templates}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
-      refreshControl={refreshControl ?? undefined}
+      refreshControl={(refreshControl ?? undefined) as any}
       ListEmptyComponent={<EmptyState type="Templates" onCreate={onCreateTemplate} />}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingBottom: normalize(100), paddingHorizontal: normalize(18), paddingTop: normalize(18) }}

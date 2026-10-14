@@ -1,22 +1,24 @@
-// @ts-nocheck — large screen; structural TS conversion done, refine types in follow-up
+// @ts-nocheck — refine types in follow-up (nav hooks in place)
 import { useState, useEffect, useCallback } from 'react';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
-import type { WorkoutSplit } from '../../types';
 
 type SplitFormData = {
   id?: string;
   name: string;
   description: string;
   type: string;
-  schedule: Record<string, any>;
+  schedule: any;
   durationWeeks?: number;
-  [key: string]: unknown;
+  [key: string]: any;
 };
 import { View, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import BasicInfoStep from './steps/BasicInfoStep';
-import ScheduleStep from './steps/ScheduleStep';
-import ReviewStep from './steps/ReviewStep';
+import BasicInfoStepJS from './steps/BasicInfoStep';
+const BasicInfoStep = BasicInfoStepJS as any;
+import ScheduleStepJS from './steps/ScheduleStep';
+const ScheduleStep = ScheduleStepJS as any;
+import ReviewStepJS from './steps/ReviewStep';
+const ReviewStep = ReviewStepJS as any;
 
 import { ProgressSteps } from '../CreateTemplateScreen/components/ProgressSteps';
 import { NavigationButtons } from '../CreateTemplateScreen/components/NavigationButtons';
@@ -65,7 +67,7 @@ const CreateSplitScreen = () => {
     const loadWorkouts = async () => {
       setLoading(true);
       try {
-        const templates = await fetchTemplatesFromFirestore();
+        const templates = await fetchTemplatesFromFirestore() as Promise<any[]>;
         const normalizedWorkouts = templates.map((template, index) => {
           const templateData = template.data || template;
           return {
@@ -135,7 +137,7 @@ const CreateSplitScreen = () => {
     }
   }, [splitData.type, isEditing, split?.type]);
 
-  const handleDayAssignment = useCallback((workout, dayId) => {
+  const handleDayAssignment = useCallback((workout: any, dayId: string | number) => {
     if (!dayId || (splitData.type === 'rotation' && isNaN(dayId)) || (splitData.type === 'weekly' && !['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(dayId))) {
       console.error('Invalid dayId:', dayId);
       Alert.alert('Error', 'Invalid day selected for assignment.');
@@ -158,7 +160,7 @@ const CreateSplitScreen = () => {
     }));
   }, [splitData.type]);
 
-  const handleRemoveFromDay = useCallback((dayId) => {
+  const handleRemoveFromDay = useCallback((dayId: string | number) => {
     setSplitData(prev => {
       const newSchedule = { ...prev.schedule };
       newSchedule[dayId] = null;
@@ -169,7 +171,7 @@ const CreateSplitScreen = () => {
     });
   }, []);
 
-  const handleAddRotationDay = useCallback((dayNumber) => {
+  const handleAddRotationDay = useCallback((dayNumber?: number) => {
     if (isNaN(dayNumber) || dayNumber < 1) {
       console.error('Invalid dayNumber:', dayNumber);
       return;
@@ -183,7 +185,7 @@ const CreateSplitScreen = () => {
     }));
   }, []);
 
-  const handleRemoveRotationDay = useCallback((dayNumber) => {
+  const handleRemoveRotationDay = useCallback((dayNumber?: number) => {
     if (isNaN(dayNumber) || dayNumber < 1) {
       console.error('Invalid dayNumber:', dayNumber);
       return;
@@ -222,7 +224,7 @@ const CreateSplitScreen = () => {
     try {
       let splitId;
       if (isEditing) {
-        await updateSplitInFirestore(splitData.id, splitData);
+        await updateSplitInFirestore(String(splitData.id), splitData);
         splitId = splitData.id;
       } else {
         splitId = await addSplitToFirestore(splitData);
@@ -238,7 +240,7 @@ const CreateSplitScreen = () => {
               if (isEditing) {
                 navigation.goBack();
               } else {
-                navigation.navigate('WorkoutLibrary', {
+                (navigation as any).navigate('WorkoutLibrary', {
                   refresh: true,
                   newSplitId: splitId
                 });
@@ -252,7 +254,7 @@ const CreateSplitScreen = () => {
       console.error(`Error ${isEditing ? 'updating' : 'creating'} split:`, error);
       Alert.alert(
         'Error',
-        error.message || `Failed to ${isEditing ? 'update' : 'create'} split. Please try again.`,
+        (error as Error).message || `Failed to ${isEditing ? 'update' : 'create'} split. Please try again.`,
         [{ text: 'OK' }]
       );
     } finally {
@@ -285,7 +287,7 @@ const CreateSplitScreen = () => {
         title={isEditing ? `Edit ${split?.name || 'Split'}` : STEPS[currentStep]?.title || 'Create Workout Split'}
         handleBackPress={goToPreviousStep}
       />
-      <ProgressSteps currentStep={currentStep} steps={SPLIT_STEPS} />
+      <ProgressSteps currentStep={currentStep} steps={SPLIT_STEPS as any} />
       {loading && <ActivityIndicator size="large" color={colors.accent.primary} style={styles.loadingIndicator} />}
 
       {currentStep === 0 && (
@@ -297,6 +299,7 @@ const CreateSplitScreen = () => {
 
       {currentStep === 1 && (
         <ScheduleStep
+            // @ts-expect-error schedule step accepts flexible day ids
           splitData={splitData}
           workouts={workouts}
           selectedDay={selectedDay}

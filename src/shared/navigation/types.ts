@@ -35,12 +35,18 @@ export type AuthenticatedStackParamList = {
     onExercisesSelected?: (exercises: unknown[]) => void;
     selectedExercises?: unknown[];
     previousScreen?: string;
+    replaceIndex?: string | null;
   } | undefined;
-  WorkoutLibrary: undefined;
+  WorkoutLibrary: {
+    refresh?: boolean;
+    newSplitId?: string;
+    initialSegment?: string;
+  } | undefined;
   CreateTemplate: {
     template?: unknown;
     isEditing?: boolean;
-    selectedExercises?: unknown[];
+    selectedExercises?: unknown[] | null;
+    replaceIndex?: string | null;
   } | undefined;
   FoodSelection: {
     meal?: string;

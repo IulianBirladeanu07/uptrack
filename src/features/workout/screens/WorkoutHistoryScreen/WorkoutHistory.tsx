@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useCallback, useContext, useMemo } from 'react';
 import { View, Text, SectionList, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -47,10 +46,10 @@ const getDurationInMinutes = (duration: unknown) => durationToMinutes(duration) 
 
 const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; activeWorkout?: boolean; onPress: (item: HistoryWorkout) => void }) => {
     const exercises = item.exercises || [];
-    const totalSets = exercises.reduce((total, ex) => total + ex.sets.length, 0);
+    const totalSets = exercises.reduce((total: number, ex: any) => total + ex.sets.length, 0);
     const durationMinutes = getDurationInMinutes(item.duration);
-    const workoutTitle = getWorkoutLabel(item.timestamp, item.workoutName);
-    const dateLabel = formatDate(item.timestamp);
+    const workoutTitle = getWorkoutLabel(item['timestamp'], item.workoutName);
+    const dateLabel = formatDate(item['timestamp']);
     const isToday = dateLabel === 'TODAY';
 
     return (
@@ -96,9 +95,9 @@ const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; a
             </View>
 
             <View style={styles.exercisesList}>
-                {exercises.map((exercise, i) => {
+                {exercises.map((exercise: any, i: number) => {
                     const bestSet = findBestSet(exercise.sets);
-                    const hasPR = exercise.sets.some(s => s.isPR);
+                    const hasPR = exercise.sets.some((s: any) => s.isPR);
                     return (
                         <View key={i} style={[styles.exerciseRow, i === exercises.length - 1 && styles.exerciseRowLast]}>
                             <View style={styles.exerciseLeft}>
@@ -122,13 +121,13 @@ const WorkoutHistoryScreen = () => {
     const navigation = useAppNavigation();
     const { workoutHistory, activeWorkout } = useContext(WorkoutContext)!;
 
-    const handleStartWorkout = useCallback((workout) => {
+    const handleStartWorkout = useCallback((workout: any) => {
         if (activeWorkout) return;
         navigation.navigate('StartWorkout', {
             selectedWorkout: {
                 note: workout.note || '',
                 templateName: workout.workoutName || '',
-                exercises: workout.exercises.map(ex => ({
+                exercises: workout.exercises.map((ex: any) => ({
                     exerciseName: ex.exerciseName,
                     imageURL: ex.imageURL || '',
                     muscleGroup: ex.muscleGroup || '',
@@ -138,7 +137,7 @@ const WorkoutHistoryScreen = () => {
                     note: ex.note || '',
                     restBetweenSets: ex.restBetweenSets || '',
                     lastWorkoutSets: ex.lastWorkoutSets || [],
-                    sets: ex.sets.map(s => ({
+                    sets: ex.sets.map((s: any) => ({
                         weight: String(s.weight || ''),
                         reps: String(s.reps || ''),
                         isValidated: false,
@@ -151,9 +150,9 @@ const WorkoutHistoryScreen = () => {
 
     const sections = useMemo(() => {
         const grouped = workoutHistory.reduce((groups, workout) => {
-            const key = getMonthYear(workout.timestamp);
+            const key = getMonthYear(workout['timestamp'] as TimestampLike);
             if (!groups[key]) groups[key] = [];
-            groups[key].push(workout);
+            (groups as any)[key].push(workout);
             return groups;
         }, {});
         return Object.keys(grouped).map(title => ({ title, data: grouped[title] }));
@@ -162,7 +161,7 @@ const WorkoutHistoryScreen = () => {
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]} edges={['top']}>
             <SectionList
-                sections={sections}
+                sections={sections as any}
                 renderItem={({ item }) => (
                     <WorkoutCard
                         item={item}
@@ -173,7 +172,7 @@ const WorkoutHistoryScreen = () => {
                 renderSectionHeader={({ section: { title } }) => (
                     <Text style={styles.monthDivider}>{title}</Text>
                 )}
-                keyExtractor={(item, index) => `${getMonthYear(item.timestamp)}_${index}`}
+                keyExtractor={(item, index) => `${getMonthYear(item['timestamp'] as TimestampLike)}_${index}`}
                 ListHeaderComponent={
                     <View style={styles.header}>
                         <Text style={styles.heading}>History</Text>

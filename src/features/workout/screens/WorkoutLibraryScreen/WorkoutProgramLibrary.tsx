@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useCallback, useMemo, memo, type ReactElement } from 'react';
 import { FlatList, Alert } from 'react-native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
@@ -94,7 +93,7 @@ const WorkoutProgramLibrary = ({
     />
   ), [expandedCards, toggleExpanded, handleEditSplit, onActivateSplit, handlePreviewSplit, handleDeleteSplit, activeSplitId]);
 
-  const keyExtractor = useCallback((item, index) => item.id || `split-${index}`, []);
+  const keyExtractor = useCallback((item: any, index: number) => item.id || `split-${index}`, []);
 
   const flatListProps = useMemo(() => ({
     showsVerticalScrollIndicator: false,
@@ -104,7 +103,7 @@ const WorkoutProgramLibrary = ({
     maxToRenderPerBatch: 5,
     windowSize: 10,
     updateCellsBatchingPeriod: 100,
-    getItemLayout: (data, index) => ({
+    getItemLayout: (_data: any, index: number) => ({
       length: normalize(300), 
       offset: normalize(300) * index,
       index,
@@ -116,7 +115,7 @@ const WorkoutProgramLibrary = ({
       data={displaySplits}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
-      refreshControl={refreshControl ?? undefined}
+      refreshControl={(refreshControl ?? undefined) as any}
       ListEmptyComponent={<EmptyState type="Splits" onCreate={onCreateSplit} />}
       {...flatListProps}
     />
