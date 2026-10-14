@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
+import type { LearningData } from '../../../shared/types';
 
-export const useLearningCompletion = (learningData, hasTargets) => {
+export const useLearningCompletion = (learningData: LearningData | null | undefined, hasTargets: boolean) => {
   const [wasInLearning, setWasInLearning] = useState(false);
   const [justCompleted, setJustCompleted] = useState(false);
 
   useEffect(() => {
-    if (!hasTargets && learningData?.daysLogged > 0) {
+    if (!hasTargets && (learningData?.daysLogged ?? 0) > 0) {
       setWasInLearning(true);
     }
 

@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WeightService from '../services/weightService';
 import { formatDate } from '../utils/dateUtils';
+import type { DateInput, UserData, WeightDisplayData } from '../../../shared/types';
 
-const useWeightData = (userId, selectedDate) => {
-    const [weightData, setWeightData] = useState({
+const useWeightData = (userId: string | null | undefined, selectedDate: DateInput) => {
+    const [weightData, setWeightData] = useState<WeightDisplayData>({
         currentWeight: null,
         weeklyAverage: null,
         lastWeekAverage: null,
@@ -22,19 +23,20 @@ const useWeightData = (userId, selectedDate) => {
             try {
                 const cachedData = await AsyncStorage.getItem(`user_${userId}`);
                 if (!cachedData) return;
-                const parsed = JSON.parse(cachedData);
+                const parsed = JSON.parse(cachedData) as UserData | null;
                 if (!parsed?.weightIns) return;
                 const sortedWeeks = [...parsed.weightIns].sort((a, b) =>
-                    new Date(b.weekStart) - new Date(a.weekStart)
+                    new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime()
                 );
                 const currentWeek = sortedWeeks[0];
                 const lastWeek = sortedWeeks[1];
+                if (currentWeek && !currentWeek.days) return;
                 setWeightData({
                     currentWeight: parsed.currentWeight || null,
                     weeklyAverage: currentWeek?.average || null,
                     lastWeekAverage: lastWeek?.average || null,
                     weeklyTrend: parsed.weeklyTrend || null,
-                    weighInCount: currentWeek ? Object.keys(currentWeek.days).length : 0,
+                    weighInCount: currentWeek?.days ? Object.keys(currentWeek.days).length : 0,
                 });
             } catch {}
         };
