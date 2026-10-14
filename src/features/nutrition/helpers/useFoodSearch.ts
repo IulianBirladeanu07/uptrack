@@ -1,13 +1,19 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { fetchNonBarcodedProducts } from '../handlers/NutritionHandler';
+import type { FoodSearchItem, FoodSuggestion } from '../../../shared/types';
+
+type CacheEntry = {
+  data: FoodSearchItem[] | FoodSuggestion[];
+  timestamp: number;
+};
 
 export const useFoodSearch = () => {
   const [searchQuery, setSearchQueryState] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<FoodSearchItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const debounceTimeout = useRef(null);
-  const searchCache = useRef(new Map());
+  const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchCache = useRef(new Map<string, CacheEntry>());
   const latestRequestId = useRef(0);
   const mountedRef = useRef(true);
 
@@ -19,19 +25,19 @@ export const useFoodSearch = () => {
     };
   }, []);
   
-  const getCachedResult = useCallback((key) => {
+  const getCachedResult = useCallback(<T extends CacheEntry['data']>(key: string): T | null => {
     const cached = searchCache.current.get(key);
     if (cached && Date.now() - cached.timestamp < 3600000) {
-      return cached.data;
+      return cached.data as T;
     }
     if (cached) searchCache.current.delete(key);
     return null;
   }, []);
 
-  const setCachedResult = useCallback((key, data) => {
+  const setCachedResult = useCallback((key: string, data: CacheEntry['data']) => {
     if (searchCache.current.size > 20) {
       const firstKey = searchCache.current.keys().next().value;
-      searchCache.current.delete(firstKey);
+      if (firstKey !== undefined) searchCache.current.delete(firstKey);
     }
     
     searchCache.current.set(key, {
@@ -40,7 +46,7 @@ export const useFoodSearch = () => {
     });
   }, []);
 
-  const performSearch = useCallback(async (query) => {
+  const performSearch = useCallback(async (query?: string | null) => {
     if (!query || query.trim().length < 2) {
       setSearchResults([]);
       return;
@@ -49,7 +55,7 @@ export const useFoodSearch = () => {
     const trimmedQuery = query.trim();
     const cacheKey = `search_${trimmedQuery.toLowerCase()}`;
     
-    const cached = getCachedResult(cacheKey);
+    const cached = getCachedResult<FoodSearchItem[]>(cacheKey);
     if (cached) {
       setSearchResults(cached);
       return;
@@ -67,7 +73,7 @@ export const useFoodSearch = () => {
         trimmedQuery
       );
 
-      const processedResults = results.map(food => ({
+      const processedResults: FoodSearchItem[] = results.map(food => ({
         id: food.id,
         productName: food.product_name_en || food.product_name_ro || 'Unknown',
         productNameEn: food.product_name_en,
@@ -111,7 +117,7 @@ export const useFoodSearch = () => {
     }
   }, [getCachedResult, setCachedResult]);
 
-  const setSearchQuery = useCallback((text) => {
+  const setSearchQuery = useCallback((text?: string | null) => {
     const value = text || '';
     setSearchQueryState(value);
 
@@ -127,20 +133,20 @@ export const useFoodSearch = () => {
     }, 300);
   }, [performSearch]);
 
-  const handleSearch = useCallback((query) => {
+  const handleSearch = useCallback((query?: string | null) => {
     const value = query || '';
     setSearchQueryState(value);
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     performSearch(value);
   }, [performSearch]);
 
-  const getSuggestions = useCallback(async (partialQuery) => {
+  const getSuggestions = useCallback(async (partialQuery?: string | null): Promise<FoodSuggestion[]> => {
     if (!partialQuery || partialQuery.trim().length < 2) {
       return [];
     }
 
     const cacheKey = `suggestions_${partialQuery.toLowerCase()}`;
-    const cached = getCachedResult(cacheKey);
+    const cached = getCachedResult<FoodSuggestion[]>(cacheKey);
     if (cached) return cached;
 
     try {
@@ -148,7 +154,7 @@ export const useFoodSearch = () => {
         [], null, 8, null, partialQuery.trim()
       );
 
-      const suggestions = results.map(food => ({
+      const suggestions: FoodSuggestion[] = results.map(food => ({
         id: food.id,
         productName: food.product_name_en || food.product_name_ro,
         category: food.category,

@@ -300,7 +300,40 @@ export type ScoredProduct = NonBarcodedProduct & {
   match_type: string;
 };
 
-export type ProductSearchResult = NonBarcodedProduct | ScoredProduct;
+export type ProductSearchResult = NonBarcodedProduct & Partial<Pick<ScoredProduct, 'similarity_score' | 'match_type'>>;
+
+export type FoodSearchItem = {
+  id: string;
+  productName: string;
+  productNameEn: string | null;
+  productNameRo: string | null;
+  category: string;
+  calories: number;
+  protein: number;
+  carbohydrates: number;
+  fats: number;
+  fiber: number;
+  sugar: number;
+  salt: number;
+  saturatedFats: number;
+  image: string | null;
+  lastUpdated: string;
+  servingSize: { unit: string; value: number };
+  relevanceScore: number;
+  matchType: string;
+};
+
+export type FoodSuggestion = {
+  id: string;
+  productName: string | null;
+  category: string | null;
+  calories: number;
+};
+
+export type LearningData = {
+  daysLogged?: number;
+  weeklyAvgCalories?: number;
+};
 
 type FilterScalar = string | number;
 
