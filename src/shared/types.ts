@@ -117,6 +117,10 @@ export type UserData = PlanFormData & {
   weeklyTrend?: number | null;
   phaseHistory?: PhaseHistoryEntry[];
   profileSetupComplete?: boolean;
+  targetWorkoutsPerWeek?: number | null;
+  activeSplitId?: string | null;
+  rotationStartDate?: string | null;
+  profilePicture?: string | null;
 };
 
 export type LegacyMaintenance = {
