@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Text } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -12,7 +12,7 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { createStyles } from '../../theme/createStyles';
 import { normalize } from '../../hooks/useResponsive';
 
-const AnimatedMessage = ({ message }) => {
+const AnimatedMessage = ({ message }: { message: string }) => {
     const insets = useSafeAreaInsets();
     const opacity = useSharedValue(0);
 
@@ -46,7 +46,6 @@ const styles = createStyles(() => ({
         alignItems: 'center',
         gap: spacing[2],
         backgroundColor: colors.background.secondary,
-        // paddingVertical: spacing[3],
         paddingHorizontal: spacing[3],
         borderRadius: radius[3],
         borderWidth: 1,

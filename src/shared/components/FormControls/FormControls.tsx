@@ -2,8 +2,23 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { createStyles } from '../../theme/createStyles';
+import type { Numeric, ProfileOption } from '../../types';
 
-export const OptionRow = ({ option, selected, onPress }) => (
+type OptionRowProps = {
+  option: ProfileOption;
+  selected: boolean;
+  onPress: (value: string) => void;
+};
+
+type NumberStepperProps = {
+  label: string;
+  value: Numeric;
+  unit?: string | undefined;
+  onDecrement: () => void;
+  onIncrement: () => void;
+};
+
+export const OptionRow = ({ option, selected, onPress }: OptionRowProps) => (
   <TouchableOpacity
     style={[styles.optionRow, selected && styles.optionRowSelected]}
     onPress={() => onPress(option.value)}
@@ -20,7 +35,7 @@ export const OptionRow = ({ option, selected, onPress }) => (
   </TouchableOpacity>
 );
 
-export const NumberStepper = ({ label, value, onDecrement, onIncrement, unit }) => (
+export const NumberStepper = ({ label, value, onDecrement, onIncrement, unit }: NumberStepperProps) => (
   <View style={styles.stepperRow}>
     <Text style={styles.stepperLabel}>{label}</Text>
     <View style={styles.stepperControls}>

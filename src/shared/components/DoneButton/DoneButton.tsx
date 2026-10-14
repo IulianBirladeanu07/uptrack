@@ -1,9 +1,14 @@
 import { TouchableOpacity, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSize, fontWeight, radius, spacing } from '../../theme';
+import { colors, fontWeight } from '../../theme';
 import { createStyles } from '../../theme/createStyles';
 
-const DoneButton = ({ selectedFoods, handleDone }) => {
+type DoneButtonProps = {
+    selectedFoods: unknown[] | null | undefined;
+    handleDone: () => void;
+};
+
+const DoneButton = ({ selectedFoods, handleDone }: DoneButtonProps) => {
     if (!Array.isArray(selectedFoods) || selectedFoods.length === 0) return null;
 
     const count = selectedFoods.length;

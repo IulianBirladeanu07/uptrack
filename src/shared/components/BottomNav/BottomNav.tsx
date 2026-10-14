@@ -1,9 +1,11 @@
+import type { ReactNode } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useNavigationState } from '@react-navigation/native';
+import { useNavigationState } from '@react-navigation/native';
 import { MaterialCommunityIcons, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, fontWeight } from '../../theme';
 import { createStyles } from '../../theme/createStyles';
+import { useAppNavigation } from '../../navigation/hooks';
 
 const BOTTOM_NAV_SPACE = 70;
 
@@ -12,23 +14,31 @@ export const useBottomNavInset = () => {
     return BOTTOM_NAV_SPACE + insets.bottom;
 };
 
-const screens = [
-    { name: 'Dashboard', label: 'Home',      icon: 'home',         iconType: 'Ionicons' },
-    { name: 'Workout',   label: 'Workout',   icon: 'dumbbell',     iconType: 'MaterialCommunityIcons' },
-    { name: 'Nutrition', label: 'Nutrition', icon: 'restaurant',   iconType: 'MaterialIcons' },
-    { name: 'Progress',  label: 'Progress',  icon: 'insert-chart', iconType: 'MaterialIcons' },
+type NavScreen = {
+    name: 'Dashboard' | 'Workout' | 'Nutrition' | 'Progress';
+    label: string;
+    renderIcon: (color: string) => ReactNode;
+};
+
+const screens: NavScreen[] = [
+    { name: 'Dashboard', label: 'Home',      renderIcon: color => <Ionicons name="home" size={spacing[6]} color={color} /> },
+    { name: 'Workout',   label: 'Workout',   renderIcon: color => <MaterialCommunityIcons name="dumbbell" size={spacing[6]} color={color} /> },
+    { name: 'Nutrition', label: 'Nutrition', renderIcon: color => <MaterialIcons name="restaurant" size={spacing[6]} color={color} /> },
+    { name: 'Progress',  label: 'Progress',  renderIcon: color => <MaterialIcons name="insert-chart" size={spacing[6]} color={color} /> },
 ];
 
-const NavItem = ({ screen, isActive, onPress }) => {
+type NavItemProps = {
+    screen: NavScreen;
+    isActive: boolean;
+    onPress: () => void;
+};
+
+const NavItem = ({ screen, isActive, onPress }: NavItemProps) => {
     const iconColor = isActive ? colors.accent.primary : colors.text.secondary;
-    const Icon =
-        screen.iconType === 'MaterialIcons' ? MaterialIcons :
-        screen.iconType === 'MaterialCommunityIcons' ? MaterialCommunityIcons :
-        Ionicons;
 
     return (
         <TouchableOpacity style={styles.navItem} onPress={onPress} activeOpacity={0.7}>
-            <Icon name={screen.icon} size={spacing[6]} color={iconColor} />
+            {screen.renderIcon(iconColor)}
             <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>{screen.label}</Text>
         </TouchableOpacity>
     );
@@ -36,7 +46,7 @@ const NavItem = ({ screen, isActive, onPress }) => {
 
 const BottomNav = () => {
     const insets = useSafeAreaInsets();
-    const navigation = useNavigation();
+    const navigation = useAppNavigation();
     const currentRouteName = useNavigationState(
         state => state?.routes[state.index]?.name || 'Dashboard'
     );

@@ -2,14 +2,26 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { createStyles } from '../../theme/createStyles';
+import type { HomeNotice } from '../../types';
 
-const ICONS = {
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+type NoticeIcon = { name: IconName; color: string; bg: string };
+
+type HomeNoticeCardProps = {
+  notice: HomeNotice;
+  onAction?: (() => void) | undefined;
+  actionLabel?: string | undefined;
+  onDismiss?: (() => void) | undefined;
+};
+
+const ICONS: Record<HomeNotice['type'], NoticeIcon> = {
   calorie_adjustment: { name: 'flame-outline',  color: colors.accent.primary,   bg: colors.faded.primary },
   goal_reached:       { name: 'trophy-outline', color: colors.accent.success,   bg: colors.faded.success },
   steps_permission:   { name: 'walk-outline',   color: colors.accent.stepsRed,  bg: colors.faded.error },
 };
 
-const HomeNoticeCard = ({ notice, onAction, actionLabel, onDismiss }) => {
+const HomeNoticeCard = ({ notice, onAction, actionLabel, onDismiss }: HomeNoticeCardProps) => {
   const icon = ICONS[notice.type] || ICONS.calorie_adjustment;
 
   return (
@@ -66,8 +78,8 @@ const styles = createStyles(() => ({
   title: { fontSize: fontSize[14], fontWeight: fontWeight.bold, color: colors.text.primary },
   body: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.secondary, lineHeight: fontSize[16] },
   actionsRow: { flexDirection: 'row', gap: spacing[4], marginTop: spacing[2] },
-  actionText: { fontSize: fontSize[13], fontWeight: fontWeight.bold, color: colors.accent.primary },
-  dismissText: { fontSize: fontSize[13], fontWeight: fontWeight.semibold, color: colors.text.quaternary },
+  actionText: { fontSize: fontSize[14], fontWeight: fontWeight.bold, color: colors.accent.primary },
+  dismissText: { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.text.quaternary },
   closeBtn: { padding: spacing[1] },
 }));
 
