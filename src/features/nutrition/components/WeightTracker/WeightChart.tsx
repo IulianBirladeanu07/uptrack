@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import { Fragment, useMemo, useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Path, Circle, Line, Text as SvgText, G } from 'react-native-svg';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -6,7 +6,35 @@ import { runOnJS } from 'react-native-reanimated';
 import { colors, spacing, fontSize, fontWeight } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
-export const PERIODS = [
+export type PeriodKey = '7' | 'PHASE' | '6M' | 'ALL';
+type DateInput = string | Date;
+export type ChartEntry = { date: DateInput; weight: number };
+export type ChartDelta = { value: number; color: string; bg: string; caption: string };
+type Unit = 'week' | 'month' | 'quarter';
+type DaySlot = { key: string; i: number; label: string; weight: number | null };
+type BucketSlot = { avg: number | null; slot: number; label: string | null; key: string };
+type ChartPoint = {
+    x: number;
+    y: number;
+    key: string;
+    weight: number;
+    label: string | null;
+    idx: number;
+    total: number;
+    above?: boolean;
+};
+type XLabel = { x: number; label: string | null; key: string; index: number; total: number };
+type WeightChartProps = {
+    data?: ChartEntry[] | undefined;
+    period: PeriodKey;
+    isBulking?: boolean | undefined;
+    width: number;
+    onDeltaChange?: ((delta: ChartDelta | null) => void) | undefined;
+    goalSwitchDate?: DateInput | null | undefined;
+    startWeight?: number | null | undefined;
+};
+
+export const PERIODS: { key: PeriodKey; label: string }[] = [
     { key: '7',     label: 'Week'  },
     { key: 'PHASE', label: 'Phase' },
     { key: '6M',    label: '6M'    },
@@ -24,20 +52,20 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const WEEK_MS    = 7 * 24 * 60 * 60 * 1000;
 const MAX_POINTS = 20;
 
-const PERIOD_SPAN_WEEKS = {
+const PERIOD_SPAN_WEEKS: Partial<Record<PeriodKey, number>> = {
     '6M': 26,
 };
 
-const getEarliestDate = (data) =>
+const getEarliestDate = (data: ChartEntry[]) =>
     data.reduce((min, e) => {
         const d = new Date(e.date);
         return d < min ? d : min;
     }, new Date());
 
-const getDataWeeks = (data) =>
+const getDataWeeks = (data: ChartEntry[]) =>
     Math.max(1, Math.ceil((Date.now() - getEarliestDate(data).getTime()) / WEEK_MS));
 
-const getPhaseSpanWeeks = (goalSwitchDate) => {
+const getPhaseSpanWeeks = (goalSwitchDate: DateInput | null | undefined) => {
     if (!goalSwitchDate) return null;
     const switchDate = new Date(goalSwitchDate);
     if (isNaN(switchDate.getTime())) return null;
@@ -46,7 +74,7 @@ const getPhaseSpanWeeks = (goalSwitchDate) => {
     return Math.max(1, Math.ceil(diffMs / WEEK_MS));
 };
 
-export const getAvailablePeriods = (data, goalSwitchDate) => {
+export const getAvailablePeriods = (data: ChartEntry[] | undefined, goalSwitchDate: DateInput | null | undefined) => {
     const phaseWeeks = getPhaseSpanWeeks(goalSwitchDate);
     const showPhase  = phaseWeeks != null && phaseWeeks >= 2;
     const base       = PERIODS.filter(p => p.key !== 'PHASE' || showPhase);
@@ -62,10 +90,10 @@ export const getAvailablePeriods = (data, goalSwitchDate) => {
     });
 };
 
-const toDateKey = (d) => d.toISOString().split('T')[0];
+const toDateKey = (d: Date) => d.toISOString().split('T')[0];
 
 const getLast7Days = () => {
-    const days = [];
+    const days: Date[] = [];
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
@@ -85,30 +113,30 @@ const getMonday = (weekOffset = 0) => {
     return d;
 };
 
-const buildLinePath = (pts) => {
+const buildLinePath = (pts: Pick<ChartPoint, 'x' | 'y'>[]) => {
     if (pts.length < 2) return '';
     return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
 };
 
-const buildAreaPath = (linePath, pts, drawBot) => {
+const buildAreaPath = (linePath: string, pts: Pick<ChartPoint, 'x' | 'y'>[], drawBot: number) => {
     if (!linePath || pts.length < 2) return '';
     return `${linePath} L ${pts[pts.length - 1].x.toFixed(1)} ${drawBot} L ${pts[0].x.toFixed(1)} ${drawBot} Z`;
 };
 
-const getYScale = (weights) => {
+const getYScale = (weights: number[]) => {
     const min = Math.min(...weights);
     const max = Math.max(...weights);
     const pad = Math.max((max - min) * 0.4, 0.8);
     return { yMin: min - pad, yMax: max + pad };
 };
 
-const toY = (w, yMin, yMax, top, bottom) =>
+const toY = (w: number, yMin: number, yMax: number, top: number, bottom: number) =>
     top + (1 - (w - yMin) / (yMax - yMin || 1)) * (bottom - top);
 
-const labelAnchor = (i, total) =>
+const labelAnchor = (i: number, total: number): 'start' | 'middle' | 'end' =>
     i === 0 ? 'start' : i === total - 1 ? 'end' : 'middle';
 
-const getLabelAbove = (pts, i) => {
+const getLabelAbove = (pts: ChartPoint[], i: number) => {
     const p    = pts[i];
     const prev = pts[i - 1];
     const next = pts[i + 1];
@@ -125,14 +153,14 @@ const getLabelAbove = (pts, i) => {
 
 const PHASE_WEEKLY_CAP = { cut: 24, bulk: 12 };
 
-const resolveGranularity = (spanWeeks, weeklyCap = MAX_POINTS) => {
+const resolveGranularity = (spanWeeks: number, weeklyCap = MAX_POINTS): { unit: Unit; count: number } => {
     if (spanWeeks <= weeklyCap) return { unit: 'week', count: spanWeeks };
     const months = Math.ceil(spanWeeks / 4.345);
     if (months <= MAX_POINTS) return { unit: 'month', count: months };
     return { unit: 'quarter', count: Math.ceil(spanWeeks / 13) };
 };
 
-const getSpanWeeks = (period, data, goalSwitchDate) => {
+const getSpanWeeks = (period: PeriodKey, data: ChartEntry[], goalSwitchDate: DateInput | null | undefined) => {
     const dataWeeks = getDataWeeks(data);
 
     if (period === 'PHASE') {
@@ -144,7 +172,7 @@ const getSpanWeeks = (period, data, goalSwitchDate) => {
     return Math.min(maxWeeks, dataWeeks);
 };
 
-const getBucketRange = (unit, offset) => {
+const getBucketRange = (unit: Unit, offset: number) => {
     if (unit === 'week') {
         const start = getMonday(-offset);
         const end   = new Date(start);
@@ -164,38 +192,38 @@ const getBucketRange = (unit, offset) => {
     return { start, end };
 };
 
-const formatBucketLabel = (unit, start) => {
+const formatBucketLabel = (unit: Unit, start: Date) => {
     if (unit === 'week')  return start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     if (unit === 'month') return start.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
     const q = Math.floor(start.getMonth() / 3) + 1;
     return `Q${q} '${String(start.getFullYear()).slice(2)}`;
 };
 
-const pickEvenLabels = (labels, max) => {
+const pickEvenLabels = <T,>(labels: T[], max: number): T[] => {
     if (labels.length <= max) return labels;
     const step   = (labels.length - 1) / (max - 1);
-    const idxSet = new Set();
+    const idxSet = new Set<number>();
     for (let i = 0; i < max; i++) idxSet.add(Math.round(i * step));
     return labels.filter((_, i) => idxSet.has(i));
 };
 
-const formatExactDate = (dateStr) => {
+const formatExactDate = (dateStr: DateInput) => {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return null;
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitchDate, startWeight }) => {
+const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitchDate, startWeight }: WeightChartProps) => {
     const drawW   = width - PAD_SIDE * 2;
     const drawTop = PAD_TOP;
     const drawBot = CHART_H - PAD_BOTTOM;
 
-    const { points, xLabels } = useMemo(() => {
+    const { points, xLabels } = useMemo<{ points: ChartPoint[]; xLabels: XLabel[] }>(() => {
         if (!data?.length) return { points: [], xLabels: [] };
 
         if (period === '7') {
             const days   = getLast7Days();
-            const byDate = {};
+            const byDate: Record<string, number> = {};
             data.forEach(e => {
                 const key = typeof e.date === 'string' ? e.date.split('T')[0] : toDateKey(new Date(e.date));
                 if (e.weight > 0) byDate[key] = e.weight;
@@ -208,13 +236,13 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
                 weight: byDate[toDateKey(d)] ?? null,
             }));
 
-            const present = slots.filter(s => s.weight != null);
+            const present = slots.filter((s): s is DaySlot & { weight: number } => s.weight != null);
             if (!present.length) return { points: [], xLabels: [] };
 
             const { yMin, yMax } = getYScale(present.map(s => s.weight));
             const n = slots.length - 1;
 
-            const pts = present.map((s, idx) => ({
+            const pts: ChartPoint[] = present.map((s, idx) => ({
                 x:      (s.i / n) * drawW,
                 y:      toY(s.weight, yMin, yMax, drawTop, drawBot),
                 key:    s.key,
@@ -235,7 +263,7 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
         const spanWeeks       = getSpanWeeks(period, data, goalSwitchDate);
         const weeklyCap       = period === 'PHASE' ? (isBulking ? PHASE_WEEKLY_CAP.bulk : PHASE_WEEKLY_CAP.cut) : MAX_POINTS;
         const { unit, count } = resolveGranularity(spanWeeks, weeklyCap);
-        const allSlots        = [];
+        const allSlots: BucketSlot[] = [];
 
         const anchor = period === 'PHASE' && goalSwitchDate ? new Date(goalSwitchDate) : null;
         if (anchor) anchor.setHours(0, 0, 0, 0);
@@ -247,7 +275,7 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
             allSlots.push({
                 avg:   startWeight,
                 slot:  0,
-                label: formatExactDate(goalSwitchDate),
+                label: formatExactDate(anchor),
                 key:   toDateKey(anchor),
             });
 
@@ -296,13 +324,13 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
             }
         }
 
-        const present = allSlots.filter(s => s.avg != null);
+        const present = allSlots.filter((s): s is BucketSlot & { avg: number } => s.avg != null);
         if (!present.length) return { points: [], xLabels: [] };
 
         const { yMin, yMax } = getYScale(present.map(s => s.avg));
         const n = Math.max(allSlots.length - 1, 1);
 
-        const pts = present.map((s, idx) => ({
+        const pts: ChartPoint[] = present.map((s, idx) => ({
             x:      (s.slot / n) * drawW,
             y:      toY(s.avg, yMin, yMax, drawTop, drawBot),
             key:    s.key,
@@ -335,10 +363,10 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
         return new Set([0, points.length - 1, minIdx, maxIdx, midIdx]);
     }, [points, period]);
 
-    const [activePoint, setActivePoint] = useState(null);
+    const [activePoint, setActivePoint] = useState<number | null>(null);
 
     const pan = useMemo(() => {
-        const updateActivePoint = (touchX) => {
+        const updateActivePoint = (touchX: number) => {
             if (!points.length) return;
             const localX = touchX - PAD_SIDE;
             let nearest = 0;
@@ -420,7 +448,7 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
                             {points.map(p => {
                                 const isKeyPoint = !labeledIndices || labeledIndices.has(p.idx);
                                 return (
-                                    <React.Fragment key={p.key}>
+                                    <Fragment key={p.key}>
                                         <Circle
                                             cx={p.x}
                                             cy={p.y}
@@ -440,7 +468,7 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
                                                 {p.weight.toFixed(1)}
                                             </SvgText>
                                         )}
-                                    </React.Fragment>
+                                    </Fragment>
                                 );
                             })}
 
