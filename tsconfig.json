@@ -16,6 +16,12 @@
   "include": [
     "src/**/*",
     "App.tsx",
-    "index.js"
+    "index.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.test.js"
   ]
 }
