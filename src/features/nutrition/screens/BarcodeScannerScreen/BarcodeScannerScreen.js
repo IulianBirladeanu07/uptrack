@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert, Linking } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -153,6 +153,14 @@ const BarcodeScannerScreen = ({ navigation }) => {
     getCameraPermissions();
   }, []);
 
+  const requestCameraPermission = async () => {
+    const { status, canAskAgain } = await Camera.requestCameraPermissionsAsync();
+    setHasPermission(status === 'granted');
+    if (status !== 'granted' && !canAskAgain) {
+      Linking.openSettings();
+    }
+  };
+
   const closeScanner = () => {
     if (navigation && navigation.goBack) {
       navigation.goBack();
@@ -173,7 +181,7 @@ const BarcodeScannerScreen = ({ navigation }) => {
         <Text>No access to camera</Text>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => Camera.requestCameraPermissionsAsync()}
+          onPress={requestCameraPermission}
         >
           <Text style={styles.buttonText}>Request Permission</Text>
         </TouchableOpacity>
