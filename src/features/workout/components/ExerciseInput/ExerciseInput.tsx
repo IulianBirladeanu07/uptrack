@@ -1,4 +1,5 @@
-import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
+import { useRef, useEffect, useMemo, useCallback, useState, memo } from 'react';
+import type { TextInput as TextInputType } from 'react-native';
 import { View, Text, TouchableWithoutFeedback, Animated, TouchableOpacity, Keyboard, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { workoutService } from '../../services/WorkoutService';
@@ -6,6 +7,28 @@ import ExerciseHeader from './ExerciseHeader';
 import SetRow from './SetRow';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
+import type { WorkoutExercise, WorkoutSet } from '../../types';
+
+type FocusedInputData = {
+    exerciseIndex?: number;
+    index?: number;
+    type?: 'weight' | 'reps' | string;
+} | null;
+
+type NoteRegistrar = {
+    register: (exerciseIndex: number, openNote: () => void) => void;
+};
+
+type ExerciseInputProps = {
+    exercise: WorkoutExercise;
+    exerciseIndex: number;
+    openAnimatedMessage: (message: string) => void;
+    onKeyboardChange?: (visible: boolean, data: FocusedInputData) => void;
+    focusedInputData: FocusedInputData;
+    navigation: { navigate: (screen: string, params?: object) => void };
+    onMenuPress: (exercise: WorkoutExercise, exerciseIndex: number) => void;
+    onAddNote?: NoteRegistrar | null;
+};
 
 const ExerciseInput = ({
     exercise,
@@ -16,15 +39,18 @@ const ExerciseInput = ({
     navigation,
     onMenuPress,
     onAddNote,
-}) => {
+}: ExerciseInputProps) => {
     const currentSets = useMemo(() => exercise?.sets || [], [exercise]);
 
     const [isNoteVisible, setIsNoteVisible] = useState(!!exercise.note);
     const [noteText, setNoteText] = useState(exercise.note || '');
     const [isNoteFocused, setIsNoteFocused] = useState(false);
-    const noteInputRef = useRef(null);
+    const noteInputRef = useRef<TextInputType>(null);
 
-    const animRefs = useRef({
+    const animRefs = useRef<{
+        fade: Animated.Value[];
+        cardEntry: Animated.Value;
+    }>({
         fade: [],
         cardEntry: new Animated.Value(0),
     }).current;
@@ -121,7 +147,7 @@ const ExerciseInput = ({
         }).start();
     }, []);
 
-    const handlePreviousSetPress = useCallback((setIndex) => {
+    const handlePreviousSetPress = useCallback((setIndex: number) => {
         const previousSet = exercise.lastWorkoutSets?.[setIndex];
         if (previousSet) {
             workoutService.updateWeight(exerciseIndex, setIndex, previousSet.weight?.toString() || '');
@@ -131,7 +157,7 @@ const ExerciseInput = ({
         }
     }, [exercise.lastWorkoutSets, exerciseIndex, openAnimatedMessage]);
 
-    const setRows = useMemo(() => currentSets.map((data, setIndex) => (
+    const setRows = useMemo(() => currentSets.map((data: WorkoutSet, setIndex: number) => (
         <SetRow
             key={data.id || `set-${exerciseIndex}-${setIndex}`}
             setData={data}
@@ -339,7 +365,7 @@ const styles = createStyles(() => ({
     },
 }));
 
-export default React.memo(ExerciseInput, (prev, next) => {
+export default memo(ExerciseInput, (prev, next) => {
     if (prev.exerciseIndex !== next.exerciseIndex) return false;
     if (prev.focusedInputData !== next.focusedInputData) return false;
     if (prev.exercise !== next.exercise) return false;

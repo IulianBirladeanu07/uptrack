@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,22 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 import { colors, spacing } from '../../../../../shared/theme';
 import styles from '../WorkoutLibraryScreenStyle';
+import type { WorkoutTemplate, TemplateExercise } from '../../../types';
+
+type TemplateItemData = WorkoutTemplate & {
+    exerciseCount?: number;
+    data?: WorkoutTemplate;
+};
+
+type TemplateItemProps = {
+    item: TemplateItemData;
+    expandedCards: Record<string, boolean>;
+    onToggleExpanded: (id: string) => void;
+    onEdit: (template: TemplateItemData) => void;
+    onStart: (template: TemplateItemData) => void;
+    onDelete: (template: TemplateItemData) => void;
+    formatDate: (date: unknown) => string;
+};
 
 const DELETE_BUTTON_WIDTH = normalize(spacing[20]);
 const SPRING_CONFIG = {
@@ -26,13 +42,13 @@ const SPRING_CONFIG = {
 };
 const TIMING_CONFIG = { duration: 250 };
 
-const TemplateItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit, onStart, onDelete, formatDate }) => {
-    const template = item.data || item;
-    const templateId = template.id || item.id;
+const TemplateItem = memo(({ item, expandedCards, onToggleExpanded, onEdit, onStart, onDelete, formatDate }: TemplateItemProps) => {
+    const template = (item.data || item) as TemplateItemData;
+    const templateId = String(template.id || item.id || '');
     const exerciseCount = template.exerciseCount || (template.exercises?.length || 0);
     const duration = template.duration || 'N/A';
     const exercises = template.exercises || [];
-    const isExpanded = expandedCards[templateId];
+    const isExpanded = !!expandedCards[templateId];
     const displayExercises = isExpanded ? exercises : exercises.slice(0, 3);
     const hasMoreExercises = exercises.length > 3;
 
@@ -88,7 +104,7 @@ const TemplateItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit
         setTimeout(() => onDelete(item), 200);
     }, [item, onDelete, translateX]);
 
-    const renderExerciseItem = useCallback(({ item, index }) => {
+    const renderExerciseItem = useCallback(({ item, index }: { item: TemplateExercise & Record<string, unknown>; index: number }) => {
         const exerciseName = item.exerciseName || item.name || 'Exercise';
         const muscleGroup = item.muscleGroup || 'N/A';
         const imageURL = item.imageURL;
@@ -152,13 +168,13 @@ const TemplateItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit
                                 <FlatList
                                     data={displayExercises}
                                     renderItem={renderExerciseItem}
-                                    keyExtractor={(item, index) => `exercise-${templateId}-${index}`}
+                                    keyExtractor={(_item, index) => `exercise-${templateId}-${index}`}
                                     scrollEnabled={false}
                                     removeClippedSubviews={true}
                                     initialNumToRender={3}
                                     maxToRenderPerBatch={3}
                                     windowSize={3}
-                                    getItemLayout={(data, index) => ({
+                                    getItemLayout={(_data, index) => ({
                                         length: normalize(60),
                                         offset: normalize(60) * index,
                                         index,

@@ -1,36 +1,50 @@
-import React, { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 import { colors, fontSize } from '../../../../../shared/theme';
 import styles from '../WorkoutLibraryScreenStyle';
 import { isRotationSplit } from '../../../utils/splitSchedule';
+import type { WorkoutSplit } from '../../../types';
 
-const ProgramItem = React.memo(({ item, expandedCards, onToggleExpanded, onEdit, onActivate, onPreviewSplit, isActive }) => {
+type ScheduleDay = { exercises?: unknown[]; templateName?: string; name?: string; duration?: number | string } & Record<string, unknown>;
+type Schedule = Record<string, ScheduleDay | null | undefined>;
+
+type ProgramItemProps = {
+    item: WorkoutSplit & { templateName?: string; schedule?: Schedule };
+    expandedCards: Record<string, boolean>;
+    onToggleExpanded: (id: string) => void;
+    onEdit: (split: WorkoutSplit) => void;
+    onActivate: (split: WorkoutSplit) => void;
+    onPreviewSplit: (split: WorkoutSplit) => void;
+    isActive?: boolean;
+};
+
+const ProgramItem = memo(({ item, expandedCards, onToggleExpanded, onEdit, onActivate, onPreviewSplit, isActive }: ProgramItemProps) => {
     const split = item;
-    const splitId = split.id;
-    const isExpanded = expandedCards[splitId];
+    const splitId = String(split.id ?? '');
+    const isExpanded = !!expandedCards[splitId];
 
     const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    const schedule = split.schedule || {};
+    const schedule = (split.schedule || {}) as Schedule;
 
-    const activeDays = Object.values(schedule).filter(day => day?.exercises?.length > 0).length;
+    const activeDays = Object.values(schedule).filter((day): day is ScheduleDay => (day?.exercises?.length ?? 0) > 0).length;
     const totalExercises = Object.values(schedule).reduce((total, day) => total + (day?.exercises?.length || 0), 0);
     const durationWeeks = split.durationWeeks || 8;
 
-    const isRotation = isRotationSplit(split);
+    const isRotation = isRotationSplit(split as Parameters<typeof isRotationSplit>[0]);
 
     const workoutDays = useMemo(() => {
         const keys = isRotation
             ? Object.keys(schedule).sort((a, b) => Number(a) - Number(b))
             : dayOrder;
         return keys
-            .map(key => [key, schedule[key]])
-            .filter(([day, workout]) => workout?.exercises?.length > 0)
+            .map(key => [key, schedule[key]] as const)
+            .filter((entry): entry is readonly [string, ScheduleDay] => (entry[1]?.exercises?.length ?? 0) > 0)
             .slice(0, isExpanded ? keys.length : 3);
     }, [schedule, isExpanded, isRotation]);
 
-    const hasMoreThanThreeDays = Object.values(schedule).filter(day => day?.exercises?.length > 0).length > 3;
+    const hasMoreThanThreeDays = Object.values(schedule).filter(day => (day?.exercises?.length ?? 0) > 0).length > 3;
 
     return (
         <View style={[styles.workoutCard, isActive && styles.activeCard]}>

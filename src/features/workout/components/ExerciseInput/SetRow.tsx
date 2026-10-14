@@ -1,5 +1,6 @@
-import React, { useRef, useMemo, useCallback, memo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { useRef, useMemo, useCallback, memo } from 'react';
+import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Animated as RNAnimated } from 'react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -13,26 +14,69 @@ import { workoutService } from '../../services/WorkoutService';
 import PreviousSetDisplay from './PreviousSetDisplay';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
+import type { WorkoutExercise, WorkoutSet } from '../../types';
+
+type FocusedInputData = {
+    exerciseIndex?: number;
+    index?: number;
+    type?: 'weight' | 'reps' | string;
+} | null;
+
+type NumericInputProps = {
+    value?: string | number | null | undefined;
+    placeholder: string;
+    isFocused?: boolean | undefined;
+    isValidated?: boolean | undefined;
+    isModified?: boolean | undefined;
+    onPress: () => void;
+    style: {
+        neuralInput: StyleProp<ViewStyle>;
+        neuralInputCompleted?: StyleProp<ViewStyle>;
+        neuralInputFocused?: StyleProp<ViewStyle>;
+        inputTouchable: StyleProp<ViewStyle>;
+    };
+    textStyle: {
+        neuralInputText: StyleProp<TextStyle>;
+        neuralInputTextPlaceholder?: StyleProp<TextStyle>;
+        neuralInputTextPlaceholderFocused?: StyleProp<TextStyle>;
+        neuralInputTextFocused?: StyleProp<TextStyle>;
+        neuralInputTextFilled?: StyleProp<TextStyle>;
+    };
+};
+
+type SetRowProps = {
+    setData?: Partial<WorkoutSet>;
+    setIndex: number;
+    exerciseIndex: number;
+    previousSetData?: Partial<WorkoutSet> | Record<string, unknown> | undefined;
+    handlePreviousSetPress: (setIndex: number) => void;
+    totalSetsInExercise: number;
+    fadeAnim?: RNAnimated.Value[];
+    exercise?: WorkoutExercise;
+    onKeyboardChange?: ((visible: boolean, data: FocusedInputData) => void) | undefined;
+    openAnimatedMessage?: ((message: string) => void) | undefined;
+    focusedInputData?: FocusedInputData | undefined;
+};
 
 const SWIPE_THRESHOLD = -80;
 const SPRING_CONFIG = { damping: 25, stiffness: 400, mass: 0.5 };
 
-const NumericInput = memo(({ value, placeholder, isFocused, isValidated, isModified, onPress, style, textStyle }) => {
-    const inputStyle = useMemo(() => [
+const NumericInput = memo(({ value, placeholder, isFocused, isValidated, isModified, onPress, style, textStyle }: NumericInputProps) => {
+    const inputStyle = useMemo((): StyleProp<ViewStyle> => [
         style.neuralInput,
-        isValidated && style.neuralInputCompleted,
-        isFocused && style.neuralInputFocused,
+        isValidated ? style.neuralInputCompleted : null,
+        isFocused ? style.neuralInputFocused : null,
     ], [isValidated, isFocused, style]);
 
     const contentText = value ? String(value) : placeholder;
 
-    const contentTextStyle = useMemo(() => [
+    const contentTextStyle = useMemo((): StyleProp<TextStyle> => [
         textStyle.neuralInputText,
-        !value && textStyle.neuralInputTextPlaceholder,
-        !value && isFocused && textStyle.neuralInputTextPlaceholderFocused,
-        isFocused && textStyle.neuralInputTextFocused,
-        value && !isFocused && isModified && textStyle.neuralInputTextFilled,
-        value && !isFocused && !isModified && isValidated && textStyle.neuralInputTextFilled,
+        !value ? textStyle.neuralInputTextPlaceholder : null,
+        !value && isFocused ? textStyle.neuralInputTextPlaceholderFocused : null,
+        isFocused ? textStyle.neuralInputTextFocused : null,
+        value && !isFocused && isModified ? textStyle.neuralInputTextFilled : null,
+        value && !isFocused && !isModified && isValidated ? textStyle.neuralInputTextFilled : null,
     ], [value, isFocused, isModified, isValidated, textStyle]);
 
     return (
@@ -57,12 +101,12 @@ const SetRow = ({
     previousSetData = {},
     handlePreviousSetPress,
     totalSetsInExercise,
-    fadeAnim = [],
-    exercise,
+    fadeAnim: _fadeAnim = [],
+    exercise: _exercise,
     onKeyboardChange,
     openAnimatedMessage,
     focusedInputData,
-}) => {
+}: SetRowProps) => {
     const translateX = useSharedValue(0);
     const deleteProgress = useSharedValue(0);
     const hasTriggeredHaptic = useSharedValue(false);
@@ -228,7 +272,7 @@ const SetRow = ({
         }
     }, [exerciseIndex, setIndex, setData, openAnimatedMessage]);
 
-    const handleInputPress = useCallback((inputType) => {
+    const handleInputPress = useCallback((inputType: 'weight' | 'reps' | string) => {
         const now = Date.now();
         if (now - lastPressTime.current < 200) return;
         lastPressTime.current = now;
@@ -446,7 +490,7 @@ const stylesLocal = createStyles(() => ({
     },
 }));
 
-export default React.memo(SetRow, (prevProps, nextProps) => {
+export default memo(SetRow, (prevProps, nextProps) => {
     const prevFocused = prevProps.focusedInputData;
     const nextFocused = nextProps.focusedInputData;
 

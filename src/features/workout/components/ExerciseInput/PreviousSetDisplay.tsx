@@ -11,7 +11,7 @@ type PreviousSetDisplayProps = {
   previousSetData?: PreviousSetData | null;
   onPress: (setIndex: number) => void;
   setIndex: number;
-  isCompleted?: boolean;
+  isCompleted?: boolean | undefined;
 };
 
 const PreviousSetDisplay = ({ previousSetData, onPress, setIndex, isCompleted }: PreviousSetDisplayProps) => {
