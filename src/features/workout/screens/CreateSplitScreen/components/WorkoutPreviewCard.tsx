@@ -1,9 +1,36 @@
-import React, { useCallback, useMemo, useState, useRef } from 'react';
+import { useCallback, useMemo, useState, useRef, memo } from 'react';
 import { View, Text, TouchableOpacity, Animated, LayoutAnimation } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../../../../../shared/theme';
 import styles from './WorkoutPreviewCardStyles';
+
+type PreviewExercise = {
+  numSets?: number | string | null;
+  exerciseName?: string | null;
+  repRange?: string | number | null;
+};
+
+type PreviewWorkout = {
+  id?: string;
+  name?: string;
+  templateName?: string;
+  exercises?: PreviewExercise[];
+  duration?: number | string;
+  [key: string]: unknown;
+};
+
+type SplitDataLike = {
+  schedule?: Record<string, { id?: string } | null | undefined> | null;
+};
+
+type WorkoutPreviewCardProps = {
+  workout?: PreviewWorkout | null;
+  onSelect?: (workout: PreviewWorkout) => void;
+  selectedDay?: string | null;
+  splitData?: SplitDataLike | null;
+  onRemove?: (dayId: string) => void;
+};
 
 const WorkoutPreviewCardContent = ({
   workout,
@@ -11,16 +38,17 @@ const WorkoutPreviewCardContent = ({
   selectedDay,
   splitData,
   onRemove,
-}) => {
+}: WorkoutPreviewCardProps & { workout: PreviewWorkout }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showAllExercises, setShowAllExercises] = useState(false);
   const buttonScaleAnimation = useRef(new Animated.Value(1)).current;
 
   const isAssigned = useMemo(() => {
-    if (!splitData?.schedule) return null;
-    return Object.keys(splitData.schedule).find(day =>
-      splitData.schedule[day]?.id === workout.id
-    );
+    const schedule = splitData?.schedule;
+    if (!schedule) return null;
+    return Object.keys(schedule).find(day =>
+      schedule[day]?.id === workout.id
+    ) ?? null;
   }, [splitData?.schedule, workout.id]);
 
   const animationConfig = {
@@ -28,8 +56,10 @@ const WorkoutPreviewCardContent = ({
     update: { type: LayoutAnimation.Types.easeInEaseOut, duration: 250 },
   };
 
+  const exercises = workout.exercises ?? [];
+
   const handleToggleExpand = useCallback(() => {
-    if (!workout.exercises?.length) return;
+    if (!exercises.length) return;
 
     if (Haptics?.selectionAsync) {
       Haptics.selectionAsync();
@@ -41,9 +71,9 @@ const WorkoutPreviewCardContent = ({
     if (isExpanded) {
       setShowAllExercises(false);
     }
-  }, [isExpanded, workout.exercises?.length]);
+  }, [isExpanded, exercises.length]);
 
-  const handleQuickAdd = useCallback((event) => {
+  const handleQuickAdd = useCallback((event: { stopPropagation: () => void }) => {
     event.stopPropagation();
 
     if (onSelect && selectedDay && !isAssigned) {
@@ -60,7 +90,7 @@ const WorkoutPreviewCardContent = ({
     }
   }, [selectedDay, onSelect, workout, isAssigned, buttonScaleAnimation]);
 
-  const handleRemoveFromDay = useCallback((event) => {
+  const handleRemoveFromDay = useCallback((event: { stopPropagation: () => void }) => {
     event.stopPropagation();
 
     if (!onRemove || !isAssigned) return;
@@ -84,25 +114,25 @@ const WorkoutPreviewCardContent = ({
   }, []);
 
   const totalSets = useMemo(() => {
-    return workout.exercises?.reduce((total, exercise) => total + (parseInt(exercise.numSets) || 0), 0) || 0;
-  }, [workout.exercises]);
+    return exercises?.reduce((total, exercise) => total + (parseInt(String(exercise.numSets ?? 0), 10) || 0), 0) || 0;
+  }, [exercises]);
 
   const estimatedDuration = useMemo(
-    () => workout.duration || Math.ceil(totalSets * 2.5 + (workout.exercises?.length * 1.5)),
-    [workout.duration, totalSets, workout.exercises?.length]
+    () => workout.duration || Math.ceil(totalSets * 2.5 + (exercises.length * 1.5)),
+    [workout.duration, totalSets, exercises.length]
   );
 
   const isRestDay = workout.templateName?.toLowerCase() === 'rest';
   const canAdd = !isAssigned && selectedDay && !isRestDay;
-  const hasExercises = workout.exercises?.length > 0;
+  const hasExercises = exercises.length > 0;
 
   const exercisesToShow = useMemo(() => {
-    if (!workout.exercises?.length) return [];
-    if (showAllExercises) return workout.exercises;
-    return workout.exercises.slice(0, 4);
-  }, [workout.exercises, showAllExercises]);
+    if (!exercises.length) return [];
+    if (showAllExercises) return exercises;
+    return exercises.slice(0, 4);
+  }, [exercises, showAllExercises]);
 
-  const hasMoreExercises = workout.exercises?.length > 4;
+  const hasMoreExercises = exercises.length > 4;
 
   return (
     <View style={[styles.workoutCard, isAssigned && styles.workoutCardAssigned]}>
@@ -127,7 +157,7 @@ const WorkoutPreviewCardContent = ({
                 <View style={styles.metaDivider} />
                 <View style={styles.metaItem}>
                   <Ionicons name="barbell-outline" size={spacing.iconSm} color={colors.text.quaternary} />
-                  <Text style={styles.metaText}>{workout.exercises?.length || 0} exercises</Text>
+                  <Text style={styles.metaText}>{exercises.length || 0} exercises</Text>
                 </View>
                 {totalSets > 0 && (
                   <>
@@ -194,7 +224,7 @@ const WorkoutPreviewCardContent = ({
             <TouchableOpacity onPress={handleShowMoreExercises} activeOpacity={0.7} style={styles.showMoreRow}>
               <View style={styles.showMoreLine} />
               <Text style={styles.showMoreText}>
-                {showAllExercises ? 'Show less' : `+${workout.exercises.length - 4} more exercises`}
+                {showAllExercises ? 'Show less' : `+${exercises.length - 4} more exercises`}
               </Text>
               <View style={styles.showMoreLine} />
             </TouchableOpacity>
@@ -205,8 +235,8 @@ const WorkoutPreviewCardContent = ({
   );
 };
 
-const WorkoutPreviewCard = React.memo((props) => (
-  props.workout ? <WorkoutPreviewCardContent {...props} /> : null
+const WorkoutPreviewCard = memo((props: WorkoutPreviewCardProps) => (
+  props.workout ? <WorkoutPreviewCardContent {...props} workout={props.workout} /> : null
 ));
 
 export default WorkoutPreviewCard;

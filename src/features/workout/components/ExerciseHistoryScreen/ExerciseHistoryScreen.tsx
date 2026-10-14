@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,32 @@ import Svg, { Path, Circle, Text as SvgText, G } from 'react-native-svg';
 import { getExerciseHistory, calculate1RM } from '../../handlers/WorkoutHandler';
 import { colors, spacing } from '../../../../shared/theme';
 import styles from './ExerciseHistoryScreenStyles';
+import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+
+type TimestampLike = { seconds?: number } | null | undefined;
+
+type HistorySet = {
+    weight?: number | string;
+    reps?: number | string;
+    isPR?: boolean;
+};
+
+type HistoryBest = {
+    weight: number | string;
+    reps: number | string;
+    e1rm: number;
+};
+
+type HistorySession = {
+    id: string;
+    timestamp?: TimestampLike;
+    workoutName?: string;
+    sets: HistorySet[];
+    best: HistoryBest;
+};
+
+type ProgressChartProps = { sessions: HistorySession[] };
+type SessionItemProps = { session: HistorySession; isLast: boolean };
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -22,7 +48,7 @@ const PAD_TOP    = 8;
 const PAD_BOTTOM = 28;
 const PAD_SIDE   = 8;
 
-const formatDate = (timestamp) => {
+const formatDate = (timestamp: TimestampLike) => {
     if (!timestamp?.seconds) return { label: 'Recent' };
     const date = new Date(timestamp.seconds * 1000);
     const today = new Date();
@@ -34,10 +60,10 @@ const formatDate = (timestamp) => {
     return { label: `${monthsShort[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}` };
 };
 
-const labelAnchor = (i, total) =>
+const labelAnchor = (i: number, total: number): 'start' | 'middle' | 'end' =>
     i === 0 ? 'start' : i === total - 1 ? 'end' : 'middle';
 
-const ProgressChart = ({ sessions }) => {
+const ProgressChart = ({ sessions }: ProgressChartProps) => {
     const chartW = SCREEN_WIDTH - spacing[4] * 2 - PAD_SIDE * 2;
     const drawTop = PAD_TOP;
     const drawBot = CHART_H - PAD_BOTTOM;
@@ -86,7 +112,7 @@ const ProgressChart = ({ sessions }) => {
     );
 };
 
-const SessionItem = ({ session, isLast }) => {
+const SessionItem = ({ session, isLast }: SessionItemProps) => {
     const [expanded, setExpanded] = useState(false);
     const { label } = formatDate(session.timestamp);
     const totalSets = session.sets.length;
@@ -112,7 +138,7 @@ const SessionItem = ({ session, isLast }) => {
                 </View>
                 <View style={styles.sessionRight}>
                     <Text style={styles.sessionBestValue}>
-                        {parseFloat(session.best.weight)}kg × {parseInt(session.best.reps)}
+                        {parseFloat(String(session.best.weight))}kg × {parseInt(String(session.best.reps), 10)}
                     </Text>
                     <Ionicons
                         name={expanded ? 'chevron-up' : 'chevron-down'}
@@ -123,12 +149,12 @@ const SessionItem = ({ session, isLast }) => {
             </TouchableOpacity>
 
             {expanded && session.sets.map((set, i) => {
-                const e1rm = calculate1RM(parseFloat(set.weight) || 0, parseInt(set.reps) || 0);
+                const e1rm = calculate1RM(parseFloat(String(set.weight ?? 0)) || 0, parseInt(String(set.reps ?? 0), 10) || 0);
                 return (
                     <View key={i} style={[styles.setRow, i === session.sets.length - 1 && styles.setRowLast]}>
                         <Text style={styles.setIndex}>{i + 1}</Text>
-                        <Text style={styles.setWeight}>{parseFloat(set.weight)}kg</Text>
-                        <Text style={styles.setReps}>{parseInt(set.reps)}</Text>
+                        <Text style={styles.setWeight}>{parseFloat(String(set.weight ?? 0))}kg</Text>
+                        <Text style={styles.setReps}>{parseInt(String(set.reps ?? 0), 10)}</Text>
                         <View style={[styles.setColRM, { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }]}>
                             <Text style={styles.setRM}>{e1rm.toFixed(1)}</Text>
                             {set.isPR && <Text style={styles.prTag}>PR</Text>}
@@ -142,9 +168,11 @@ const SessionItem = ({ session, isLast }) => {
     );
 };
 
-const ExerciseHistoryScreen = ({ route, navigation }) => {
+const ExerciseHistoryScreen = () => {
+    const navigation = useAppNavigation();
+    const route = useAppRoute<'ExerciseHistory'>();
     const { exerciseName } = route.params;
-    const [sessions, setSessions] = useState([]);
+    const [sessions, setSessions] = useState<HistorySession[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedPeriod, setSelectedPeriod] = useState(10);
 
@@ -152,7 +180,7 @@ const ExerciseHistoryScreen = ({ route, navigation }) => {
         const load = async () => {
             setLoading(true);
             const data = await getExerciseHistory(exerciseName);
-            setSessions(data);
+            setSessions(data as HistorySession[]);
             setLoading(false);
         };
         load();
@@ -165,14 +193,14 @@ const ExerciseHistoryScreen = ({ route, navigation }) => {
         return sessions.reduce((best, s) => s.best.e1rm > best.e1rm ? s.best : best, sessions[0].best);
     }, [sessions]);
 
-    const renderItem = useCallback(({ item, index }) => (
+    const renderItem = useCallback(({ item, index }: { item: HistorySession; index: number }) => (
         <SessionItem
             session={item}
             isLast={index === filteredSessions.length - 1}
         />
     ), [filteredSessions.length]);
 
-    const keyExtractor = useCallback((item) => item.id, []);
+    const keyExtractor = useCallback((item: HistorySession) => item.id, []);
 
     if (loading) {
         return (
@@ -198,7 +226,7 @@ const ExerciseHistoryScreen = ({ route, navigation }) => {
                 {allTimeBest && (
                     <View style={styles.bestRow}>
                         <Text style={styles.bestValue}>
-                            {parseFloat(allTimeBest.weight)}kg × {parseInt(allTimeBest.reps)}
+                            {parseFloat(String(allTimeBest.weight))}kg × {parseInt(String(allTimeBest.reps), 10)}
                         </Text>
                         <Text style={styles.bestLabel}>all-time best · {allTimeBest.e1rm.toFixed(1)} 1RM</Text>
                     </View>

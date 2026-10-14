@@ -1,4 +1,4 @@
-import { useEffect, memo } from 'react';
+import { useEffect, memo, type ComponentProps } from 'react';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
@@ -106,7 +106,21 @@ const styles = createStyles(() => ({
     },
 }));
 
-const ProgressStepItem = memo(({ step, index, currentStep, totalSteps }) => {
+type Step = { id?: number | string; title: string; icon?: ComponentProps<typeof Ionicons>['name'] };
+
+type ProgressStepItemProps = {
+    step: Step;
+    index: number;
+    currentStep: number;
+    totalSteps: number;
+};
+
+type ProgressStepsProps = {
+    currentStep: number;
+    steps: Step[];
+};
+
+const ProgressStepItem = memo(({ step, index, currentStep, totalSteps: _totalSteps }: ProgressStepItemProps) => {
     const isCompleted = index < currentStep;
     const isActive = index === currentStep;
 
@@ -136,7 +150,7 @@ const ProgressStepItem = memo(({ step, index, currentStep, totalSteps }) => {
                     ]}
                 >
                     <Ionicons
-                        name={isCompleted ? 'checkmark' : step.icon}
+                        name={isCompleted ? 'checkmark' : (step.icon ?? 'ellipse-outline')}
                         size={spacing.icon}
                         color={isCompleted || isActive ? colors.accent.buttonText : colors.text.secondary}
                     />
@@ -150,7 +164,7 @@ const ProgressStepItem = memo(({ step, index, currentStep, totalSteps }) => {
     );
 });
 
-export const ProgressSteps = ({ currentStep, steps }) => {
+export const ProgressSteps = ({ currentStep, steps }: ProgressStepsProps) => {
     const totalSteps = steps.length;
     const targetWidth = currentStep === 0 ? 15 : (currentStep / (totalSteps - 1)) * 100;
     const progressWidth = useSharedValue(targetWidth);

@@ -1,6 +1,23 @@
-import React from 'react';
+import { memo, type ReactNode } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import styles from './DaySelectorStyles';
+
+type DayItem = {
+  id: string;
+  name: string;
+  shortLabel: string;
+  hasWorkout?: boolean;
+  isToday?: boolean;
+};
+
+type DaySelectorProps = {
+  days: DayItem[];
+  selectedDayId: string | null | undefined;
+  onSelectDay: (id: string) => void;
+  layout?: 'row' | 'wrap' | 'scroll' | string;
+  showLabels?: boolean;
+  trailingContent?: ReactNode;
+};
 
 const DaySelector = ({
   days,
@@ -9,7 +26,7 @@ const DaySelector = ({
   layout = 'row',
   showLabels = false,
   trailingContent,
-}) => {
+}: DaySelectorProps) => {
   const dayItems = days.map(day => {
     const isSelected = day.id === selectedDayId;
     const dayHasWorkout = !!day.hasWorkout;
@@ -64,4 +81,4 @@ const DaySelector = ({
   );
 };
 
-export default React.memo(DaySelector);
+export default memo(DaySelector);

@@ -59,6 +59,18 @@ const styles = createStyles(() => ({
     },
 }));
 
+type NavigationButtonsProps = {
+    currentStep: number;
+    goToPreviousStep: () => void;
+    goToNextStep: () => void;
+    handleCreateTemplate: () => void;
+    handleCreateSplit: () => void;
+    loading?: boolean;
+    validateForm: () => boolean;
+    creationType?: 'template' | 'split' | string;
+    isEditing?: boolean;
+};
+
 export const NavigationButtons = ({
     currentStep,
     goToPreviousStep,
@@ -69,21 +81,22 @@ export const NavigationButtons = ({
     validateForm,
     creationType = 'template',
     isEditing = false,
-}) => {
+}: NavigationButtonsProps) => {
     const isFirstStep = currentStep === 0;
     const isLastStep = currentStep === 2;
     const isFormValid = validateForm();
+    const isSplit = creationType === 'split';
 
     const handleFinalAction = () => {
-        if (handleCreateSplit) {
+        if (isSplit) {
             handleCreateSplit();
-        } else if (handleCreateTemplate) {
+        } else {
             handleCreateTemplate();
         }
     };
 
     const getButtonText = () => {
-        if (handleCreateSplit) return isEditing ? 'Update Split' : 'Create Split';
+        if (isSplit) return isEditing ? 'Update Split' : 'Create Split';
         return isEditing ? 'Update Template' : 'Create Template';
     };
 

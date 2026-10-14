@@ -50,7 +50,20 @@ const styles = createStyles(() => ({
     },
 }));
 
-const Notification = ({ message, isError, action, visible, onDismiss }) => {
+type NotificationAction = {
+    text: string;
+    onPress?: () => void;
+};
+
+type NotificationProps = {
+    message: string;
+    isError?: boolean;
+    action?: NotificationAction | null;
+    visible: boolean;
+    onDismiss: () => void;
+};
+
+const Notification = ({ message, isError, action, visible, onDismiss }: NotificationProps) => {
     const translateY = useRef(new Animated.Value(100)).current;
     const opacity = useRef(new Animated.Value(0)).current;
 
@@ -63,12 +76,12 @@ const Notification = ({ message, isError, action, visible, onDismiss }) => {
 
             const timeout = setTimeout(() => onDismiss(), 4000);
             return () => clearTimeout(timeout);
-        } else {
-            Animated.parallel([
-                Animated.timing(translateY, { toValue: 100, duration: 250, useNativeDriver: true }),
-                Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
-            ]).start();
         }
+        Animated.parallel([
+            Animated.timing(translateY, { toValue: 100, duration: 250, useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+        ]).start();
+        return undefined;
     }, [visible, onDismiss, translateY, opacity]);
 
     const handleActionPress = useCallback(() => {

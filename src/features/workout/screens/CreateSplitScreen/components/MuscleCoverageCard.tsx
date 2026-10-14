@@ -1,10 +1,18 @@
-import React from 'react';
+import { memo } from 'react';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../../../../../shared/theme';
 import styles from './MuscleCoverageCardStyles';
 
-const MuscleCoverageCard = ({ muscleGroupSets, uncoveredMuscles, subtitle }) => {
+type MuscleSet = { muscle: string; sets: number };
+
+type MuscleCoverageCardProps = {
+  muscleGroupSets: MuscleSet[];
+  uncoveredMuscles: string[];
+  subtitle?: string;
+};
+
+const MuscleCoverageCard = ({ muscleGroupSets, uncoveredMuscles, subtitle }: MuscleCoverageCardProps) => {
   const maxSets = Math.max(...muscleGroupSets.map(item => item.sets), 1);
 
   return (
@@ -45,4 +53,4 @@ const MuscleCoverageCard = ({ muscleGroupSets, uncoveredMuscles, subtitle }) => 
   );
 };
 
-export default React.memo(MuscleCoverageCard);
+export default memo(MuscleCoverageCard);

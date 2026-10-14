@@ -72,7 +72,7 @@ const styles = createStyles(() => ({
   },
   coverageNoteText: {
     flex: 1,
-    fontSize: fontSize[11],
+    fontSize: fontSize[12],
     fontWeight: fontWeight.medium,
     color: colors.text.tertiary,
   },

@@ -33,7 +33,12 @@ const styles = createStyles(() => ({
     },
 }));
 
-export const Header = ({ title, handleBackPress }) => {
+type HeaderProps = {
+    title: string;
+    handleBackPress: () => void;
+};
+
+export const Header = ({ title, handleBackPress }: HeaderProps) => {
     return (
         <View style={styles.header}>
             <TouchableOpacity
