@@ -237,6 +237,24 @@ export type RecentMeal = MealGroup & {
   totalCalories: number;
 };
 
+export type FrequentFood = LoggedFood & {
+  usageCount: number;
+  lastUsed: string;
+};
+
+export type FoodCategories = {
+  recentMeals: RecentMeal[];
+  frequentFoods: FrequentFood[];
+  favoriteFoods: LoggedFood[];
+};
+
+export type EnhancedLearningData = {
+  daysLogged: number;
+  weeklyAvgCalories: number;
+  isLearningComplete: boolean;
+  averages?: NutritionTotals;
+};
+
 export type FoodCategoryName = 'Frequent' | 'Recent' | 'Favorites';
 
 export type CategoryFood = RecentMeal | LoggedFood;
