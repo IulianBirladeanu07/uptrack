@@ -3,9 +3,14 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 import { auth, db } from '../../auth/services/firebaseConfigService';
 import Constants from 'expo-constants';
 import { needsEmailVerification } from '../utils/emailVerification';
+import type { FirebaseError } from 'firebase/app';
+import type { User } from 'firebase/auth';
+import type { UserData } from '../../../shared/types';
 
-const handleFirebaseError = (error) => {
-  switch (error.code) {
+type SetFlag = (value: boolean) => void;
+
+const handleFirebaseError = (error: unknown): string => {
+  switch ((error as FirebaseError).code) {
     case 'auth/wrong-password':
       return 'Invalid password. Please try again.';
     case 'auth/invalid-credential':
@@ -19,25 +24,31 @@ const handleFirebaseError = (error) => {
   }
 };
 
-const signInWithEmailAndPassword = async (email, password, setAuthenticated, setProfileSetupComplete) => {
+const signInWithEmailAndPassword = async (
+  email: string,
+  password: string,
+  setAuthenticated: SetFlag,
+  setProfileSetupComplete: SetFlag,
+): Promise<void> => {
   const response = await firebaseSignInWithEmailAndPassword(auth, email, password);
   const user = response.user;
 
   if (needsEmailVerification(user)) {
     await signOut(auth);
-    const error = new Error('Email not verified. Please verify your email before logging in.');
-    error.code = 'auth/email-not-verified';
-    throw error;
+    throw Object.assign(
+      new Error('Email not verified. Please verify your email before logging in.'),
+      { code: 'auth/email-not-verified' },
+    );
   }
 
   const userDoc = await getDoc(doc(db, 'users', user.uid));
-  const userData = userDoc.data() || {};
+  const userData = (userDoc.data() || {}) as UserData;
 
   setAuthenticated(true);
   setProfileSetupComplete(userData.profileSetupComplete || false);
 };
 
-const signUpWithEmailAndPassword = async (email, password) => {
+const signUpWithEmailAndPassword = async (email: string, password: string): Promise<User> => {
   try {
     const response = await createUserWithEmailAndPassword(auth, email, password);
     const user = response.user;
@@ -60,7 +71,7 @@ const signUpWithEmailAndPassword = async (email, password) => {
   }
 };
 
-const resendVerificationEmail = async (email, password) => {
+const resendVerificationEmail = async (email: string, password: string): Promise<boolean> => {
   try {
     const response = await firebaseSignInWithEmailAndPassword(auth, email, password);
     const user = response.user;
@@ -79,7 +90,11 @@ const resendVerificationEmail = async (email, password) => {
   }
 };
 
-const signInWithGoogle = async (googleResponse, setAuthenticated, setProfileSetupComplete) => {
+const signInWithGoogle = async (
+  googleResponse: { params: { id_token: string } },
+  setAuthenticated: SetFlag,
+  setProfileSetupComplete: SetFlag,
+): Promise<void> => {
   const { id_token } = googleResponse.params;
   const credential = GoogleAuthProvider.credential(id_token);
 
@@ -91,9 +106,10 @@ const signInWithGoogle = async (googleResponse, setAuthenticated, setProfileSetu
   const userDoc = await getDoc(userDocRef);
 
   if (userDoc.exists()) {
+    const existing = userDoc.data() as UserData;
     await updateDoc(userDocRef, {
-      displayName: displayName || userDoc.data().displayName,
-      photoURL: photoURL || userDoc.data().photoURL,
+      displayName: displayName || existing.displayName,
+      photoURL: photoURL || existing.photoURL,
       lastLogin: serverTimestamp(),
     });
   } else {
@@ -106,34 +122,36 @@ const signInWithGoogle = async (googleResponse, setAuthenticated, setProfileSetu
     });
   }
 
-  const userData = (await getDoc(userDocRef)).data();
+  const userData = (await getDoc(userDocRef)).data() as UserData;
   setAuthenticated(true);
   setProfileSetupComplete(userData.profileSetupComplete || false);
 };
 
-export const sendPasswordResetEmail = async (email) => {
+export const sendPasswordResetEmail = async (email: string): Promise<void> => {
   try {
     await firebaseSendPasswordResetEmail(auth, email);
   } catch (error) {
-    if (error.code === 'auth/user-not-found') return;
+    if ((error as FirebaseError).code === 'auth/user-not-found') return;
     throw new Error(handleFirebaseError(error));
   }
 };
 
+type GoogleExtra = { extra: { googleAndroidClientId?: string; googleWebClientId?: string } };
+
 const getGoogleAndroidClientId = () => {
-  return Constants.expoConfig.extra.googleAndroidClientId;
+  return (Constants.expoConfig as GoogleExtra).extra.googleAndroidClientId;
 };
 
 const getGoogleWebClientId = () => {
-  return Constants.expoConfig.extra.googleWebClientId;
+  return (Constants.expoConfig as GoogleExtra).extra.googleWebClientId;
 };
 
-export const fetchUserProfile = async (uid) => {
+export const fetchUserProfile = async (uid: string): Promise<UserData | null> => {
   const userDoc = await getDoc(doc(db, 'users', uid));
-  return userDoc.exists() ? userDoc.data() : null;
+  return userDoc.exists() ? (userDoc.data() as UserData) : null;
 };
 
-export const getCurrentUser = () => {
+export const getCurrentUser = (): User => {
   const user = auth.currentUser;
   if (!user) {
     throw new Error('User not authenticated.');
