@@ -5,10 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
@@ -21,10 +18,27 @@ import {
     getRollingAverageWeight,
 } from '../../helpers/weightTrackerUtils';
 import WeightChart, { getAvailablePeriods } from './WeightChart';
+import type { ChartDelta, ChartEntry, PeriodKey } from './WeightChart';
 import { isSuspiciousWeightEntry, getCurrentTrendWeight } from '../../../profile/utils/weightTrendEngine';
 import { useFoodContext } from '../../context/FoodContext';
+import { useAppNavigation } from '../../../../shared/navigation';
+import type { DayKey, Numeric, WeightInWeek } from '../../../../shared/types';
 
-const WEEK_DAYS          = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+type DayEntry = { key: DayKey; weight: number; date: Date };
+type WeekGroup = {
+    weekStart: string;
+    average: number | null;
+    days: DayEntry[];
+    trend: number | null;
+    daysLogged: number;
+};
+
+type TrendBadgeProps = { value: number | null; isBulking: boolean };
+type WeekRowProps = { group: WeekGroup; isBulking: boolean; expanded: boolean; onToggle: () => void };
+type DatePillProps = { date: Date; label: string; isSelected: boolean; hasEntry: boolean; onPress: () => void };
+type KeypadProps = { onPress: (key: string) => void };
+
+const WEEK_DAYS: DayKey[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_LABELS         = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DATE_OPTIONS_COUNT = 7;
 
@@ -35,8 +49,10 @@ const KEYPAD_ROWS = [
     ['.', '0', 'backspace'],
 ];
 
-const formatDate = (d) => {
-    const val = d instanceof Date && !isNaN(d) ? d : new Date();
+const toNum = (v: Numeric | null | undefined): number | null => (v == null ? null : Number(v));
+
+const formatDate = (d: Date) => {
+    const val = d instanceof Date && !isNaN(d.getTime()) ? d : new Date();
     if (val.toDateString() === new Date().toDateString()) return 'Today';
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -44,7 +60,7 @@ const formatDate = (d) => {
     return val.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-const formatWeekLabel = (weekStartStr) => {
+const formatWeekLabel = (weekStartStr: string) => {
     const [y, m, d] = weekStartStr.split('-').map(Number);
     const date = new Date(y, m - 1, d);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -58,12 +74,12 @@ const buildDateOptions = () =>
         return d;
     });
 
-const buildWeeklyGroups = (weightIns) => {
+const buildWeeklyGroups = (weightIns: WeightInWeek[]): WeekGroup[] => {
     if (!weightIns?.length) return [];
-    const dayKeyOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const dayKeyOrder: DayKey[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
     return [...weightIns]
-        .sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart))
+        .sort((a, b) => new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime())
         .map((week, idx, arr) => {
             const days = dayKeyOrder
                 .map((key, i) => {
@@ -73,11 +89,11 @@ const buildWeeklyGroups = (weightIns) => {
                     const date = new Date(y, m - 1, d + i);
                     return {
                         key,
-                        weight: parseFloat(val),
+                        weight: parseFloat(String(val)),
                         date,
                     };
                 })
-                .filter(Boolean);
+                .filter((d): d is DayEntry => d != null);
 
             const prevWeek = arr[idx + 1];
             const weekAvgDisplay = week.average != null ? parseFloat(week.average.toFixed(1)) : null;
@@ -96,7 +112,7 @@ const buildWeeklyGroups = (weightIns) => {
         });
 };
 
-const serializeWeightIns = (weightIns) =>
+const serializeWeightIns = (weightIns: WeightInWeek[] | null | undefined) =>
     (weightIns || []).map(w => ({
         ...w,
         days: w.days
@@ -106,7 +122,7 @@ const serializeWeightIns = (weightIns) =>
             : {},
     }));
 
-const TrendBadge = ({ value, isBulking }) => {
+const TrendBadge = ({ value, isBulking }: TrendBadgeProps) => {
     if (value == null) return null;
     const isGood = isBulking ? value > 0 : value < 0;
     const color  = value === 0
@@ -124,8 +140,7 @@ const TrendBadge = ({ value, isBulking }) => {
     );
 };
 
-const WeekRow = ({ group, isBulking, expanded, onToggle }) => {
-    const hasAverage = group.average != null;
+const WeekRow = ({ group, isBulking, expanded, onToggle }: WeekRowProps) => {
     return (
         <View>
             <TouchableOpacity
@@ -138,7 +153,7 @@ const WeekRow = ({ group, isBulking, expanded, onToggle }) => {
                     <Text style={styles.weekMeta}>{group.daysLogged} day{group.daysLogged !== 1 ? 's' : ''} logged</Text>
                 </View>
                 <View style={styles.weekHeaderRight}>
-                    {hasAverage && (
+                    {group.average != null && (
                         <View style={styles.weekAverageRow}>
                             <Text style={styles.weekAverage}>{group.average.toFixed(1)}</Text>
                             <Text style={styles.weekAverageUnit}> kg</Text>
@@ -170,7 +185,7 @@ const WeekRow = ({ group, isBulking, expanded, onToggle }) => {
     );
 };
 
-const DatePill = ({ date, label, isSelected, hasEntry, onPress }) => (
+const DatePill = ({ date, label, isSelected, hasEntry, onPress }: DatePillProps) => (
     <TouchableOpacity
         style={[styles.datePill, isSelected && styles.datePillSelected]}
         onPress={onPress}
@@ -182,7 +197,7 @@ const DatePill = ({ date, label, isSelected, hasEntry, onPress }) => (
     </TouchableOpacity>
 );
 
-const Keypad = ({ onPress }) => (
+const Keypad = ({ onPress }: KeypadProps) => (
     <View style={styles.keypad}>
         {KEYPAD_ROWS.map((row, i) => (
             <View key={i} style={styles.keypadRow}>
@@ -204,19 +219,19 @@ const Keypad = ({ onPress }) => (
 );
 
 const WeightTracker = () => {
-    const navigation  = useNavigation();
+    const navigation  = useAppNavigation();
     const insets      = useSafeAreaInsets();
     const { getMealCache } = useFoodContext();
-    const { userData, refreshUserData } = useContext(AuthContext);
+    const { userData, refreshUserData } = useContext(AuthContext)!;
 
-    const [userId,         setUserId]         = useState(null);
+    const [userId,         setUserId]         = useState<string | null>(null);
     const [loading,        setLoading]        = useState(true);
     const [saving,         setSaving]         = useState(false);
     const [modalVisible,   setModalVisible]   = useState(false);
-    const [chartPeriod,    setChartPeriod]    = useState('7');
-    const [expandedWeeks,  setExpandedWeeks]  = useState({});
+    const [chartPeriod,    setChartPeriod]    = useState<PeriodKey>('7');
+    const [expandedWeeks,  setExpandedWeeks]  = useState<Record<string, boolean>>({});
     const [chartWidth,     setChartWidth]     = useState(0);
-    const [chartDelta,     setChartDelta]     = useState(null);
+    const [chartDelta,     setChartDelta]     = useState<ChartDelta | null>(null);
 
     const [weightInput, setWeightInput] = useState('');
     const [isValid,     setIsValid]     = useState(true);
@@ -229,18 +244,18 @@ const WeightTracker = () => {
     });
     const [modalDate, setModalDate] = useState(committedDate);
 
-    const [currentWeight,   setCurrentWeight]   = useState(null);
-    const [weeklyData,      setWeeklyData]      = useState(null);
-    const [weeklyAverage,   setWeeklyAverage]   = useState(null);
-    const [lastWeekAverage, setLastWeekAverage] = useState(null);
-    const [trendData,       setTrendData]       = useState([]);
-    const [weightIns,       setWeightIns]       = useState([]);
-    const [startWeight,     setStartWeight]     = useState(null);
-    const [goalWeight,      setGoalWeight]      = useState(null);
-    const [goalSwitchDate,  setGoalSwitchDate]  = useState(null);
+    const [currentWeight,   setCurrentWeight]   = useState<number | null>(null);
+    const [weeklyData,      setWeeklyData]      = useState<WeightInWeek | undefined>(undefined);
+    const [weeklyAverage,   setWeeklyAverage]   = useState<number | null>(null);
+    const [lastWeekAverage, setLastWeekAverage] = useState<number | null>(null);
+    const [trendData,       setTrendData]       = useState<ChartEntry[]>([]);
+    const [weightIns,       setWeightIns]       = useState<WeightInWeek[]>([]);
+    const [startWeight,     setStartWeight]     = useState<number | null>(null);
+    const [goalWeight,      setGoalWeight]      = useState<number | null>(null);
+    const [goalSwitchDate,  setGoalSwitchDate]  = useState<string | null>(null);
 
-    const longPressTimer    = useRef(null);
-    const longPressInterval = useRef(null);
+    const longPressTimer    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const longPressInterval = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
     const freshEntryRef     = useRef(true);
     const cursorOpacity     = useRef(new Animated.Value(1)).current;
     const dateOptions       = useMemo(() => buildDateOptions(), []);
@@ -265,9 +280,9 @@ const WeightTracker = () => {
         setLoading(true);
         await loadUserWeightData(
             userId, committedDate,
-            setCurrentWeight, setWeightInput, setWeeklyData,
+            v => setCurrentWeight(toNum(v)), setWeightInput, setWeeklyData,
             setWeeklyAverage, setLastWeekAverage, setTrendData,
-            setWeightIns, setStartWeight, setGoalWeight,
+            setWeightIns, v => setStartWeight(toNum(v)), v => setGoalWeight(toNum(v)),
             setGoalSwitchDate,
         );
         setLoading(false);
@@ -284,7 +299,7 @@ const WeightTracker = () => {
     useEffect(() => {
         if (isSelected || !modalVisible) {
             cursorOpacity.setValue(1);
-            return;
+            return undefined;
         }
         const loop = Animated.loop(
             Animated.sequence([
@@ -328,7 +343,7 @@ const WeightTracker = () => {
 
     const showError = !isValid && weightInput !== '';
 
-    const handleKeypadPress = (key) => {
+    const handleKeypadPress = (key: string) => {
         if (Platform.OS === 'ios') Vibration.vibrate(5);
 
         const isFresh = freshEntryRef.current;
@@ -354,7 +369,7 @@ const WeightTracker = () => {
         setIsValid(next !== '' && validateWeight(next));
     };
 
-    const doAdjust = useCallback((delta) => {
+    const doAdjust = useCallback((delta: number) => {
         if (Platform.OS === 'ios') Vibration.vibrate(10);
         freshEntryRef.current = false;
         setIsSelected(false);
@@ -362,7 +377,7 @@ const WeightTracker = () => {
         setIsValid(true);
     }, []);
 
-    const startLongPress = useCallback((delta) => {
+    const startLongPress = useCallback((delta: number) => {
         longPressTimer.current = setTimeout(() => {
             longPressInterval.current = setInterval(() => doAdjust(delta), 80);
         }, 400);
@@ -373,7 +388,7 @@ const WeightTracker = () => {
         clearInterval(longPressInterval.current);
     }, []);
 
-    const selectDate = useCallback((d) => {
+    const selectDate = useCallback((d: Date) => {
         setModalDate(d);
         const key   = d.toISOString().split('T')[0];
         const entry = allEntries.find(e => e.dateKey === key);
@@ -388,7 +403,8 @@ const WeightTracker = () => {
         setIsSelected(true);
     }, [allEntries]);
 
-const commitWeightSave = async (parsedWeight) => {
+    const commitWeightSave = async (parsedWeight: number) => {
+        if (!userId) return;
         setSaving(true);
         try {
             await handleSaveLogic(
@@ -411,7 +427,7 @@ const commitWeightSave = async (parsedWeight) => {
         const parsedWeight = parseFloat(weightInput);
         const currentTrendWeight = getCurrentTrendWeight(weightIns);
 
-        if (isSuspiciousWeightEntry(parsedWeight, currentTrendWeight)) {
+        if (currentTrendWeight != null && isSuspiciousWeightEntry(parsedWeight, currentTrendWeight)) {
             Alert.alert(
                 'Double-check this entry',
                 `${parsedWeight}kg is a big jump from your recent trend (${currentTrendWeight.toFixed(1)}kg). Save anyway?`,
@@ -447,7 +463,7 @@ const commitWeightSave = async (parsedWeight) => {
         setIsSelected(false);
     };
 
-    const toggleWeek = useCallback((weekStart) => {
+    const toggleWeek = useCallback((weekStart: string) => {
         setExpandedWeeks(prev => ({ ...prev, [weekStart]: !prev[weekStart] }));
     }, []);
 
@@ -586,7 +602,6 @@ const commitWeightSave = async (parsedWeight) => {
                             onDeltaChange={setChartDelta}
                             goalSwitchDate={goalSwitchDate}
                             startWeight={startWeight}
-                            weekChangeDelta={weekChangeDelta}
                         />
                     )}
                 </View>
