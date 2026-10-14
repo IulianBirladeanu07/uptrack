@@ -6,7 +6,9 @@ import { deleteAccount } from '../../services/accountDeletionService';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
-const errorMessage = (e) => {
+type AuthError = Error & { code?: string };
+
+const errorMessage = (e: AuthError) => {
   switch (e.code) {
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
@@ -22,7 +24,7 @@ const errorMessage = (e) => {
   }
 };
 
-const DeleteAccountModal = ({ visible, onClose }) => {
+const DeleteAccountModal = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -39,7 +41,7 @@ const DeleteAccountModal = ({ visible, onClose }) => {
   };
 
   const getCredential = async () => {
-    if (usesPassword) return EmailAuthProvider.credential(user.email, password);
+    if (usesPassword) return EmailAuthProvider.credential(user!.email!, password);
     await GoogleSignin.hasPlayServices();
     await GoogleSignin.signOut();
     const info = await GoogleSignin.signIn();
@@ -56,7 +58,7 @@ const DeleteAccountModal = ({ visible, onClose }) => {
       const credential = await getCredential();
       await deleteAccount(user, credential);
     } catch (e) {
-      if (e.code !== statusCodes.SIGN_IN_CANCELLED) setError(errorMessage(e));
+      if ((e as AuthError).code !== statusCodes.SIGN_IN_CANCELLED) setError(errorMessage(e as AuthError));
       setBusy(false);
     }
   };
