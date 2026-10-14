@@ -1,35 +1,66 @@
 import React, { useState, useEffect, useMemo, useContext, useCallback, useRef } from 'react';
+import type { ComponentProps } from 'react';
 import { View, ScrollView, TouchableOpacity, Text, ActivityIndicator, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth } from 'firebase/auth';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
+import type { FoodContextValue } from '../../../nutrition/context/FoodContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
 import HomeNoticeCard from '../../../../shared/components/HomeNoticeCard/HomeNoticeCard';
 import { colors, spacing } from '../../../../shared/theme';
+import { useAppNavigation } from '../../../../shared/navigation';
+import type { HomeNotice } from '../../../../shared/types';
+import type { PersistedWorkoutState, WorkoutSplit } from '../../../workout/types';
 import { fetchSplitsFromFirestore, SPLITS_CACHE_KEY } from '../../../workout/handlers/WorkoutHandler';
 import { getHomeNotices } from '../../../profile/utils/homeSurfaceEngine';
 import { dirOf } from '../../../progress/utils/progressEngine';
 import { durationLabel } from '../../../workout/utils/durationUtils';
 import { getScheduledDay } from '../../../workout/utils/splitSchedule';
+import type { SplitLike } from '../../../workout/utils/splitSchedule';
 import { styles } from './DashboardScreenStyles';
 
 const SPLITS_CACHE_TTL = 15 * 60 * 1000;
 const MIN_DELTA_DAYS = 3;
 
-const toLocalDateKey = (date) => {
+type ScheduledWorkout = {
+    name: string;
+    duration: number;
+    exerciseCount: number;
+    exercises: unknown[];
+};
+
+type CompletedToday = {
+    durationLabel: string | null;
+    exerciseCount: number;
+};
+
+type WeightDelta = {
+    text: string;
+    icon: ComponentProps<typeof Ionicons>['name'];
+    bg: string;
+    fg: string;
+};
+
+type HistoryEntry = {
+    timestamp?: { toDate?: () => Date };
+    duration?: unknown;
+    exercises?: unknown[];
+};
+
+const toLocalDateKey = (date: Date): string => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
 };
 
-const getMonday = (date) => {
+const getMonday = (date: Date): Date => {
     const d = new Date(date);
     const day = d.getDay();
     const diff = day === 0 ? -6 : 1 - day;
@@ -38,20 +69,20 @@ const getMonday = (date) => {
     return d;
 };
 
-const resolveWorkoutFromSplits = (splits, activeSplitId, rotationStartDate) => {
+const resolveWorkoutFromSplits = (splits: WorkoutSplit[], activeSplitId: string | null | undefined, rotationStartDate: unknown): ScheduledWorkout | null => {
     if (!splits?.length) return null;
     const activeSplit = (activeSplitId && splits.find(s => s.id === activeSplitId)) || splits[0];
-    const workout = getScheduledDay(activeSplit, new Date(), rotationStartDate);
+    const workout = getScheduledDay(activeSplit as SplitLike, new Date(), rotationStartDate);
     const exercises = workout?.exercises || [];
     return exercises.length > 0 ? {
-        name: workout.templateName || 'Workout',
-        duration: workout.duration || 45,
+        name: (workout?.['templateName'] as string | undefined) || 'Workout',
+        duration: (workout?.['duration'] as number | undefined) || 45,
         exerciseCount: exercises.length,
         exercises,
     } : null;
 };
 
-const LiveTimer = ({ startTime }) => {
+const LiveTimer = ({ startTime }: { startTime: number }) => {
     const [elapsed, setElapsed] = useState(0);
 
     useEffect(() => {
@@ -64,7 +95,7 @@ const LiveTimer = ({ startTime }) => {
     const h = Math.floor(elapsed / 3600);
     const m = Math.floor((elapsed % 3600) / 60);
     const s = elapsed % 60;
-    const pad = n => (n < 10 ? '0' + n : n);
+    const pad = (n: number) => (n < 10 ? '0' + n : n);
     const fmt = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 
     return <Text style={styles.resumeTimer}>{fmt}</Text>;
@@ -85,7 +116,14 @@ const PulseDot = () => {
     return <Animated.View style={[styles.pulseDot, { transform: [{ scale }] }]} />;
 };
 
-const TodayWorkout = ({ workout, activeWorkout, completed, onPress }) => {
+type TodayWorkoutProps = {
+    workout: ScheduledWorkout | null;
+    activeWorkout: PersistedWorkoutState | null;
+    completed: CompletedToday | null;
+    onPress: () => void;
+};
+
+const TodayWorkout = ({ workout, activeWorkout, completed, onPress }: TodayWorkoutProps) => {
     if (activeWorkout) {
         return (
             <TouchableOpacity style={styles.workoutCard} onPress={onPress} activeOpacity={0.85}>
@@ -167,7 +205,17 @@ const TodayWorkout = ({ workout, activeWorkout, completed, onPress }) => {
     );
 };
 
-const TodayNutrition = ({ calories, targetCalories, macros, macroTargets, onPress }) => {
+type MacroTotals = { carbs: number; protein: number; fat: number };
+
+type TodayNutritionProps = {
+    calories: number;
+    targetCalories: number;
+    macros: MacroTotals;
+    macroTargets: MacroTotals;
+    onPress: () => void;
+};
+
+const TodayNutrition = ({ calories, targetCalories, macros, macroTargets, onPress }: TodayNutritionProps) => {
     const percentage = targetCalories > 0 ? Math.round((calories / targetCalories) * 100) : 0;
     const remaining = targetCalories - calories;
     const isComplete = calories >= targetCalories;
@@ -212,7 +260,17 @@ const TodayNutrition = ({ calories, targetCalories, macros, macroTargets, onPres
     );
 };
 
-const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, goalDir, getCaloriesForDateRange, onWeightPress, dataReady }) => {
+type WeeklyOverviewProps = {
+    rollingStats: FoodContextValue['rollingWeekStats'];
+    weeklyWorkouts: number;
+    targetWorkouts: number;
+    goalDir: number;
+    getCaloriesForDateRange: FoodContextValue['getCaloriesForDateRange'];
+    onWeightPress: () => void;
+    dataReady: boolean;
+};
+
+const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, goalDir, getCaloriesForDateRange, onWeightPress, dataReady }: WeeklyOverviewProps) => {
     const weekDays = useMemo(() => {
         const today = new Date();
         const monday = getMonday(today);
@@ -220,7 +278,7 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, goalDir,
         const todayEnd = new Date(today);
         todayEnd.setHours(23, 59, 59, 999);
 
-        const calMap = {};
+        const calMap: Record<string, number> = {};
         const range = getCaloriesForDateRange(monday, todayEnd);
         range.forEach(d => { calMap[d.date] = d.calories; });
 
@@ -242,7 +300,7 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, goalDir,
 
     const maxCalories = Math.max(...weekDays.filter(d => !d.isFuture).map(d => d.calories || 0), 2500);
 
-    const weightDelta = useMemo(() => {
+    const weightDelta = useMemo<WeightDelta | null>(() => {
         const { avgWeight, prevAvgWeight, daysLoggedWeight } = rollingStats;
         if (avgWeight == null || prevAvgWeight == null || daysLoggedWeight < MIN_DELTA_DAYS) return null;
         const rounded = Math.round((avgWeight - prevAvgWeight) * 10) / 10;
@@ -269,8 +327,9 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, goalDir,
                 <View style={styles.chartContent}>
                     <View style={styles.barsRow}>
                         {weekDays.map((point, index) => {
-                            const showValue = !point.isFuture && point.calories > 0;
-                            const share = Math.max(point.calories > 0 ? (point.calories / maxCalories) * 100 : 0, 4);
+                            const cal = point.calories ?? 0;
+                            const showValue = !point.isFuture && cal > 0;
+                            const share = Math.max(cal > 0 ? (cal / maxCalories) * 100 : 0, 4);
                             return (
                                 <View key={index} style={styles.barContainer}>
                                     <View style={{ flex: point.isFuture ? 1 : 100 - share }} />
@@ -279,7 +338,7 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, goalDir,
                                         point.isToday && styles.barValueTextToday,
                                         !showValue && styles.barValueHidden,
                                     ]}>
-                                        {showValue ? Math.round(point.calories) : 0}
+                                        {showValue ? Math.round(cal) : 0}
                                     </Text>
                                     <View style={[
                                         styles.bar,
@@ -330,7 +389,7 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, goalDir,
                         label: 'Workouts',
                     },
                 ].map((stat, i) => {
-                    const CardComponent = stat.onPress ? TouchableOpacity : View;
+                    const CardComponent = (stat.onPress ? TouchableOpacity : View) as typeof TouchableOpacity;
                     return (
                         <CardComponent
                             key={i}
@@ -360,19 +419,19 @@ const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, goalDir,
 };
 
 const DashboardScreen = () => {
-    const navigation = useNavigation();
+    const navigation = useAppNavigation();
     const navInset = useBottomNavInset();
-    const [todayScheduledWorkout, setTodayScheduledWorkout] = useState(null);
+    const [todayScheduledWorkout, setTodayScheduledWorkout] = useState<ScheduledWorkout | null>(null);
     const [workoutLoading, setWorkoutLoading] = useState(true);
 
-    const [dismissedAdjustments, setDismissedAdjustments] = useState([]);
+    const [dismissedAdjustments, setDismissedAdjustments] = useState<string[]>([]);
     const [goalReachedDismissed, setGoalReachedDismissed] = useState(false);
-    const [stepsPermissionDismissedAt, setStepsPermissionDismissedAt] = useState(null);
+    const [stepsPermissionDismissedAt, setStepsPermissionDismissedAt] = useState<string | null>(null);
     const [noticesLoaded, setNoticesLoaded] = useState(false);
 
     const { dailyNutrition, userMacros, rollingWeekStats, getCaloriesForDateRange, initialLoadComplete, stepsConnected, stepsLoading, retryStepsConnection } = useFoodContext();
-    const { workoutHistory, activeWorkout } = useContext(WorkoutContext);
-    const { userData } = useContext(AuthContext);
+    const { workoutHistory, activeWorkout } = useContext(WorkoutContext)!;
+    const { userData } = useContext(AuthContext)!;
 
     const targetWorkouts = userData?.targetWorkoutsPerWeek || 5;
     const targetCalories = userMacros?.targetCalories || 2000;
@@ -404,7 +463,7 @@ const DashboardScreen = () => {
         if (!noticesLoaded || !userData || !initialLoadComplete) return [];
         return getHomeNotices({
             userData,
-            stepsConnected,
+            stepsConnected: stepsConnected ?? false,
             stepsLoading,
             dismissedAdjustmentTimestamps: dismissedAdjustments,
             stepsPermissionDismissedAt,
@@ -412,10 +471,10 @@ const DashboardScreen = () => {
         });
     }, [noticesLoaded, userData, initialLoadComplete, stepsConnected, stepsLoading, dismissedAdjustments, stepsPermissionDismissedAt, goalReachedDismissed]);
 
-    const handleDismissNotice = useCallback(async (notice) => {
+    const handleDismissNotice = useCallback(async (notice: HomeNotice) => {
         try {
             if (notice.type === 'calorie_adjustment') {
-                const updated = [...dismissedAdjustments, notice.dismissKey];
+                const updated = [...dismissedAdjustments, notice.dismissKey!];
                 setDismissedAdjustments(updated);
                 await AsyncStorage.setItem(`home_dismissed_adjustments_${uid}`, JSON.stringify(updated));
             } else if (notice.type === 'goal_reached') {
@@ -431,7 +490,7 @@ const DashboardScreen = () => {
         }
     }, [uid, dismissedAdjustments]);
 
-    const handleNoticeAction = useCallback((notice) => {
+    const handleNoticeAction = useCallback((notice: HomeNotice) => {
         if (notice.type === 'goal_reached') {
             navigation.navigate('Profile');
         } else if (notice.type === 'steps_permission') {
@@ -448,7 +507,7 @@ const DashboardScreen = () => {
                 try {
                     const cached = await AsyncStorage.getItem(SPLITS_CACHE_KEY);
                     if (cached) {
-                        const { splits, ts } = JSON.parse(cached);
+                        const { splits, ts } = JSON.parse(cached) as { splits: WorkoutSplit[]; ts: number };
                         if (Date.now() - ts < SPLITS_CACHE_TTL) {
                             if (!cancelled) {
                                 setTodayScheduledWorkout(resolveWorkoutFromSplits(splits, userData?.activeSplitId, userData?.rotationStartDate));
@@ -480,7 +539,7 @@ const DashboardScreen = () => {
     const weeklyWorkoutsCount = useMemo(() => {
         if (!workoutHistory?.length) return 0;
         const weekStart = getMonday(new Date());
-        return workoutHistory.filter(w => {
+        return (workoutHistory as HistoryEntry[]).filter(w => {
             const d = w.timestamp?.toDate?.();
             return d && d >= weekStart;
         }).length;
@@ -489,9 +548,9 @@ const DashboardScreen = () => {
     const completedToday = useMemo(() => {
         if (!workoutHistory?.length) return null;
         const todayStr = new Date().toDateString();
-        const entries = workoutHistory.filter(w => w.timestamp?.toDate?.()?.toDateString() === todayStr);
+        const entries = (workoutHistory as HistoryEntry[]).filter(w => w.timestamp?.toDate?.()?.toDateString() === todayStr);
         if (!entries.length) return null;
-        const latest = entries.reduce((a, b) => (b.timestamp.toDate() > a.timestamp.toDate() ? b : a));
+        const latest = entries.reduce((a, b) => (b.timestamp!.toDate!() > a.timestamp!.toDate!() ? b : a));
         return {
             durationLabel: durationLabel(latest.duration),
             exerciseCount: (latest.exercises ?? []).length,
