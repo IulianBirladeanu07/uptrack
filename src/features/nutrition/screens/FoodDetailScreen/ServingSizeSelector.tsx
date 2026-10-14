@@ -3,6 +3,15 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-nativ
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import { colors, spacing, radius, fontSize, fontWeight } from '../../../../shared/theme';
 
+type ServingSizeSelectorProps = {
+  quantity: number;
+  onQuantityChange: (value: number) => void;
+  servingUnit: string;
+  onServingUnitPress: () => void;
+  predefinedSizes?: number[];
+  onPredefinedSizePress: (size: number) => void;
+};
+
 const ServingSizeSelector = ({
   quantity,
   onQuantityChange,
@@ -10,7 +19,7 @@ const ServingSizeSelector = ({
   onServingUnitPress,
   predefinedSizes = [],
   onPredefinedSizePress,
-}) => {
+}: ServingSizeSelectorProps) => {
   const [inputValue, setInputValue] = useState(String(quantity));
   const [errorMessage, setErrorMessage] = useState('');
   const lastPushedValue = useRef(quantity);
@@ -22,7 +31,7 @@ const ServingSizeSelector = ({
     }
   }, [quantity]);
 
-  const handleChangeText = useCallback((text) => {
+  const handleChangeText = useCallback((text: string) => {
     setInputValue(text);
 
     if (text === '') {
@@ -50,7 +59,7 @@ const ServingSizeSelector = ({
         <TextInput
           style={[
             styles.input,
-            errorMessage && styles.inputError,
+            !!errorMessage && styles.inputError,
             isQuantityPredefined && !errorMessage && styles.inputSelected,
           ]}
           value={inputValue}

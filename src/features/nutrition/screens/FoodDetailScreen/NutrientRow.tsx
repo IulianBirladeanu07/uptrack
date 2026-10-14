@@ -1,9 +1,16 @@
-import React from 'react';
+import { memo } from 'react';
 import { View, Text } from 'react-native';
 import { colors, spacing, radius, fontWeight, fontSize } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
-const NutrientRow = ({ label, value, unit = 'g', color = colors.accent.success }) => (
+type NutrientRowProps = {
+  label: string;
+  value: number | string;
+  unit?: string;
+  color?: string;
+};
+
+const NutrientRow = ({ label, value, unit = 'g', color = colors.accent.success }: NutrientRowProps) => (
   <View style={styles.nutrientRow}>
     <View style={styles.leftContent}>
       <View style={[styles.nutrientDot, { backgroundColor: color }]} />
@@ -51,4 +58,4 @@ const styles = createStyles(() => ({
   },
 }));
 
-export default React.memo(NutrientRow);
+export default memo(NutrientRow);

@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { Modal, Pressable, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -6,7 +6,7 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../../../share
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 
-const UNIT_LABELS = {
+const UNIT_LABELS: Record<string, string> = {
   g: 'Grams',
   oz: 'Ounces',
   mL: 'Milliliters',
@@ -14,7 +14,15 @@ const UNIT_LABELS = {
   serving: 'Servings',
 };
 
-const UnitPickerModal = ({ visible, onClose, units, selectedUnit, onSelectUnit }) => {
+type UnitPickerModalProps = {
+  visible: boolean;
+  onClose: () => void;
+  units: readonly string[];
+  selectedUnit: string;
+  onSelectUnit: (unit: string) => void;
+};
+
+const UnitPickerModal = ({ visible, onClose, units, selectedUnit, onSelectUnit }: UnitPickerModalProps) => {
   const insets = useSafeAreaInsets();
   
   return (
@@ -154,4 +162,4 @@ const styles = createStyles(() => ({
   },
 }));
 
-export default React.memo(UnitPickerModal);
+export default memo(UnitPickerModal);

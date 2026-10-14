@@ -1,9 +1,16 @@
-import React from 'react';
+import { memo } from 'react';
 import { View, Text } from 'react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
-const MacroSection = ({ totalCalories, protein, carbs, fat }) => (
+type MacroSectionProps = {
+  totalCalories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
+
+const MacroSection = ({ totalCalories, protein, carbs, fat }: MacroSectionProps) => (
   <View style={styles.container}>
     <View style={styles.calorieContainer}>
       <Text style={styles.calorieValue}>{totalCalories}</Text>
@@ -106,4 +113,4 @@ const styles = createStyles(() => ({
   },
 }));
 
-export default React.memo(MacroSection);
+export default memo(MacroSection);
