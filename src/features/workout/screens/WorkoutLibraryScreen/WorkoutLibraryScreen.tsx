@@ -20,6 +20,7 @@ import { doc, setDoc, deleteField } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebaseConfigService';
 import { colors } from '../../../../shared/theme';
 import { AuthContext } from '../../../auth/context/AuthContext';
+import { WorkoutContext } from '../../context/WorkoutContext';
 import WorkoutTemplateLibrary from './WorkoutTemplateLibrary';
 import WorkoutProgramLibrary from './WorkoutProgramLibrary';
 import SegmentedControl from './components/SegmentedControls';
@@ -39,6 +40,7 @@ const WorkoutLibraryScreen = () => {
     const [activeSegment, setActiveSegment] = useState<string>(routeParams.initialSegment || 'Templates');
 
     const { userData, refreshUserData } = useContext(AuthContext)!;
+    const { activeWorkout } = useContext(WorkoutContext)!;
     const hasFetchedRef = useRef(false);
 
     useEffect(() => {
@@ -195,6 +197,7 @@ const WorkoutLibraryScreen = () => {
                         templates={templates}
                         navigation={navigation}
                         refreshControl={refreshControl}
+                        hasActiveWorkout={!!activeWorkout}
                         onCreateTemplate={handleCreate}
                         onDeleteTemplate={handleDeleteTemplate}
                     />

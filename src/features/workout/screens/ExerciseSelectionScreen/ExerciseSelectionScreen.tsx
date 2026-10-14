@@ -9,7 +9,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchExercises, clearExercisesCache } from '../../handlers/WorkoutHandler';
 import { colors, spacing } from '../../../../shared/theme';
-import { styles } from './ExerciseSelectionScreenStyle.js';
+import { styles } from './ExerciseSelectionScreenStyle';
 import type { CatalogExercise, ExerciseGroup } from '../../../../shared/types';
 
 type ExerciseItemData = CatalogExercise & { id: string };
@@ -21,7 +21,7 @@ type ExerciseListRow =
 type ExerciseSelectionProps = {
   exercise: ExerciseItemData;
   isSelected: boolean;
-  onToggle: (exerciseName: string) => void;
+  onToggle: (exerciseId: string) => void;
 };
 type FilterBarProps = {
   activeFilter: string;
@@ -86,7 +86,7 @@ const useExerciseData = (allGroupedExercises: ExerciseGroup[]) => {
           muscleGroup: group.muscleGroup,
           id: `${group.muscleGroup}-${exercise.name}-${index}`,
         };
-        exerciseMap.set(exercise.name, enrichedExercise);
+        exerciseMap.set(enrichedExercise.id, enrichedExercise);
         flatExercises.push(enrichedExercise);
       });
     });
@@ -118,8 +118,8 @@ const ExerciseItem = memo(({ exercise, isSelected, onToggle }: ExerciseSelection
       }),
     ]).start();
 
-    onToggle(exercise.name);
-  }, [onToggle, exercise.name, scaleAnim]);
+    onToggle(exercise.id);
+  }, [onToggle, exercise.id, scaleAnim]);
 
   const categoryText = exercise.category
     ? `${exercise.muscleGroup} · ${exercise.category}`
@@ -517,13 +517,13 @@ const ExerciseSelectionScreen = () => {
     setActiveFilter(filter);
   }, []);
 
-  const handleToggleExercise = useCallback((exerciseName: string) => {
+  const handleToggleExercise = useCallback((exerciseId: string) => {
     setSelectedExercises(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(exerciseName)) {
-        newSet.delete(exerciseName);
+      if (newSet.has(exerciseId)) {
+        newSet.delete(exerciseId);
       } else {
-        newSet.add(exerciseName);
+        newSet.add(exerciseId);
       }
       return newSet;
     });
@@ -532,9 +532,10 @@ const ExerciseSelectionScreen = () => {
   const handleConfirmSelection = useCallback(() => {
     const { previousScreen = 'StartWorkout', replaceIndex } = route?.params || {};
     const selectedData = Array.from(selectedExercises)
-      .map(name => exerciseMap.get(name))
+      .map(id => exerciseMap.get(id))
       .filter((exercise): exercise is ExerciseItemData => exercise !== undefined);
 
+    setSelectedExercises(new Set());
     navigation.navigate(previousScreen, {
       selectedExercises: selectedData,
       replaceIndex,
@@ -557,7 +558,7 @@ const ExerciseSelectionScreen = () => {
     return (
       <ExerciseItem
         exercise={item}
-        isSelected={selectedExercises.has(item.name)}
+        isSelected={selectedExercises.has(item.id)}
         onToggle={handleToggleExercise}
       />
     );

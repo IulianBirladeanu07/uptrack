@@ -29,6 +29,7 @@ type TemplateItemProps = {
     onStart: (template: TemplateItemData) => void;
     onDelete: (template: TemplateItemData) => void;
     formatDate: (date: unknown) => string;
+    hasActiveWorkout: boolean;
 };
 
 const DELETE_BUTTON_WIDTH = normalize(spacing[20]);
@@ -42,7 +43,7 @@ const SPRING_CONFIG = {
 };
 const TIMING_CONFIG = { duration: 250 };
 
-const TemplateItem = memo(({ item, expandedCards, onToggleExpanded, onEdit, onStart, onDelete, formatDate }: TemplateItemProps) => {
+const TemplateItem = memo(({ item, expandedCards, onToggleExpanded, onEdit, onStart, onDelete, formatDate, hasActiveWorkout }: TemplateItemProps) => {
     const template = (item.data || item) as TemplateItemData;
     const templateId = String(template.id || item.id || '');
     const exerciseCount = template.exerciseCount || (template.exercises?.length || 0);
@@ -198,9 +199,16 @@ const TemplateItem = memo(({ item, expandedCards, onToggleExpanded, onEdit, onSt
                                 <Ionicons name="create-outline" size={normalize(18)} color={colors.text.secondary} />
                                 <Text style={styles.editButtonText}>Edit</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.startButton} onPress={() => onStart(template)}>
-                                <Ionicons name="play" size={normalize(20)} color={colors.accent.buttonText} />
-                                <Text style={styles.startButtonText}>Start Workout</Text>
+                            <TouchableOpacity
+                                style={[styles.startButton, hasActiveWorkout && styles.startButtonDisabled]}
+                                onPress={() => onStart(template)}
+                                disabled={hasActiveWorkout}
+                                accessibilityState={{ disabled: hasActiveWorkout }}
+                            >
+                                {!hasActiveWorkout && <Ionicons name="play" size={normalize(20)} color={colors.accent.buttonText} />}
+                                <Text style={[styles.startButtonText, hasActiveWorkout && styles.startButtonTextDisabled]}>
+                                    {hasActiveWorkout ? 'Workout in Progress' : 'Start Workout'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>

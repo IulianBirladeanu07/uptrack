@@ -5,6 +5,7 @@ import { getDocs, collection, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
 import { fetchTemplatesFromFirestore } from '../handlers/WorkoutHandler';
 import { workoutService } from '../services/WorkoutService';
+import { workoutTimer } from '../services/WorkoutTimerService';
 import type { PersistedWorkoutState } from '../types';
 
 type UserSettings = {
@@ -44,8 +45,21 @@ export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const checkActiveWorkout = useCallback(async () => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
     try {
-      const workout = await workoutService.restoreWorkout();
+      const startTime = workoutService.getStartTime();
+      const workout = startTime
+        ? {
+          startTime,
+          exercises: workoutService.getExerciseData(),
+          note: workoutService.getWorkoutNote(),
+          templateName: workoutService.getWorkoutTemplateName(),
+          isActive: true,
+          lastSaved: Date.now(),
+        }
+        : await workoutService.restoreWorkout();
+      if (getAuth().currentUser?.uid !== uid || workoutService.uid !== uid) return;
       setActiveWorkout(workout);
     } catch (error) {
       console.error('Error checking active workout:', (error as Error).message);
@@ -62,6 +76,7 @@ export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
       const workoutRef = collection(db, 'workoutHistory');
       const workoutQuery = query(workoutRef, where('uid', '==', uid), orderBy('timestamp', 'desc'));
       const querySnapshot = await getDocs(workoutQuery);
+      if (getAuth().currentUser?.uid !== uid) return;
       setWorkoutHistory(querySnapshot.docs.map(docSnap => docSnap.data()));
     } catch (error) {
       console.error('Error fetching workout history:', (error as Error).message);
@@ -69,8 +84,11 @@ export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const fetchTemplates = useCallback(async () => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
     try {
       const fetchedTemplates = await fetchTemplatesFromFirestore();
+      if (getAuth().currentUser?.uid !== uid || workoutService.uid !== uid) return;
       setTemplates(fetchedTemplates);
     } catch (error) {
       console.error('Error fetching templates:', (error as Error).message);
@@ -79,7 +97,15 @@ export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(getAuth(), async (user) => {
-      await workoutService.setUser(user ? user.uid : null);
+      const uid = user?.uid ?? null;
+      if (workoutService.uid !== uid) {
+        workoutTimer.stop();
+        setWorkoutHistory([]);
+        setTemplates([]);
+        setActiveWorkout(null);
+      }
+      await workoutService.setUser(uid);
+      if ((getAuth().currentUser?.uid ?? null) !== uid) return;
       if (user) {
         fetchWorkoutHistory();
         fetchTemplates();

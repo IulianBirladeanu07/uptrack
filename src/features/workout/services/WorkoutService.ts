@@ -15,6 +15,8 @@ export const createEmptySet = (): WorkoutSet => ({
 
 class WorkoutService {
     uid: string | null = null;
+    userGeneration = 0;
+    asyncStateGeneration = 0;
     listeners: WorkoutListener[] = [];
     exerciseData: WorkoutExercise[] = [];
     batchingUpdates = false;
@@ -34,6 +36,8 @@ class WorkoutService {
     async setUser(uid: string | null | undefined): Promise<void> {
         const next = uid || null;
         if (next === this.uid) return;
+        this.userGeneration++;
+        this.asyncStateGeneration++;
 
         let flush = null;
         if (this._persistTimeout) {
@@ -120,9 +124,16 @@ class WorkoutService {
     async restoreWorkout(): Promise<PersistedWorkoutState | null> {
         const key = this.storageKey();
         if (!key) return null;
+        const userGeneration = this.userGeneration;
+        const asyncStateGeneration = this.asyncStateGeneration;
         try {
             const saved = await AsyncStorage.getItem(key);
-            if (!saved || key !== this.storageKey()) return null;
+            if (
+                !saved ||
+                userGeneration !== this.userGeneration ||
+                asyncStateGeneration !== this.asyncStateGeneration ||
+                key !== this.storageKey()
+            ) return null;
             const state = JSON.parse(saved) as PersistedWorkoutState;
             if (state.isActive) {
                 this.exerciseData = (state.exercises || []).map(ex => ({
@@ -142,6 +153,7 @@ class WorkoutService {
     }
 
     async clearWorkout(): Promise<void> {
+        this.asyncStateGeneration++;
         if (this._persistTimeout) {
             clearTimeout(this._persistTimeout);
             this._persistTimeout = null;
@@ -180,6 +192,7 @@ class WorkoutService {
 
     startWorkout(): void {
         if (!this.workoutStartTime) {
+            this.asyncStateGeneration++;
             this.workoutStartTime = Date.now();
             this.schedulePersist();
         }
@@ -202,8 +215,10 @@ class WorkoutService {
         if (this.lastSetCache.has(exerciseName)) {
             return this.lastSetCache.get(exerciseName) ?? [];
         }
+        const userGeneration = this.userGeneration;
         try {
             const sets = await getSetsFromLastWorkout(exerciseName);
+            if (userGeneration !== this.userGeneration) return [];
             const typed = (sets || []) as WorkoutSet[];
             this.lastSetCache.set(exerciseName, typed);
             return typed;
@@ -216,10 +231,16 @@ class WorkoutService {
     async loadWorkoutFromTemplate(templateExercises: WorkoutExercise[]): Promise<WorkoutExercise[]> {
         if (!Array.isArray(templateExercises) || templateExercises.length === 0) return [];
 
+        const userGeneration = this.userGeneration;
+        const asyncStateGeneration = ++this.asyncStateGeneration;
         const validExercises = templateExercises.filter(e => e && e.exerciseName);
         const allLastSets = await Promise.all(
             validExercises.map(e => this.fetchLastSets(e.exerciseName))
         );
+        if (
+            userGeneration !== this.userGeneration ||
+            asyncStateGeneration !== this.asyncStateGeneration
+        ) return [];
 
         const exercisesWithHistory = validExercises.map((ex, idx) => {
             const lastSets = allLastSets[idx];
@@ -408,10 +429,12 @@ class WorkoutService {
 
     addExercises(exercises: WorkoutExercise[] | null | undefined): void {
         if (!exercises || !Array.isArray(exercises)) return;
-        const currentNames = this.exerciseData.map(ex => ex.exerciseName);
-        const filtered = exercises.filter(
-            ex => ex && ex.exerciseName && !currentNames.includes(ex.exerciseName)
-        );
+        const names = new Set(this.exerciseData.map(ex => ex.exerciseName));
+        const filtered = exercises.filter(ex => {
+            if (!ex?.exerciseName || names.has(ex.exerciseName)) return false;
+            names.add(ex.exerciseName);
+            return true;
+        });
         if (filtered.length > 0) {
             this.exerciseData = [...this.exerciseData, ...filtered];
             this.notifyListeners();

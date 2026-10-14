@@ -1,7 +1,9 @@
 const mockStore = new Map();
+const mockGetItem = jest.fn();
+const mockGetSetsFromLastWorkout = jest.fn();
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(async (k) => (mockStore.has(k) ? mockStore.get(k) : null)),
+  getItem: (...args) => mockGetItem(...args),
   setItem: jest.fn(async (k, v) => {
     mockStore.set(k, v);
   }),
@@ -9,7 +11,9 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
     mockStore.delete(k);
   }),
 }));
-jest.mock('../handlers/WorkoutHandler', () => ({ getSetsFromLastWorkout: jest.fn() }));
+jest.mock('../handlers/WorkoutHandler', () => ({
+  getSetsFromLastWorkout: (...args) => mockGetSetsFromLastWorkout(...args),
+}));
 
 const ex = (name) => ({
   exerciseName: name,
@@ -22,6 +26,8 @@ beforeEach(() => {
   jest.useFakeTimers();
   jest.resetModules();
   mockStore.clear();
+  mockGetItem.mockReset().mockImplementation(async k => (mockStore.has(k) ? mockStore.get(k) : null));
+  mockGetSetsFromLastWorkout.mockReset();
   svc = require('./WorkoutService').workoutService;
 });
 
@@ -109,6 +115,53 @@ describe('active workout storage per user', () => {
     expect(svc.getExerciseData()).toEqual([]);
   });
 
+  test('a pending restore cannot recreate a workout after it is cleared', async () => {
+    let resolveSavedWorkout;
+    mockGetItem.mockImplementationOnce(() => new Promise(resolve => {
+      resolveSavedWorkout = resolve;
+    }));
+
+    await svc.setUser('a');
+    const pending = svc.restoreWorkout();
+    await svc.clearWorkout();
+    resolveSavedWorkout(JSON.stringify({
+      startTime: Date.now() - 60000,
+      exercises: [ex('Cleared workout')],
+      note: '',
+      templateName: '',
+      isActive: true,
+      lastSaved: Date.now() - 60000,
+    }));
+
+    await expect(pending).resolves.toBeNull();
+    expect(svc.getExerciseData()).toEqual([]);
+  });
+
+  test('a stale restore does not overwrite a later session for the same user', async () => {
+    let resolveSavedWorkout;
+    mockGetItem.mockImplementationOnce(() => new Promise(resolve => {
+      resolveSavedWorkout = resolve;
+    }));
+
+    await svc.setUser('a');
+    const pending = svc.restoreWorkout();
+    await svc.setUser('b');
+    await svc.setUser('a');
+    svc.setExerciseData([ex('Current session')]);
+
+    resolveSavedWorkout(JSON.stringify({
+      startTime: Date.now() - 60000,
+      exercises: [ex('Stale session')],
+      note: '',
+      templateName: '',
+      isActive: true,
+      lastSaved: Date.now() - 60000,
+    }));
+
+    await expect(pending).resolves.toBeNull();
+    expect(svc.getExerciseData().map(exercise => exercise.exerciseName)).toEqual(['Current session']);
+  });
+
   test('clearWorkout removes only the key of the current user', async () => {
     mockStore.set('activeWorkout_a', '{}');
     mockStore.set('activeWorkout_b', '{}');
@@ -117,5 +170,100 @@ describe('active workout storage per user', () => {
     await svc.clearWorkout();
     expect(mockStore.has('activeWorkout_a')).toBe(false);
     expect(mockStore.has('activeWorkout_b')).toBe(true);
+  });
+
+  test('does not cache previous-user history after switching accounts', async () => {
+    let resolvePreviousSets;
+    mockGetSetsFromLastWorkout
+      .mockImplementationOnce(() => new Promise(resolve => {
+        resolvePreviousSets = resolve;
+      }))
+      .mockResolvedValueOnce([{
+        id: 'bench-b',
+        weight: '80',
+        reps: '8',
+        isValidated: false,
+        repsModified: false,
+      }]);
+
+    await svc.setUser('a');
+    const previousUserRequest = svc.fetchLastSets('Bench Press');
+
+    await svc.setUser('b');
+    resolvePreviousSets([{
+      id: 'bench-a',
+      weight: '100',
+      reps: '5',
+      isValidated: false,
+      repsModified: false,
+    }]);
+
+    await expect(previousUserRequest).resolves.toEqual([]);
+    await expect(svc.fetchLastSets('Bench Press')).resolves.toEqual([{
+      id: 'bench-b',
+      weight: '80',
+      reps: '8',
+      isValidated: false,
+      repsModified: false,
+    }]);
+  });
+
+  test('does not load a template into a different user session', async () => {
+    let resolvePreviousSets;
+    mockGetSetsFromLastWorkout.mockImplementationOnce(() => new Promise(resolve => {
+      resolvePreviousSets = resolve;
+    }));
+
+    await svc.setUser('a');
+    const previousUserLoad = svc.loadWorkoutFromTemplate([{
+      exerciseName: 'Bench Press',
+      numSets: 1,
+      repRange: '5-8',
+      sets: [],
+    }]);
+
+    await svc.setUser('b');
+    resolvePreviousSets([{
+      id: 'bench-a',
+      weight: '100',
+      reps: '5',
+      isValidated: false,
+      repsModified: false,
+    }]);
+
+    await expect(previousUserLoad).resolves.toEqual([]);
+    expect(svc.getExerciseData()).toEqual([]);
+  });
+
+  test('a pending template load cannot recreate a workout after it is cleared', async () => {
+    let resolvePreviousSets;
+    mockGetSetsFromLastWorkout.mockImplementationOnce(() => new Promise(resolve => {
+      resolvePreviousSets = resolve;
+    }));
+
+    await svc.setUser('a');
+    svc.startWorkout();
+    const pending = svc.loadWorkoutFromTemplate([{
+      exerciseName: 'Bench Press',
+      numSets: 1,
+      repRange: '5-8',
+      sets: [],
+    }]);
+    await svc.clearWorkout();
+    resolvePreviousSets([]);
+
+    await expect(pending).resolves.toEqual([]);
+    expect(svc.getExerciseData()).toEqual([]);
+  });
+
+  test('does not add duplicate exercise names from the same batch', () => {
+    svc.setExerciseData([ex('Squat')]);
+
+    svc.addExercises([ex('Bench Press'), ex('Bench Press'), ex('Squat')]);
+
+    expect(svc.getExerciseData().map(exercise => exercise.exerciseName)).toEqual([
+      'Squat',
+      'Bench Press',
+    ]);
   });
 });

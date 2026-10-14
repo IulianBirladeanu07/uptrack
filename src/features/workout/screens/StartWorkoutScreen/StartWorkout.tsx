@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useContext, memo } from 'react';
+import { getAuth } from 'firebase/auth';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import { View, Text, TouchableOpacity, FlatList, BackHandler, Alert, ActivityIndicator } from 'react-native';
 import type { FlatList as FlatListType, ListRenderItemInfo, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
@@ -48,6 +49,9 @@ type SelectedWorkout = {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;
+
+const isCurrentUser = (uid: string | undefined): uid is string =>
+    !!uid && getAuth().currentUser?.uid === uid;
 
 const toWorkoutExercise = (value: unknown): WorkoutExercise | null => {
     if (!isRecord(value)) return null;
@@ -132,12 +136,26 @@ const StartWorkout = () => {
     const [activeExerciseMenu, setActiveExerciseMenu] = useState<{ exercise: WorkoutExercise; exerciseIndex: number } | null>(null);
 
     const flatListRef = useRef<FlatListType<WorkoutExercise>>(null);
-    const { refreshAllData } = useContext(WorkoutContext)!;
+    const { refreshAllData, setActiveWorkout } = useContext(WorkoutContext)!;
     const insets = useSafeAreaInsets();
     const isFinishingWorkout = useRef(false);
     const isInitialized = useRef(false);
     const isKeyboardVisibleRef = useRef(false);
     const pendingReplaceRef = useRef<string | null>(null);
+    const initializationGeneration = useRef(0);
+
+    const syncActiveWorkout = useCallback(() => {
+        const startTime = workoutService.getStartTime();
+        if (!startTime) return;
+        setActiveWorkout({
+            startTime,
+            exercises: workoutService.getExerciseData(),
+            note: workoutService.getWorkoutNote(),
+            templateName: workoutService.getWorkoutTemplateName(),
+            isActive: true,
+            lastSaved: Date.now(),
+        });
+    }, [setActiveWorkout]);
 
     const openAnimatedMessage = useCallback((message: string) => {
         setAnimatedMessage(message);
@@ -279,13 +297,19 @@ const StartWorkout = () => {
         }
     }, [focusedInputData, exerciseData]);
 
-    const handleSelectedWorkout = useCallback(async ({ note, exercises, templateName }: SelectedWorkout) => {
+    const handleSelectedWorkout = useCallback(async (
+        { note, exercises, templateName }: SelectedWorkout,
+        requestGeneration: number
+    ) => {
         if (!exercises || !Array.isArray(exercises)) return;
+        const uid = getAuth().currentUser?.uid;
+        if (!isCurrentUser(uid)) return;
         workoutService.startWorkout();
         workoutService.setWorkoutTemplateName(templateName || '');
         setInputText(note || '');
         workoutService.setWorkoutNote(note || '');
         const loadedData = await workoutService.loadWorkoutFromTemplate(exercises);
+        if (!isCurrentUser(uid) || requestGeneration !== initializationGeneration.current) return;
         setExerciseData(loadedData);
         workoutTimer.start();
         setSelectedExercise(loadedData[0]?.exerciseName || null);
@@ -293,6 +317,8 @@ const StartWorkout = () => {
     }, []);
 
     const addNewExercisesFromRoute = useCallback(async (exercises: unknown) => {
+        const uid = getAuth().currentUser?.uid;
+        if (!isCurrentUser(uid)) return;
         const selectedExercises = toSelectedExercises(exercises);
         if (selectedExercises.length === 0) return;
         const currentData = workoutService.getExerciseData();
@@ -301,6 +327,7 @@ const StartWorkout = () => {
         for (const ex of selectedExercises) {
             if (currentData.some(existing => existing.exerciseName === ex.exerciseName)) continue;
             const lastSets = await workoutService.fetchLastSets(ex.exerciseName);
+            if (!isCurrentUser(uid)) return;
             newExercises.push({
                 exerciseName: ex.exerciseName,
                 imageURL: ex.imageURL || '',
@@ -321,6 +348,8 @@ const StartWorkout = () => {
     }, [selectedExercise]);
 
     const replaceExerciseFromRoute = useCallback(async (targetName: string, selected: unknown) => {
+        const uid = getAuth().currentUser?.uid;
+        if (!isCurrentUser(uid)) return;
         const incoming = toSelectedExercises(Array.isArray(selected) ? selected : [selected])[0];
         if (!incoming) {
             openAnimatedMessage('Failed to replace exercise. Please try again.');
@@ -342,6 +371,7 @@ const StartWorkout = () => {
         }
 
         const lastSets = await workoutService.fetchLastSets(newName);
+        if (!isCurrentUser(uid)) return;
         const replaced = currentData[targetIndex];
         const newExercise = {
             exerciseName: newName,
@@ -360,6 +390,7 @@ const StartWorkout = () => {
 
     useEffect(() => {
         const selectedWorkout = toSelectedWorkout(routeParams?.selectedWorkout);
+        const requestGeneration = ++initializationGeneration.current;
         const unsubscribe = workoutService.subscribe((newData) => {
             if (!isFinishingWorkout.current) {
                 setExerciseData(newData);
@@ -368,11 +399,15 @@ const StartWorkout = () => {
         });
 
         const initWorkout = async () => {
+            const uid = getAuth().currentUser?.uid;
+            if (!isCurrentUser(uid)) return;
             if (selectedWorkout) {
-                await handleSelectedWorkout(selectedWorkout);
+                await handleSelectedWorkout(selectedWorkout, requestGeneration);
+                if (!isCurrentUser(uid) || requestGeneration !== initializationGeneration.current) return;
                 setIsInitializing(false);
             } else {
                 const restored = await workoutService.restoreWorkout();
+                if (!isCurrentUser(uid) || requestGeneration !== initializationGeneration.current) return;
                 if (restored) {
                     workoutTimer.restore(restored.startTime);
                     setExerciseData(workoutService.getExerciseData());
@@ -380,17 +415,24 @@ const StartWorkout = () => {
                 } else {
                     workoutService.startWorkout();
                     workoutTimer.start();
+                    setInputText('');
                     setExerciseData(workoutService.getExerciseData());
                 }
                 setIsInitializing(false);
             }
+            syncActiveWorkout();
             refreshAllData();
         };
 
         initWorkout();
         isInitialized.current = true;
-        return () => unsubscribe();
-    }, [handleSelectedWorkout]);
+        return () => {
+            unsubscribe();
+            if (requestGeneration === initializationGeneration.current) {
+                initializationGeneration.current++;
+            }
+        };
+    }, [handleSelectedWorkout, refreshAllData, syncActiveWorkout]);
 
     useFocusEffect(
         useCallback(() => {
@@ -418,11 +460,14 @@ const StartWorkout = () => {
     }, []);
 
     const confirmExit = useCallback(async () => {
+        initializationGeneration.current++;
         workoutTimer.stop();
         await workoutService.clearWorkout();
+        setActiveWorkout(null);
+        setInputText('');
         await refreshAllData(true);
         navigation.goBack();
-    }, [navigation, refreshAllData]);
+    }, [navigation, refreshAllData, setActiveWorkout]);
 
     const handleFinishWorkout = useCallback(async () => {
         if (exerciseData.length === 0) {
@@ -448,14 +493,16 @@ const StartWorkout = () => {
             }
             workoutTimer.stop();
             await workoutService.clearWorkout();
-                await refreshAllData(true);
+            setActiveWorkout(null);
+            setInputText('');
+            await refreshAllData(true);
             isFinishingWorkout.current = false;
         } catch (error) {
             console.error('Error finishing workout:', error instanceof Error ? error.message : String(error));
             Alert.alert('Error', 'An error occurred while finishing the workout.', [{ text: "OK" }]);
             isFinishingWorkout.current = false;
         }
-    }, [exerciseData, inputText, navigation, openAnimatedMessage, refreshAllData, routeParams]);
+    }, [exerciseData, inputText, navigation, openAnimatedMessage, refreshAllData, routeParams, setActiveWorkout]);
 
     const handleAddExercisePress = useCallback(async () => {
         if (!navigation) return;

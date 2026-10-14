@@ -379,10 +379,16 @@ const styles = createStyles(() => ({
         justifyContent: 'center',
         gap: spacing[1],
     },
+    startButtonDisabled: {
+        opacity: 0.5,
+    },
     startButtonText: {
         color: colors.accent.buttonText,
         fontSize: fontSize[14],
         fontWeight: fontWeight.bold,
+    },
+    startButtonTextDisabled: {
+        color: colors.text.secondary,
     },
     statusBarBackground: {
         position: 'absolute',

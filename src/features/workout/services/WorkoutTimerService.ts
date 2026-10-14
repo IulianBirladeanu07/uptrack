@@ -79,7 +79,7 @@ class WorkoutTimer {
         }
         this.isActive = false;
         this.startTime = null;
-        this.listeners.clear();
+        this.listeners.forEach(fn => fn(0));
     }
 }
 

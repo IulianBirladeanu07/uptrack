@@ -16,11 +16,12 @@ type WorkoutTemplateLibraryProps = {
   templates: TemplateItemData[];
   navigation: any;
   refreshControl?: ReactElement | undefined;
+  hasActiveWorkout: boolean;
   onCreateTemplate: () => void;
   onDeleteTemplate: (id: string) => void;
 };
 
-const WorkoutTemplateLibrary = ({ templates, navigation, refreshControl, onCreateTemplate, onDeleteTemplate }: WorkoutTemplateLibraryProps) => {
+const WorkoutTemplateLibrary = ({ templates, navigation, refreshControl, hasActiveWorkout, onCreateTemplate, onDeleteTemplate }: WorkoutTemplateLibraryProps) => {
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
 
   const formatDate = useMemo(() => {
@@ -63,8 +64,9 @@ const WorkoutTemplateLibrary = ({ templates, navigation, refreshControl, onCreat
   }, [navigation]);
 
   const handleStartWorkout = useCallback((template: any) => {
+    if (hasActiveWorkout) return;
     navigation.navigate('StartWorkout', { selectedWorkout: template });
-  }, [navigation]);
+  }, [hasActiveWorkout, navigation]);
 
   const handleDeletePress = useCallback((template: any) => {
     const id = template.id;
@@ -105,8 +107,9 @@ const WorkoutTemplateLibrary = ({ templates, navigation, refreshControl, onCreat
       onStart={handleStartWorkout}
       onDelete={handleDeletePress}
       formatDate={formatDate}
+      hasActiveWorkout={hasActiveWorkout}
     />
-  ), [expandedCards, toggleExpanded, handleEditTemplate, handleStartWorkout, handleDeletePress, formatDate]);
+  ), [expandedCards, toggleExpanded, handleEditTemplate, handleStartWorkout, handleDeletePress, formatDate, hasActiveWorkout]);
 
   const keyExtractor = useCallback((item: any) => item.id || Math.random().toString(), []);
 
