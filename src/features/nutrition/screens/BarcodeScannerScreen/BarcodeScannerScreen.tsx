@@ -1,11 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert, Linking } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
-import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import styles from './BarcodeScannerScreenStyle';
 import { useBarcodeScanner } from '../../helpers/useBarcodeScanner';
 import { productCache } from '../../utils/productCache';
+import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import type { BarcodedProduct } from '../../../../shared/types';
+
+type ScannerOverlayProps = {
+  isScanning: boolean;
+  scanLineAnimation: Animated.Value;
+  instructionsVisible: boolean;
+  successOpacity: Animated.Value;
+  errorOpacity: Animated.Value;
+};
 
 const ScannerOverlay = ({ 
   isScanning, 
@@ -13,7 +22,7 @@ const ScannerOverlay = ({
   instructionsVisible,
   successOpacity,
   errorOpacity
-}) => {
+}: ScannerOverlayProps) => {
   if (!isScanning) return null;
   
   return (
@@ -65,14 +74,16 @@ const ScannerOverlay = ({
   );
 };
 
-const BarcodeScannerScreen = ({ navigation }) => {
-  const [hasPermission, setHasPermission] = useState(null);
-  const [barcodedProducts, setBarcodedProducts] = useState([]);
+const BarcodeScannerScreen = () => {
+  const navigation = useAppNavigation();
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [barcodedProducts, setBarcodedProducts] = useState<BarcodedProduct[]>([]);
   const [isLoadingDatabase, setIsLoadingDatabase] = useState(true);
   const scanLineAnimation = useRef(new Animated.Value(0)).current;
   
-  const route = useRoute();
-  const { selectedDate, meal } = route.params;
+  const route = useAppRoute<'BarcodeScanner'>();
+  const selectedDate = route.params?.selectedDate;
+  const meal = route.params?.meal;
 
   const {
     isScanning,
@@ -100,7 +111,7 @@ const BarcodeScannerScreen = ({ navigation }) => {
       try {
         setIsLoadingDatabase(true);
         const products = await productCache.getProducts();
-        setBarcodedProducts(products);
+        setBarcodedProducts(products ?? []);
       } catch (error) {
         console.error('Failed to load barcoded products', error);
         Alert.alert(
@@ -219,7 +230,6 @@ const BarcodeScannerScreen = ({ navigation }) => {
             barcodeTypes: ['aztec', 'ean13', 'ean8', 'qr', 'pdf417', 'upc_e', 'datamatrix', 'code39', 'code93', 'itf14', 'codabar', 'code128', 'upc_a']
           }}
           style={StyleSheet.absoluteFillObject}
-          flashMode={'off'}
           zoom={0}
         />
       )}
