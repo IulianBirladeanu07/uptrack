@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { memo, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, ActivityIndicator, Alert, Text, Keyboard, BackHandler } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFoodContext } from '../../context/FoodContext';
 import SearchBar from '../../components/SearchBar/SearchBar';
 import AddFoodMenu from '../../components/AddFoodMenu/AddFoodMenu';
 import CategorySelector from '../../components/CategorySelector/CategorySelector';
 import FoodListItem from '../../components/NutritionItem/FoodListItem';
+import type { FoodItemData } from '../../components/NutritionItem/FoodItem';
 import DoneButton from '../../../../shared/components/DoneButton/DoneButton';
 import { useFoodSearch } from '../../helpers/useFoodSearch';
 import { useRecentSearches } from '../../helpers/useRecentSearches';
@@ -15,15 +16,17 @@ import styles from './FoodSelectionScreenStyle';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import useFoodCategories from '../../helpers/useFoodCategories';
 import { colors } from '../../../../shared/theme';
+import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import type { LoggedFood, MealType } from '../../../../shared/types';
 
-const LoadingView = React.memo(() => (
+const LoadingView = memo(() => (
     <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={colors.accent.primary} />
         <Text style={styles.infoText}>Loading...</Text>
     </View>
 ));
 
-const ErrorView = React.memo(({ error }) => (
+const ErrorView = memo(({ error }: { error: string }) => (
     <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={[styles.infoText, { fontSize: normalize(18) }]}>Unable to load food data</Text>
         <Text style={styles.infoText}>{error}</Text>
@@ -31,10 +34,12 @@ const ErrorView = React.memo(({ error }) => (
 ));
 
 const FoodSelectionScreen = () => {
-    const navigation = useNavigation();
-    const route = useRoute();
+    const navigation = useAppNavigation();
+    const route = useAppRoute<'FoodSelection'>();
     const insets = useSafeAreaInsets();
-    const { meal, selectedDate, selectedFoodDetail } = route.params || {};
+    const meal = route.params?.meal;
+    const selectedDate = route.params?.selectedDate;
+    const selectedFoodDetail = route.params?.selectedFoodDetail as FoodItemData | undefined;
 
     const isSubmittingRef = useRef(false);
 
@@ -56,16 +61,14 @@ const FoodSelectionScreen = () => {
 
     const {
         recentSearches,
-        loading: recentSearchesLoading,
         addRecentSearch,
         removeRecentSearch,
         clearRecentSearches,
         hasRecentSearch,
     } = useRecentSearches();
 
-    const [selectedFoods, setSelectedFoods] = useState([]);
+    const [selectedFoods, setSelectedFoods] = useState<FoodItemData[]>([]);
     const [isSearching, setIsSearching] = useState(false);
-    const [headerCollapsed, setHeaderCollapsed] = useState(false);
     const [isQuickActionsExpanded, setIsQuickActionsExpanded] = useState(false);
 
     const {
@@ -94,7 +97,7 @@ const FoodSelectionScreen = () => {
         }
     }, [selectedFoodDetail]);
 
-    const handleSearchComplete = useCallback(async (query) => {
+    const handleSearchComplete = useCallback(async (query: string) => {
         const trimmedQuery = query.trim();
         if (trimmedQuery.length >= 3 && !hasRecentSearch(trimmedQuery)) {
             await addRecentSearch(trimmedQuery);
@@ -119,7 +122,7 @@ const FoodSelectionScreen = () => {
         }, [isSearching, isQuickActionsExpanded])
     );
 
-    const handleNavigateToFoodDetail = useCallback(async (food) => {
+    const handleNavigateToFoodDetail = useCallback(async (food: FoodItemData) => {
         if (isSearching && searchQuery && searchQuery.trim().length >= 3) {
             await handleSearchComplete(searchQuery);
         }
@@ -130,7 +133,7 @@ const FoodSelectionScreen = () => {
         navigation.navigate('CustomFood', { type: 'foodWithoutBarcode', meal, selectedDate });
     }, [navigation, meal, selectedDate]);
 
-    const toggleFoodSelection = useCallback(async (item) => {
+    const toggleFoodSelection = useCallback(async (item: FoodItemData) => {
         if (isSearching && searchQuery && searchQuery.trim().length >= 3) {
             await handleSearchComplete(searchQuery);
         }
@@ -152,14 +155,14 @@ const FoodSelectionScreen = () => {
         const validatedFoods = selectedFoods.map(food => ({
             ...food,
             id: food.id || `${Date.now()}_${Math.random()}`,
-            calories: parseFloat(food.calories) || 0,
-            protein: parseFloat(food.protein) || 0,
-            carbohydrates: parseFloat(food.carbohydrates) || 0,
-            fats: parseFloat(food.fats) || 0,
+            calories: parseFloat(String(food.calories)) || 0,
+            protein: parseFloat(String(food.protein)) || 0,
+            carbohydrates: parseFloat(String(food.carbohydrates)) || 0,
+            fats: parseFloat(String(food.fats)) || 0,
             quantity: food.quantity || 1,
             mealType: meal,
-        }));
-        handleAddMeal(meal, validatedFoods, selectedDate).catch(() => {});
+        })) as LoggedFood[];
+        handleAddMeal(meal as MealType, validatedFoods, selectedDate).catch(() => {});
         navigation.navigate('Nutrition', { refresh: true });
     }, [selectedFoods, handleAddMeal, meal, selectedDate, navigation]);
 
@@ -176,18 +179,12 @@ const FoodSelectionScreen = () => {
 
     const handleSearchFocus = useCallback(() => handleEnterSearch(), [handleEnterSearch]);
 
-    const handleSearchSubmit = useCallback(async () => {
-        if (searchQuery && searchQuery.trim().length >= 3) {
-            await handleSearchComplete(searchQuery);
-        }
-    }, [searchQuery, handleSearchComplete]);
-
-    const handleRecentSearchPress = useCallback(async (searchTerm) => {
+    const handleRecentSearchPress = useCallback(async (searchTerm: string) => {
         handleSearch(searchTerm);
         await addRecentSearch(searchTerm);
     }, [handleSearch, addRecentSearch]);
 
-    const handleRemoveRecentSearch = useCallback(async (searchTerm) => {
+    const handleRemoveRecentSearch = useCallback(async (searchTerm: string) => {
         await removeRecentSearch(searchTerm);
     }, [removeRecentSearch]);
 
@@ -212,7 +209,6 @@ const FoodSelectionScreen = () => {
         );
     }, [clearRecentSearches]);
 
-    const handleToggleCollapse = useCallback((collapsed) => setHeaderCollapsed(collapsed), []);
     const handleQuickActionsPress = useCallback(() => setIsQuickActionsExpanded(true), []);
     const handleQuickActionsClose = useCallback(() => setIsQuickActionsExpanded(false), []);
 
@@ -237,7 +233,6 @@ const FoodSelectionScreen = () => {
 
             <View style={[
                 styles.headerContainer,
-                headerCollapsed && !isSearching && styles.headerContainerCollapsed,
                 isSearching && styles.headerContainerSearching,
             ]}>
                 <SearchBar
@@ -247,7 +242,6 @@ const FoodSelectionScreen = () => {
                     setSearchQuery={setSearchQuery}
                     onFocus={handleSearchFocus}
                     onClear={handleExitSearch}
-                    onSubmitEditing={handleSearchSubmit}
                     isSearching={isSearching}
                 />
 
@@ -277,14 +271,12 @@ const FoodSelectionScreen = () => {
                     handleNavigateToFoodDetail={handleNavigateToFoodDetail}
                     handlePlusPress={toggleFoodSelection}
                     onCreateFood={handleCreateFood}
-                    selectedFoods={selectedFoods}
                     meal={meal}
                     recentSearches={recentSearches}
                     setSearchQuery={setSearchQuery}
                     onRecentSearchPress={handleRecentSearchPress}
                     onRemoveRecentSearch={handleRemoveRecentSearch}
                     onClearAllRecentSearches={handleClearAllRecentSearches}
-                    recentSearchesLoading={recentSearchesLoading}
                 />
             </View>
 
@@ -300,11 +292,10 @@ const FoodSelectionScreen = () => {
                 <DoneButton
                     selectedFoods={selectedFoods}
                     handleDone={handleDone}
-                    disabled={selectedFoods.length === 0}
                 />
             </View>
         </View>
     );
 };
 
-export default React.memo(FoodSelectionScreen);
+export default memo(FoodSelectionScreen);

@@ -11,9 +11,6 @@ export default StyleSheet.create({
   headerContainer: {
     paddingBottom: spacing[3],
   },
-  headerContainerCollapsed: {
-    paddingBottom: spacing[2],
-  },
   headerContainerSearching: {
     paddingBottom: spacing[4],
     paddingTop: spacing[2],
