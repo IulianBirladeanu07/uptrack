@@ -230,6 +230,22 @@ export type MealGroup = {
   foods: LoggedFood[];
 };
 
+export type RecentMeal = MealGroup & {
+  id: string;
+  totalCalories: number;
+};
+
+export type FoodCategoryName = 'Frequent' | 'Recent' | 'Favorites';
+
+export type CategoryFood = RecentMeal | LoggedFood;
+
+export type FoodCategoryData = {
+  recentMeals?: RecentMeal[] | null;
+  frequentFoods?: LoggedFood[] | null;
+  favoriteFoods?: LoggedFood[] | null;
+  loading?: boolean;
+};
+
 export type MealDayDoc = Partial<MealsByType> & {
   uid: string;
   date: string;

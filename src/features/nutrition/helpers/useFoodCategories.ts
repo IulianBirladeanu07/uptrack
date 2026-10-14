@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useFoodContext } from '../context/FoodContext';
+import type { CategoryFood, FoodCategoryData, FoodCategoryName } from '../../../shared/types';
 
 const useFoodCategories = () => {
   const { 
@@ -7,10 +8,10 @@ const useFoodCategories = () => {
     frequentFoods, 
     favoriteFoods,
     loading: contextLoading
-  } = useFoodContext();
+  }: FoodCategoryData = useFoodContext();
   
-  const [selectedCategory, setSelectedCategory] = useState('Frequent');
-  const getCategoryFoods = useCallback((category) => {
+  const [selectedCategory, setSelectedCategory] = useState<string>('Frequent');
+  const getCategoryFoods = useCallback((category: string | null | undefined): { data: CategoryFood[]; loaded: boolean } => {
     const categoryLower = category?.toLowerCase();
     
     switch (categoryLower) {
@@ -34,7 +35,7 @@ const useFoodCategories = () => {
     }
   }, [frequentFoods, recentMeals, favoriteFoods, contextLoading]);
 
-  const getCategoryLoadingState = useCallback((category) => {
+  const getCategoryLoadingState = useCallback((category: string | null | undefined) => {
     if (contextLoading) return true;
     
     const categoryLower = category?.toLowerCase();
@@ -62,7 +63,7 @@ const useFoodCategories = () => {
     if (loading) return `Loading ${selectedCategory.toLowerCase()} foods...`;
     
     if (categoryData.data.length === 0) {
-      const messages = {
+      const messages: Record<string, string> = {
         frequent: 'No frequently used foods found. Foods will appear here as you log meals.',
         recent: 'No recent meals found. Your recent meals will appear here.',
         favorites: 'No favorite foods found. Add foods to favorites to see them here.'
@@ -72,27 +73,27 @@ const useFoodCategories = () => {
     return '';
   }, [selectedCategory, categoryData.data.length, loading]);
 
-  const handleCategoryChange = useCallback((category) => {
+  const handleCategoryChange = useCallback((category: string) => {
     setSelectedCategory(category);
   }, []);
 
-  const getFoodsForCategory = useCallback((category) => {
+  const getFoodsForCategory = useCallback((category: string | null | undefined) => {
     const { data } = getCategoryFoods(category);
     return data;
   }, [getCategoryFoods]);
 
-  const isCategoryEmpty = useCallback((category) => {
+  const isCategoryEmpty = useCallback((category: string | null | undefined) => {
     const { data, loaded } = getCategoryFoods(category);
     return loaded && data.length === 0;
   }, [getCategoryFoods]);
 
-  const isCategoryAvailable = useCallback((category) => {
+  const isCategoryAvailable = useCallback((category: string | null | undefined) => {
     const { loaded } = getCategoryFoods(category);
     return loaded;
   }, [getCategoryFoods]);
 
   const getCategoryStats = useMemo(() => {
-    const stats = {};
+    const stats: Partial<Record<FoodCategoryName, number>> = {};
     
     if (!contextLoading) {
       if (Array.isArray(frequentFoods)) stats.Frequent = frequentFoods.length;
