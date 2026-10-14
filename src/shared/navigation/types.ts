@@ -10,7 +10,7 @@ export type RootStackParamList = {
 
 export type AuthenticatedStackParamList = {
   Dashboard: undefined;
-  Nutrition: { refresh?: boolean } | undefined;
+  Nutrition: { refresh?: boolean; meal?: string } | undefined;
   Workout: undefined;
   Progress: undefined;
   Profile: undefined;
@@ -44,6 +44,8 @@ export type AuthenticatedStackParamList = {
     meal?: string;
     selectedDate?: string;
     selectedFoodDetail?: unknown;
+    refresh?: boolean;
+    remainingCalories?: number;
   } | undefined;
   BarcodeScanner: {
     meal?: string;

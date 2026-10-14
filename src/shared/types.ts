@@ -291,6 +291,25 @@ export type FoodFormData = {
 
 export type FoodFormErrors = Partial<Record<keyof FoodFormData | 'macroNutrients', string>>;
 
+export type FoodDetailFood = Partial<LoggedFood> & {
+  image?: string | null | undefined;
+  category?: string | null | undefined;
+  isFavorite?: boolean | undefined;
+};
+
+export type NutrientValues = {
+  calories: string;
+  carbohydrates: string;
+  fats: string;
+  protein: string;
+  fiber: string;
+  sugar: string;
+  salt: string;
+  saturatedFats: string;
+};
+
+export type NutrientTotals = { [K in keyof NutrientValues]: number };
+
 export type FormattedFoodData = {
   productName: string;
   calories: number;
