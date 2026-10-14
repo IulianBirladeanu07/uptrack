@@ -63,8 +63,8 @@ type NavigationButtonsProps = {
     currentStep: number;
     goToPreviousStep: () => void;
     goToNextStep: () => void;
-    handleCreateTemplate: () => void;
-    handleCreateSplit: () => void;
+    handleCreateTemplate?: () => void;
+    handleCreateSplit?: () => void;
     loading?: boolean;
     validateForm: () => boolean;
     creationType?: 'template' | 'split' | string;
@@ -89,9 +89,9 @@ export const NavigationButtons = ({
 
     const handleFinalAction = () => {
         if (isSplit) {
-            handleCreateSplit();
+            handleCreateSplit?.();
         } else {
-            handleCreateTemplate();
+            handleCreateTemplate?.();
         }
     };
 

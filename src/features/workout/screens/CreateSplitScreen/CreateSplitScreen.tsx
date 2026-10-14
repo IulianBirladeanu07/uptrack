@@ -1,16 +1,29 @@
-// @ts-nocheck — refine types in follow-up (nav hooks in place)
 import { useState, useEffect, useCallback } from 'react';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+
+type ScheduleDay = {
+  id?: string;
+  templateId?: string;
+  templateName?: string;
+  duration: string | number;
+  exercises: unknown[];
+};
+
+type Schedule = Record<string, ScheduleDay | null>;
 
 type SplitFormData = {
   id?: string;
   name: string;
   description: string;
   type: string;
-  schedule: any;
+  schedule: Schedule;
   durationWeeks?: number;
   [key: string]: any;
 };
+
+const WEEK_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+const isDayNumber = (v: string | number): boolean => !isNaN(Number(v)) && Number(v) > 0;
 import { View, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BasicInfoStepJS from './steps/BasicInfoStep';
@@ -67,16 +80,13 @@ const CreateSplitScreen = () => {
     const loadWorkouts = async () => {
       setLoading(true);
       try {
-        const templates = await fetchTemplatesFromFirestore() as Promise<any[]>;
-        const normalizedWorkouts = templates.map((template, index) => {
-          const templateData = template.data || template;
-          return {
-            id: templateData.id || `workout_${Date.now()}_${index}`,
-            templateName: templateData.templateName || `Workout ${index + 1}`,
-            duration: templateData.duration || 0,
-            exercises: Array.isArray(templateData.exercises) ? templateData.exercises : [],
-          };
-        });
+        const templates = await fetchTemplatesFromFirestore();
+        const normalizedWorkouts = templates.map((template, index) => ({
+          id: template.id || `workout_${Date.now()}_${index}`,
+          templateName: template.templateName || `Workout ${index + 1}`,
+          duration: template.duration || 0,
+          exercises: Array.isArray(template.exercises) ? template.exercises : [],
+        }));
         setWorkouts(normalizedWorkouts);
       } catch (error) {
         console.error('Error loading workouts:', error);
@@ -95,9 +105,9 @@ const CreateSplitScreen = () => {
         setSelectedDay('monday');
       }
       setSplitData(prev => {
-        const cleanedSchedule = {};
+        const cleanedSchedule: Schedule = {};
         Object.keys(prev.schedule).forEach(key => {
-          if (['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(key)) {
+          if (WEEK_DAYS.includes(key)) {
             cleanedSchedule[key] = prev.schedule[key];
           }
         });
@@ -108,9 +118,9 @@ const CreateSplitScreen = () => {
       });
     } else if (splitData.type === 'rotation') {
       setSplitData(prev => {
-        const cleanedSchedule = {};
+        const cleanedSchedule: Schedule = {};
         Object.keys(prev.schedule).forEach(key => {
-          if (!isNaN(key) && parseInt(key) > 0) {
+          if (isDayNumber(key)) {
             cleanedSchedule[key] = prev.schedule[key];
           }
         });
@@ -138,7 +148,7 @@ const CreateSplitScreen = () => {
   }, [splitData.type, isEditing, split?.type]);
 
   const handleDayAssignment = useCallback((workout: any, dayId: string | number) => {
-    if (!dayId || (splitData.type === 'rotation' && isNaN(dayId)) || (splitData.type === 'weekly' && !['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(dayId))) {
+    if (!dayId || (splitData.type === 'rotation' && !isDayNumber(dayId)) || (splitData.type === 'weekly' && !WEEK_DAYS.includes(String(dayId)))) {
       console.error('Invalid dayId:', dayId);
       Alert.alert('Error', 'Invalid day selected for assignment.');
       return;
@@ -171,8 +181,8 @@ const CreateSplitScreen = () => {
     });
   }, []);
 
-  const handleAddRotationDay = useCallback((dayNumber?: number) => {
-    if (isNaN(dayNumber) || dayNumber < 1) {
+  const handleAddRotationDay = useCallback((dayNumber: number) => {
+    if (!isDayNumber(dayNumber)) {
       console.error('Invalid dayNumber:', dayNumber);
       return;
     }
@@ -185,8 +195,8 @@ const CreateSplitScreen = () => {
     }));
   }, []);
 
-  const handleRemoveRotationDay = useCallback((dayNumber?: number) => {
-    if (isNaN(dayNumber) || dayNumber < 1) {
+  const handleRemoveRotationDay = useCallback((dayNumber: number) => {
+    if (!isDayNumber(dayNumber)) {
       console.error('Invalid dayNumber:', dayNumber);
       return;
     }
@@ -299,8 +309,7 @@ const CreateSplitScreen = () => {
 
       {currentStep === 1 && (
         <ScheduleStep
-            // @ts-expect-error schedule step accepts flexible day ids
-          splitData={splitData}
+            splitData={splitData}
           workouts={workouts}
           selectedDay={selectedDay}
           setSelectedDay={setSelectedDay}
