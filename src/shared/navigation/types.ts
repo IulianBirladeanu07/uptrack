@@ -51,18 +51,19 @@ export type AuthenticatedStackParamList = {
   } | undefined;
   FoodDetail: {
     food?: unknown;
-    meal?: string;
-    selectedDate?: string;
+    meal?: string | undefined;
+    selectedDate?: string | undefined;
     update?: boolean;
     foodId?: string;
     remainingCalories?: number;
     returnToBarcodeScanner?: boolean;
+    refreshBarcodedProducts?: boolean;
   };
   CustomFood: {
     type?: string;
     barcode?: string;
-    meal?: string;
-    selectedDate?: string;
+    meal?: string | undefined;
+    selectedDate?: string | undefined;
   } | undefined;
   CreateSplit: {
     split?: unknown;

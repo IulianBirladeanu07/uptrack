@@ -1,24 +1,37 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Alert, Keyboard } from 'react-native';
+import type { TextInput } from 'react-native';
 import { supabase } from '../../../shared/services/supabaseClient';
 import { productCache } from '../utils/productCache';
 import { validateFoodData } from '../utils/customFoodValidators';
 import { formatFoodDataForSubmission, getInitialFoodData, passesBarcodedProductsInsertPolicy, transformForBarcodeDB, transformForCustomFood } from '../utils/customFoodDataUtils';
+import type { AppNavigationProp } from '../../../shared/navigation';
+import type { FoodFormData, FoodFormErrors } from '../../../shared/types';
 
-export const useCustomFood = (type, navigation, remainingCalories, barcode = '', meal, selectedDate) => {
-    const inputRefs = useRef({});
-    const validationTimeout = useRef(null);
+type Field = keyof FoodFormData;
+type FieldValue = FoodFormData[Field];
+
+export const useCustomFood = (
+    type: string | undefined,
+    navigation: AppNavigationProp,
+    remainingCalories: number,
+    barcode = '',
+    meal: string | undefined,
+    selectedDate: string | undefined
+) => {
+    const inputRefs = useRef<Record<string, TextInput | null>>({});
+    const validationTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     
-    const [formData, setFormData] = useState(() => {
-        const initial = getInitialFoodData();
+    const [formData, setFormData] = useState<FoodFormData>(() => {
+        const initial: FoodFormData = getInitialFoodData();
         if (barcode) {
             initial.barcode = barcode;
         }
         return initial;
     });
     
-    const [errors, setErrors] = useState({});
-    const [isDirty, setIsDirty] = useState({});
+    const [errors, setErrors] = useState<FoodFormErrors>({});
+    const [isDirty, setIsDirty] = useState<Partial<Record<Field, boolean>>>({});
 
     useEffect(() => {
         return () => {
@@ -28,7 +41,7 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
         };
     }, []);
 
-    const validateField = useCallback((field, value) => {
+    const validateField = useCallback((field: Field, value: FieldValue) => {
         if (validationTimeout.current) {
             clearTimeout(validationTimeout.current);
         }
@@ -44,7 +57,7 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
         }, 300);
     }, [type]);
 
-    const handleFieldChange = useCallback((field, value) => {
+    const handleFieldChange = useCallback((field: Field, value: string) => {
         const processedValue = field !== 'productName' && field !== 'barcode' 
             ? value.replace(/[^\d.]/g, '')
             : value;
@@ -62,15 +75,15 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
         validateField(field, processedValue);
     }, [validateField]);
 
-    const handleAmountChange = useCallback((value) => {
+    const handleAmountChange = useCallback((value: string) => {
         const numericValue = value.replace(/[^\d.]/g, '');
         handleFieldChange('amount', numericValue);
     }, [handleFieldChange]);
 
-    const handleFieldFocus = useCallback((field) => {
+    const handleFieldFocus = useCallback((_field: Field) => {
     }, []);
 
-    const handleSubmitEditing = useCallback((currentField, nextField) => {
+    const handleSubmitEditing = useCallback((_currentField: Field, nextField?: Field) => {
         if (nextField && inputRefs.current[nextField]) {
             requestAnimationFrame(() => {
                 inputRefs.current[nextField]?.focus();
@@ -78,7 +91,7 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
         }
     }, []);
 
-    const registerInputRef = useCallback((field) => (ref) => {
+    const registerInputRef = useCallback((field: Field) => (ref: TextInput | null) => {
         inputRefs.current[field] = ref;
     }, []);
 
@@ -100,10 +113,16 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
             const serializedDate = selectedDate ? new Date(selectedDate).toISOString() : new Date().toISOString();
             
             if (type === 'foodWithBarcode') {
+                const barcodeId = formattedData.barcode;
+                if (!barcodeId) {
+                    Alert.alert('Invalid product', 'Barcode or nutrition values do not meet the database rules.');
+                    return;
+                }
+
                 const { data: existingProduct, error: fetchError } = await supabase
                     .from('barcoded_products')
                     .select('barcode_id')
-                    .eq('barcode_id', formattedData.barcode)
+                    .eq('barcode_id', barcodeId)
                     .single();
                 
                 if (fetchError && fetchError.code !== 'PGRST116') {
@@ -123,7 +142,7 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
                 }
                 const { error } = await supabase
                     .from('barcoded_products')
-                    .insert([foodItem]);
+                    .insert([{ ...foodItem, barcode_id: barcodeId }]);
         
                 if (error) {
                     Alert.alert('Database Error', 'Failed to save food data to the database.');
@@ -163,7 +182,7 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
         inputRefs.current['productName']?.focus();
     }, []);
 
-    const updateMultipleFields = useCallback((fieldsData) => {
+    const updateMultipleFields = useCallback((fieldsData: FoodFormData) => {
         setFormData(prev => ({
             ...prev,
             ...fieldsData
@@ -175,13 +194,13 @@ export const useCustomFood = (type, navigation, remainingCalories, barcode = '',
         }));
         
         setTimeout(() => {
-            Object.entries(fieldsData).forEach(([field, value]) => {
-                validateField(field, value);
+            (Object.keys(fieldsData) as Field[]).forEach(field => {
+                validateField(field, fieldsData[field]);
             });
         }, 300);
     }, [validateField]);
 
-    const changeUnit = useCallback((newUnit) => {
+    const changeUnit = useCallback((newUnit: string) => {
         if (newUnit === formData.unit) return;
         
         setFormData(prev => ({

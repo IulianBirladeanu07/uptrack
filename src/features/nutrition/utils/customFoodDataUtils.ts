@@ -59,7 +59,7 @@ export const transformForBarcodeDB = (formattedData: FormattedFoodData) => ({
     saturated_fats: formattedData.saturatedFats,
     serving_size_unit: formattedData.unit,
     serving_size_value: formattedData.quantity,
-    image: defaultFoodIconUri,
+    ...(defaultFoodIconUri === undefined ? {} : { image: defaultFoodIconUri }),
     category: '',
     last_updated: new Date().toISOString(),
 });
