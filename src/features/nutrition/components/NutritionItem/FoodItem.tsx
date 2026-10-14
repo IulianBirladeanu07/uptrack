@@ -13,6 +13,7 @@ import formatFoodName from '../../../../shared/utils/formatFoodName';
 import type { Numeric } from '../../../../shared/types';
 
 export type FoodItemData = {
+  id?: string | undefined;
   productName?: string | null;
   image?: string | null;
   icon?: string | null;

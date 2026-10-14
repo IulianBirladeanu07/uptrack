@@ -4,6 +4,31 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import FoodItem from './FoodItem';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import type { FoodItemData } from './FoodItem';
+import type { FoodSearchItem } from '../../../../shared/types';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+type Filter = {
+  key: string;
+  label: string;
+  count: number;
+  icon: IconName;
+};
+
+type FoodSearchResultsProps = {
+  searchResults?: FoodSearchItem[] | undefined;
+  searchQuery?: string | undefined;
+  onItemPress?: ((item: FoodItemData) => void) | undefined;
+  onPlusPress?: ((item: FoodItemData) => void) | undefined;
+  showPlusButton?: boolean | undefined;
+  onCreateFood?: (() => void) | undefined;
+  recentSearches?: string[] | undefined;
+  onRecentSearchPress?: ((term: string) => void) | undefined;
+  onRemoveRecentSearch?: ((term: string) => void) | undefined;
+  onClearAllRecentSearches?: (() => void) | undefined;
+  recentSearchesLoading?: boolean | undefined;
+};
 
 const FoodSearchResults = memo(({
   searchResults = [],
@@ -17,10 +42,10 @@ const FoodSearchResults = memo(({
   onRemoveRecentSearch,
   onClearAllRecentSearches,
   recentSearchesLoading = false,
-}) => {
+}: FoodSearchResultsProps) => {
   const [selectedFilter, setSelectedFilter] = React.useState('all');
 
-  const filters = useMemo(() => [
+  const filters = useMemo<Filter[]>(() => [
     { key: 'all', label: 'All', count: searchResults.length, icon: 'grid-outline' },
     { key: 'under200', label: 'Low Cal', count: searchResults.filter(item => item.calories < 200).length, icon: 'flame-outline' },
     { key: 'high-protein', label: 'Protein', count: searchResults.filter(item => item.protein >= 10).length, icon: 'fitness-outline' },
@@ -37,31 +62,27 @@ const FoodSearchResults = memo(({
   const bestMatch = filteredResults[0];
   const otherResults = filteredResults.slice(1);
 
-  const transformItem = useCallback((item) => ({
+  const transformItem = useCallback((item: FoodSearchItem) => ({
     ...item,
-    productName: item.productName || item.name,
-    carbohydrates: item.carbohydrates || item.carbs,
-    fats: item.fats || item.fat,
-    quantity: item.servingSize?.value || item.quantity || item.serving?.match(/\d+/)?.[0],
-    unit: item.servingSize?.unit || item.unit || item.serving?.match(/[a-zA-Z]+/)?.[0],
-    id: item.id || item.productName || item.name,
+    quantity: item.servingSize?.value,
+    unit: item.servingSize?.unit,
   }), []);
 
-  const handleItemPress = useCallback((item) => {
-    const originalItem = searchResults.find(result => 
-      result.id === item.id || result.productName === item.productName || result.name === item.productName
+  const handleItemPress = useCallback((item: FoodItemData) => {
+    const originalItem = searchResults.find(result =>
+      result.id === item.id || result.productName === item.productName
     );
     onItemPress?.(originalItem || item);
   }, [searchResults, onItemPress]);
 
-  const handlePlusPress = useCallback((item) => {
-    const originalItem = searchResults.find(result => 
-      result.id === item.id || result.productName === item.productName || result.name === item.productName
+  const handlePlusPress = useCallback((item: FoodItemData) => {
+    const originalItem = searchResults.find(result =>
+      result.id === item.id || result.productName === item.productName
     );
     onPlusPress?.(originalItem || item);
   }, [searchResults, onPlusPress]);
 
-  const quickSuggestions = [
+  const quickSuggestions: { label: string; icon: IconName }[] = [
     { label: 'Chicken', icon: 'nutrition' },
     { label: 'Salmon', icon: 'fish' },
     { label: 'Broccoli', icon: 'leaf' },
@@ -223,14 +244,14 @@ const FoodSearchResults = memo(({
         )}
 
         {otherResults.length > 0 && (
-          <View style={styles.otherSection}>
+          <View>
             <View style={styles.otherBadge}>
               <MaterialCommunityIcons name="format-list-bulleted" size={spacing[3]} color={colors.text.secondary} />
               <Text style={styles.badgeText}>MORE OPTIONS ({otherResults.length})</Text>
             </View>
             
             {otherResults.map((item, index) => (
-              <View key={item.id || index} style={styles.resultItem}>
+              <View key={item.id || index}>
                 <FoodItem
                   item={transformItem(item)}
                   onPress={handleItemPress}
