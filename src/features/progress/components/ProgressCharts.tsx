@@ -1,8 +1,10 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
+import type { GestureResponderEvent } from 'react-native';
 import Svg, { G, Rect, Line, Path, Circle, Text as SvgText } from 'react-native-svg';
 import { colors } from '../../../shared/theme';
 import { shortDate, kfmt, sg } from '../utils/progressEngine';
+import type { EnergyModel, PaceModel, StrengthModel } from '../utils/progressEngine';
 
 const AX = colors.text.quaternary;
 const GRID = colors.border.default;
@@ -15,9 +17,20 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const BREAK = 10;
 const LP = 10;
 
-const runs = vals => {
-  const out = [];
-  let cur = [];
+type Vals = (number | null)[];
+
+type XLabel = {
+  key: string;
+  i: number;
+  y: number;
+  anchor: 'start' | 'middle' | 'end';
+  text: string;
+  hot: boolean;
+};
+
+const runs = (vals: Vals) => {
+  const out: number[][] = [];
+  let cur: number[] = [];
   vals.forEach((v, i) => {
     if (v == null) {
       if (cur.length) out.push(cur);
@@ -28,17 +41,17 @@ const runs = vals => {
   return out;
 };
 
-const line = (idx, xf, yf, vals) =>
-  idx.map((i, k) => `${k ? 'L' : 'M'}${xf(i).toFixed(1)} ${yf(vals[i]).toFixed(1)}`).join(' ');
+const line = (idx: number[], xf: (i: number) => number, yf: (v: number) => number, vals: Vals) =>
+  idx.map((i, k) => `${k ? 'L' : 'M'}${xf(i).toFixed(1)} ${yf(vals[i] as number).toFixed(1)}`).join(' ');
 
-const lastIdx = vals => {
+const lastIdx = (vals: Vals) => {
   for (let i = vals.length - 1; i >= 0; i--) if (vals[i] != null) return i;
   return -1;
 };
 
-const xLabels = (n, mondays, y, key) => {
+const xLabels = (n: number, mondays: Date[], y: number, key: string) => {
   const at = [0, Math.round((n - 1) / 2), n - 1];
-  return at.map((i, k) => ({
+  return at.map((i, k): XLabel => ({
     key: `${key}${k}`,
     i,
     y,
@@ -48,11 +61,19 @@ const xLabels = (n, mondays, y, key) => {
   }));
 };
 
-const tickStep = mx => (mx <= 1.2 ? 0.25 : mx <= 3 ? 0.5 : 1);
+const tickStep = (mx: number) => (mx <= 1.2 ? 0.25 : mx <= 3 ? 0.5 : 1);
 
-const tickText = t => (Number.isInteger(t) ? t.toFixed(1) : String(t));
+const tickText = (t: number) => (Number.isInteger(t) ? t.toFixed(1) : String(t));
 
-export const PaceChart = ({ slots, plan, width, sel = null, onSelect }) => {
+type PaceChartProps = {
+  slots: PaceModel['slots'];
+  plan: number | null;
+  width: number;
+  sel?: number | null;
+  onSelect?: (i: number | null) => void;
+};
+
+export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChartProps) => {
   const n = slots.length;
   const H = 176;
   const top = 18;
@@ -62,20 +83,20 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }) => {
   const gap = n > 12 ? 3 : 5;
   const bw = (pw - gap * (n - 1)) / n;
   const base = H - bot;
-  const vals = slots.map(s => s.v).filter(v => v != null);
+  const vals = slots.map(s => s.v).filter((v): v is number => v != null);
   const mx = Math.max(...vals, plan || 0, 0.1) * 1.08;
-  const y = v => top + (base - top) * (1 - v / mx);
+  const y = (v: number) => top + (base - top) * (1 - v / mx);
   const step = n <= 8 ? 2 : n <= 12 ? 3 : 4;
   const li = lastIdx(slots.map(s => s.v));
   const active = sel != null && slots[sel]?.v != null ? sel : li;
   const py = plan != null ? y(plan) : null;
-  const trend = n >= 12 ? slots.map((s, i) => (s.avg != null ? [i * (bw + gap) + bw / 2, y(s.avg)] : null)).filter(Boolean) : [];
+  const trend = n >= 12 ? slots.map((s, i) => (s.avg != null ? [i * (bw + gap) + bw / 2, y(s.avg)] : null)).filter((pt): pt is number[] => pt != null) : [];
   const ts = tickStep(mx);
-  const ticks = [];
+  const ticks: number[] = [];
   for (let t = ts; t < mx; t += ts) ticks.push(Math.round(t * 100) / 100);
   const shown = ticks.filter(t => py == null || Math.abs(y(t) - py) >= 26);
 
-  const onPress = e => {
+  const onPress = (e: GestureResponderEvent) => {
     if (!onSelect) return;
     const x = e.nativeEvent.locationX - LP;
     if (x < 0 || x > pw) return;
@@ -145,7 +166,7 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }) => {
             <Path d={trend.map((p, k) => `${k ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')} stroke={PLAN} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" fill="none" />
           )}
           {trend.length > 1 && <Circle cx={trend[trend.length - 1][0]} cy={trend[trend.length - 1][1]} r={3.5} fill={PLAN} stroke={BG} strokeWidth={1.5} />}
-          {plan != null && (
+          {plan != null && py != null && (
             <>
               <Line x1={-LP} x2={pw} y1={py} y2={py} stroke={PLAN} strokeOpacity={0.75} strokeWidth={1.5} strokeDasharray="4 4" />
               <SvgText x={width - LP} y={py - 3} fontSize={10} fill={AX} textAnchor="end">plan</SvgText>
@@ -159,7 +180,16 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }) => {
   );
 };
 
-export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }) => {
+type BalanceChartProps = {
+  bal: Vals;
+  target: number | null;
+  slots: EnergyModel['slots'];
+  width: number;
+  sel?: number | null;
+  onSelect?: (i: number | null) => void;
+};
+
+export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }: BalanceChartProps) => {
   const n = bal.length;
   const H = 176;
   const top = 18;
@@ -167,9 +197,9 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
   const gut = 52;
   const pw = width - gut - LP;
   const gap = n > 12 ? 3 : 5;
-  const brk = slots.map((s, i) => i > 0 && Math.round((s.monday - slots[i - 1].monday) / DAY_MS) > 8);
+  const brk = slots.map((s, i) => i > 0 && Math.round((s.monday.getTime() - slots[i - 1].monday.getTime()) / DAY_MS) > 8);
   const nb = brk.filter(Boolean).length;
-  const lab = new Set();
+  const lab = new Set<number>();
   for (let k = n - 1; k >= 0; k -= n <= 8 ? 2 : n <= 12 ? 3 : 4) lab.add(k);
   brk.forEach((on, k) => {
     if (on || k === 0) {
@@ -186,17 +216,17 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
     return x;
   });
   const base = H - bot;
-  const vals = bal.filter(v => v != null);
+  const vals = bal.filter((v): v is number => v != null);
   const lo = Math.min(0, ...vals, target ?? 0);
   const hi = Math.max(0, ...vals, target ?? 0);
   const pad = Math.max(hi - lo, 200) * 0.1;
-  const y = v => top + (base - top) * (1 - (v - (lo - pad)) / (hi - lo + 2 * pad));
+  const y = (v: number) => top + (base - top) * (1 - (v - (lo - pad)) / (hi - lo + 2 * pad));
   const y0 = y(0);
   const li = lastIdx(bal);
   const active = sel != null && bal[sel] != null ? sel : li;
   const ty = target != null ? y(target) : null;
 
-  const onPress = e => {
+  const onPress = (e: GestureResponderEvent) => {
     if (!onSelect) return;
     const x = e.nativeEvent.locationX - LP;
     if (x < 0 || x > pw) return;
@@ -290,22 +320,31 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
   );
 };
 
-export const StrengthChart = ({ strength, weight, slots, width }) => {
+type StrengthChartProps = {
+  strength: Vals;
+  weight: Vals;
+  slots: StrengthModel['slots'];
+  width: number;
+};
+
+export const StrengthChart = ({ strength, weight, slots, width }: StrengthChartProps) => {
   const n = strength.length;
   const H = 176;
   const top = 8;
   const bot = 24;
   const gut = 54;
   const pw = width - gut;
-  const all = [...strength, ...weight, 0].filter(v => v != null);
+  const all = [...strength, ...weight, 0].filter((v): v is number => v != null);
   const lo = Math.floor(Math.min(...all) - 1);
   const hi = Math.ceil(Math.max(...all) + 1);
-  const y = v => top + (H - top - bot) * (1 - (v - lo) / (hi - lo));
-  const x = i => 2 + (pw - 2) * (n === 1 ? 0 : i / (n - 1));
+  const y = (v: number) => top + (H - top - bot) * (1 - (v - lo) / (hi - lo));
+  const x = (i: number) => 2 + (pw - 2) * (n === 1 ? 0 : i / (n - 1));
   const si = lastIdx(strength);
   const wi = lastIdx(weight);
-  let ys = si >= 0 ? y(strength[si]) : 0;
-  let yw = wi >= 0 ? y(weight[wi]) : 0;
+  const sv = strength[si] as number;
+  const wv = weight[wi] as number;
+  let ys = si >= 0 ? y(sv) : 0;
+  let yw = wi >= 0 ? y(wv) : 0;
   if (si >= 0 && wi >= 0 && Math.abs(ys - yw) < 14) {
     const m = (ys + yw) / 2;
     if (ys < yw) {
@@ -328,10 +367,10 @@ export const StrengthChart = ({ strength, weight, slots, width }) => {
       {runs(strength).map((r, k) => r.length > 1 && (
         <Path key={k} d={line(r, x, y, strength)} stroke={STRENGTH} strokeWidth={2.8} strokeLinejoin="round" strokeLinecap="round" fill="none" />
       ))}
-      {wi >= 0 && <Circle cx={x(wi)} cy={y(weight[wi])} r={4.5} fill={WEIGHT} stroke={BG} strokeWidth={2} />}
-      {si >= 0 && <Circle cx={x(si)} cy={y(strength[si])} r={4.5} fill={STRENGTH} stroke={BG} strokeWidth={2} />}
-      {si >= 0 && <SvgText x={pw + 8} y={ys + 4} fontSize={12} fontWeight="700" fill={STRENGTH}>{`${sg(strength[si], 1)}%`}</SvgText>}
-      {wi >= 0 && <SvgText x={pw + 8} y={yw + 4} fontSize={12} fontWeight="700" fill={WEIGHT}>{`${sg(weight[wi], 1)}%`}</SvgText>}
+      {wi >= 0 && <Circle cx={x(wi)} cy={y(wv)} r={4.5} fill={WEIGHT} stroke={BG} strokeWidth={2} />}
+      {si >= 0 && <Circle cx={x(si)} cy={y(sv)} r={4.5} fill={STRENGTH} stroke={BG} strokeWidth={2} />}
+      {si >= 0 && <SvgText x={pw + 8} y={ys + 4} fontSize={12} fontWeight="700" fill={STRENGTH}>{`${sg(sv, 1)}%`}</SvgText>}
+      {wi >= 0 && <SvgText x={pw + 8} y={yw + 4} fontSize={12} fontWeight="700" fill={WEIGHT}>{`${sg(wv, 1)}%`}</SvgText>}
       {labels.map(l => (
         <SvgText key={l.key} x={x(l.i)} y={l.y} fontSize={10} fill={l.hot ? EAT : AX} textAnchor={l.anchor}>{l.text}</SvgText>
       ))}
