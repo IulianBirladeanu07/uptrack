@@ -1,26 +1,73 @@
 import { useState, useMemo, useCallback, memo } from 'react';
 import { FlatList, Text, View, TouchableOpacity } from 'react-native';
+import type { ListRenderItemInfo } from 'react-native';
 import { Coffee, Sun, Moon, Apple, Utensils } from 'lucide-react-native';
 import FoodSearchResults from './FoodSearchResults';
 import FoodItem from './FoodItem';
+import type { FoodItemData } from './FoodItem';
 import MealItem from './MealItem';
-import { colors, spacing, fontSize, fontWeight, radius, LIST, EMPTY_STATE } from '../../../../shared/theme';
+import { colors, spacing, fontSize, fontWeight, LIST, EMPTY_STATE } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
+import type { CategoryFood, FoodSearchItem, LoggedFood, MealType, RecentMeal } from '../../../../shared/types';
 
-const MEAL_ORDER = ['breakfast', 'lunch', 'dinner', 'snacks'];
+type MealStyle = { background: string; border: string };
 
-const MEAL_STYLES = {
+type PressHandler = ((food: FoodItemData) => void) | undefined;
+
+type HeaderRow = {
+    type: 'header';
+    mealType: MealType;
+    itemCount: number;
+    isExpanded: boolean;
+    id: string;
+    height: number;
+    offset: number;
+};
+
+type FoodRow = {
+    type: 'food';
+    food: LoggedFood;
+    id: string;
+    height: number;
+    index: number;
+    offset: number;
+};
+
+type FlatRow = HeaderRow | FoodRow;
+
+type FoodListItemProps = {
+    isSearching?: boolean | undefined;
+    selectedCategory?: string | undefined;
+    searchResults?: FoodSearchItem[] | undefined;
+    categoryFoods?: CategoryFood[] | undefined;
+    searchQuery?: string | undefined;
+    handleNavigateToFoodDetail?: PressHandler;
+    handlePlusPress?: PressHandler;
+    onCreateFood?: (() => void) | undefined;
+    meal?: string | undefined;
+    maxItemsToShow?: number | undefined;
+    recentSearches?: string[] | undefined;
+    setSearchQuery?: ((query: string) => void) | undefined;
+    handleSearch?: ((query: string) => void) | undefined;
+    onRecentSearchPress?: ((term: string) => void) | undefined;
+    onRemoveRecentSearch?: ((term: string) => void) | undefined;
+    onClearAllRecentSearches?: (() => void) | undefined;
+};
+
+const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
+
+const MEAL_STYLES: Record<string, MealStyle> = {
     breakfast: { background: colors.faded.breakfast, border: colors.border.breakfast },
     lunch: { background: colors.faded.lunch, border: colors.border.lunch },
     dinner: { background: colors.faded.dinner, border: colors.border.dinner },
     snacks: { background: colors.faded.snacks, border: colors.border.snacks },
 };
 
-const DEFAULT_MEAL_STYLE = { background: 'rgba(156, 163, 184, 0.12)', border: 'rgba(156, 163, 184, 0.2)' };
+const DEFAULT_MEAL_STYLE: MealStyle = { background: 'rgba(156, 163, 184, 0.12)', border: 'rgba(156, 163, 184, 0.2)' };
 
-const getMealStyle = (mealType) => MEAL_STYLES[mealType?.toLowerCase()] || DEFAULT_MEAL_STYLE;
+const getMealStyle = (mealType?: string) => MEAL_STYLES[mealType?.toLowerCase() ?? ''] || DEFAULT_MEAL_STYLE;
 
-const getMealIcon = (mealType, size = spacing[5]) => {
+const getMealIcon = (mealType?: string, size: number = spacing[5]) => {
     const iconProps = { size, strokeWidth: 2.5 };
     switch (mealType?.toLowerCase()) {
         case 'breakfast': return <Coffee {...iconProps} color={colors.meal.breakfast} />;
@@ -31,30 +78,33 @@ const getMealIcon = (mealType, size = spacing[5]) => {
     }
 };
 
-const renderMealItem = (item, meal, onPress, onPlusPress, index) => (
+const renderMealItem = (item: RecentMeal, meal: string | undefined, onPress: PressHandler, onPlusPress: PressHandler) => (
     <MealItem
-        key={item.id || item.productName}
+        key={item.id}
         item={item}
         meal={meal}
         onPress={onPress}
         onPlusPress={onPlusPress}
         showPlusButton={true}
-        index={index}
     />
 );
 
-const renderFoodItem = (item, onPress, onPlusPress, index) => (
+const renderFoodItem = (item: LoggedFood, onPress: PressHandler, onPlusPress: PressHandler) => (
     <FoodItem
         key={item.id || item.productName}
         item={item}
         onPress={onPress}
         onPlusPress={onPlusPress}
         showPlusButton={true}
-        index={index}
     />
 );
 
-const EmptyComponent = memo(({ text, mealType }) => {
+type EmptyComponentProps = {
+    text: string;
+    mealType?: string | undefined;
+};
+
+const EmptyComponent = memo(({ text, mealType }: EmptyComponentProps) => {
     const mealStyle = getMealStyle(mealType);
     return (
         <View style={styles.emptyContainer}>
@@ -72,7 +122,15 @@ const EmptyComponent = memo(({ text, mealType }) => {
     );
 });
 
-const MealHeader = memo(({ mealType, itemCount, isExpanded, maxItems, onToggle }) => {
+type MealHeaderProps = {
+    mealType: string;
+    itemCount: number;
+    isExpanded: boolean;
+    maxItems: number;
+    onToggle: (mealType: string) => void;
+};
+
+const MealHeader = memo(({ mealType, itemCount, isExpanded, maxItems, onToggle }: MealHeaderProps) => {
     const shouldShowToggle = itemCount > maxItems;
 
     const handlePress = useCallback(() => {
@@ -110,17 +168,18 @@ const MealHeader = memo(({ mealType, itemCount, isExpanded, maxItems, onToggle }
     prevProps.maxItems === nextProps.maxItems
 ));
 
-const createOptimizedFlatData = (foods, expandedMealType, maxItems) => {
+const createOptimizedFlatData = (foods: LoggedFood[], expandedMealType: string | null, maxItems: number) => {
     if (!foods?.length) return [];
 
-    const grouped = Object.create(null);
+    const grouped: Record<string, LoggedFood[]> = Object.create(null);
     for (let i = 0; i < foods.length; i++) {
         const food = foods[i];
-        if (!grouped[food.mealType]) grouped[food.mealType] = [];
-        grouped[food.mealType].push(food);
+        const key = food.mealType ?? '';
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(food);
     }
 
-    const flatData = [];
+    const flatData: FlatRow[] = [];
     let offset = 0;
 
     for (let j = 0; j < MEAL_ORDER.length; j++) {
@@ -176,19 +235,19 @@ const FoodListItem = memo(({
     onRecentSearchPress,
     onRemoveRecentSearch,
     onClearAllRecentSearches,
-}) => {
-    const [expandedMealType, setExpandedMealType] = useState(null);
+}: FoodListItemProps) => {
+    const [expandedMealType, setExpandedMealType] = useState<string | null>(null);
 
-    const flatData = useMemo(() => {
+    const flatData = useMemo<FlatRow[]>(() => {
         if (selectedCategory !== 'Frequent') return [];
-        return createOptimizedFlatData(categoryFoods, expandedMealType, maxItemsToShow);
+        return createOptimizedFlatData(categoryFoods as LoggedFood[], expandedMealType, maxItemsToShow);
     }, [selectedCategory, categoryFoods, expandedMealType, maxItemsToShow]);
 
-    const handleToggleExpand = useCallback((mealType) => {
+    const handleToggleExpand = useCallback((mealType: string) => {
         setExpandedMealType(prev => prev === mealType ? null : mealType);
     }, []);
 
-    const renderFrequentItem = useCallback(({ item, index }) => {
+    const renderFrequentItem = useCallback(({ item }: ListRenderItemInfo<FlatRow>) => {
         if (item.type === 'header') {
             return (
                 <MealHeader
@@ -200,7 +259,7 @@ const FoodListItem = memo(({
                 />
             );
         }
-        return renderFoodItem(item.food, handleNavigateToFoodDetail, handlePlusPress, index);
+        return renderFoodItem(item.food, handleNavigateToFoodDetail, handlePlusPress);
     }, [maxItemsToShow, handleToggleExpand, handleNavigateToFoodDetail, handlePlusPress]);
 
     const flatListProps = useMemo(() => ({
@@ -219,21 +278,21 @@ const FoodListItem = memo(({
         nestedScrollEnabled: true,
         keyboardDismissMode: 'on-drag',
         onEndReachedThreshold: 0.2,
-    }), []);
+    } as const), []);
 
-    const getItemKey = useCallback((item, index) =>
-        item.id || item.productName || `item_${index}`, []);
+    const getItemKey = useCallback((item: RecentMeal, index: number) =>
+        item.id || `item_${index}`, []);
 
-    const getFlatKey = useCallback((item) => item.id, []);
+    const getFlatKey = useCallback((item: FlatRow) => item.id, []);
 
-    const getItemLayout = useCallback((data, index) => {
+    const getItemLayout = useCallback((data: ArrayLike<FlatRow> | null | undefined, index: number) => {
         const item = data?.[index];
         const height = item?.height ?? LIST.ITEM_HEIGHT;
         const offset = item?.offset ?? index * LIST.ITEM_HEIGHT;
         return { length: height, offset, index };
     }, []);
 
-    const handleRecentSearchPress = useCallback((searchTerm) => {
+    const handleRecentSearchPress = useCallback((searchTerm: string) => {
         setSearchQuery?.(searchTerm);
         handleSearch?.(searchTerm);
         onRecentSearchPress?.(searchTerm);
@@ -273,11 +332,11 @@ const FoodListItem = memo(({
             return (
                 <FlatList
                     {...flatListProps}
-                    data={categoryFoods}
-                    renderItem={({ item, index }) => renderMealItem(item, meal, handleNavigateToFoodDetail, handlePlusPress, index)}
+                    data={categoryFoods as RecentMeal[]}
+                    renderItem={({ item }) => renderMealItem(item, meal, handleNavigateToFoodDetail, handlePlusPress)}
                     keyExtractor={getItemKey}
                     ListEmptyComponent={<EmptyComponent text="No recent meals found" mealType={meal} />}
-                    getItemLayout={(data, index) => ({
+                    getItemLayout={(_, index) => ({
                         length: LIST.ITEM_HEIGHT,
                         offset: LIST.ITEM_HEIGHT * index,
                         index,

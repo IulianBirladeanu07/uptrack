@@ -1,12 +1,26 @@
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { Coffee, Utensils, Moon, Cookie } from 'lucide-react-native';
 import FoodItem from './FoodItem';
+import type { FoodItemData } from './FoodItem';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import type { LoggedFood, MealType } from '../../../../shared/types';
 
-const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'];
+type MealContainerProps = {
+  foods: LoggedFood[];
+  onSwipeableOpen?: ((item: FoodItemData) => void) | undefined;
+  onPress: (item: LoggedFood, meal: MealType) => void;
+  mealContainer?: StyleProp<ViewStyle>;
+  isFoodDeletable?: boolean | undefined;
+  selectedMeal: MealType;
+  setSelectedMeal: (meal: MealType) => void;
+  onAddFood?: (() => void) | undefined;
+};
 
-const MEAL_LABELS = {
+const MEALS: MealType[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
+
+const MEAL_LABELS: Record<MealType, string> = {
   breakfast: 'Breakfast',
   lunch: 'Lunch',
   dinner: 'Dinner',
@@ -22,8 +36,8 @@ const MealContainer = ({
   selectedMeal,
   setSelectedMeal,
   onAddFood,
-}) => {
-  const getMealIcon = (meal) => {
+}: MealContainerProps) => {
+  const getMealIcon = (meal: MealType) => {
     const iconColor = selectedMeal === meal ? colors.accent.primary : colors.text.quaternary;
     const iconSize = spacing[4];
 
@@ -150,7 +164,6 @@ const styles = createStyles(() => ({
     borderWidth: 1,
     borderColor: colors.border.light,
     flex: 1,
-    minWidth: spacing[22],
     maxWidth: spacing[30],
     backgroundColor: 'transparent',
   },
@@ -186,7 +199,6 @@ const styles = createStyles(() => ({
     flexGrow: 1,
     paddingHorizontal: spacing[1],
     paddingVertical: spacing[1],
-    minHeight: spacing[50],
     backgroundColor: 'transparent',
   },
   foodItemWrapper: {
