@@ -5,8 +5,10 @@ import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePasswor
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { passwordChangeError } from '../../utils/passwordChangeError';
+import { useAppNavigation } from '../../../../shared/navigation';
 
-const ChangePasswordScreen = ({ navigation }) => {
+const ChangePasswordScreen = () => {
+  const navigation = useAppNavigation();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -15,7 +17,7 @@ const ChangePasswordScreen = ({ navigation }) => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const reauthenticate = async (currentPassword) => {
+  const reauthenticate = async (currentPassword: string) => {
     const auth = getAuth();
     const user = auth.currentUser;
 
@@ -33,7 +35,7 @@ const ChangePasswordScreen = ({ navigation }) => {
     }
   };
 
-  const isStrongPassword = (password) => {
+  const isStrongPassword = (password: string) => {
     const minLength = 8;
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);
@@ -66,7 +68,8 @@ const ChangePasswordScreen = ({ navigation }) => {
         throw new Error('User not found.');
       }
     } catch (error) {
-      Alert.alert('Error', passwordChangeError(error.code));
+      const err = error as { code?: string };
+      Alert.alert('Error', passwordChangeError(err.code));
     } finally {
       setLoading(false);
     }
@@ -84,7 +87,7 @@ const ChangePasswordScreen = ({ navigation }) => {
       <Text style={styles.header}>Change Password</Text>
 
       <View style={styles.card}>
-        <Ionicons name="lock-closed-outline" size={spacing[6]} color={colors.text.tertiary} style={styles.inputIcon} />
+        <Ionicons name="lock-closed-outline" size={spacing[6]} color={colors.text.tertiary} style={styles.icon} />
         <TextInput
           style={styles.input}
           value={currentPassword}
@@ -99,7 +102,7 @@ const ChangePasswordScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.card}>
-        <Ionicons name="lock-closed-outline" size={spacing[6]} color={colors.text.tertiary} style={styles.inputIcon} />
+        <Ionicons name="lock-closed-outline" size={spacing[6]} color={colors.text.tertiary} style={styles.icon} />
         <TextInput
           style={styles.input}
           value={newPassword}
@@ -114,7 +117,7 @@ const ChangePasswordScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.card}>
-        <Ionicons name="lock-closed-outline" size={spacing[6]} color={colors.text.tertiary} style={styles.inputIcon} />
+        <Ionicons name="lock-closed-outline" size={spacing[6]} color={colors.text.tertiary} style={styles.icon} />
         <TextInput
           style={styles.input}
           value={confirmPassword}

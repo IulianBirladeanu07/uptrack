@@ -1,16 +1,18 @@
 import { useState, useContext } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../../context/AuthContext';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import firebaseAuthService from '../../services/firebaseAuthService';
+import { useRootNavigation } from '../../../../shared/navigation';
+import type { FirebaseError } from 'firebase/app';
 
-GoogleSignin.configure({
-  webClientId: firebaseAuthService.getGoogleWebClientId(),
-});
+const googleWebClientId = firebaseAuthService.getGoogleWebClientId();
+if (googleWebClientId) {
+  GoogleSignin.configure({ webClientId: googleWebClientId });
+}
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -18,12 +20,12 @@ const LoginScreen = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [unverified, setUnverified] = useState(false);
   const [resending, setResending] = useState(false);
 
-  const navigation = useNavigation();
-  const { setAuthenticated, setProfileSetupComplete } = useContext(AuthContext);
+  const navigation = useRootNavigation();
+  const { setAuthenticated, setProfileSetupComplete } = useContext(AuthContext)!;
 
   const handleSignIn = async () => {
     setError(null);
@@ -32,8 +34,9 @@ const LoginScreen = () => {
     try {
       await firebaseAuthService.signInWithEmailAndPassword(email, password, setAuthenticated, setProfileSetupComplete);
     } catch (e) {
-      setError(e.message);
-      setUnverified(e.code === 'auth/email-not-verified');
+      const err = e as FirebaseError & { message?: string };
+      setError(err.message ?? 'Sign in failed.');
+      setUnverified(err.code === 'auth/email-not-verified');
     } finally {
       setLoading(false);
     }
@@ -49,7 +52,8 @@ const LoginScreen = () => {
         Alert.alert('Verification Email Sent', 'Open the link in the email, then log in.');
       }
     } catch (e) {
-      setError(e.message);
+      const err = e as { message?: string };
+      setError(err.message ?? 'Failed to resend verification email.');
     } finally {
       setResending(false);
     }
@@ -66,8 +70,9 @@ const LoginScreen = () => {
       if (!idToken) throw new Error('No id_token received');
       await firebaseAuthService.signInWithGoogle({ params: { id_token: idToken } }, setAuthenticated, setProfileSetupComplete);
     } catch (e) {
-      if (e.code !== statusCodes.SIGN_IN_CANCELLED) {
-        setError(e.message || 'Failed to sign in with Google. Please try again.');
+      const err = e as { code?: string; message?: string };
+      if (err.code !== statusCodes.SIGN_IN_CANCELLED) {
+        setError(err.message || 'Failed to sign in with Google. Please try again.');
       }
     } finally {
       setGoogleLoading(false);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useRootNavigation } from '../../../../shared/navigation';
 import firebaseAuthService from '../../services/firebaseAuthService';
 import { Ionicons } from '@expo/vector-icons';
 import { createStyles } from '../../../../shared/theme/createStyles';
@@ -10,11 +10,11 @@ const RegistrationScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmedPassword, setConfirmedPassword] = useState('');
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const navigation = useNavigation();
+  const navigation = useRootNavigation();
 
   const handleSignUp = async () => {
     try {
@@ -53,7 +53,8 @@ const RegistrationScreen = () => {
         { cancelable: false }
       );
     } catch (error) {
-      const errorMessage = error.message || 'An error occurred during registration. Please try again.';
+      const err = error as { message?: string };
+      const errorMessage = err.message || 'An error occurred during registration. Please try again.';
       setError(errorMessage);
       Alert.alert('Registration Error', errorMessage);
     } finally {
@@ -61,12 +62,12 @@ const RegistrationScreen = () => {
     }
   };
 
-  const isValidEmail = (email) => {
+  const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const isStrongPassword = (password) => {
+  const isStrongPassword = (password: string) => {
     const minLength = 8;
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);
@@ -82,14 +83,14 @@ const RegistrationScreen = () => {
     );
   };
 
-  const getPasswordStrength = (password) => {
+  const getPasswordStrength = (password: string): '' | 'Weak' | 'Good' | 'Strong' => {
     if (password.length === 0) return '';
     if (isStrongPassword(password)) return 'Strong';
     if (password.length >= 6) return 'Good';
     return 'Weak';
   };
 
-  const getPasswordStrengthColor = (strength) => {
+  const getPasswordStrengthColor = (strength: '' | 'Weak' | 'Good' | 'Strong') => {
     switch (strength) {
       case 'Weak':
         return colors.accent.error;
@@ -225,7 +226,7 @@ const styles = createStyles(() => ({
   strengthIndicator: {
     width: spacing[3],
     height: spacing[3],
-    borderRadius: radius.full,
+    borderRadius: 9999,
     marginRight: spacing[2],
   },
   strengthText: {

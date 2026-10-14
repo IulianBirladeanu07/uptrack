@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { sendPasswordResetEmail } from '../../services/firebaseAuthService';
-import { useNavigation } from '@react-navigation/native';
+import { useRootNavigation } from '../../../../shared/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
@@ -9,8 +9,8 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../../../share
 const ForgotPasswordScreen = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const navigation = useNavigation();
+  const [error, setError] = useState<string | null>(null);
+  const navigation = useRootNavigation();
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
@@ -41,7 +41,8 @@ const ForgotPasswordScreen = () => {
         { cancelable: false }
       );
     } catch (error) {
-      const errorMessage = error.message || 'Failed to send password reset email. Please try again.';
+      const err = error as { message?: string };
+      const errorMessage = err.message || 'Failed to send password reset email. Please try again.';
       setError(errorMessage);
       Alert.alert('Error', errorMessage);
       setLoading(false);
@@ -107,7 +108,7 @@ const styles = createStyles(() => ({
   iconContainer: {
     width: spacing[24],
     height: spacing[24],
-    borderRadius: radius.full,
+    borderRadius: 9999,
     backgroundColor: colors.faded.primary,
     justifyContent: 'center',
     alignItems: 'center',
