@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, memo, forwardRef, useMemo, useCallback, useImperativeHandle } from 'react';
+import type { ComponentProps } from 'react';
 import {
   View,
   Text,
@@ -9,19 +10,69 @@ import {
   KeyboardAvoidingView,
   Keyboard,
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import type { DimensionValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from './CustomFoodScreenStyle';
 import { colors } from '../../../../shared/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCustomFood } from '../../helpers/useCustomFood';
+import type { FieldHandle } from '../../helpers/useCustomFood';
 import { useFoodContext } from '../../context/FoodContext';
+import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import type { FoodFormData, Numeric } from '../../../../shared/types';
 
-const FoodInfoField = memo(forwardRef(({ label, field, iconName, unit, nextField, value, error, onChangeText, onFocus, onSubmitEditing }, ref) => {
-  const textInputRef = useRef(null);
-  const containerRef = useRef(null);
+type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
+type Field = keyof FoodFormData;
 
-  useImperativeHandle(ref, () => ({
+type FoodInfoFieldProps = {
+  label: string;
+  field: Field;
+  iconName?: IconName;
+  unit?: string;
+  nextField?: Field;
+  value?: Numeric | null | undefined;
+  error?: string | undefined;
+  onChangeText: (field: Field, text: string) => void;
+  onFocus: (field: Field) => void;
+  onSubmitEditing: (field: Field, nextField?: Field) => void;
+};
+
+type NutrientDataFieldProps = {
+  field: Field;
+  label: string;
+  color: string;
+  iconName?: IconName;
+  unit?: string;
+  width: DimensionValue;
+  nextField?: Field;
+  value?: Numeric | null | undefined;
+  onChangeText: (field: Field, text: string) => void;
+  onFocus: (field: Field) => void;
+  onSubmitEditing: (field: Field, nextField?: Field) => void;
+};
+
+type NutrientConfig = {
+  field: Field;
+  label: string;
+  color: string;
+  iconName: IconName;
+  unit: string;
+  width: DimensionValue;
+  nextField?: Field;
+};
+
+type FooterProps = {
+  foodData: FoodFormData;
+  handleSubmit: () => void;
+  onAmountChange: (value: string) => void;
+  visible: boolean;
+};
+
+const FoodInfoField = memo(forwardRef<FieldHandle, FoodInfoFieldProps>(({ label, field, iconName, unit, nextField, value, error, onChangeText, onFocus, onSubmitEditing }, ref) => {
+  const textInputRef = useRef<TextInput>(null);
+  const containerRef = useRef<View>(null);
+
+  useImperativeHandle<FieldHandle, FieldHandle>(ref, () => ({
     focus: () => {
       textInputRef.current?.focus();
     },
@@ -35,14 +86,14 @@ const FoodInfoField = memo(forwardRef(({ label, field, iconName, unit, nextField
       <View style={styles.labelContainer}>
         <Text style={styles.label}>{label}</Text>
       </View>
-      <View style={[styles.inputContainer, error && styles.errorInput]}>
+      <View style={[styles.inputContainer, !!error && styles.errorInput]}>
         {iconName && <MaterialCommunityIcons name={iconName} size={20} color={colors.accent.primary} style={styles.inputIcon} />}
         <TextInput
           ref={textInputRef}
           style={styles.input}
           placeholder={label === 'Name' ? 'e.g., Chicken Breast' : `Enter ${label.toLowerCase()}`}
           placeholderTextColor={colors.text.secondary}
-          value={value}
+          value={value == null ? '' : String(value)}
           onChangeText={(text) => onChangeText(field, text)}
           keyboardType={label === 'Name' ? 'default' : 'numeric'}
           onFocus={() => onFocus(field)}
@@ -59,11 +110,11 @@ const FoodInfoField = memo(forwardRef(({ label, field, iconName, unit, nextField
   );
 }));
 
-const NutrientDataField = memo(forwardRef(({ field, label, color, iconName, unit, width, nextField, value, onChangeText, onFocus, onSubmitEditing }, ref) => {
-  const textInputRef = useRef(null);
-  const containerRef = useRef(null);
+const NutrientDataField = memo(forwardRef<FieldHandle, NutrientDataFieldProps>(({ field, label, color, iconName, unit, width, nextField, value, onChangeText, onFocus, onSubmitEditing }, ref) => {
+  const textInputRef = useRef<TextInput>(null);
+  const containerRef = useRef<View>(null);
 
-  useImperativeHandle(ref, () => ({
+  useImperativeHandle<FieldHandle, FieldHandle>(ref, () => ({
     focus: () => {
       textInputRef.current?.focus();
     },
@@ -86,7 +137,7 @@ const NutrientDataField = memo(forwardRef(({ field, label, color, iconName, unit
           style={styles.nutrientInput}
           placeholder="0"
           placeholderTextColor={colors.text.secondary}
-          value={value}
+          value={value == null ? '' : String(value)}
           onChangeText={(text) => onChangeText(field, text)}
           keyboardType="numeric"
           onFocus={() => onFocus(field)}
@@ -103,13 +154,13 @@ const NutrientDataField = memo(forwardRef(({ field, label, color, iconName, unit
   );
 }));
 
-const Footer = memo(({ foodData, handleSubmit, onAmountChange, visible }) => {
+const Footer = memo(({ foodData, handleSubmit, onAmountChange, visible }: FooterProps) => {
   const insets = useSafeAreaInsets();
 
   if (!visible) return null;
 
   const canSubmit = !!foodData.productName && !!foodData.calories;
-  const formattedKcal = Math.round(foodData.calories || 0).toLocaleString();
+  const formattedKcal = Math.round(Number(foodData.calories) || 0).toLocaleString();
 
   return (
     <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
@@ -118,7 +169,7 @@ const Footer = memo(({ foodData, handleSubmit, onAmountChange, visible }) => {
           style={styles.amountInput}
           placeholder="Serving amount"
           placeholderTextColor={colors.text.secondary}
-          value={foodData.amount || ''}
+          value={String(foodData.amount || '')}
           onChangeText={onAmountChange}
           keyboardType="numeric"
           underlineColorAndroid="transparent"
@@ -146,16 +197,19 @@ const Footer = memo(({ foodData, handleSubmit, onAmountChange, visible }) => {
 });
 
 const CustomFoodScreen = () => {
-  const route = useRoute();
-  const { type, barcode, meal, selectedDate } = route.params;
+  const route = useAppRoute<'CustomFood'>();
+  const type = route.params?.type;
+  const barcode = route.params?.barcode;
+  const meal = route.params?.meal;
+  const selectedDate = route.params?.selectedDate;
   const { remainingCalories } = useFoodContext();
-  const navigation = useNavigation();
+  const navigation = useAppNavigation();
 
-  const scrollViewRef = useRef(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  const [activeTab, setActiveTab] = useState('essential');
+  const [activeTab, setActiveTab] = useState<'essential' | 'detailed'>('essential');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const [currentFocusedField, setCurrentFocusedField] = useState(null);
+  const [currentFocusedField, setCurrentFocusedField] = useState<Field | null>(null);
 
   const {
     foodData,
@@ -176,14 +230,14 @@ const CustomFoodScreen = () => {
     }
   }, [barcode]);
 
-  const handleFieldFocus = useCallback((field) => {
+  const handleFieldFocus = useCallback((field: Field) => {
     setCurrentFocusedField(field);
     originalHandleFieldFocus(field);
 
     setTimeout(() => {
       const inputRef = inputRefs[field];
       if (inputRef && inputRef.measure && scrollViewRef.current) {
-        inputRef.measure((x, y, width, height, pageX, pageY) => {
+        inputRef.measure((_x, _y, _w, _h, _pageX, pageY) => {
           scrollViewRef.current?.scrollTo({ 
             y: Math.max(0, pageY - 150), 
             animated: true 
@@ -212,17 +266,17 @@ const CustomFoodScreen = () => {
     };
   }, [focusFirstField]);
 
-  const macronutrients = useMemo(() => [
+  const macronutrients = useMemo<NutrientConfig[]>(() => [
     { field: 'carbohydrates', label: 'Carbs', color: colors.accent.success, iconName: 'leaf', unit: 'g', width: '31%', nextField: 'protein' },
     { field: 'protein', label: 'Protein', color: colors.accent.purple, iconName: 'food-drumstick', unit: 'g', width: '31%', nextField: 'fats' },
     { field: 'fats', label: 'Fats', color: colors.accent.cyan, iconName: 'water', unit: 'g', width: '31%', nextField: 'fiber' },
   ], []);
 
-  const otherNutrients = useMemo(() => [
+  const otherNutrients = useMemo<NutrientConfig[]>(() => [
     { field: 'fiber', label: 'Fiber', color: colors.accent.success, iconName: 'leaf', unit: 'g', width: '48%', nextField: 'sugar' },
     { field: 'sugar', label: 'Sugar', color: colors.accent.purple, iconName: 'cube-outline', unit: 'g', width: '48%', nextField: 'saturatedFats' },
     { field: 'saturatedFats', label: 'Sat Fat', color: colors.accent.cyan, iconName: 'water', unit: 'g', width: '48%', nextField: 'salt' },
-    { field: 'salt', label: 'Salt', color: colors.accent.primary, iconName: 'shaker-outline', unit: 'g', width: '48%', nextField: null },
+    { field: 'salt', label: 'Salt', color: colors.accent.primary, iconName: 'shaker-outline', unit: 'g', width: '48%' },
   ], []);
 
   const screenTitle = useMemo(() => {
@@ -251,7 +305,7 @@ const CustomFoodScreen = () => {
           <Text style={styles.header}>{screenTitle}</Text>
 
           <View style={styles.tabContainer}>
-            {['essential', 'detailed'].map((tab) => (
+            {(['essential', 'detailed'] as const).map((tab) => (
               <TouchableOpacity
                 key={tab}
                 style={[styles.tab, activeTab === tab && styles.activeTab]}

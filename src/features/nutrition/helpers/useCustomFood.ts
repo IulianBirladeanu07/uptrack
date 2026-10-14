@@ -1,11 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Alert, Keyboard } from 'react-native';
-import type { TextInput } from 'react-native';
+import type { View } from 'react-native';
 import { supabase } from '../../../shared/services/supabaseClient';
 import { validateFoodData } from '../utils/customFoodValidators';
 import { formatFoodDataForSubmission, getInitialFoodData, passesBarcodedProductsInsertPolicy, transformForBarcodeDB, transformForCustomFood } from '../utils/customFoodDataUtils';
 import type { AppNavigationProp } from '../../../shared/navigation';
 import type { FoodFormData, FoodFormErrors } from '../../../shared/types';
+
+export type FieldHandle = {
+    focus: () => void;
+    measure: View['measure'];
+};
 
 type Field = keyof FoodFormData;
 type FieldValue = FoodFormData[Field];
@@ -18,7 +23,7 @@ export const useCustomFood = (
     meal: string | undefined,
     selectedDate: string | undefined
 ) => {
-    const inputRefs = useRef<Record<string, TextInput | null>>({});
+    const inputRefs = useRef<Record<string, FieldHandle | null>>({});
     const validationTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     
     const [formData, setFormData] = useState<FoodFormData>(() => {
@@ -90,7 +95,7 @@ export const useCustomFood = (
         }
     }, []);
 
-    const registerInputRef = useCallback((field: Field) => (ref: TextInput | null) => {
+    const registerInputRef = useCallback((field: Field) => (ref: FieldHandle | null) => {
         inputRefs.current[field] = ref;
     }, []);
 
