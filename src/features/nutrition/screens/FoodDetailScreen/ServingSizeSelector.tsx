@@ -9,6 +9,7 @@ type ServingSizeSelectorProps = {
   servingUnit: string;
   onServingUnitPress: () => void;
   predefinedSizes?: number[];
+  maxQuantity?: number;
   onPredefinedSizePress: (size: number) => void;
 };
 
@@ -19,6 +20,7 @@ const ServingSizeSelector = ({
   onServingUnitPress,
   predefinedSizes = [],
   onPredefinedSizePress,
+  maxQuantity,
 }: ServingSizeSelectorProps) => {
   const [inputValue, setInputValue] = useState(String(quantity));
   const [errorMessage, setErrorMessage] = useState('');
@@ -46,10 +48,15 @@ const ServingSizeSelector = ({
       return;
     }
 
+    if (maxQuantity !== undefined && parsedValue > maxQuantity) {
+      setErrorMessage(`Quantity cannot exceed ${maxQuantity}.`);
+      return;
+    }
+
     setErrorMessage('');
     lastPushedValue.current = parsedValue;
     onQuantityChange(parsedValue);
-  }, [onQuantityChange]);
+  }, [onQuantityChange, maxQuantity]);
 
   const isQuantityPredefined = predefinedSizes.includes(quantity);
 

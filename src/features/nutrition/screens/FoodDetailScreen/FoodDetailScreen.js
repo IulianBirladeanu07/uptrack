@@ -162,6 +162,7 @@ const FoodDetailScreen = () => {
             servingUnit={servingUnit}
             onServingUnitPress={() => setUnitPickerVisible(true)}
             predefinedSizes={[50, 100, 150, 200]}
+            maxQuantity={MAX_QUANTITY}
             onPredefinedSizePress={handleQuantityChange}
           />
 
