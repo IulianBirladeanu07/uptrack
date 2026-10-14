@@ -1,7 +1,21 @@
 import { useRef, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { View, Text, TouchableOpacity, Animated, ScrollView } from 'react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../shared/theme';
 import { createStyles } from '../../../shared/theme/createStyles';
+
+type OnboardingStepScreenProps = {
+  title: string;
+  description: string;
+  children?: ReactNode;
+  onNext?: () => void;
+  onBack?: () => void;
+  isFinalStep?: boolean;
+  onSave?: () => void;
+  disableNext?: boolean;
+  disableBack?: boolean;
+  progress?: string;
+};
 
 const OnboardingStepScreen = ({
   title,
@@ -14,7 +28,7 @@ const OnboardingStepScreen = ({
   disableNext,
   disableBack,
   progress,
-}) => {
+}: OnboardingStepScreenProps) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
