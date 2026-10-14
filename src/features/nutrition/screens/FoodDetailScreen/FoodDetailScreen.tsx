@@ -1,14 +1,15 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import { memo, useState, useRef, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFoodContext } from '../../context/FoodContext';
 import { colors, spacing } from '../../../../shared/theme';
 import styles from './FoodDetailScreenStyle';
+import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import type { FoodDetailFood, MealType } from '../../../../shared/types';
 
-import MacroSection from './MacroSection'
+import MacroSection from './MacroSection';
 import NutrientRow from './NutrientRow';
 import ServingSizeSelector from './ServingSizeSelector';
 import UnitPickerModal from './UnitPickerModal';
@@ -23,22 +24,23 @@ const VALID_UNITS = Object.freeze(['g', 'oz', 'mL', 'cup', 'serving']);
 const MAX_QUANTITY = 9999;
 
 const FoodDetailScreen = () => {
-  const navigation = useNavigation();
-  const route = useRoute();
+  const navigation = useAppNavigation();
+  const route = useAppRoute<'FoodDetail'>();
   const insets = useSafeAreaInsets();
-  const { food, meal, update, foodId, selectedDate: rawSelectedDate } = route.params || {};
+  const { meal, update, foodId, selectedDate: rawSelectedDate } = route.params;
+  const food = route.params.food as FoodDetailFood | undefined;
+  const baseQuantity = food?.quantity == null ? null : Number(food.quantity);
   const selectedDate = rawSelectedDate ? new Date(rawSelectedDate) : new Date();
 
-  const { updateMealInDatabase, addMultipleFoods } = useFoodContext();
-  const scrollRef = useRef(null);
+  const { updateMealInDatabase } = useFoodContext();
+  const scrollRef = useRef<ScrollView>(null);
   
-  const [servingQuantity, setServingQuantity] = useState(food?.quantity || DEFAULT_SERVING.quantity);
+  const [servingQuantity, setServingQuantity] = useState(Number(food?.quantity) || DEFAULT_SERVING.quantity);
   const [servingUnit, setServingUnit] = useState(food?.unit || DEFAULT_SERVING.unit);
   const [unitPickerVisible, setUnitPickerVisible] = useState(false);
   const [isFavorite, setIsFavorite] = useState(food?.isFavorite || false);
 
-  const isMultipleFoods = useMemo(() => Array.isArray(meal?.foods), [meal]);
-  const foods = useMemo(() => (isMultipleFoods ? meal.foods : (food ? [food] : [])), [isMultipleFoods, meal, food]);
+  const foods = useMemo(() => (food ? [food] : []), [food]);
 
   const memoizedTotalNutrients = useMemo(() => 
     calculateTotalNutrients(foods, servingQuantity, servingUnit),
@@ -53,33 +55,31 @@ const FoodDetailScreen = () => {
     setIsFavorite(!isFavorite);
   }, [isFavorite]);
 
-  const handleQuantityChange = useCallback((newQuantity) => {
-    const num = parseFloat(newQuantity);
+  const handleQuantityChange = useCallback((newQuantity: number) => {
+    const num = parseFloat(String(newQuantity));
     if (!isNaN(num) && num > 0 && num <= MAX_QUANTITY) {
       setServingQuantity(Number(num.toFixed(2)));
     }
   }, []);
 
-  const handleUnitSelect = useCallback((newUnit) => {
+  const handleUnitSelect = useCallback((newUnit: string) => {
     if (!VALID_UNITS.includes(newUnit)) return;
     if (newUnit !== servingUnit) {
-      const converted = convertQuantity(servingQuantity, servingUnit, newUnit, food?.quantity, food?.unit);
+      const converted = convertQuantity(servingQuantity, servingUnit, newUnit, baseQuantity, food?.unit);
       setServingQuantity(Math.min(MAX_QUANTITY, converted));
       setServingUnit(newUnit);
     }
     setUnitPickerVisible(false);
-  }, [servingQuantity, servingUnit, food?.quantity, food?.unit]);
+  }, [servingQuantity, servingUnit, baseQuantity, food?.unit]);
 
   const handleAddFood = useCallback(async () => {
+    if (!food) return;
     const result = await handleFoodAddition({
       quantity: servingQuantity,
       unit: servingUnit,
       food,
       foodId,
-      meal,
-      isMultipleFoods,
-      foods,
-      addMultipleFoods,
+      meal: meal as MealType,
       updateMealInDatabase,
       selectedDate,
       update,
@@ -88,7 +88,11 @@ const FoodDetailScreen = () => {
     });
 
     if (result.success) {
-      navigation.navigate(result.navigation.screen, result.navigation.params);
+      if (result.navigation.screen === 'Nutrition') {
+        navigation.navigate('Nutrition', result.navigation.params);
+      } else {
+        navigation.navigate('FoodSelection', result.navigation.params);
+      }
     }
   }, [
     servingQuantity,
@@ -96,9 +100,6 @@ const FoodDetailScreen = () => {
     food,
     foodId,
     meal,
-    isMultipleFoods,
-    foods,
-    addMultipleFoods,
     updateMealInDatabase,
     selectedDate,
     update,
@@ -128,7 +129,7 @@ const FoodDetailScreen = () => {
       >
         <View style={[styles.heroSection, { paddingTop: insets.top }]}>
           <Image
-            source={typeof food.image === 'string' ? { uri: food.image } : food.image}
+            source={typeof food.image === 'string' ? { uri: food.image } : (food.image ?? null)}
             style={styles.foodImage}
             contentFit="contain"
           />
@@ -211,4 +212,4 @@ const FoodDetailScreen = () => {
   );
 };
 
-export default React.memo(FoodDetailScreen);
+export default memo(FoodDetailScreen);

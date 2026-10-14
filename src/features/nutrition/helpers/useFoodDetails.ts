@@ -1,21 +1,18 @@
 import { Alert } from 'react-native';
 import { scalingFactor } from './unitConversion';
 import type { AuthenticatedStackParamList } from '../../../shared/navigation';
-import type { FoodDetailFood, NutrientTotals, NutrientValues } from '../../../shared/types';
+import type { FoodDetailFood, MealType, NutrientTotals, NutrientValues } from '../../../shared/types';
 
 type FoodAdditionArgs = {
   quantity: number;
   unit: string;
   food: FoodDetailFood;
   foodId?: string | undefined;
-  meal: string;
-  isMultipleFoods: boolean;
-  foods: FoodDetailFood[];
-  addMultipleFoods: (meal: string, foods: FoodDetailFood[]) => Promise<unknown>;
-  updateMealInDatabase: (meal: string, foodId: string, details: FoodDetailFood) => Promise<unknown>;
+  meal: MealType;
+  updateMealInDatabase: (meal: MealType, foodId: string, details: FoodDetailFood) => Promise<unknown>;
   remainingCalories: number;
   selectedDate: Date | string;
-  update?: boolean;
+  update?: boolean | undefined;
   isFavorite: boolean;
 };
 
@@ -88,9 +85,6 @@ export const handleFoodAddition = async ({
   food,
   foodId,
   meal,
-  isMultipleFoods,
-  foods,
-  addMultipleFoods,
   updateMealInDatabase,
   remainingCalories,
   selectedDate,
@@ -117,26 +111,6 @@ export const handleFoodAddition = async ({
     mealType: food.mealType || meal,
     lastUpdated: new Date().toISOString(),
   };
-
-  if (isMultipleFoods) {
-    const updatedFoods = foods.map(foodItem => ({
-      ...foodItem,
-      quantity,
-      unit,
-      isFavorite: isFavorite,
-      mealType: foodItem.mealType || meal,
-      ...calculateNutrientValue(foodItem, quantity, unit),
-    }));
-
-    addMultipleFoods(meal, updatedFoods).catch(() => {});
-    return {
-      success: true,
-      navigation: {
-        screen: 'Nutrition',
-        params: { refresh: true, meal }
-      }
-    };
-  }
 
   if (update) {
     updateMealInDatabase(meal, currentFoodId, updatedFoodDetails).catch(() => {});
