@@ -1,6 +1,5 @@
 import { supabase } from '../../../shared/services/supabaseClient';
 import type {
-  BarcodedProduct,
   NonBarcodedProduct,
   ProductFilter,
   ProductSearchResult,
@@ -182,32 +181,4 @@ const calculateRelevanceScore = (product: NonBarcodedProduct, searchQuery: strin
   }
 
   return maxScore;
-};
-
-export const fetchBarcodedProducts = async (
-  limitCount: number | null = null,
-  lastVisibleDoc: string | null = null
-): Promise<BarcodedProduct[]> => {
-  try {
-    let queryBuilder = supabase.from('barcoded_products').select('*');
-
-    if (limitCount) {
-      queryBuilder = queryBuilder.limit(limitCount);
-    }
-
-    if (lastVisibleDoc) {
-      queryBuilder = queryBuilder.gt('id', lastVisibleDoc);
-    }
-
-    const { data: products, error } = await queryBuilder;
-
-    if (error) {
-      throw new Error(`Supabase error: ${error.message}`);
-    }
-
-    return products ?? [];
-  } catch (error) {
-    console.error('Error fetching barcoded products:', errorMessage(error));
-    throw error;
-  }
 };

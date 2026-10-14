@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Linking } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import styles from './BarcodeScannerScreenStyle';
 import { useBarcodeScanner } from '../../helpers/useBarcodeScanner';
-import { productCache } from '../../utils/productCache';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
-import type { BarcodedProduct } from '../../../../shared/types';
 
 type ScannerOverlayProps = {
   isScanning: boolean;
@@ -77,8 +75,6 @@ const ScannerOverlay = ({
 const BarcodeScannerScreen = () => {
   const navigation = useAppNavigation();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [barcodedProducts, setBarcodedProducts] = useState<BarcodedProduct[]>([]);
-  const [isLoadingDatabase, setIsLoadingDatabase] = useState(true);
   const scanLineAnimation = useRef(new Animated.Value(0)).current;
   
   const route = useAppRoute<'BarcodeScanner'>();
@@ -94,7 +90,7 @@ const BarcodeScannerScreen = () => {
     errorOpacity,
     handleBarcodeScanned,
     resumeScanning,
-  } = useBarcodeScanner(barcodedProducts, navigation, meal, selectedDate);
+  } = useBarcodeScanner(navigation, meal, selectedDate);
 
   useEffect(() => {
     if (currentProduct && !isScanning) {
@@ -107,29 +103,7 @@ const BarcodeScannerScreen = () => {
   }, [currentProduct, isScanning, navigation, meal, selectedDate]);
 
   useEffect(() => {
-    const loadBarcodedProducts = async () => {
-      try {
-        setIsLoadingDatabase(true);
-        const products = await productCache.getProducts();
-        setBarcodedProducts(products ?? []);
-      } catch (error) {
-        console.error('Failed to load barcoded products', error);
-        Alert.alert(
-          'Database Error',
-          'Failed to load product database. Some features may not work properly.',
-          [{ text: 'OK' }]
-        );
-      } finally {
-        setIsLoadingDatabase(false);
-      }
-    };
-
-    loadBarcodedProducts();
-
-    const unsubscribe = navigation.addListener('focus', () => {
-      resumeScanning();
-      loadBarcodedProducts();
-    });
+    const unsubscribe = navigation.addListener('focus', resumeScanning);
 
     return unsubscribe;
   }, [navigation, resumeScanning]);
@@ -208,12 +182,6 @@ const BarcodeScannerScreen = () => {
 
   return (
     <View style={styles.container}>
-      {isLoadingDatabase && (
-        <View style={styles.databaseLoadingContainer}>
-          <Text style={styles.databaseLoadingText}>Loading product database...</Text>
-        </View>
-      )}
-
       {!isScanning && (
         <View style={styles.header}>
           <TouchableOpacity onPress={closeScanner} style={styles.backButton}>

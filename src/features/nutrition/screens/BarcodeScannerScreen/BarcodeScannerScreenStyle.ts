@@ -178,20 +178,6 @@ const styles = StyleSheet.create({
     marginTop: normalize(10),
     fontSize: normalize(16),
   },
-  databaseLoadingContainer: {
-    position: 'absolute',
-    top: normalize(100),
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    padding: normalize(10),
-    alignItems: 'center',
-  },
-  databaseLoadingText: {
-    color: 'white',
-    fontSize: normalize(14),
-  },
 });
 
 export default styles;
