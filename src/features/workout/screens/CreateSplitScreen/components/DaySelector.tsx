@@ -12,7 +12,7 @@ type DayItem = {
 
 type DaySelectorProps = {
   days: DayItem[];
-  selectedDayId: string | null | undefined;
+  selectedDayId: string | number | null | undefined;
   onSelectDay: (id: string) => void;
   layout?: 'row' | 'wrap' | 'scroll' | string;
   showLabels?: boolean;

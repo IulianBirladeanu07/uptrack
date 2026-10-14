@@ -154,12 +154,33 @@ const styles = createStyles(() => ({
     },
 }));
 
-const formatRestTime = (seconds) => {
-    if (!seconds) return '3m';
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.floor(seconds / 60);
-    const remaining = seconds % 60;
+const formatRestTime = (seconds?: number | string | null) => {
+    const n = Number(seconds);
+    if (!n) return '3m';
+    if (n < 60) return `${n}s`;
+    const minutes = Math.floor(n / 60);
+    const remaining = n % 60;
     return remaining === 0 ? `${minutes}m` : `${minutes}m ${remaining}s`;
+};
+
+type ReviewExercise = {
+    id?: string;
+    exerciseName?: string;
+    name?: string;
+    numSets?: number | string;
+    repRange?: string;
+    muscleGroup?: string;
+    note?: string;
+    notes?: string;
+    restTime?: number | string;
+};
+
+type ReviewStepProps = {
+    templateName?: string;
+    setCurrentStep?: (step: number) => void;
+    exercises?: ReviewExercise[];
+    note?: string;
+    duration?: number;
 };
 
 const ReviewStep = memo(({
@@ -168,11 +189,11 @@ const ReviewStep = memo(({
     exercises = [],
     note = '',
     duration = 0,
-}) => {
-    const totalSets = exercises.reduce((sum, ex) => sum + parseInt(ex?.numSets || 0), 0);
+}: ReviewStepProps) => {
+    const totalSets = exercises.reduce((sum, ex) => sum + parseInt(String(ex?.numSets || 0), 10), 0);
     const muscleGroups = [...new Set(exercises.map(ex => ex?.muscleGroup || '').filter(Boolean))];
 
-    const [expandedExercise, setExpandedExercise] = useState(null);
+    const [expandedExercise, setExpandedExercise] = useState<string | number | null>(null);
 
     return (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.container}>

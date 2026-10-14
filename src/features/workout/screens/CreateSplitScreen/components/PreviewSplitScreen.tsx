@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,31 @@ import {
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAppNavigation, useAppRoute } from '../../../../../shared/navigation';
+import type { WorkoutSplit } from '../../../types';
+
+type PreviewExercise = {
+  numSets?: number | string;
+  sets?: number | string;
+  exerciseName?: string;
+  muscleGroup?: string;
+  repRange?: string;
+  [key: string]: unknown;
+};
+
+type PreviewDayWorkout = {
+  id?: string;
+  name?: string;
+  templateName?: string;
+  duration?: number | string;
+  exercises?: PreviewExercise[];
+  [key: string]: unknown;
+};
+
+type PreviewSplit = WorkoutSplit & {
+  schedule?: Record<string, PreviewDayWorkout | null | undefined>;
+  type?: string;
+};
 import { getAuth } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { colors, spacing } from '../../../../../shared/theme';
@@ -22,21 +47,25 @@ import styles from './PreviewSplitScreenStyle';
 import DaySelector from './DaySelector';
 import MuscleCoverageCard from './MuscleCoverageCard';
 import WorkoutExercisePreview, { ExercisePreviewList } from '../../../components/WorkoutExercisePreview/WorkoutExercisePreview';
-import { getCycleLength, getWorkoutsPerWeek, isRotationSplit, toDateKey } from '../../../utils/splitSchedule';
+import { getCycleLength, getWorkoutsPerWeek, isRotationSplit, toDateKey, type SplitLike } from '../../../utils/splitSchedule';
+
+const asSplit = (s: PreviewSplit | null | undefined): SplitLike => s as SplitLike;
 
 const MAJOR_MUSCLE_GROUPS = ['Chest', 'Back', 'Biceps', 'Quads', 'Hamstring', 'Delts', 'Triceps'];
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
-const PreviewSplitScreen = ({ route, navigation }) => {
+const PreviewSplitScreen = () => {
+  const navigation = useAppNavigation();
+  const route = useAppRoute<'PreviewSplit'>();
   const { splitData } = route.params || {};
-  const [split, setSplit] = useState(splitData);
+  const [split, setSplit] = useState<PreviewSplit | null | undefined>(splitData as PreviewSplit | undefined);
 
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [activating, setActivating] = useState(false);
 
-  const { userData, refreshUserData } = useContext(AuthContext);
-  const { activeWorkout } = useContext(WorkoutContext);
+  const { userData, refreshUserData } = useContext(AuthContext)!;
+  const { activeWorkout } = useContext(WorkoutContext)!;
   const isActiveSplit = !!split?.id && userData?.activeSplitId === split.id;
   const insets = useSafeAreaInsets();
 
@@ -47,7 +76,7 @@ const PreviewSplitScreen = ({ route, navigation }) => {
       if (split.type === 'weekly') {
         setSelectedDay(todayKey);
       } else if (split.type === 'rotation') {
-        const rotationDays = Object.keys(split.schedule).sort((a, b) => parseInt(a) - parseInt(b));
+        const rotationDays = Object.keys(split.schedule || {}).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
         if (rotationDays.length > 0) {
           setSelectedDay(rotationDays[0]);
         }
@@ -67,7 +96,7 @@ const PreviewSplitScreen = ({ route, navigation }) => {
         { id: 'sunday', name: 'Sunday', shortLabel: 'S' },
       ];
     } else if (split?.type === 'rotation') {
-      const dayCount = getCycleLength(split);
+      const dayCount = getCycleLength(asSplit(split));
       return Array.from({ length: dayCount }, (_, i) => ({
         id: `${i + 1}`,
         name: `Day ${i + 1}`,
@@ -77,14 +106,15 @@ const PreviewSplitScreen = ({ route, navigation }) => {
     return [];
   }, [split]);
 
-  const selectedDayWorkout = useMemo(() => {
-    return selectedDay ? split?.schedule?.[selectedDay] : null;
+  const selectedDayWorkout = useMemo((): PreviewDayWorkout | null => {
+    if (!selectedDay) return null;
+    return split?.schedule?.[selectedDay] ?? null;
   }, [selectedDay, split]);
 
   const selectedDayStats = useMemo(() => {
     if (!selectedDayWorkout) return null;
     const totalSets = selectedDayWorkout.exercises?.reduce(
-      (acc, ex) => acc + (parseInt(ex.numSets) || parseInt(ex.sets) || 0),
+      (acc, ex) => acc + (parseInt(String(ex.numSets ?? 0), 10) || parseInt(String(ex.sets ?? 0), 10) || 0),
       0
     ) || 0;
     return {
@@ -96,14 +126,14 @@ const PreviewSplitScreen = ({ route, navigation }) => {
 
   const compositionStats = useMemo(() => {
     const schedule = split?.schedule || {};
-    const workouts = Object.values(schedule).filter(w => w !== null);
+    const workouts = Object.values(schedule).filter((w): w is PreviewDayWorkout => w != null);
 
     let totalSets = 0;
     let totalDuration = 0;
     workouts.forEach(workout => {
-      totalDuration += workout.duration || 0;
+      totalDuration += Number(workout?.duration) || 0;
       workout.exercises?.forEach(exercise => {
-        totalSets += parseInt(exercise.numSets) || parseInt(exercise.sets) || 0;
+        totalSets += Number(exercise.numSets) || Number(exercise.sets) || 0;
       });
     });
 
@@ -112,12 +142,12 @@ const PreviewSplitScreen = ({ route, navigation }) => {
 
   const muscleGroupSets = useMemo(() => {
     const schedule = split?.schedule || {};
-    const workouts = Object.values(schedule).filter(w => w !== null);
-    const sets = {};
+    const workouts = Object.values(schedule).filter((w): w is PreviewDayWorkout => w != null);
+    const sets: Record<string, number> = {};
 
     workouts.forEach(workout => {
       workout.exercises?.forEach(exercise => {
-        const count = parseInt(exercise.numSets) || parseInt(exercise.sets) || 0;
+        const count = Number(exercise.numSets) || Number(exercise.sets) || 0;
         if (exercise.muscleGroup) {
           sets[exercise.muscleGroup] = (sets[exercise.muscleGroup] || 0) + count;
         }
@@ -125,7 +155,7 @@ const PreviewSplitScreen = ({ route, navigation }) => {
     });
 
     return Object.entries(sets)
-      .sort(([, a], [, b]) => b - a)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
       .map(([muscle, count]) => ({ muscle, sets: count }));
   }, [split]);
 
@@ -146,20 +176,24 @@ const PreviewSplitScreen = ({ route, navigation }) => {
         refreshUserData(),
       ]);
 
-      const match = splitsData?.find(s => (s.id || s.data?.id) === split?.id);
+      // Firestore split docs are loosely shaped
+      const match = (splitsData as any[] | undefined)?.find(
+        (s: any) => (s?.id || s?.data?.id) === split?.id,
+      );
       if (match) {
+        const data = match.data || {};
         setSplit({
-          id: match.id || match.data?.id,
-          name: match.name || match.data?.name,
-          templateName: match.templateName || match.data?.templateName,
-          description: match.description || match.data?.description,
-          type: match.type || match.data?.type,
-          schedule: match.schedule || match.data?.schedule || {},
-          durationWeeks: match.durationWeeks || match.data?.durationWeeks || 8,
-        });
+          id: match.id || data.id,
+          name: match.name || data.name,
+          templateName: match.templateName || data.templateName,
+          description: match.description || data.description,
+          type: match.type || data.type,
+          schedule: match.schedule || data.schedule || {},
+          durationWeeks: match.durationWeeks || data.durationWeeks || 8,
+        } as PreviewSplit);
       }
     } catch (error) {
-      console.error('Error refreshing split:', error.message);
+      console.error('Error refreshing split:', error instanceof Error ? error.message : error);
     } finally {
       setRefreshing(false);
     }
@@ -175,7 +209,7 @@ const PreviewSplitScreen = ({ route, navigation }) => {
     }, [handleRefresh])
   );
 
-  const handleStartWorkout = useCallback((workout) => {
+  const handleStartWorkout = useCallback((workout: PreviewDayWorkout | null | undefined) => {
     if (!workout || activeWorkout) return;
     navigation.navigate('StartWorkout', {
       selectedWorkout: workout,
@@ -191,21 +225,26 @@ const PreviewSplitScreen = ({ route, navigation }) => {
   }, [navigation, split]);
 
   const handleActivateSplit = useCallback(async () => {
-    if (isActiveSplit || activating) return;
+    if (!split || isActiveSplit || activating) return;
 
     setActivating(true);
     try {
-      const update = {
+      const update: {
+        activeSplitId: string | undefined;
+        targetWorkoutsPerWeek: number;
+        rotationStartDate?: string;
+      } = {
         activeSplitId: split.id,
-        targetWorkoutsPerWeek: getWorkoutsPerWeek(split) || 5,
+        targetWorkoutsPerWeek: getWorkoutsPerWeek(asSplit(split)) || 5,
       };
-      if (isRotationSplit(split)) update.rotationStartDate = toDateKey(new Date());
+      if (isRotationSplit(asSplit(split))) update.rotationStartDate = toDateKey(new Date());
       const uid = getAuth().currentUser?.uid;
+      if (!uid) return;
 
       await setDoc(doc(db, 'users', uid), update, { merge: true });
 
       await refreshUserData();
-      Alert.alert('Split Activated', `"${split.name}" is now your active split.`);
+      Alert.alert('Split Activated', `"${split?.name ?? 'Split'}" is now your active split.`);
     } catch (error) {
       Alert.alert('Error', 'Failed to activate split.');
     } finally {
@@ -245,7 +284,7 @@ const PreviewSplitScreen = ({ route, navigation }) => {
         }
       >
         <View style={[styles.contentContainer, { paddingBottom: spacing[7] + insets.bottom }]}>
-          <View style={[styles.heroCard, isActiveSplit && styles.heroCardActive]}>
+          <View style={[styles.heroCard, isActiveSplit && styles.heroCard]}>
             <View style={styles.heroTop}>
               <TouchableOpacity
                 style={styles.iconButton}
@@ -329,15 +368,15 @@ const PreviewSplitScreen = ({ route, navigation }) => {
                 <View style={styles.workoutMetaRow}>
                   <View style={styles.workoutMetaItem}>
                     <Ionicons name="time-outline" size={spacing.iconSm} color={colors.text.quaternary} />
-                    <Text style={styles.workoutMetaText}>{selectedDayStats.duration}m</Text>
+                    <Text style={styles.workoutMetaText}>{selectedDayStats?.duration}m</Text>
                   </View>
                   <View style={styles.workoutMetaItem}>
                     <Ionicons name="barbell-outline" size={spacing.iconSm} color={colors.text.quaternary} />
-                    <Text style={styles.workoutMetaText}>{selectedDayStats.exerciseCount} exercises</Text>
+                    <Text style={styles.workoutMetaText}>{selectedDayStats?.exerciseCount} exercises</Text>
                   </View>
                   <View style={styles.workoutMetaItem}>
                     <Ionicons name="layers-outline" size={spacing.iconSm} color={colors.text.quaternary} />
-                    <Text style={styles.workoutMetaText}>{selectedDayStats.totalSets} sets</Text>
+                    <Text style={styles.workoutMetaText}>{selectedDayStats?.totalSets} sets</Text>
                   </View>
                 </View>
               </View>
@@ -345,7 +384,7 @@ const PreviewSplitScreen = ({ route, navigation }) => {
               {canStartFromHere ? (
                 <WorkoutExercisePreview
                   exercises={selectedDayWorkout.exercises || []}
-                  activeWorkout={activeWorkout}
+                  activeWorkout={!!activeWorkout}
                   onStart={() => handleStartWorkout(selectedDayWorkout)}
                 />
               ) : (

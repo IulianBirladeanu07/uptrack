@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { colors, spacing, fontSize } from '../../../../../shared/theme';
+import { colors, spacing } from '../../../../../shared/theme';
 import styles from './ReviewStepStyles';
 import DaySelector from '../components/DaySelector';
 import MuscleCoverageCard from '../components/MuscleCoverageCard';
@@ -9,8 +9,36 @@ import { daysOfWeek } from '../constants/CreateSplitScreenConstants';
 
 const MAJOR_MUSCLE_GROUPS = ['Chest', 'Back', 'Biceps', 'Quads', 'Hamstring', 'Delts', 'Triceps'];
 
-const ReviewStep = ({ splitData, setCurrentStep }) => {
-  const [selectedDay, setSelectedDay] = useState(null);
+type DayWorkout = {
+  id?: string;
+  name?: string;
+  templateName?: string;
+  duration?: number | string;
+  exercises?: Array<{
+    exerciseName?: string;
+    numSets?: number | string;
+    sets?: number | string;
+    muscleGroup?: string;
+    repRange?: string;
+  }>;
+  [key: string]: unknown;
+};
+
+type SplitReviewData = {
+  name?: string;
+  type?: string;
+  durationWeeks?: number | string;
+  schedule?: Record<string, DayWorkout | null | undefined>;
+  [key: string]: unknown;
+};
+
+type ReviewStepProps = {
+  splitData: SplitReviewData;
+  setCurrentStep: (step: number) => void;
+};
+
+const ReviewStep = ({ splitData, setCurrentStep }: ReviewStepProps) => {
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const isWeeklySchedule = splitData.type === 'weekly';
   const isRotationSchedule = splitData.type === 'rotation';
@@ -44,18 +72,18 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
 
   const stats = useMemo(() => {
     const schedule = splitData.schedule || {};
-    const workouts = Object.values(schedule).filter(w => w !== null);
+    const workouts = Object.values(schedule).filter((w): w is DayWorkout => w != null);
     const workoutDays = workouts.length;
 
     let totalDuration = 0;
     let totalSets = 0;
-    let muscleGroupSets = {};
+    let muscleGroupSets: Record<string, number> = {};
 
     workouts.forEach(workout => {
-      totalDuration += workout.duration || 0;
+      totalDuration += Number(workout?.duration) || 0;
 
-      workout.exercises?.forEach(exercise => {
-        const sets = parseInt(exercise.numSets) || parseInt(exercise.sets) || 0;
+      workout.exercises?.forEach((exercise: NonNullable<DayWorkout['exercises']>[number]) => {
+        const sets = parseInt(String(exercise.numSets ?? 0), 10) || parseInt(String(exercise.sets ?? 0), 10) || 0;
         totalSets += sets;
 
         if (exercise.muscleGroup) {
@@ -65,7 +93,7 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
     });
 
     const muscleGroupsArray = Object.entries(muscleGroupSets)
-      .sort(([, a], [, b]) => b - a)
+      .sort(([, a], [, b]) => Number(b) - Number(a))
       .map(([muscle, sets]) => ({ muscle, sets }));
 
     return {
@@ -120,7 +148,7 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
 
   const renderSchedule = () => {
     const schedule = splitData.schedule || {};
-    const selectedWorkout = schedule[selectedDay];
+    const selectedWorkout = schedule[selectedDay ?? ''] ?? null;
     const isRestDay = !selectedWorkout;
 
     const muscleGroups = selectedWorkout?.exercises
@@ -139,6 +167,7 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
           <DaySelector
             days={scheduleDays.map(day => ({
               id: day.id,
+              name: day.name ?? day.id,
               shortLabel: day.shortLabel,
               hasWorkout: !!schedule[day.id],
             }))}
@@ -183,7 +212,7 @@ const ReviewStep = ({ splitData, setCurrentStep }) => {
               <View style={styles.workoutMetric}>
                 <Ionicons name="barbell" size={spacing.iconSm} color={colors.text.quaternary} />
                 <Text style={styles.workoutMetricText}>
-                  {selectedWorkout.exercises?.reduce((total, ex) => total + (parseInt(ex.numSets) || 0), 0) || 0} sets
+                  {selectedWorkout.exercises?.reduce((total: number, ex: { numSets?: number | string }) => total + (parseInt(String(ex.numSets ?? 0), 10) || 0), 0) || 0} sets
                 </Text>
               </View>
             </View>

@@ -1,11 +1,29 @@
-import React from 'react';
+import { memo, type ComponentProps } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { colors, spacing } from '../../../../../shared/theme';
 import styles from './BasicInfoStepStyles';
 
-const BasicInfoStep = ({ splitData, handleChange }) => {
-  const renderSplitTypeOption = (type, icon, title, subtitle) => {
+type SplitData = {
+  name?: string;
+  type?: string;
+  durationWeeks?: number | string;
+  description?: string;
+  [key: string]: unknown;
+};
+
+type BasicInfoStepProps = {
+  splitData: SplitData;
+  handleChange: (field: string, value: unknown) => void;
+};
+
+const BasicInfoStep = ({ splitData, handleChange }: BasicInfoStepProps) => {
+  const renderSplitTypeOption = (
+    type: string,
+    icon: ComponentProps<typeof Ionicons>['name'],
+    title: string,
+    subtitle: string,
+  ) => {
     const isSelected = splitData.type === type;
     return (
       <TouchableOpacity
@@ -84,7 +102,7 @@ const BasicInfoStep = ({ splitData, handleChange }) => {
               />
               <View style={styles.noteHelperContainer}>
                 <Text style={styles.noteHelper}>Be specific about your goals</Text>
-                <Text style={styles.charCount}>{splitData.description.length} / 200</Text>
+                <Text style={styles.charCount}>{(splitData.description ?? '').length} / 200</Text>
               </View>
             </View>
 
@@ -102,4 +120,4 @@ const BasicInfoStep = ({ splitData, handleChange }) => {
   );
 };
 
-export default React.memo(BasicInfoStep);
+export default memo(BasicInfoStep);

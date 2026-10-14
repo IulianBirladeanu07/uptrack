@@ -1,4 +1,4 @@
-import { useCallback, memo } from 'react';
+import { useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Slider from '../../../../../shared/components/Slider/CustomSlider';
@@ -133,10 +133,21 @@ const DAYS_OF_WEEK = [
     { id: 'sunday', label: 'S' },
 ];
 
-export const BasicInfoStep = ({ templateName, setTemplateName, note, setNote, duration, setDuration, preferredDays = [], setPreferredDays }) => {
-    const handleSlidingComplete = useCallback((value) => setDuration(value), [setDuration]);
+type BasicInfoStepProps = {
+    templateName: string;
+    setTemplateName: (name: string) => void;
+    note: string;
+    setNote: (note: string) => void;
+    duration: number;
+    setDuration: (duration: number) => void;
+    preferredDays?: string[];
+    setPreferredDays: (days: string[] | ((prev: string[]) => string[])) => void;
+};
 
-    const handleDayToggle = useCallback((dayId) => {
+export const BasicInfoStep = ({ templateName, setTemplateName, note, setNote, duration, setDuration, preferredDays = [], setPreferredDays }: BasicInfoStepProps) => {
+    const handleSlidingComplete = useCallback((value: number) => setDuration(value), [setDuration]);
+
+    const handleDayToggle = useCallback((dayId: string) => {
         setPreferredDays(prev =>
             prev.includes(dayId) ? prev.filter(id => id !== dayId) : [...prev, dayId]
         );

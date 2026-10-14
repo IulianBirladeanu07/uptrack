@@ -8,6 +8,33 @@ import WorkoutPreviewCard from '../components/WorkoutPreviewCard';
 import DaySelector from '../components/DaySelector';
 import { daysOfWeek } from '../constants/CreateSplitScreenConstants';
 
+type ScheduleWorkout = {
+  id?: string;
+  name?: string;
+  templateName?: string;
+  exercises?: Array<{ exerciseName?: string; numSets?: number | string; repRange?: string; [key: string]: unknown }>;
+  duration?: number | string;
+  [key: string]: unknown;
+};
+
+type ScheduleSplitData = {
+  type?: string;
+  schedule?: Record<string, ScheduleWorkout | null | undefined>;
+  [key: string]: unknown;
+};
+
+type ScheduleStepProps = {
+  splitData: ScheduleSplitData;
+  workouts: ScheduleWorkout[];
+  selectedDay: string | number | null;
+  setSelectedDay: (day: string | number | null) => void;
+  handleDayAssignment: (workout: ScheduleWorkout | null, dayId: string | number | null) => void;
+  handleAddRotationDay: (count?: number) => void;
+  handleRemoveRotationDay: (dayId: string | number) => void;
+  handleRemoveWorkout: (dayId: string | number) => void;
+  navigation: { navigate: (screen: string, params?: object) => void };
+};
+
 const ScheduleStep = ({
   splitData,
   workouts,
@@ -18,7 +45,7 @@ const ScheduleStep = ({
   handleRemoveRotationDay,
   handleRemoveWorkout,
   navigation,
-}) => {
+}: ScheduleStepProps) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [rotationDaysInput, setRotationDaysInput] = useState('');
 
@@ -30,11 +57,11 @@ const ScheduleStep = ({
 
     const schedule = splitData.schedule || {};
     const existingNumbers = Object.keys(schedule)
-      .map(key => parseInt(key))
+      .map(key => parseInt(key, 10))
       .filter(num => !isNaN(num))
       .sort((a, b) => a - b);
 
-    const dayCount = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 5;
+    const dayCount = existingNumbers.length > 0 ? Math.max(0, ...existingNumbers) : 5;
 
     return Array.from({ length: dayCount }, (_, i) => ({
       id: i + 1,
@@ -45,14 +72,14 @@ const ScheduleStep = ({
   }, [isRotationSchedule, splitData.schedule]);
 
   const currentScheduleDays = isWeeklySchedule ? daysOfWeek : rotationDays;
-  const assignedCount = Object.values(splitData.schedule).filter(w => w !== null).length;
+  const assignedCount = Object.values(splitData.schedule ?? {}).filter(w => w != null).length;
 
   const currentDayWorkout = useMemo(() =>
-    splitData.schedule[selectedDay],
+    (splitData.schedule ?? {})[selectedDay ?? ''],
     [splitData.schedule, selectedDay]
   );
 
-  const handleWorkoutRemoval = useCallback((dayId) => {
+  const handleWorkoutRemoval = useCallback((dayId: string) => {
     if (handleRemoveWorkout) {
       handleRemoveWorkout(dayId);
     }
@@ -64,7 +91,7 @@ const ScheduleStep = ({
     setIsModalVisible(true);
   }, [isRotationSchedule, rotationDays.length]);
 
-  const updateRotationDays = useCallback((newDayCount) => {
+  const updateRotationDays = useCallback((newDayCount: number) => {
     const currentDayCount = rotationDays.length;
 
     if (newDayCount === currentDayCount) {
@@ -85,7 +112,7 @@ const ScheduleStep = ({
       }
     }
 
-    if (selectedDay > newDayCount) {
+    if (selectedDay != null && Number(selectedDay) > newDayCount) {
       setSelectedDay(1);
     }
   }, [handleAddRotationDay, handleRemoveRotationDay, rotationDays.length, selectedDay, setSelectedDay]);
@@ -106,7 +133,7 @@ const ScheduleStep = ({
     if (newDayCount < rotationDays.length) {
       const wouldLoseWorkouts = rotationDays
         .slice(newDayCount)
-        .some(day => splitData.schedule[day.number]);
+        .some(day => (splitData.schedule ?? {})[String((day as { number?: number }).number ?? '')]);
 
       if (wouldLoseWorkouts) {
         Alert.alert(
@@ -134,7 +161,7 @@ const ScheduleStep = ({
 
   const workoutStats = useMemo(() => {
     const assigned = workouts.filter(workout =>
-      Object.values(splitData.schedule).some(w => w?.id === workout.id)
+      Object.values(splitData.schedule ?? {}).some(w => w?.id === workout.id)
     ).length;
     const unassigned = workouts.length - assigned;
     const restDays = isWeeklySchedule ? 7 - assignedCount : 0;
@@ -151,7 +178,7 @@ const ScheduleStep = ({
   };
 
   React.useEffect(() => {
-    if (isRotationSchedule && Object.keys(splitData.schedule).length === 0 && handleAddRotationDay) {
+    if (isRotationSchedule && Object.keys(splitData.schedule ?? {}).length === 0 && handleAddRotationDay) {
       for (let i = 1; i <= 5; i++) {
         handleAddRotationDay(i);
       }
@@ -179,12 +206,12 @@ const ScheduleStep = ({
           <View style={[styles.dayPillsScrollView, { marginHorizontal: spacing[5] }]}>
             <DaySelector
               days={currentScheduleDays.map(day => ({
-                id: day.id,
+                id: String(day.id),
                 shortLabel: day.shortLabel,
                 name: day.name,
-                hasWorkout: !!splitData.schedule[day.id],
+                hasWorkout: !!(splitData.schedule ?? {})[day.id],
               }))}
-              selectedDayId={selectedDay}
+              selectedDayId={selectedDay == null ? null : String(selectedDay)}
               onSelectDay={setSelectedDay}
               layout="row"
               showLabels
@@ -193,12 +220,13 @@ const ScheduleStep = ({
         ) : (
           <View style={styles.dayPillsScrollView}>
             <DaySelector
-              days={currentScheduleDays.map(day => ({
-                id: day.number,
-                shortLabel: day.shortLabel,
-                hasWorkout: !!splitData.schedule[day.number],
+              days={currentScheduleDays.map((day: any) => ({
+                id: String(day.number ?? day.id),
+                shortLabel: String(day.shortLabel ?? day.number ?? ''),
+                name: String(day.name ?? `Day ${day.number ?? day.id}`),
+                hasWorkout: !!(splitData.schedule ?? {})[String(day.number ?? day.id)],
               }))}
-              selectedDayId={selectedDay}
+              selectedDayId={selectedDay == null ? null : String(selectedDay)}
               onSelectDay={setSelectedDay}
               layout="scroll"
               trailingContent={
@@ -251,9 +279,9 @@ const ScheduleStep = ({
               <WorkoutPreviewCard
                 key={workout.id}
                 workout={workout}
-                onSelect={workout => handleDayAssignment(workout, selectedDay)}
+                onSelect={workout => handleDayAssignment(workout as ScheduleWorkout, selectedDay)}
                 onRemove={handleWorkoutRemoval}
-                selectedDay={selectedDay}
+                selectedDay={selectedDay == null ? null : String(selectedDay)}
                 splitData={splitData}
               />
             ))

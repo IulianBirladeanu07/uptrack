@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import DraggableFlatList from 'react-native-draggable-flatlist';
-import ExerciseItem from '../../../components/ExerciseItem/ExerciseItem';
+import ExerciseItemJS from '../../../components/ExerciseItem/ExerciseItem';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ExerciseItem = ExerciseItemJS as any;
 import { createStyles } from '../../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../../shared/theme';
 
@@ -15,6 +17,30 @@ const EmptyState = () => (
     </View>
 );
 
+type ExerciseRow = {
+    id: string;
+    exerciseName?: string;
+    name?: string;
+    numSets?: number | string;
+    repRange?: string;
+    note?: string;
+    restTime?: number;
+    [key: string]: unknown;
+};
+
+type ExercisesStepProps = {
+    exercises: ExerciseRow[];
+    handleAddExercise: () => void;
+    handleSetsChange: (...args: never[]) => void;
+    handleRepsChange: (...args: never[]) => void;
+    handleDeleteExercise: (...args: never[]) => void;
+    handleNoteChange: (...args: never[]) => void;
+    handleReplaceExercise: (...args: never[]) => void;
+    handleRestBetweenSetsChange: (...args: never[]) => void;
+    handleReorderExercises: (exercises: ExerciseRow[]) => void;
+    scrollViewRef?: unknown;
+};
+
 export const ExercisesStep = ({
     exercises,
     handleAddExercise,
@@ -26,8 +52,8 @@ export const ExercisesStep = ({
     handleRestBetweenSetsChange,
     handleReorderExercises,
     scrollViewRef,
-}) => {
-    const [expandedId, setExpandedId] = useState(null);
+}: ExercisesStepProps) => {
+    const [expandedId, setExpandedId] = useState<string | null>(null);
     const hasAutoExpandedRef = useRef(false);
 
     useEffect(() => {
@@ -37,11 +63,11 @@ export const ExercisesStep = ({
         }
     }, [exercises]);
 
-    const handleToggleExpand = useCallback((id) => {
+    const handleToggleExpand = useCallback((id: string) => {
         setExpandedId((prev) => (prev === id ? null : id));
     }, []);
 
-    const renderItem = useCallback(({ item, drag, isActive }) => {
+    const renderItem = useCallback(({ item, drag, isActive }: { item: ExerciseRow; drag: () => void; isActive: boolean }) => {
         return (
             <ExerciseItem
                 exercise={item}
@@ -81,11 +107,11 @@ export const ExercisesStep = ({
             <View style={styles.divider} />
 
             <DraggableFlatList
-                ref={scrollViewRef}
+                ref={scrollViewRef as never}
                 data={exercises}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item: ExerciseRow) => item.id}
                 renderItem={renderItem}
-                onDragEnd={handleReorderExercises}
+                onDragEnd={({ data }: { data: ExerciseRow[] }) => handleReorderExercises(data)}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.listContent}
                 ListEmptyComponent={EmptyState}
