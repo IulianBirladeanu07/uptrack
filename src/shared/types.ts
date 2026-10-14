@@ -87,6 +87,7 @@ export type PlanFormData = {
 };
 
 export type UserData = PlanFormData & {
+  uid?: string;
   email?: string;
   username?: string;
   displayName?: string | null;

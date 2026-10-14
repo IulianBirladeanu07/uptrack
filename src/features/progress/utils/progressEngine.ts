@@ -23,10 +23,10 @@ export type WorkoutDoc = { timestamp?: unknown; exercises?: ExerciseDoc[] };
 export type NutritionDay = { date: string; calories: number; protein: number };
 export type StepDay = { date: string; steps: number };
 export type BuildSource = {
-  weightIns?: WeightInWeek[];
-  weeklyNutrition?: NutritionSnap[];
-  dailySteps?: DailySteps;
-  workouts?: WorkoutDoc[];
+  weightIns?: WeightInWeek[] | undefined;
+  weeklyNutrition?: NutritionSnap[] | undefined;
+  dailySteps?: DailySteps | undefined;
+  workouts?: WorkoutDoc[] | undefined;
   getNutrition?: (from: Date, to: Date) => NutritionDay[];
   getSteps?: (from: Date, to: Date) => StepDay[];
   calc1RM: (kg: number, reps: number) => number;
