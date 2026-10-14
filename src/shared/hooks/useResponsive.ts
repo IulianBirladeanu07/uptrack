@@ -9,7 +9,7 @@ const baseHeight = 926;
 
 const SCALE_MULTIPLIER = 0.95;
 
-export const normalize = (size) => {
+export const normalize = (size: number): number => {
   const scaleWidth = SCREEN_WIDTH / baseWidth;
   const scaleHeight = SCREEN_HEIGHT / baseHeight;
   const scale = Math.min(scaleWidth, scaleHeight);

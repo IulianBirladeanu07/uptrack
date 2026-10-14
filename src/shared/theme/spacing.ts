@@ -44,4 +44,4 @@ export const spacing = {
   
   foodImageSize: 40,
   caloriesDisplayMin: 45,
-};
+} as const;

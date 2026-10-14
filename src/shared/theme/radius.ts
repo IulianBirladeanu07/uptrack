@@ -11,4 +11,4 @@ export const radius = {
   11: 44,
   13: 52,
   14: 56,
-};
+} as const;

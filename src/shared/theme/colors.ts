@@ -106,4 +106,4 @@ export const colors = {
   },
   
   disabled: '#4a4d55',
-};
+} as const;

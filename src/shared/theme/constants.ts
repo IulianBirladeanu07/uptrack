@@ -4,11 +4,11 @@ export const LIST = {
   ITEM_HEIGHT: normalize(80),
   HEADER_HEIGHT: normalize(48),
   INITIAL_ITEMS_COUNT: 3,
-};
+} as const;
 
 export const EMPTY_STATE = {
   ICON_SIZE: normalize(64),
-};
+} as const;
 
 export const SWIPE = {
   DELETE_THRESHOLD: -80,
@@ -18,22 +18,22 @@ export const SWIPE = {
   CONTAINER_SCALE_REDUCTION: 0.02,
   TRASH_ICON_SCALE: 0.15,
   TRASH_ICON_ROTATION: 90,
-};
+} as const;
 
 export const PRESS = {
   SCALE: 0.98,
   DURATION: 100,
-};
+} as const;
 
 export const FOOD_NAME = {
   MAX_LENGTH: 35,
   TRUNCATE_THRESHOLD: 0.6,
-};
+} as const;
 
 export const SEARCH = {
   MAX_RECENT: 5,
   STORAGE_KEY: '@recent_searches',
-};
+} as const;
 
 export const MUSCLE_GROUP_COLORS = {
   Back: '#3B82F6',
@@ -48,9 +48,9 @@ export const MUSCLE_GROUP_COLORS = {
   Shoulders: '#F59E0B',
   Triceps: '#EF4444',
   'Full Body': '#DC2626',
-};
+} as const;
 
 export const FALLBACK_MUSCLE_COLORS = [
   '#FF8535', '#00D4FF', '#10B981', '#F59E0B',
   '#EF4444', '#3B82F6', '#A3E635', '#F97316', '#BE185D',
-];
+] as const;
