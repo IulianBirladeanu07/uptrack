@@ -1,3 +1,5 @@
+import type { OnboardingFormData } from '../types';
+
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
@@ -5,7 +7,7 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   AuthenticatedScreens: undefined;
   OnboardingFlow: undefined;
-  PlanSummary: { formData?: Record<string, unknown> };
+  PlanSummary: { formData?: OnboardingFormData };
 };
 
 export type AuthenticatedStackParamList = {
