@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useContext, useRef, memo } from 'react';
 import {
     View,
     StatusBar,
@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import type { WorkoutSplit, WorkoutTemplate } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import styles from './WorkoutLibraryScreenStyle';
@@ -25,22 +27,25 @@ import LoadingSpinner from './components/LoadingSpinner';
 import { getWorkoutsPerWeek, isRotationSplit, toDateKey } from '../../utils/splitSchedule';
 import { afterSplitDelete } from '../../utils/activeSplit';
 
-const WorkoutLibraryScreen = ({ navigation, route }) => {
-    const [splits, setSplits] = useState([]);
-    const [templates, setTemplates] = useState([]);
-    const [activeSplitId, setActiveSplitId] = useState(null);
+const WorkoutLibraryScreen = () => {
+    const navigation = useAppNavigation();
+    const route = useAppRoute<'WorkoutLibrary'>();
+    const [splits, setSplits] = useState<WorkoutSplit[]>([]);
+    const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
+    const [activeSplitId, setActiveSplitId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [activeSegment, setActiveSegment] = useState(route.params?.initialSegment || 'Templates');
+    const routeParams = (route.params ?? {}) as { initialSegment?: string };
+    const [activeSegment, setActiveSegment] = useState<string>(routeParams.initialSegment || 'Templates');
 
-    const { userData, refreshUserData } = useContext(AuthContext);
+    const { userData, refreshUserData } = useContext(AuthContext)!;
     const hasFetchedRef = useRef(false);
 
     useEffect(() => {
-        if (route.params?.initialSegment) {
-            setActiveSegment(route.params.initialSegment);
+        if (routeParams.initialSegment) {
+            setActiveSegment(routeParams.initialSegment);
         }
-    }, [route.params?.initialSegment]);
+    }, [routeParams.initialSegment]);
 
     useEffect(() => {
         if (userData?.activeSplitId) {
@@ -57,7 +62,7 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
             ]);
 
             if (splitsData) {
-                const normalizedSplits = splitsData.map(split => ({
+                const normalizedSplits = (splitsData as any[]).map((split: any) => ({
                     id: split.id || split.data?.id,
                     name: split.name || split.data?.name,
                     templateName: split.templateName || split.data?.templateName,
@@ -65,13 +70,13 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
                     type: split.type || split.data?.type,
                     schedule: split.schedule || split.data?.schedule || {},
                     durationWeeks: split.durationWeeks || split.data?.durationWeeks || 8,
-                }));
+                })) as WorkoutSplit[];
                 setSplits(normalizedSplits);
                 setActiveSplitId(prev => prev ?? userData?.activeSplitId ?? normalizedSplits[0]?.id ?? null);
             }
 
             if (templatesData) {
-                setTemplates(templatesData);
+                setTemplates(templatesData as WorkoutTemplate[]);
             }
 
             hasFetchedRef.current = true;
@@ -96,10 +101,10 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
     }, [fetchData]);
 
     const handleCreate = useCallback(() => {
-        navigation.navigate(activeSegment === 'Splits' ? 'CreateSplit' : 'CreateTemplate', { templates });
+        (navigation as any).navigate(activeSegment === 'Splits' ? 'CreateSplit' : 'CreateTemplate', { templates });
     }, [navigation, activeSegment, templates]);
 
-    const handleDeleteTemplate = useCallback(async (templateId) => {
+    const handleDeleteTemplate = useCallback(async (templateId: string) => {
         try {
             await deleteTemplateFromFirestore(templateId);
             setTemplates(prev => prev.filter(t => t.id !== templateId));
@@ -108,7 +113,7 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
         }
     }, []);
 
-    const handleSplitDeleted = useCallback(async (splitId) => {
+    const handleSplitDeleted = useCallback(async (splitId: string) => {
         const remaining = splits.filter(s => s.id !== splitId);
         setSplits(remaining);
 
@@ -118,28 +123,28 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
 
         try {
             const uid = getAuth().currentUser?.uid;
-            await setDoc(doc(db, 'users', uid), { activeSplitId: deleteField() }, { merge: true });
+            await setDoc(doc(db, 'users', uid!), { activeSplitId: deleteField() }, { merge: true });
             await refreshUserData();
         } catch (error) {
             console.error('Failed to clear the active split:', error);
         }
     }, [splits, activeSplitId, userData?.activeSplitId, refreshUserData]);
 
-    const handleActivateSplit = useCallback(async (split) => {
+    const handleActivateSplit = useCallback(async (split: any) => {
         if (activeSplitId === split.id) {
-            navigation.navigate('PreviewSplit', { splitData: split });
+            (navigation as any).navigate('PreviewSplit', { splitData: split });
             return;
         }
 
         try {
-            const update = {
-                activeSplitId: split.id,
-                targetWorkoutsPerWeek: getWorkoutsPerWeek(split) || 5,
+            const update: Record<string, unknown> = {
+            activeSplitId: split.id,
+                targetWorkoutsPerWeek: getWorkoutsPerWeek(split as any) || 5,
             };
-            if (isRotationSplit(split)) update.rotationStartDate = toDateKey(new Date());
+            if (isRotationSplit(split as any)) update['rotationStartDate'] = toDateKey(new Date());
 
             const uid = getAuth().currentUser?.uid;
-            await setDoc(doc(db, 'users', uid), update, { merge: true });
+            await setDoc(doc(db, 'users', uid!), update, { merge: true });
 
             setActiveSplitId(split.id);
             await refreshUserData();
@@ -209,4 +214,4 @@ const WorkoutLibraryScreen = ({ navigation, route }) => {
     );
 };
 
-export default React.memo(WorkoutLibraryScreen);
+export default memo(WorkoutLibraryScreen);

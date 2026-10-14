@@ -9,7 +9,7 @@ const styles = createStyles(() => ({
     contentWrapper: {
         paddingHorizontal: spacing[4],
         paddingTop: spacing[3],
-        paddingBottom: spacing[22],
+        paddingBottom: spacing[20],
     },
     header: {
         marginBottom: spacing[4],

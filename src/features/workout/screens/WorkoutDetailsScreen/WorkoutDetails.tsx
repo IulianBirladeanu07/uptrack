@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Alert, StatusBar, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,13 +12,17 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import styles from './WorkoutDetailsStyle';
 import { colors, spacing } from '../../../../shared/theme';
 import { findBestSet } from '../../handlers/WorkoutHandler';
+import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 
-const WorkoutDetails = ({ route, navigation }) => {
-    const { duration, exercises, workoutName } = route.params;
-    const [selfieUri, setSelfieUri] = useState(null);
+const WorkoutDetails = () => {
+    const navigation = useAppNavigation();
+    const route = useAppRoute<'WorkoutDetails'>();
+    const { duration, exercises: rawExercises, workoutName } = route.params;
+    const exercises = (rawExercises ?? []) as any[];
+    const [selfieUri, setSelfieUri] = useState<string | null>(null);
     const [isSharing, setIsSharing] = useState(false);
     const insets = useSafeAreaInsets();
-    const workoutCardRef = useRef();
+    const workoutCardRef = useRef<any>(null);
 
     const translateX = useSharedValue(0);
     const translateY = useSharedValue(0);
@@ -35,7 +39,7 @@ const WorkoutDetails = ({ route, navigation }) => {
 
     const totalMinutes = useMemo(() => {
         if (!duration) return 0;
-        const parts = duration.split(':');
+        const parts = String(duration ?? '0').split(':');
         if (parts.length === 3) {
             return (parseInt(parts[0]) * 60) + parseInt(parts[1]);
         }
@@ -43,7 +47,7 @@ const WorkoutDetails = ({ route, navigation }) => {
     }, [duration]);
 
     const totalSets = useMemo(() => exercises.reduce((acc, ex) => acc + ex.sets.length, 0), [exercises]);
-    const totalPRs = useMemo(() => exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.isPR).length, 0), [exercises]);
+    const totalPRs = useMemo(() => exercises.reduce((acc, ex) => acc + ex.sets.filter((s: any) => s.isPR).length, 0), [exercises]);
 
     const panGesture = Gesture.Pan()
         .enabled(!!selfieUri)
@@ -189,7 +193,7 @@ const WorkoutDetails = ({ route, navigation }) => {
                                 </View>
                                 {exercises.map((ex, i) => {
                                     const best = findBestSet(ex.sets);
-                                    const hasPR = ex.sets.some(s => s.isPR);
+                                    const hasPR = ex.sets.some((s: any) => s.isPR);
                                     return (
                                         <View
                                             key={i}

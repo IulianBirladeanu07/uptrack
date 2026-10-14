@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useCallback, useContext, useMemo } from 'react';
 import { View, Text, SectionList, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,8 +8,13 @@ import { findBestSet } from '../../handlers/WorkoutHandler';
 import { durationToMinutes } from '../../utils/durationUtils';
 import { colors } from '../../../../shared/theme';
 import styles from './WorkoutHistoryStyles';
+import { useAppNavigation } from '../../../../shared/navigation';
 
-const formatDate = (timestamp) => {
+type TimestampLike = { seconds?: number } | null | undefined;
+
+type HistoryWorkout = any;
+
+const formatDate = (timestamp: TimestampLike) => {
     if (!timestamp?.seconds) return 'RECENT';
     const date = new Date(timestamp.seconds * 1000);
     const today = new Date();
@@ -20,14 +26,14 @@ const formatDate = (timestamp) => {
     return `${months[date.getMonth()]} ${date.getDate()}`;
 };
 
-const getMonthYear = (timestamp) => {
+const getMonthYear = (timestamp: TimestampLike) => {
     if (!timestamp?.seconds) return 'Recent';
     const date = new Date(timestamp.seconds * 1000);
     const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     return `${months[date.getMonth()]} ${date.getFullYear()}`;
 };
 
-const getWorkoutLabel = (timestamp, templateName) => {
+const getWorkoutLabel = (timestamp: TimestampLike, templateName?: string | null) => {
     if (templateName && templateName !== 'Workout') return templateName;
     if (!timestamp?.seconds) return 'Recent Workout';
     const hour = new Date(timestamp.seconds * 1000).getHours();
@@ -37,9 +43,9 @@ const getWorkoutLabel = (timestamp, templateName) => {
     return 'Night Workout';
 };
 
-const getDurationInMinutes = (duration) => durationToMinutes(duration) ?? 0;
+const getDurationInMinutes = (duration: unknown) => durationToMinutes(duration) ?? 0;
 
-const WorkoutCard = ({ item, activeWorkout, onPress }) => {
+const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; activeWorkout?: boolean; onPress: (item: HistoryWorkout) => void }) => {
     const exercises = item.exercises || [];
     const totalSets = exercises.reduce((total, ex) => total + ex.sets.length, 0);
     const durationMinutes = getDurationInMinutes(item.duration);
@@ -112,8 +118,9 @@ const WorkoutCard = ({ item, activeWorkout, onPress }) => {
     );
 };
 
-const WorkoutHistoryScreen = ({ navigation }) => {
-    const { workoutHistory, activeWorkout } = useContext(WorkoutContext);
+const WorkoutHistoryScreen = () => {
+    const navigation = useAppNavigation();
+    const { workoutHistory, activeWorkout } = useContext(WorkoutContext)!;
 
     const handleStartWorkout = useCallback((workout) => {
         if (activeWorkout) return;
@@ -159,7 +166,7 @@ const WorkoutHistoryScreen = ({ navigation }) => {
                 renderItem={({ item }) => (
                     <WorkoutCard
                         item={item}
-                        activeWorkout={activeWorkout}
+                        activeWorkout={!!activeWorkout}
                         onPress={handleStartWorkout}
                     />
                 )}

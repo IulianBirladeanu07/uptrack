@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
