@@ -92,9 +92,11 @@ const FoodSelectionScreen = () => {
     const targetCalories = useMemo(() => Math.round(userMacros?.targetCalories || 2000), [userMacros?.targetCalories]);
 
     useEffect(() => {
-        if (selectedFoodDetail && !selectedFoods.some(food => food.productName === selectedFoodDetail.productName)) {
-            setSelectedFoods(prev => [...prev, selectedFoodDetail]);
-        }
+        if (!selectedFoodDetail) return;
+        setSelectedFoods(prev => prev.some(food => food.productName === selectedFoodDetail.productName)
+            ? prev.map(food => food.productName === selectedFoodDetail.productName ? selectedFoodDetail : food)
+            : [...prev, selectedFoodDetail]
+        );
     }, [selectedFoodDetail]);
 
     const handleSearchComplete = useCallback(async (query: string) => {
