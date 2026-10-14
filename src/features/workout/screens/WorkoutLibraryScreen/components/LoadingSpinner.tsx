@@ -1,14 +1,18 @@
-import React, { useEffect } from 'react';
+import { useEffect, memo, useRef } from 'react';
 import { View, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 import { colors } from '../../../../../shared/theme';
 import styles from '../WorkoutLibraryScreenStyle';
 
-const LoadingSpinner = React.memo(({ type }) => {
-    const spinValue = new Animated.Value(0);
-    const scaleValue = new Animated.Value(0.8);
-    const opacityValue = new Animated.Value(0.3);
+type LoadingSpinnerProps = {
+    type?: string | undefined;
+};
+
+const LoadingSpinner = memo(({ type }: LoadingSpinnerProps) => {
+    const spinValue = useRef(new Animated.Value(0)).current;
+    const scaleValue = useRef(new Animated.Value(0.8)).current;
+    const opacityValue = useRef(new Animated.Value(0.3)).current;
 
     useEffect(() => {
         const spinAnimation = Animated.loop(
@@ -66,7 +70,7 @@ const LoadingSpinner = React.memo(({ type }) => {
             <Animated.Text
                 style={[styles.loadingText, { opacity: opacityValue }]}
             >
-                Loading your {type.toLowerCase()}...
+                Loading your {(type ?? 'items').toLowerCase()}...
             </Animated.Text>
         </View>
     );

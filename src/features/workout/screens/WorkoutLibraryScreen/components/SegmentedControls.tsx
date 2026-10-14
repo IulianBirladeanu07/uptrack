@@ -1,11 +1,17 @@
-import React from 'react';
+import { memo } from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 import { colors } from '../../../../../shared/theme';
 import styles from '../WorkoutLibraryScreenStyle';
 
-const SegmentedControl = React.memo(({ activeSegment, onTemplatesPress, onSplitsPress }) => (
+type SegmentedControlProps = {
+    activeSegment: 'Templates' | 'Splits' | string;
+    onTemplatesPress: () => void;
+    onSplitsPress: () => void;
+};
+
+const SegmentedControl = memo(({ activeSegment, onTemplatesPress, onSplitsPress }: SegmentedControlProps) => (
     <View style={styles.segmentedControlContainer}>
         <TouchableOpacity
             style={[styles.segmentButton, activeSegment === 'Templates' && styles.segmentButtonActive]}

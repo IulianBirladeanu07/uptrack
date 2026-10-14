@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect, type ComponentProps } from 'react';
 import {
     View,
     Text,
@@ -19,7 +19,36 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 
-const OptionRow = ({ icon, label, onPress, danger = false }) => (
+type OptionRowProps = {
+    icon: ComponentProps<typeof Ionicons>['name'];
+    label: string;
+    onPress: () => void;
+    danger?: boolean;
+};
+
+type MoveButtonProps = {
+    icon: ComponentProps<typeof Ionicons>['name'];
+    onPress: () => void;
+    disabled?: boolean;
+    label: string;
+};
+
+type ExerciseOptionsModalProps = {
+    visible: boolean;
+    onClose: () => void;
+    exerciseName: string;
+    position?: number;
+    count?: number;
+    onReplace: () => void;
+    onDelete: () => void;
+    onAddNote: () => void;
+    onMoveUp: () => void;
+    onMoveDown: () => void;
+    canMoveUp?: boolean;
+    canMoveDown?: boolean;
+};
+
+const OptionRow = ({ icon, label, onPress, danger = false }: OptionRowProps) => (
     <TouchableOpacity style={styles.option} onPress={onPress} activeOpacity={0.65}>
         <View style={[styles.iconWrap, { backgroundColor: danger ? colors.faded.error : colors.faded.surface }]}>
             <Ionicons
@@ -32,7 +61,7 @@ const OptionRow = ({ icon, label, onPress, danger = false }) => (
     </TouchableOpacity>
 );
 
-const MoveButton = ({ icon, onPress, disabled, label }) => (
+const MoveButton = ({ icon, onPress, disabled, label }: MoveButtonProps) => (
     <TouchableOpacity
         style={[styles.moveButton, disabled && styles.moveButtonDisabled]}
         onPress={onPress}
@@ -62,7 +91,7 @@ const ExerciseOptionsModal = ({
     onMoveDown,
     canMoveUp = false,
     canMoveDown = false,
-}) => {
+}: ExerciseOptionsModalProps) => {
     const insets = useSafeAreaInsets();
     const translateY = useSharedValue(300);
     const backdropOpacity = useSharedValue(0);
@@ -85,7 +114,7 @@ const ExerciseOptionsModal = ({
         opacity: backdropOpacity.value,
     }));
 
-    const handleAction = (callback) => {
+    const handleAction = (callback: () => void) => {
         backdropOpacity.value = withTiming(0, { duration: 140 });
         translateY.value = withTiming(300, { duration: 180, easing: Easing.in(Easing.cubic) }, (finished) => {
             if (finished) {

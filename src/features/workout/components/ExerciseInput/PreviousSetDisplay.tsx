@@ -2,7 +2,19 @@ import { Text, TouchableOpacity } from 'react-native';
 import { colors, spacing, fontSize, fontWeight } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
-const PreviousSetDisplay = ({ previousSetData, onPress, setIndex, isCompleted }) => {
+type PreviousSetData = {
+  weight?: string | number | null;
+  reps?: string | number | null;
+};
+
+type PreviousSetDisplayProps = {
+  previousSetData?: PreviousSetData | null;
+  onPress: (setIndex: number) => void;
+  setIndex: number;
+  isCompleted?: boolean;
+};
+
+const PreviousSetDisplay = ({ previousSetData, onPress, setIndex, isCompleted }: PreviousSetDisplayProps) => {
   const hasPreviousData = previousSetData && (previousSetData.weight || previousSetData.reps);
   return (
     <TouchableOpacity

@@ -1,15 +1,28 @@
-import React from 'react';
+import { memo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
-const ExerciseHeader = React.memo(({
+type HeaderExercise = {
+    exerciseName: string;
+    imageURL?: string | null;
+    muscleGroup?: string | null;
+    exerciseType?: string | null;
+};
+
+type ExerciseHeaderProps = {
+    exercise: HeaderExercise;
+    navigation: { navigate: (screen: string, params?: object) => void };
+    onMenuPress: () => void;
+};
+
+const ExerciseHeader = memo(({
     exercise,
     navigation,
     onMenuPress,
-}) => {
+}: ExerciseHeaderProps) => {
     return (
         <View style={styles.exerciseHeaderWrapper}>
             <View style={styles.exerciseHeader}>
@@ -78,7 +91,7 @@ const ExerciseHeader = React.memo(({
             </View>
         </View>
     );
-}, (prevProps, nextProps) => {
+}, (prevProps: ExerciseHeaderProps, nextProps: ExerciseHeaderProps) => {
     return (
         prevProps.exercise.exerciseName === nextProps.exercise.exerciseName &&
         prevProps.exercise.imageURL === nextProps.exercise.imageURL &&

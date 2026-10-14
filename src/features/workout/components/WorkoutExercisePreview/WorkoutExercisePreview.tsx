@@ -1,10 +1,25 @@
-import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../../../../shared/theme';
 import styles from './WorkoutExercisePreviewStyles';
 
-export const ExercisePreviewList = ({ exercises }) => {
+type PreviewExercise = {
+  numSets?: number | string | null;
+  exerciseName?: string | null;
+  repRange?: string | number | null;
+};
+
+type ExercisePreviewListProps = {
+  exercises?: PreviewExercise[] | null | undefined;
+};
+
+type WorkoutExercisePreviewProps = {
+  exercises?: PreviewExercise[] | null | undefined;
+  activeWorkout?: boolean | null | undefined;
+  onStart: () => void;
+};
+
+export const ExercisePreviewList = ({ exercises }: ExercisePreviewListProps) => {
   if (!exercises?.length) return null;
 
   return (
@@ -23,7 +38,7 @@ export const ExercisePreviewList = ({ exercises }) => {
   );
 };
 
-const WorkoutExercisePreview = ({ exercises, activeWorkout, onStart }) => (
+const WorkoutExercisePreview = ({ exercises, activeWorkout, onStart }: WorkoutExercisePreviewProps) => (
   <>
     <ExercisePreviewList exercises={exercises} />
     <TouchableOpacity

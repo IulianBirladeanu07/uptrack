@@ -1,10 +1,28 @@
-import React, { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, memo } from 'react';
+import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
-const CustomNumericKeyboard = ({ value, onChangeText, onDone, onNext, focusedInputData }) => {
+type FocusedInputData = unknown;
+
+type CustomNumericKeyboardProps = {
+    value: string;
+    onChangeText: (text: string) => void;
+    onDone: () => void;
+    onNext: () => void;
+    focusedInputData?: FocusedInputData;
+};
+
+type KeyProps = {
+    k: string;
+    onPress: (key: string) => void;
+    specialStyle?: StyleProp<ViewStyle>;
+    specialTextStyle?: StyleProp<TextStyle>;
+};
+
+const CustomNumericKeyboard = ({ value, onChangeText, onDone, onNext, focusedInputData }: CustomNumericKeyboardProps) => {
     const shouldReplaceRef = useRef(true);
     const insets = useSafeAreaInsets();
 
@@ -12,7 +30,7 @@ const CustomNumericKeyboard = ({ value, onChangeText, onDone, onNext, focusedInp
         shouldReplaceRef.current = true;
     }, [focusedInputData]);
 
-    const handlePress = useCallback((key) => {
+    const handlePress = useCallback((key: string) => {
         if (key === '⌫') {
             onChangeText(value.slice(0, -1));
             shouldReplaceRef.current = false;
@@ -81,7 +99,7 @@ const CustomNumericKeyboard = ({ value, onChangeText, onDone, onNext, focusedInp
     );
 };
 
-const Key = React.memo(({ k, onPress, specialStyle, specialTextStyle }) => (
+const Key = memo(({ k, onPress, specialStyle, specialTextStyle }: KeyProps) => (
     <TouchableOpacity
         style={[styles.key, specialStyle]}
         onPress={() => onPress(k)}
@@ -178,4 +196,4 @@ const styles = createStyles(() => ({
     },
 }));
 
-export default React.memo(CustomNumericKeyboard);
+export default memo(CustomNumericKeyboard);

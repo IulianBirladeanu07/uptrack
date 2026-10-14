@@ -1,11 +1,16 @@
-import React from 'react';
+import { memo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 import { colors } from '../../../../../shared/theme';
 import styles from '../WorkoutLibraryScreenStyle';
 
-const EmptyState = React.memo(({ type, onCreate }) => (
+type EmptyStateProps = {
+    type: 'Splits' | 'Templates' | string;
+    onCreate: () => void;
+};
+
+const EmptyState = memo(({ type, onCreate }: EmptyStateProps) => (
     <View style={styles.emptyStateContainer}>
         <MaterialCommunityIcons
             name={type === 'Splits' ? 'calendar-month' : 'dumbbell'}
