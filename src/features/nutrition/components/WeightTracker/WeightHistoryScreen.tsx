@@ -1,22 +1,38 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import { memo, useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
+import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import type { DayKey, WeightInWeek } from '../../../../shared/types';
 
-const DAY_KEY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+type DayRow = { key: DayKey; weight: number; label: string };
+type MonthGroup = { label: string; weeks: WeightInWeek[] };
 
-const formatWeekRange = (weekStartStr) => {
+type TrendChipProps = { value: number | null; isBulking: boolean };
+
+type WeekCardProps = {
+    week: WeightInWeek;
+    prevAverage: number | null;
+    isBulking: boolean;
+    expanded: boolean;
+    onToggle: () => void;
+};
+
+const NO_WEEKS: WeightInWeek[] = [];
+
+const DAY_KEY_ORDER: DayKey[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+const formatWeekRange = (weekStartStr: string) => {
     const [y, m, d] = weekStartStr.split('-').map(Number);
     const start = new Date(y, m - 1, d);
     const end   = new Date(y, m - 1, d + 6);
-    const fmt   = (dt) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const fmt   = (dt: Date) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     return `${fmt(start)} – ${fmt(end)}`;
 };
 
-const formatDayLabel = (weekStartStr, dayIndex) => {
+const formatDayLabel = (weekStartStr: string, dayIndex: number) => {
     const [y, m, d] = weekStartStr.split('-').map(Number);
     const date = new Date(y, m - 1, d + dayIndex);
     const today     = new Date();
@@ -30,14 +46,14 @@ const formatDayLabel = (weekStartStr, dayIndex) => {
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-const formatMonth = (weekStartStr) => {
+const formatMonth = (weekStartStr: string) => {
     const [y, m] = weekStartStr.split('-').map(Number);
     return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 };
 
-const groupByMonth = (weightIns) => {
-    const sorted = [...weightIns].sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
-    const groups = {};
+const groupByMonth = (weightIns: WeightInWeek[]): MonthGroup[] => {
+    const sorted = [...weightIns].sort((a, b) => new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime());
+    const groups: Record<string, MonthGroup> = {};
     sorted.forEach(week => {
         const [y, m] = week.weekStart.split('-').map(Number);
         const key = `${y}-${String(m).padStart(2, '0')}`;
@@ -47,7 +63,7 @@ const groupByMonth = (weightIns) => {
     return Object.values(groups);
 };
 
-const TrendChip = ({ value, isBulking }) => {
+const TrendChip = ({ value, isBulking }: TrendChipProps) => {
     if (value == null) return <View style={{ minWidth: 40 }} />;
     const isGood  = isBulking ? value > 0 : value < 0;
     const color   = value === 0 ? colors.text.quaternary : isGood ? colors.accent.success : colors.accent.error;
@@ -63,15 +79,15 @@ const TrendChip = ({ value, isBulking }) => {
     );
 };
 
-const WeekCard = React.memo(({ week, prevAverage, isBulking, expanded, onToggle }) => {
-    const days = useMemo(() => (
+const WeekCard = memo(({ week, prevAverage, isBulking, expanded, onToggle }: WeekCardProps) => {
+    const days = useMemo<DayRow[]>(() => (
         DAY_KEY_ORDER
             .map((key, i) => {
                 const val = week.days?.[key];
                 if (val == null) return null;
-                return { key, weight: parseFloat(val), label: formatDayLabel(week.weekStart, i) };
+                return { key, weight: parseFloat(String(val)), label: formatDayLabel(week.weekStart, i) };
             })
-            .filter(Boolean)
+            .filter((d): d is DayRow => d != null)
     ), [week]);
 
     const weekRange = useMemo(() => formatWeekRange(week.weekStart), [week.weekStart]);
@@ -121,19 +137,23 @@ const WeekCard = React.memo(({ week, prevAverage, isBulking, expanded, onToggle 
     );
 });
 
-const WeightHistoryScreen = ({ route }) => {
-    const navigation = useNavigation();
-    const { weightIns = [], isBulking = false, startWeight, goalWeight } = route.params ?? {};
-    const [expandedWeeks, setExpandedWeeks] = useState({});
+const WeightHistoryScreen = () => {
+    const navigation = useAppNavigation();
+    const route = useAppRoute<'WeightHistory'>();
+    const weightIns = route.params?.weightIns ?? NO_WEEKS;
+    const isBulking = route.params?.isBulking ?? false;
+    const startWeight = route.params?.startWeight;
+    const goalWeight = route.params?.goalWeight;
+    const [expandedWeeks, setExpandedWeeks] = useState<Record<string, boolean>>({});
 
     const monthGroups = useMemo(() => groupByMonth(weightIns), [weightIns]);
 
     const sortedAll = useMemo(() =>
-        [...weightIns].sort((a, b) => new Date(a.weekStart) - new Date(b.weekStart)),
+        [...weightIns].sort((a, b) => new Date(a.weekStart).getTime() - new Date(b.weekStart).getTime()),
     [weightIns]);
 
     const prevAverageMap = useMemo(() => {
-        const map = {};
+        const map: Record<string, number | null | undefined> = {};
         for (let i = 1; i < sortedAll.length; i++) {
             map[sortedAll[i].weekStart] = sortedAll[i - 1].average;
         }
@@ -153,7 +173,7 @@ const WeightHistoryScreen = ({ route }) => {
         ? (isBulking ? totalChange > 0 : totalChange < 0)
         : null;
 
-    const toggleWeek = useCallback((weekStart) => {
+    const toggleWeek = useCallback((weekStart: string) => {
         setExpandedWeeks(prev => ({ ...prev, [weekStart]: !prev[weekStart] }));
     }, []);
 

@@ -1,4 +1,4 @@
-import type { OnboardingFormData } from '../types';
+import type { OnboardingFormData, WeightInWeek } from '../types';
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -81,10 +81,10 @@ export type AuthenticatedStackParamList = {
     onExerciseCreated?: (exercise: unknown) => void;
   } | undefined;
   WeightHistory: {
-    weightIns?: unknown[];
-    isBulking?: boolean;
-    startWeight?: number;
-    goalWeight?: number;
+    weightIns?: WeightInWeek[];
+    isBulking?: boolean | undefined;
+    startWeight?: number | null | undefined;
+    goalWeight?: number | null | undefined;
   } | undefined;
   ExerciseHistory: {
     exerciseName: string;
