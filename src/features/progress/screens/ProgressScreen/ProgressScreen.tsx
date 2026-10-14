@@ -1,7 +1,8 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { ComponentProps, Dispatch, ReactNode, SetStateAction } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
 
@@ -13,6 +14,7 @@ import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { calculate1RM, fetchSplitsFromFirestore } from '../../../workout/handlers/WorkoutHandler';
 import { switchToMaintenance } from '../../../nutrition/helpers/phaseService';
 import { colors, spacing } from '../../../../shared/theme';
+import { useAppNavigation } from '../../../../shared/navigation';
 import { PaceChart, BalanceChart, StrengthChart } from '../../components/ProgressCharts';
 import {
     MAX_WEEKS,
@@ -42,9 +44,15 @@ import {
     kfmt,
 } from '../../utils/progressEngine';
 import { getWorkoutsPerWeek } from '../../../workout/utils/splitSchedule';
+import type { SplitLike } from '../../../workout/utils/splitSchedule';
+import type { EnergyModel, MonthRow as MonthData, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
 import styles from './ProgressScreenStyles';
 
-const TABS = [
+type TabKey = 'nutrition' | 'training';
+
+type IconName = ComponentProps<typeof Ionicons>['name'];
+
+const TABS: { key: TabKey; label: string }[] = [
     { key: 'nutrition', label: 'Nutrition' },
     { key: 'training', label: 'Training' },
 ];
@@ -64,11 +72,15 @@ const HEAT_KEY = [
     { label: '20+', a: 1 },
 ];
 
-const heatAlpha = v => (v < 6 ? 0.08 : v < 10 ? 0.22 : v < 15 ? 0.5 : v <= 20 ? 0.75 : 1);
+const heatAlpha = (v: number) => (v < 6 ? 0.08 : v < 10 ? 0.22 : v < 15 ? 0.5 : v <= 20 ? 0.75 : 1);
 
-const orange = a => `rgba(255, 149, 0, ${a})`;
+const orange = (a: number) => `rgba(255, 149, 0, ${a})`;
 
-const Delta = ({ tone = 'good', icon, text }) => {
+type Tone = keyof typeof TONES;
+
+type DeltaProps = { tone?: Tone; icon?: IconName; text: string };
+
+const Delta = ({ tone = 'good', icon, text }: DeltaProps) => {
     const t = TONES[tone];
     return (
         <View style={[styles.dp, { backgroundColor: t.bg }]}>
@@ -78,7 +90,7 @@ const Delta = ({ tone = 'good', icon, text }) => {
     );
 };
 
-const Hero = ({ value, unit, children }) => (
+const Hero = ({ value, unit, children }: { value: string; unit?: string | undefined; children?: ReactNode }) => (
     <View style={styles.hero}>
         <View style={styles.heroValueRow}>
             <Text style={styles.big}>{value}</Text>
@@ -88,7 +100,9 @@ const Hero = ({ value, unit, children }) => (
     </View>
 );
 
-const Stats = ({ items }) => (
+type StatItem = { value: string; unit?: string | undefined; label: string; color?: string | undefined; dot?: string; dash?: boolean };
+
+const Stats = ({ items }: { items: StatItem[] }) => (
     <View style={styles.stats}>
         {items.map((it, i) => (
             <React.Fragment key={it.label}>
@@ -109,7 +123,7 @@ const Stats = ({ items }) => (
     </View>
 );
 
-const Tip = ({ text }) =>
+const Tip = ({ text }: { text: string | null | undefined }) =>
     text ? (
         <View style={styles.tip}>
             <Ionicons name="sparkles-outline" size={spacing.iconSm} color={colors.accent.primary} />
@@ -117,7 +131,7 @@ const Tip = ({ text }) =>
         </View>
     ) : null;
 
-const ChartBox = ({ children }) => {
+const ChartBox = ({ children }: { children: (w: number) => ReactNode }) => {
     const [w, setW] = useState(0);
     return (
         <View onLayout={e => setW(Math.floor(e.nativeEvent.layout.width))}>
@@ -126,14 +140,14 @@ const ChartBox = ({ children }) => {
     );
 };
 
-const EmptyCard = ({ cap, text }) => (
+const EmptyCard = ({ cap, text }: { cap: string; text: string }) => (
     <View style={styles.card}>
         <Text style={styles.cap}>{cap}</Text>
         <Text style={styles.empty}>{text}</Text>
     </View>
 );
 
-const RecapCard = ({ r, busy, onSwitch, onProfile }) => {
+const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: boolean; onSwitch: () => void; onProfile: () => void }) => {
     const third = r.dir < 0
         ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Str / kg', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
         : { value: r.strengthPct != null ? sg(r.strengthPct, 0) : '--', unit: r.strengthPct != null ? '%' : undefined, label: 'Strength', color: r.strengthPct != null && r.strengthPct > 0 ? colors.accent.success : undefined };
@@ -173,8 +187,8 @@ const RecapCard = ({ r, busy, onSwitch, onProfile }) => {
     );
 };
 
-const PaceCard = ({ m, info, n }) => {
-    const [sel, setSel] = useState(null);
+const PaceCard = ({ m, info, n }: { m: PaceModel | null; info: PhaseInfo; n: number }) => {
+    const [sel, setSel] = useState<number | null>(null);
     useEffect(() => {
         setSel(null);
     }, [n]);
@@ -182,19 +196,20 @@ const PaceCard = ({ m, info, n }) => {
     const title = info.dir < 0 ? 'Weight loss pace' : info.dir > 0 ? 'Weight gain pace' : 'Weight drift';
     if (!m) return <EmptyCard cap={title} text="Log your weight for two weeks to see your pace." />;
 
-    const pill = {
+    const pills: Record<PaceStatus, DeltaProps | null> = {
         on: { tone: 'good', icon: 'checkmark', text: 'on plan' },
         'slightly-ahead': { tone: 'good', icon: 'checkmark', text: 'on plan' },
         ahead: { tone: 'good', icon: 'arrow-up', text: `${fmt1(m.diff)} ahead` },
-        behind: { tone: 'warn', icon: 'arrow-down', text: `${fmt1(-m.diff)} behind` },
+        behind: { tone: 'warn', icon: 'arrow-down', text: `${fmt1(-(m.diff as number))} behind` },
         steady: { tone: 'good', icon: 'checkmark', text: 'steady' },
         drift: { tone: 'warn', icon: 'alert', text: 'drifting' },
         reached: null,
-    }[m.status];
+    };
+    const pill = pills[m.status];
 
     const picked = sel != null && m.slots[sel]?.v != null ? m.slots[sel] : null;
     const pickedText = picked
-        ? `week of ${shortDate(picked.monday)}${picked.gap > 1 ? ` · ${picked.gap}-wk avg` : ''}`
+        ? `week of ${shortDate(picked.monday)}${(picked.gap ?? 0) > 1 ? ` · ${picked.gap}-wk avg` : ''}`
         : null;
 
     const eta = m.reached
@@ -237,8 +252,8 @@ const PaceCard = ({ m, info, n }) => {
     );
 };
 
-const EnergyCard = ({ m, info, n }) => {
-    const [sel, setSel] = useState(null);
+const EnergyCard = ({ m, info, n }: { m: EnergyModel | null; info: PhaseInfo; n: number }) => {
+    const [sel, setSel] = useState<number | null>(null);
     useEffect(() => {
         setSel(null);
     }, [n]);
@@ -249,7 +264,7 @@ const EnergyCard = ({ m, info, n }) => {
     const bars = m.bal.map(v => (v == null ? null : v * f));
     const goal = m.targetBal != null ? m.targetBal * f : null;
     const picked = sel != null && bars[sel] != null ? sel : null;
-    const shown = picked != null ? bars[picked] : m.balance * f;
+    const shown = picked != null ? (bars[picked] as number) : m.balance * f;
     const heroText = info.dir === 0 || shown < 0 ? sg(shown, 0) : kfmt(shown);
     const unit = info.dir < 0 ? 'kcal/day deficit' : info.dir > 0 ? 'kcal/day surplus' : 'kcal/day';
 
@@ -275,7 +290,7 @@ const EnergyCard = ({ m, info, n }) => {
     );
 };
 
-const StrengthCard = ({ m, lifts, info, onLift }) => {
+const StrengthCard = ({ m, lifts, info, onLift }: { m: StrengthModel | null; lifts: ReturnType<typeof liftStats>; info: PhaseInfo; onLift: (name: string) => void }) => {
     if (!m) return <EmptyCard cap="Strength vs weight" text="Train at least two lifts across a few weeks to see how your strength moves with your weight." />;
 
     const more = lifts.stalled.length - 1;
@@ -297,7 +312,7 @@ const StrengthCard = ({ m, lifts, info, onLift }) => {
                     </View>
                 </View>
             </View>
-            <Hero value={perKgPill ? sg(m.perKg, 0) : sg(m.sNow, 1)} unit={perKgPill ? '% per kg' : '%'}>
+            <Hero value={perKgPill ? sg(m.perKg!, 0) : sg(m.sNow as number, 1)} unit={perKgPill ? '% per kg' : '%'}>
                 {!perKgPill && m.wNow != null && <Delta tone="purple" text={`weight ${sg(m.wNow, 1)}%`} />}
             </Hero>
             <ChartBox>
@@ -331,7 +346,7 @@ const StrengthCard = ({ m, lifts, info, onLift }) => {
     );
 };
 
-const SetsCard = ({ m }) => {
+const SetsCard = ({ m }: { m: SetsModel | null }) => {
     if (!m) return <EmptyCard cap="Hard sets per muscle" text="Complete a few workouts to see your weekly volume per muscle." />;
 
     return (
@@ -375,7 +390,7 @@ const SetsCard = ({ m }) => {
     );
 };
 
-const Tile = ({ label, dot, value, sub }) => (
+const Tile = ({ label, dot, value, sub }: { label: string; dot: string; value: string; sub?: string | null }) => (
     <View style={styles.tile}>
         <View style={styles.tileLabelRow}>
             <View style={[styles.tileDot, { backgroundColor: dot }]} />
@@ -386,11 +401,13 @@ const Tile = ({ label, dot, value, sub }) => (
     </View>
 );
 
-const vs = (v, d, suffix = '') => (v != null ? `${sg(v, d)}${suffix} vs prev` : null);
+const vs = (v: number | null | undefined, d: number, suffix = '') => (v != null ? `${sg(v, d)}${suffix} vs prev` : null);
 
-const MonthRow = ({ m, kind, info, open, onToggle, last }) => {
-    let right;
-    let tiles;
+type MonthRowProps = { m: MonthData; kind: 'n' | 't'; info: PhaseInfo; open: boolean; onToggle: () => void; last: boolean };
+
+const MonthRow = ({ m, kind, info, open, onToggle, last }: MonthRowProps) => {
+    let right: ReactNode;
+    let tiles: ReactNode;
 
     if (kind === 'n') {
         const good = m.change != null && (info.dir === 0 ? Math.abs(m.change) < 0.5 : info.dir * m.change > 0);
@@ -414,14 +431,14 @@ const MonthRow = ({ m, kind, info, open, onToggle, last }) => {
         );
     } else {
         const hasPlan = m.planDone != null && m.planDone > 0;
-        const on = hasPlan && m.sessionsDone >= m.planDone;
+        const on = hasPlan && m.sessionsDone >= m.planDone!;
         right = (
             <>
                 <View style={styles.monthValueRow}>
                     <Text style={styles.monthValue}>{m.sessions}</Text>
                     <Text style={styles.monthUnit}>sessions</Text>
                 </View>
-                {hasPlan && <Delta tone={on ? 'good' : 'warn'} text={on ? 'on plan' : `${m.planDone - m.sessionsDone} missed`} />}
+                {hasPlan && <Delta tone={on ? 'good' : 'warn'} text={on ? 'on plan' : `${m.planDone! - m.sessionsDone} missed`} />}
             </>
         );
         tiles = (
@@ -429,8 +446,8 @@ const MonthRow = ({ m, kind, info, open, onToggle, last }) => {
                 <Tile
                     label={hasPlan ? 'On plan' : 'Sessions'}
                     dot={colors.accent.cyan}
-                    value={hasPlan ? `${m.sessionsDone}/${m.planDone}` : String(m.sessions)}
-                    sub={hasPlan ? `${Math.round((m.sessionsDone / m.planDone) * 100)}%` : null}
+                    value={hasPlan ? `${m.sessionsDone}/${m.planDone!}` : String(m.sessions)}
+                    sub={hasPlan ? `${Math.round((m.sessionsDone / m.planDone!) * 100)}%` : null}
                 />
                 <Tile label="Hard sets" dot={colors.accent.cyan} value={kfmt(m.sets)} sub={vs(m.d?.setsPerWeek, 0, '/wk')} />
                 <Tile label="New PRs" dot={colors.accent.cyan} value={String(m.prs)} />
@@ -453,7 +470,17 @@ const MonthRow = ({ m, kind, info, open, onToggle, last }) => {
     );
 };
 
-const MonthsCard = ({ months, kind, info, open, setOpen, all, setAll }) => {
+type MonthsCardProps = {
+    months: MonthData[];
+    kind: 'n' | 't';
+    info: PhaseInfo;
+    open: Record<string, boolean>;
+    setOpen: Dispatch<SetStateAction<Record<string, boolean>>>;
+    all: boolean;
+    setAll: (v: boolean) => void;
+};
+
+const MonthsCard = ({ months, kind, info, open, setOpen, all, setAll }: MonthsCardProps) => {
     if (!months.length) return null;
     const shown = all ? months.slice(0, 12) : months.slice(0, 3);
 
@@ -488,14 +515,14 @@ const MonthsCard = ({ months, kind, info, open, setOpen, all, setAll }) => {
 
 const ProgressScreen = () => {
     const insets = useSafeAreaInsets();
-    const navigation = useNavigation();
-    const { userData, refreshUserData } = useContext(AuthContext);
-    const { workoutHistory } = useContext(WorkoutContext);
+    const navigation = useAppNavigation();
+    const { userData, refreshUserData } = useContext(AuthContext)!;
+    const { workoutHistory } = useContext(WorkoutContext)!;
     const { getNutritionForDateRange, getStepsForDateRange, rollingWeekStats } = useFoodContext();
-    const [tab, setTab] = useState('nutrition');
-    const [rangeKey, setRangeKey] = useState(null);
-    const [planned, setPlanned] = useState(null);
-    const [open, setOpen] = useState({});
+    const [tab, setTab] = useState<TabKey>('nutrition');
+    const [rangeKey, setRangeKey] = useState<string | null>(null);
+    const [planned, setPlanned] = useState<number | null>(null);
+    const [open, setOpen] = useState<Record<string, boolean>>({});
     const [all, setAll] = useState({ n: false, t: false });
     const [switching, setSwitching] = useState(false);
 
@@ -510,10 +537,10 @@ const ProgressScreen = () => {
                         setPlanned(null);
                         return;
                     }
-                    const raw = splits.find(s => (s.id ?? s.data?.id) === userData?.activeSplitId) ?? splits[0];
-                    setPlanned(getWorkoutsPerWeek(raw) || null);
+                    const raw = splits.find(s => (s.id ?? (s.data as { id?: string } | undefined)?.id) === userData?.activeSplitId) ?? splits[0];
+                    setPlanned(getWorkoutsPerWeek(raw as SplitLike) || null);
                 } catch (e) {
-                    console.error('Progress split load error:', e.message);
+                    console.error('Progress split load error:', (e as Error).message);
                 }
             })();
             return () => {
@@ -540,7 +567,7 @@ const ProgressScreen = () => {
     const weeks = useMemo(() => withRates(built.weeks, dir), [built, dir]);
     const info = useMemo(() => phaseInfo(userData, weeks), [userData, weeks]);
     const ranges = useMemo(() => rangeOptions(info), [info]);
-    const range = ranges.find(r => r.key === rangeKey) ?? ranges.find(r => r.key === 'PHASE') ?? ranges.find(r => r.key === '12W');
+    const range = ranges.find(r => r.key === rangeKey) ?? ranges.find(r => r.key === 'PHASE') ?? ranges.find(r => r.key === '12W')!;
     const n = range.n;
 
     const pace = useMemo(() => paceModel(weeks, n, info), [weeks, n, info]);
@@ -555,7 +582,7 @@ const ProgressScreen = () => {
     const sets = useMemo(() => setsModel(weeks, n), [weeks, n]);
     const months = useMemo(() => monthsModel(weeks, planned), [weeks, planned]);
 
-    const openLift = useCallback(name => navigation.navigate('ExerciseHistory', { exerciseName: name }), [navigation]);
+    const openLift = useCallback((name: string) => navigation.navigate('ExerciseHistory', { exerciseName: name }), [navigation]);
 
     const openProfile = useCallback(() => navigation.navigate('Profile'), [navigation]);
 
@@ -572,14 +599,14 @@ const ProgressScreen = () => {
                         setSwitching(true);
                         try {
                             const uid = userData?.uid || getAuth().currentUser?.uid;
-                            await switchToMaintenance(uid, userData, {
+                            await switchToMaintenance(uid!, userData!, {
                                 weight: recap.endWeight,
-                                kcal: recap.maintenance,
+                                kcal: recap.maintenance as number,
                                 entry: recapEntry(recap),
                             });
                             await refreshUserData();
                         } catch (e) {
-                            console.error('Progress switch error:', e.message);
+                            console.error('Progress switch error:', (e as Error).message);
                             Alert.alert('Error', 'Failed to switch. Try again.');
                         } finally {
                             setSwitching(false);
