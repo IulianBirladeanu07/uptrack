@@ -200,9 +200,6 @@ const styles = createStyles(() => ({
     textAlign: 'right',
     letterSpacing: -0.3,
   },
-  mealScrollView: {
-    flexGrow: 1,
-  },
   foodImage: {
     width: spacing[10],
     height: spacing[10],

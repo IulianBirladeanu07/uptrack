@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, ActivityIndicator, Alert } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
 import { useFoodContext } from '../../context/FoodContext';
 
@@ -12,11 +11,14 @@ import DateNavigationHeader from '../../components/DateNavigationHeader/DateNavi
 import NutritionStats from '../../components/NutritionStats/NutritionStats';
 import useWeightData from '../../helpers/useWeightData';
 import styles from './NutritionScreenStyles';
+import type { FoodItemData } from '../../components/NutritionItem/FoodItem';
+import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import type { FoodDetailFood, LoggedFood, MealType } from '../../../../shared/types';
 
 const NutritionScreen = () => {
-    const navigation = useNavigation();
+    const navigation = useAppNavigation();
     const navInset = useBottomNavInset();
-    const route = useRoute();
+    const route = useAppRoute<'Nutrition'>();
 
     const {
         breakfastFoods,
@@ -35,12 +37,12 @@ const NutritionScreen = () => {
         dailySteps,
     } = useFoodContext();
 
-    const [selectedMeal, setSelectedMeal] = useState('breakfast');
-    const [userId] = useState(() => getAuth().currentUser?.uid || null);
+    const [selectedMeal, setSelectedMeal] = useState<MealType>('breakfast');
+    const [userId] = useState<string | null>(() => getAuth().currentUser?.uid || null);
     const [isReady, setIsReady] = useState(false);
 
     const { weightData, refreshWeightData } = useWeightData(userId, selectedDate);
-    const learningCompletion = useLearningCompletion(learningData, hasTargets);
+    useLearningCompletion(learningData, hasTargets);
 
     useEffect(() => {
         if (initialLoadComplete && userId) {
@@ -61,40 +63,31 @@ const NutritionScreen = () => {
         }
     }, [route.params?.refresh, navigation]);
 
-    const handleDateChange = useCallback((date) => {
+    const handleDateChange = useCallback((date: Date) => {
         setSelectedDate(date);
     }, [setSelectedDate]);
 
-    const handleFoodSelect = useCallback((item) => {
+    const handleFoodSelect = useCallback((item: FoodDetailFood) => {
         navigation.navigate('FoodDetail', {
             food: { ...item, date: selectedDate.toISOString(), imageSource: item.image },
             meal: selectedMeal,
-            date: selectedDate.toISOString(),
             update: true,
             foodId: item.id,
-            imageSource: item.image,
         });
     }, [navigation, selectedDate, selectedMeal]);
 
-    const handleSwipeableOpen = useCallback(async (item) => {
+    const handleSwipeableOpen = useCallback(async (item: FoodItemData) => {
         const { mealType, id } = item;
         try {
-            await handleDeleteMeal(mealType, id);
+            await handleDeleteMeal(mealType as MealType, id as string);
         } catch (error) {
             Alert.alert('Error', 'Failed to delete meal.');
         }
     }, [handleDeleteMeal]);
 
     const handleWeightPress = useCallback(() => {
-        navigation.navigate('WeightTracker', {
-            currentWeight:      weightData.currentWeight,
-            weeklyAverage:      weightData.weeklyAverage,
-            weeklyTrend:        weightData.weeklyTrend,
-            selectedDateString: selectedDate.toISOString(),
-            weighInCount:       weightData.weighInCount,
-            lastWeekAverage:    weightData.lastWeekAverage,
-        });
-    }, [navigation, weightData, selectedDate]);
+        navigation.navigate('WeightTracker');
+    }, [navigation]);
 
     const handleAddFood = useCallback(() => {
         navigation.navigate('FoodSelection', {
@@ -105,7 +98,7 @@ const NutritionScreen = () => {
     }, [navigation, selectedMeal, selectedDate, remainingCalories]);
 
     const combinedFoods = useMemo(() => {
-        const mealFoods = { breakfast: breakfastFoods, lunch: lunchFoods, dinner: dinnerFoods, snacks: snacksFoods };
+        const mealFoods: Record<MealType, LoggedFood[]> = { breakfast: breakfastFoods, lunch: lunchFoods, dinner: dinnerFoods, snacks: snacksFoods };
         return mealFoods[selectedMeal] || [];
     }, [selectedMeal, breakfastFoods, lunchFoods, dinnerFoods, snacksFoods]);
 
@@ -147,13 +140,9 @@ const NutritionScreen = () => {
                         foods={combinedFoods}
                         onSwipeableOpen={handleSwipeableOpen}
                         onPress={handleFoodSelect}
-                        mealScrollView={styles.mealScrollView}
                         isFoodDeletable={true}
                         selectedMeal={selectedMeal}
                         setSelectedMeal={setSelectedMeal}
-                        selectedDate={selectedDate}
-                        navigation={navigation}
-                        remainingCalories={remainingCalories}
                         onAddFood={handleAddFood}
                     />
                 </View>

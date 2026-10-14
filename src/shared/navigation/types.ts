@@ -58,7 +58,7 @@ export type AuthenticatedStackParamList = {
     meal?: string | undefined;
     selectedDate?: string | undefined;
     update?: boolean;
-    foodId?: string;
+    foodId?: string | undefined;
     remainingCalories?: number;
     returnToBarcodeScanner?: boolean;
     refreshBarcodedProducts?: boolean;

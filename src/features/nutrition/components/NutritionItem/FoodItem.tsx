@@ -14,6 +14,7 @@ import type { Numeric } from '../../../../shared/types';
 
 export type FoodItemData = {
   id?: string | undefined;
+  mealType?: string | undefined;
   productName?: string | null;
   image?: string | null;
   icon?: string | null;
