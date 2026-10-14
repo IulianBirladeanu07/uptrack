@@ -13,7 +13,6 @@ export const useBarcodeScanner = (
 ) => {
   const [isScanning, setIsScanning] = useState(true);
   const [loadingProduct, setLoadingProduct] = useState(false);
-  const [currentProduct, setCurrentProduct] = useState<ReturnType<typeof transformBarcodeDBToFoodDetail> | null>(null);
   const [instructionsVisible, setInstructionsVisible] = useState(true);
   
   const successOpacity = useRef(new Animated.Value(0)).current;
@@ -57,13 +56,11 @@ export const useBarcodeScanner = (
       if (product) {
         showSuccessAnimation();
         const transformedProduct = transformBarcodeDBToFoodDetail(product);
-        setCurrentProduct(transformedProduct);
 
         navigation.navigate('FoodDetail', { 
           food: transformedProduct, 
           meal, 
-          selectedDate,
-          returnToBarcodeScanner: true
+          selectedDate
         });
 
         if (instructionsVisible) {
@@ -126,8 +123,7 @@ export const useBarcodeScanner = (
               barcode,
               type: 'foodWithBarcode',
               meal,
-              selectedDate,
-              returnToBarcodeScanner: true
+              selectedDate
             });
           }
         },
@@ -148,14 +144,12 @@ export const useBarcodeScanner = (
   };
 
   const resumeScanning = useCallback(() => {
-    setCurrentProduct(null);
     setIsScanning(true);
   }, []);
 
   return {
     isScanning,
     loadingProduct,
-    currentProduct,
     instructionsVisible,
     successOpacity,
     errorOpacity,

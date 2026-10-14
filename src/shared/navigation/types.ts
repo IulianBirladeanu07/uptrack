@@ -60,15 +60,12 @@ export type AuthenticatedStackParamList = {
     update?: boolean;
     foodId?: string | undefined;
     remainingCalories?: number;
-    returnToBarcodeScanner?: boolean;
-    refreshBarcodedProducts?: boolean;
   };
   CustomFood: {
     type?: string;
     barcode?: string;
     meal?: string | undefined;
     selectedDate?: string | undefined;
-    returnToBarcodeScanner?: boolean;
   } | undefined;
   CreateSplit: {
     split?: unknown;

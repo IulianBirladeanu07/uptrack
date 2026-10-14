@@ -84,23 +84,12 @@ const BarcodeScannerScreen = () => {
   const {
     isScanning,
     loadingProduct,
-    currentProduct,
     instructionsVisible,
     successOpacity,
     errorOpacity,
     handleBarcodeScanned,
     resumeScanning,
   } = useBarcodeScanner(navigation, meal, selectedDate);
-
-  useEffect(() => {
-    if (currentProduct && !isScanning) {
-      navigation.navigate('FoodDetail', { 
-        food: currentProduct, 
-        meal, 
-        selectedDate 
-      });
-    }
-  }, [currentProduct, isScanning, navigation, meal, selectedDate]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', resumeScanning);

@@ -155,8 +155,7 @@ export const useCustomFood = (
                     meal: meal,
                     selectedDate: serializedDate,
                     remainingCalories: updatedRemainingCalories,
-                    update: false,
-                    refreshBarcodedProducts: true
+                    update: false
                 });
             } else {
                 const foodForDetail = transformForCustomFood(formattedData);
