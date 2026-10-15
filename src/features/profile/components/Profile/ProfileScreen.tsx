@@ -170,13 +170,6 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
 
       await setDoc(doc(db, 'users', user.uid), payload, { merge: true });
       const refreshedUserData = await refreshUserData();
-      if (!refreshedUserData) {
-        Alert.alert(
-          'Saved, but not refreshed',
-          'Your changes were saved, but the app could not reload your profile. Tap Save again to retry the refresh. If you changed email, check your inbox for the confirmation link.'
-        );
-        return;
-      }
 
       setOriginal({ ...form });
       const shownEmail = emailChangePending ? savedIdentity.email : email;
@@ -184,6 +177,15 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
       setSavedIdentity({ username, email: shownEmail });
       if (payload['profilePicture']) setPicture(payload['profilePicture'] as string);
       setPendingUri(null);
+      if (!refreshedUserData) {
+        Alert.alert(
+          'Saved, but not refreshed',
+          emailChangePending
+            ? `Your changes were saved, but the app could not reload your profile yet. Open the link we sent to ${email} to change your email.`
+            : 'Your changes were saved, but the app could not reload your profile yet. They will show after the next refresh.'
+        );
+        return;
+      }
       if (emailChangePending) {
         Alert.alert(
           'Confirm Your New Email',
