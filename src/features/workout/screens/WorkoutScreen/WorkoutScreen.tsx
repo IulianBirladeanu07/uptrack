@@ -10,7 +10,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
-import { fetchSplitsFromFirestore } from '../../handlers/WorkoutHandler';
+import { fetchSplitsFromFirestore, findBestSet, formatBestSet } from '../../handlers/WorkoutHandler';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { getScheduledDay, getWeekSchedule, getCycleLength } from '../../utils/splitSchedule';
 import type { SplitLike } from '../../utils/splitSchedule';
@@ -496,15 +496,11 @@ const summarizeWorkoutEntry = (entry: WorkoutHistoryEntry): WorkoutSummary => {
         exerciseCount: exercises.length,
         exercises: exercises.map(ex => {
             const sets = ex.sets ?? [];
-            const bestSet = sets.reduce((best, s) => {
-                return (parseFloat(String(s.weight)) || 0) > (parseFloat(String(best.weight ?? 0)) || 0) ? s : best;
-            }, sets[0] ?? {});
-            const weight = parseFloat(String(bestSet?.weight ?? ''));
-            const reps = parseInt(String(bestSet?.reps ?? ''), 10);
+            const bestSet = findBestSet(sets);
             return {
                 name: ex.exerciseName ?? ex.name ?? '',
                 sets: sets.length,
-                bestSet: weight && reps ? `${weight}kg × ${reps}` : reps ? `${reps} reps` : null,
+                bestSet: formatBestSet(bestSet),
             };
         }),
     };

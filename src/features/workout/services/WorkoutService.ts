@@ -1,6 +1,8 @@
 import { useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSetsFromLastWorkout } from '../handlers/WorkoutHandler';
+import { isSameExercise } from '../utils/exerciseIdentity';
+import { isValidWorkoutSetInput } from '../utils/workoutSetValidation';
 import type { PersistedWorkoutState, WorkoutExercise, WorkoutListener, WorkoutSet } from '../types';
 
 const generateId = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -24,6 +26,7 @@ class WorkoutService {
     workoutNote = '';
     workoutTemplateName = '';
     lastSetCache = new Map<string, WorkoutSet[]>();
+    storageQueue: Promise<void> = Promise.resolve();
     _persistTimeout: ReturnType<typeof setTimeout> | null = null;
     _notifyTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -31,6 +34,12 @@ class WorkoutService {
 
     storageKey(): string | null {
         return this.uid ? `activeWorkout_${this.uid}` : null;
+    }
+
+    enqueueStorageOperation(operation: () => Promise<void>): Promise<void> {
+        const operationPromise = this.storageQueue.then(operation);
+        this.storageQueue = operationPromise.then(() => undefined, () => undefined);
+        return operationPromise;
     }
 
     async setUser(uid: string | null | undefined): Promise<void> {
@@ -90,7 +99,11 @@ class WorkoutService {
 
     schedulePersist(): void {
         if (this._persistTimeout) clearTimeout(this._persistTimeout);
-        this._persistTimeout = setTimeout(() => this.persistWorkout(), 1000);
+        this._persistTimeout = setTimeout(() => {
+            this.persistWorkout().catch(error => {
+                console.error('Failed to persist active workout:', error);
+            });
+        }, 1000);
     }
 
     batch(callback: () => void): void {
@@ -107,7 +120,7 @@ class WorkoutService {
         const key = this.storageKey();
         if (!key) return;
         if (this.exerciseData.length === 0) {
-            await AsyncStorage.removeItem(key);
+            await this.enqueueStorageOperation(() => AsyncStorage.removeItem(key));
             return;
         }
         const workoutState = {
@@ -118,7 +131,8 @@ class WorkoutService {
             isActive: true,
             lastSaved: Date.now(),
         };
-        await AsyncStorage.setItem(key, JSON.stringify(workoutState));
+        const serializedState = JSON.stringify(workoutState);
+        await this.enqueueStorageOperation(() => AsyncStorage.setItem(key, serializedState));
     }
 
     async restoreWorkout(): Promise<PersistedWorkoutState | null> {
@@ -168,7 +182,7 @@ class WorkoutService {
         this.workoutTemplateName = '';
         this.lastSetCache.clear();
         const key = this.storageKey();
-        if (key) await AsyncStorage.removeItem(key);
+        if (key) await this.enqueueStorageOperation(() => AsyncStorage.removeItem(key));
         this.notifyListeners();
     }
 
@@ -211,16 +225,17 @@ class WorkoutService {
         return [...this.exerciseData];
     }
 
-    async fetchLastSets(exerciseName: string): Promise<WorkoutSet[]> {
-        if (this.lastSetCache.has(exerciseName)) {
-            return this.lastSetCache.get(exerciseName) ?? [];
+    async fetchLastSets(exerciseName: string, muscleGroup?: string): Promise<WorkoutSet[]> {
+        const cacheKey = JSON.stringify([exerciseName, muscleGroup || '']);
+        if (this.lastSetCache.has(cacheKey)) {
+            return this.lastSetCache.get(cacheKey) ?? [];
         }
         const userGeneration = this.userGeneration;
         try {
-            const sets = await getSetsFromLastWorkout(exerciseName);
+            const sets = await getSetsFromLastWorkout(exerciseName, muscleGroup);
             if (userGeneration !== this.userGeneration) return [];
             const typed = (sets || []) as WorkoutSet[];
-            this.lastSetCache.set(exerciseName, typed);
+            this.lastSetCache.set(cacheKey, typed);
             return typed;
         } catch (error) {
             console.error(`Error fetching last sets for ${exerciseName}:`, error);
@@ -235,7 +250,7 @@ class WorkoutService {
         const asyncStateGeneration = ++this.asyncStateGeneration;
         const validExercises = templateExercises.filter(e => e && e.exerciseName);
         const allLastSets = await Promise.all(
-            validExercises.map(e => this.fetchLastSets(e.exerciseName))
+            validExercises.map(e => this.fetchLastSets(e.exerciseName, e.muscleGroup))
         );
         if (
             userGeneration !== this.userGeneration ||
@@ -251,8 +266,8 @@ class WorkoutService {
                     lastWorkoutSets: lastSets,
                     sets: ex.sets.map(set => ({
                         id: generateId(),
-                        weight: set.weight || '',
-                        reps: set.reps || '',
+                        weight: set.weight ?? '',
+                        reps: set.reps ?? '',
                         isValidated: false,
                         repsModified: false,
                     })),
@@ -304,13 +319,15 @@ class WorkoutService {
             if (!/^\d+\.?\d{0,2}$/.test(value)) return;
             if (parseFloat(value) > 500) return;
         }
+        const currentSet = this.exerciseData[exerciseIndex].sets[setIndex];
         this.exerciseData = [...this.exerciseData];
         this.exerciseData[exerciseIndex] = { ...this.exerciseData[exerciseIndex] };
         this.exerciseData[exerciseIndex].sets = [...this.exerciseData[exerciseIndex].sets];
         this.exerciseData[exerciseIndex].sets[setIndex] = {
-            ...this.exerciseData[exerciseIndex].sets[setIndex],
+            ...currentSet,
             weight: value,
             weightModified: true,
+            isValidated: currentSet.weight === value ? currentSet.isValidated : false,
         };
         this.notifyListenersThrottled();
     }
@@ -318,13 +335,15 @@ class WorkoutService {
     updateReps(exerciseIndex: number, setIndex: number, value: string): void {
         if (!this.exerciseData[exerciseIndex]?.sets[setIndex]) return;
         if (value !== '' && (!/^\d+$/.test(value) || parseInt(value) < 1 || parseInt(value) > 100)) return;
+        const currentSet = this.exerciseData[exerciseIndex].sets[setIndex];
         this.exerciseData = [...this.exerciseData];
         this.exerciseData[exerciseIndex] = { ...this.exerciseData[exerciseIndex] };
         this.exerciseData[exerciseIndex].sets = [...this.exerciseData[exerciseIndex].sets];
         this.exerciseData[exerciseIndex].sets[setIndex] = {
-            ...this.exerciseData[exerciseIndex].sets[setIndex],
+            ...currentSet,
             reps: value,
             repsModified: true,
+            isValidated: currentSet.reps === value ? currentSet.isValidated : false,
         };
         this.notifyListenersThrottled();
     }
@@ -333,8 +352,8 @@ class WorkoutService {
         if (!this.exerciseData[exerciseIndex]?.sets[setIndex]) return;
 
         const currentSet = this.exerciseData[exerciseIndex].sets[setIndex];
-        const reps = String(currentSet.reps || '').trim();
-        const weight = String(currentSet.weight || '').trim();
+        const reps = String(currentSet.reps ?? '').trim();
+        const weight = String(currentSet.weight ?? '').trim();
 
         if (currentSet.isValidated) {
             this.exerciseData = this.exerciseData.map((exercise, eIdx) => {
@@ -351,7 +370,7 @@ class WorkoutService {
             return;
         }
 
-        if (!reps || !weight) return;
+        if (!isValidWorkoutSetInput(weight, reps)) return;
 
         this.exerciseData = this.exerciseData.map((exercise, eIdx) => {
             if (eIdx !== exerciseIndex) return exercise;
@@ -381,8 +400,8 @@ class WorkoutService {
         const lastSet = exercise.sets[exercise.sets.length - 1];
         const newSet = {
             ...createEmptySet(),
-            weight: lastSet?.weight || '',
-            reps: lastSet?.reps || '',
+            weight: lastSet?.weight ?? '',
+            reps: lastSet?.reps ?? '',
         };
         this.exerciseData = this.exerciseData.map((ex, idx) => {
             if (idx !== exerciseIndex) return ex;
@@ -429,12 +448,14 @@ class WorkoutService {
 
     addExercises(exercises: WorkoutExercise[] | null | undefined): void {
         if (!exercises || !Array.isArray(exercises)) return;
-        const names = new Set(this.exerciseData.map(ex => ex.exerciseName));
-        const filtered = exercises.filter(ex => {
-            if (!ex?.exerciseName || names.has(ex.exerciseName)) return false;
-            names.add(ex.exerciseName);
-            return true;
-        });
+        const filtered: WorkoutExercise[] = [];
+        for (const exercise of exercises) {
+            if (
+                !exercise?.exerciseName ||
+                [...this.exerciseData, ...filtered].some(existing => isSameExercise(existing, exercise))
+            ) continue;
+            filtered.push(exercise);
+        }
         if (filtered.length > 0) {
             this.exerciseData = [...this.exerciseData, ...filtered];
             this.notifyListeners();

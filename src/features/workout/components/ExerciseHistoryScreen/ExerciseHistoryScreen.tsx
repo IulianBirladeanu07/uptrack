@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Circle, Text as SvgText, G } from 'react-native-svg';
-import { getExerciseHistory, calculate1RM } from '../../handlers/WorkoutHandler';
+import { getExerciseHistory, calculate1RM, formatBestSet } from '../../handlers/WorkoutHandler';
 import { colors, spacing } from '../../../../shared/theme';
 import styles from './ExerciseHistoryScreenStyles';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
@@ -138,7 +138,7 @@ const SessionItem = ({ session, isLast }: SessionItemProps) => {
                 </View>
                 <View style={styles.sessionRight}>
                     <Text style={styles.sessionBestValue}>
-                        {parseFloat(String(session.best.weight))}kg × {parseInt(String(session.best.reps), 10)}
+                        {formatBestSet(session.best) || '-'}
                     </Text>
                     <Ionicons
                         name={expanded ? 'chevron-up' : 'chevron-down'}
@@ -171,20 +171,34 @@ const SessionItem = ({ session, isLast }: SessionItemProps) => {
 const ExerciseHistoryScreen = () => {
     const navigation = useAppNavigation();
     const route = useAppRoute<'ExerciseHistory'>();
-    const { exerciseName } = route.params;
+    const { exerciseName, muscleGroup } = route.params;
     const [sessions, setSessions] = useState<HistorySession[]>([]);
     const [loading, setLoading] = useState(true);
+    const [hasLoadError, setHasLoadError] = useState(false);
     const [selectedPeriod, setSelectedPeriod] = useState(10);
+    const loadGeneration = useRef(0);
+
+    const load = useCallback(async () => {
+        const requestGeneration = ++loadGeneration.current;
+        setLoading(true);
+        setHasLoadError(false);
+        try {
+            const data = await getExerciseHistory(exerciseName, muscleGroup);
+            if (requestGeneration !== loadGeneration.current) return;
+            setSessions(data as HistorySession[]);
+        } catch {
+            if (requestGeneration === loadGeneration.current) setHasLoadError(true);
+        } finally {
+            if (requestGeneration === loadGeneration.current) setLoading(false);
+        }
+    }, [exerciseName, muscleGroup]);
 
     useEffect(() => {
-        const load = async () => {
-            setLoading(true);
-            const data = await getExerciseHistory(exerciseName);
-            setSessions(data as HistorySession[]);
-            setLoading(false);
+        void load();
+        return () => {
+            loadGeneration.current++;
         };
-        load();
-    }, [exerciseName]);
+    }, [load]);
 
     const filteredSessions = useMemo(() => sessions.slice(0, selectedPeriod), [sessions, selectedPeriod]);
 
@@ -202,12 +216,42 @@ const ExerciseHistoryScreen = () => {
 
     const keyExtractor = useCallback((item: HistorySession) => item.id, []);
 
+    const historyHeader = (
+        <View style={styles.headerSection}>
+            <View style={styles.backRow}>
+                <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+                    <Ionicons name="arrow-back" size={spacing.icon} color={colors.text.primary} />
+                </TouchableOpacity>
+                <Text style={styles.heading} numberOfLines={1}>{exerciseName}</Text>
+            </View>
+        </View>
+    );
+
     if (loading) {
         return (
             <SafeAreaView style={styles.container} edges={['top']}>
+                {historyHeader}
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={colors.accent.primary} />
                     <Text style={styles.loadingText}>Loading history...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (hasLoadError) {
+        return (
+            <SafeAreaView style={styles.container} edges={['top']}>
+                {historyHeader}
+                <View style={styles.emptyContainer}>
+                    <View style={styles.emptyIconContainer}>
+                        <Ionicons name="cloud-offline-outline" size={48} color={colors.accent.errorAlt} />
+                    </View>
+                    <Text style={styles.emptyTitle}>Could not load history</Text>
+                    <Text style={styles.emptySubtitle}>Check your connection and try again.</Text>
+                    <TouchableOpacity style={styles.retryButton} onPress={() => void load()}>
+                        <Text style={styles.retryButtonText}>Retry</Text>
+                    </TouchableOpacity>
                 </View>
             </SafeAreaView>
         );
@@ -226,7 +270,7 @@ const ExerciseHistoryScreen = () => {
                 {allTimeBest && (
                     <View style={styles.bestRow}>
                         <Text style={styles.bestValue}>
-                            {parseFloat(String(allTimeBest.weight))}kg × {parseInt(String(allTimeBest.reps), 10)}
+                            {formatBestSet(allTimeBest) || '-'}
                         </Text>
                         <Text style={styles.bestLabel}>all-time best · {allTimeBest.e1rm.toFixed(1)} 1RM</Text>
                     </View>

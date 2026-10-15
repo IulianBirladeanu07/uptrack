@@ -47,7 +47,7 @@ import styles from './PreviewSplitScreenStyle';
 import DaySelector from './DaySelector';
 import MuscleCoverageCard from './MuscleCoverageCard';
 import WorkoutExercisePreview, { ExercisePreviewList } from '../../../components/WorkoutExercisePreview/WorkoutExercisePreview';
-import { getCycleLength, getWorkoutsPerWeek, isRotationSplit, toDateKey, type SplitLike } from '../../../utils/splitSchedule';
+import { getCycleLength, getWorkoutsPerWeek, hasScheduledWorkout, isRotationSplit, toDateKey, type SplitLike } from '../../../utils/splitSchedule';
 
 const asSplit = (s: PreviewSplit | null | undefined): SplitLike => s as SplitLike;
 
@@ -108,7 +108,8 @@ const PreviewSplitScreen = () => {
 
   const selectedDayWorkout = useMemo((): PreviewDayWorkout | null => {
     if (!selectedDay) return null;
-    return split?.schedule?.[selectedDay] ?? null;
+    const workout = split?.schedule?.[selectedDay] ?? null;
+    return hasScheduledWorkout(workout) ? workout : null;
   }, [selectedDay, split]);
 
   const selectedDayStats = useMemo(() => {
@@ -126,7 +127,7 @@ const PreviewSplitScreen = () => {
 
   const compositionStats = useMemo(() => {
     const schedule = split?.schedule || {};
-    const workouts = Object.values(schedule).filter((w): w is PreviewDayWorkout => w != null);
+    const workouts = Object.values(schedule).filter((w): w is PreviewDayWorkout => hasScheduledWorkout(w));
 
     let totalSets = 0;
     let totalDuration = 0;
@@ -142,7 +143,7 @@ const PreviewSplitScreen = () => {
 
   const muscleGroupSets = useMemo(() => {
     const schedule = split?.schedule || {};
-    const workouts = Object.values(schedule).filter((w): w is PreviewDayWorkout => w != null);
+    const workouts = Object.values(schedule).filter((w): w is PreviewDayWorkout => hasScheduledWorkout(w));
     const sets: Record<string, number> = {};
 
     workouts.forEach(workout => {
@@ -352,7 +353,7 @@ const PreviewSplitScreen = () => {
               id: day.id,
               shortLabel: day.shortLabel,
               name: day.name,
-              hasWorkout: !!split?.schedule?.[day.id],
+              hasWorkout: hasScheduledWorkout(split?.schedule?.[day.id]),
               isToday: day.id === todayKey,
             }))}
             selectedDayId={selectedDay}

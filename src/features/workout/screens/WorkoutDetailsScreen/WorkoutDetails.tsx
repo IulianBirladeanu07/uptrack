@@ -1,5 +1,5 @@
-import { useState, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Alert, StatusBar, ScrollView } from 'react-native';
+import { useState, useRef, useMemo, useCallback } from 'react';
+import { View, Text, TouchableOpacity, Alert, StatusBar, ScrollView, BackHandler } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,11 +7,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Sharing from 'expo-sharing';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import styles from './WorkoutDetailsStyle';
 import { colors, spacing } from '../../../../shared/theme';
-import { findBestSet } from '../../handlers/WorkoutHandler';
+import { findBestSet, formatBestSet } from '../../handlers/WorkoutHandler';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 
 const WorkoutDetails = () => {
@@ -23,6 +24,16 @@ const WorkoutDetails = () => {
     const [isSharing, setIsSharing] = useState(false);
     const insets = useSafeAreaInsets();
     const workoutCardRef = useRef<any>(null);
+
+    useFocusEffect(
+        useCallback(() => {
+            const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+                navigation.pop(2);
+                return true;
+            });
+            return () => backHandler.remove();
+        }, [navigation])
+    );
 
     const translateX = useSharedValue(0);
     const translateY = useSharedValue(0);
@@ -210,7 +221,7 @@ const WorkoutDetails = () => {
                                             </View>
                                             <View style={styles.bestSetContainer}>
                                                 <Text style={[styles.bestSetValue, hasPR && styles.bestSetValuePR]}>
-                                                    {best.weight}kg × {best.reps}
+                                                    {formatBestSet(best) || '-'}
                                                 </Text>
                                             </View>
                                         </View>

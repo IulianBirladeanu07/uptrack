@@ -35,4 +35,15 @@ describe('WorkoutTimer', () => {
 
     unsubscribe();
   });
+
+  it('notifies current listeners immediately when restoring a workout', () => {
+    const listener = jest.fn();
+    const unsubscribe = workoutTimer.subscribe(listener);
+    const startTime = Date.now() - 9000;
+
+    workoutTimer.restore(startTime);
+
+    expect(listener).toHaveBeenLastCalledWith(9);
+    unsubscribe();
+  });
 });

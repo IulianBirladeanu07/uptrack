@@ -1,4 +1,9 @@
-type ScheduleDay = { exercises?: unknown[] } & Record<string, unknown>;
+type ScheduleDay = {
+  id?: string;
+  templateId?: string;
+  templateName?: string;
+  exercises?: unknown[];
+} & Record<string, unknown>;
 type Schedule = Record<string, ScheduleDay | null | undefined>;
 
 export type SplitLike = {
@@ -34,6 +39,12 @@ const keyDayNumber = (key: unknown): number | null => {
 const scheduleOf = (split: SplitLike): Schedule => split?.schedule ?? split?.data?.schedule ?? {};
 
 const typeOf = (split: SplitLike): string | undefined => split?.type ?? split?.data?.type;
+
+export const hasScheduledWorkout = (day: ScheduleDay | null | undefined): boolean => {
+  if (!day || day.templateId === 'rest-day' || day.templateName?.toLowerCase() === 'rest day') return false;
+  if (Array.isArray(day.exercises)) return day.exercises.length > 0;
+  return !!(day.templateId || day.id);
+};
 
 export const isRotationSplit = (split: SplitLike): boolean => typeOf(split) === 'rotation';
 

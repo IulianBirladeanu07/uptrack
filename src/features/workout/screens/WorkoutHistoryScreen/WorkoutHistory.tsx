@@ -3,7 +3,7 @@ import { View, Text, SectionList, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WorkoutContext } from '../../context/WorkoutContext';
-import { findBestSet } from '../../handlers/WorkoutHandler';
+import { findBestSet, formatBestSet } from '../../handlers/WorkoutHandler';
 import { durationToMinutes } from '../../utils/durationUtils';
 import { colors } from '../../../../shared/theme';
 import styles from './WorkoutHistoryStyles';
@@ -106,7 +106,7 @@ const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; a
                             </View>
                             <View style={styles.bestSetContainer}>
                                 <Text style={[styles.bestSetValue, hasPR && styles.bestSetValuePR]}>
-                                    {bestSet.weight && bestSet.reps ? `${bestSet.weight}kg × ${bestSet.reps}` : '-'}
+                                    {formatBestSet(bestSet) || '-'}
                                 </Text>
                             </View>
                         </View>
@@ -138,7 +138,7 @@ const WorkoutHistoryScreen = () => {
                     restBetweenSets: ex.restBetweenSets || '',
                     lastWorkoutSets: ex.lastWorkoutSets || [],
                     sets: ex.sets.map((s: any) => ({
-                        weight: String(s.weight || ''),
+                        weight: String(s.weight ?? ''),
                         reps: String(s.reps || ''),
                         isValidated: false,
                         repsModified: false,

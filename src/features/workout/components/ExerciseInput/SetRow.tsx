@@ -12,6 +12,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { workoutService } from '../../services/WorkoutService';
 import PreviousSetDisplay from './PreviousSetDisplay';
+import { isValidWorkoutSetInput } from '../../utils/workoutSetValidation';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import type { WorkoutExercise, WorkoutSet } from '../../types';
@@ -197,7 +198,7 @@ const SetRow = ({
         })
         .onEnd((event) => {
             'worklet';
-            if (event.translationX < SWIPE_THRESHOLD) {
+            if (event.translationX <= SWIPE_THRESHOLD) {
                 runOnJS(confirmDelete)();
             } else {
                 translateX.value = withSpring(0, SPRING_CONFIG);
@@ -256,10 +257,7 @@ const SetRow = ({
 
     const handleValidationPress = useCallback(() => {
         try {
-            const reps = String(setData.reps || '').trim();
-            const weight = String(setData.weight || '').trim();
-
-            if (!setData.isValidated && (!reps || !weight)) {
+            if (!setData.isValidated && !isValidWorkoutSetInput(setData.weight, setData.reps)) {
                 if (openAnimatedMessage) {
                     openAnimatedMessage('Enter weight and reps first');
                 }

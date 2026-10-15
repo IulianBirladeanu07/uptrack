@@ -43,6 +43,7 @@ class WorkoutTimer {
         if (this.interval) clearInterval(this.interval);
         this.startTime = startTime;
         this.isActive = true;
+        this.listeners.forEach(fn => fn(this.getElapsed()));
         this._startInterval();
         this._setupAppState();
     }

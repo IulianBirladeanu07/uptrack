@@ -7,6 +7,7 @@ import { colors, spacing } from '../../../../../shared/theme';
 import WorkoutPreviewCard from '../components/WorkoutPreviewCard';
 import DaySelector from '../components/DaySelector';
 import { daysOfWeek } from '../constants/CreateSplitScreenConstants';
+import { hasScheduledWorkout } from '../../../utils/splitSchedule';
 
 type ScheduleWorkout = {
   id?: string;
@@ -72,10 +73,12 @@ const ScheduleStep = ({
   }, [isRotationSchedule, splitData.schedule]);
 
   const currentScheduleDays = isWeeklySchedule ? daysOfWeek : rotationDays;
-  const assignedCount = Object.values(splitData.schedule ?? {}).filter(w => w != null).length;
+  const assignedCount = Object.values(splitData.schedule ?? {}).filter(hasScheduledWorkout).length;
 
   const currentDayWorkout = useMemo(() =>
-    (splitData.schedule ?? {})[selectedDay ?? ''],
+    hasScheduledWorkout((splitData.schedule ?? {})[selectedDay ?? ''])
+      ? (splitData.schedule ?? {})[selectedDay ?? '']
+      : undefined,
     [splitData.schedule, selectedDay]
   );
 
@@ -133,7 +136,9 @@ const ScheduleStep = ({
     if (newDayCount < rotationDays.length) {
       const wouldLoseWorkouts = rotationDays
         .slice(newDayCount)
-        .some(day => (splitData.schedule ?? {})[String((day as { number?: number }).number ?? '')]);
+        .some(day => hasScheduledWorkout(
+          (splitData.schedule ?? {})[String((day as { number?: number }).number ?? '')],
+        ));
 
       if (wouldLoseWorkouts) {
         Alert.alert(
@@ -209,7 +214,7 @@ const ScheduleStep = ({
                 id: String(day.id),
                 shortLabel: day.shortLabel,
                 name: day.name,
-                hasWorkout: !!(splitData.schedule ?? {})[day.id],
+                hasWorkout: hasScheduledWorkout((splitData.schedule ?? {})[day.id]),
               }))}
               selectedDayId={selectedDay == null ? null : String(selectedDay)}
               onSelectDay={setSelectedDay}
@@ -224,7 +229,7 @@ const ScheduleStep = ({
                 id: String(day.number ?? day.id),
                 shortLabel: String(day.shortLabel ?? day.number ?? ''),
                 name: String(day.name ?? `Day ${day.number ?? day.id}`),
-                hasWorkout: !!(splitData.schedule ?? {})[String(day.number ?? day.id)],
+                hasWorkout: hasScheduledWorkout((splitData.schedule ?? {})[String(day.number ?? day.id)]),
               }))}
               selectedDayId={selectedDay == null ? null : String(selectedDay)}
               onSelectDay={setSelectedDay}

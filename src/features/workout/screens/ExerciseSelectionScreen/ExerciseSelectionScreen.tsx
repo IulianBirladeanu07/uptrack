@@ -11,6 +11,7 @@ import { fetchExercises, clearExercisesCache } from '../../handlers/WorkoutHandl
 import { colors, spacing } from '../../../../shared/theme';
 import { styles } from './ExerciseSelectionScreenStyle';
 import type { CatalogExercise, ExerciseGroup } from '../../../../shared/types';
+import { exerciseIdentityKey } from '../../utils/exerciseIdentity';
 
 type ExerciseItemData = CatalogExercise & { id: string };
 type ExerciseCounts = { total: number; [muscleGroup: string]: number };
@@ -79,12 +80,12 @@ const useExerciseData = (allGroupedExercises: ExerciseGroup[]) => {
       counts[group.muscleGroup] = exerciseCount;
       counts.total += exerciseCount;
 
-      group.exercises.forEach((exercise, index) => {
+      group.exercises.forEach((exercise) => {
         if (!exercise?.name) return;
         const enrichedExercise = {
           ...exercise,
           muscleGroup: group.muscleGroup,
-          id: `${group.muscleGroup}-${exercise.name}-${index}`,
+          id: exerciseIdentityKey(exercise.name, group.muscleGroup),
         };
         exerciseMap.set(enrichedExercise.id, enrichedExercise);
         flatExercises.push(enrichedExercise);
@@ -186,7 +187,9 @@ const ExerciseItem = memo(({ exercise, isSelected, onToggle }: ExerciseSelection
 }, (prev, next) => {
   return prev.isSelected === next.isSelected &&
          prev.exercise.name === next.exercise.name &&
-         prev.exercise.id === next.exercise.id;
+         prev.exercise.id === next.exercise.id &&
+         prev.exercise.category === next.exercise.category &&
+         prev.exercise.imageURL === next.exercise.imageURL;
 });
 
 const FilterBar = memo(({ activeFilter, onFilterChange, muscleGroups, counts }: FilterBarProps) => {

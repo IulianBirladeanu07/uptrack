@@ -60,7 +60,7 @@ const AuthenticatedScreens = React.memo(() => (
         <AppStack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
         <AppStack.Screen name="CustomFood" component={CustomFoodScreen} options={{ headerShown: false }} />
         <AppStack.Screen name="WorkoutHistory" component={WorkoutHistory} options={{ headerShown: false }} />
-        <AppStack.Screen name="WorkoutDetails" component={WorkoutDetails} options={{ headerShown: false }} />
+        <AppStack.Screen name="WorkoutDetails" component={WorkoutDetails} options={{ headerShown: false, gestureEnabled: false }} />
         <AppStack.Screen name="StartWorkout" component={StartWorkout} options={{ headerShown: false }} />
         <AppStack.Screen name="ExerciseSelection" component={ExerciseSelectionScreen} options={{ headerShown: false }} />
         <AppStack.Screen name="WorkoutLibrary" component={WorkoutLibraryScreen} options={{ headerShown: false }} />

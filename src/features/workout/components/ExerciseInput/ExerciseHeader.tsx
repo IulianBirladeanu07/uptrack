@@ -63,7 +63,10 @@ const ExerciseHeader = memo(({
 
                 <View style={styles.headerActions}>
                     <TouchableOpacity
-                        onPress={() => navigation.navigate('ExerciseHistory', { exerciseName: exercise.exerciseName })}
+                        onPress={() => navigation.navigate('ExerciseHistory', {
+                            exerciseName: exercise.exerciseName,
+                            muscleGroup: exercise.muscleGroup || undefined,
+                        })}
                         style={styles.historyButton}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         activeOpacity={0.7}

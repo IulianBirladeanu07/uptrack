@@ -1,12 +1,11 @@
 const mockStore = new Map();
 const mockGetItem = jest.fn();
+const mockSetItem = jest.fn();
 const mockGetSetsFromLastWorkout = jest.fn();
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: (...args) => mockGetItem(...args),
-  setItem: jest.fn(async (k, v) => {
-    mockStore.set(k, v);
-  }),
+  setItem: (...args) => mockSetItem(...args),
   removeItem: jest.fn(async (k) => {
     mockStore.delete(k);
   }),
@@ -27,6 +26,9 @@ beforeEach(() => {
   jest.resetModules();
   mockStore.clear();
   mockGetItem.mockReset().mockImplementation(async k => (mockStore.has(k) ? mockStore.get(k) : null));
+  mockSetItem.mockReset().mockImplementation(async (k, v) => {
+    mockStore.set(k, v);
+  });
   mockGetSetsFromLastWorkout.mockReset();
   svc = require('./WorkoutService').workoutService;
 });
@@ -91,6 +93,19 @@ describe('active workout storage per user', () => {
     await svc.persistWorkout();
     expect(mockStore.size).toBe(0);
     expect(await svc.restoreWorkout()).toBeNull();
+  });
+
+  test('logs failures from scheduled workout persistence', async () => {
+    await svc.setUser('a');
+    const error = new Error('storage unavailable');
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockSetItem.mockRejectedValueOnce(error);
+
+    svc.setExerciseData([ex('Curl')]);
+    await jest.advanceTimersByTimeAsync(1000);
+
+    expect(consoleError).toHaveBeenCalledWith('Failed to persist active workout:', error);
+    consoleError.mockRestore();
   });
 
   test('signing out clears the in-memory workout and notifies listeners', async () => {
@@ -172,6 +187,26 @@ describe('active workout storage per user', () => {
     expect(mockStore.has('activeWorkout_b')).toBe(true);
   });
 
+  test('clearWorkout waits for an in-flight persist before removing saved state', async () => {
+    let resolveWrite;
+    mockSetItem.mockImplementationOnce((key, value) => new Promise(resolve => {
+      resolveWrite = () => {
+        mockStore.set(key, value);
+        resolve();
+      };
+    }));
+
+    await svc.setUser('a');
+    svc.setExerciseData([ex('Bench Press')]);
+    const pendingPersist = svc.persistWorkout();
+    await Promise.resolve();
+    const pendingClear = svc.clearWorkout();
+    resolveWrite();
+
+    await Promise.all([pendingPersist, pendingClear]);
+    expect(mockStore.has('activeWorkout_a')).toBe(false);
+  });
+
   test('does not cache previous-user history after switching accounts', async () => {
     let resolvePreviousSets;
     mockGetSetsFromLastWorkout
@@ -206,6 +241,27 @@ describe('active workout storage per user', () => {
       isValidated: false,
       repsModified: false,
     }]);
+  });
+
+  test('keeps previous-set history caches separate by muscle group', async () => {
+    mockGetSetsFromLastWorkout.mockImplementation(async (exerciseName, muscleGroup) => [{
+      id: `${muscleGroup}-set`,
+      weight: muscleGroup === 'Chest' ? '100' : '40',
+      reps: '8',
+      isValidated: false,
+      repsModified: false,
+    }]);
+
+    await svc.setUser('a');
+    const chestSets = await svc.fetchLastSets('Press', 'Chest');
+    const shoulderSets = await svc.fetchLastSets('Press', 'Shoulders');
+
+    expect(chestSets[0].weight).toBe('100');
+    expect(shoulderSets[0].weight).toBe('40');
+    expect(mockGetSetsFromLastWorkout).toHaveBeenNthCalledWith(1, 'Press', 'Chest');
+    expect(mockGetSetsFromLastWorkout).toHaveBeenNthCalledWith(2, 'Press', 'Shoulders');
+    await svc.fetchLastSets('Press', 'Chest');
+    expect(mockGetSetsFromLastWorkout).toHaveBeenCalledTimes(2);
   });
 
   test('does not load a template into a different user session', async () => {
@@ -256,14 +312,78 @@ describe('active workout storage per user', () => {
     expect(svc.getExerciseData()).toEqual([]);
   });
 
-  test('does not add duplicate exercise names from the same batch', () => {
-    svc.setExerciseData([ex('Squat')]);
+  test('deduplicates known same-muscle exercises and preserves distinct groups', () => {
+    svc.setExerciseData([{ ...ex('Squat'), muscleGroup: 'Legs' }]);
 
-    svc.addExercises([ex('Bench Press'), ex('Bench Press'), ex('Squat')]);
-
-    expect(svc.getExerciseData().map(exercise => exercise.exerciseName)).toEqual([
-      'Squat',
-      'Bench Press',
+    svc.addExercises([
+      { ...ex('Bench Press'), muscleGroup: 'Chest' },
+      { ...ex('Bench Press'), muscleGroup: 'Chest' },
+      { ...ex('Bench Press'), muscleGroup: 'Shoulders' },
+      { ...ex('Squat'), muscleGroup: 'Legs' },
     ]);
+
+    expect(svc.getExerciseData().map(exercise => [exercise.exerciseName, exercise.muscleGroup])).toEqual([
+      ['Squat', 'Legs'],
+      ['Bench Press', 'Chest'],
+      ['Bench Press', 'Shoulders'],
+    ]);
+  });
+
+  test('treats missing muscle-group identity as a duplicate', () => {
+    svc.setExerciseData([ex('Bench Press')]);
+
+    svc.addExercises([{ ...ex('Bench Press'), muscleGroup: 'Chest' }]);
+
+    expect(svc.getExerciseData()).toHaveLength(1);
+  });
+
+  test('allows zero-weight sets to be validated', () => {
+    svc.setExerciseData([{
+      exerciseName: 'Bodyweight Squat',
+      sets: [{ id: 'set-1', weight: '0', reps: '12', isValidated: false, repsModified: false }],
+    }]);
+
+    svc.toggleValidation(0, 0);
+
+    expect(svc.getExerciseData()[0].sets[0].isValidated).toBe(true);
+  });
+
+  test('does not validate malformed nonempty set input', () => {
+    svc.setExerciseData([{
+      exerciseName: 'Squat',
+      sets: [{ id: 'set-1', weight: '501', reps: '12', isValidated: false, repsModified: false }],
+    }]);
+
+    svc.toggleValidation(0, 0);
+
+    expect(svc.getExerciseData()[0].sets[0].isValidated).toBe(false);
+  });
+
+  test('changing a validated set weight invalidates its completion state', () => {
+    svc.setExerciseData([{
+      exerciseName: 'Squat',
+      sets: [{ id: 'set-1', weight: '100', reps: '8', isValidated: true, repsModified: false }],
+    }]);
+
+    svc.updateWeight(0, 0, '105');
+
+    expect(svc.getExerciseData()[0].sets[0]).toMatchObject({
+      weight: '105',
+      isValidated: false,
+    });
+  });
+
+  test('changing a validated set rep count invalidates its completion state', () => {
+    svc.setExerciseData([{
+      exerciseName: 'Squat',
+      sets: [{ id: 'set-1', weight: '100', reps: '8', isValidated: true, repsModified: false }],
+    }]);
+
+    svc.updateReps(0, 0, '9');
+
+    expect(svc.getExerciseData()[0].sets[0]).toMatchObject({
+      reps: '9',
+      isValidated: false,
+    });
   });
 });

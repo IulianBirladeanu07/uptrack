@@ -220,6 +220,18 @@ const styles = createStyles(() => ({
         textAlign: 'center',
         lineHeight: 20,
     },
+    retryButton: {
+        backgroundColor: colors.accent.primary,
+        borderRadius: radius[2],
+        paddingHorizontal: spacing[5],
+        paddingVertical: spacing[3],
+        marginTop: spacing[2],
+    },
+    retryButtonText: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.accent.buttonText,
+    },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',

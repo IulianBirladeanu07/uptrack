@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 
 type ScheduleDay = {
@@ -23,7 +24,7 @@ type SplitFormData = {
 
 const WEEK_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
-const isDayNumber = (v: string | number): boolean => !isNaN(Number(v)) && Number(v) > 0;
+const isDayNumber = (v: string | number): boolean => Number.isInteger(Number(v)) && Number(v) > 0;
 import { View, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BasicInfoStepJS from './steps/BasicInfoStep';
@@ -40,6 +41,7 @@ import { Header } from '../CreateTemplateScreen/components/Header';
 import { fetchTemplatesFromFirestore, addSplitToFirestore, updateSplitInFirestore } from '../../../workout/handlers/WorkoutHandler';
 import { STEPS } from './constants/CreateSplitScreenConstants';
 import { SPLIT_STEPS } from '../../utils/createWorkoutUtils';
+import { hasScheduledWorkout } from '../../utils/splitSchedule';
 import styles from './CreateSplitScreenStyles';
 import { colors } from '../../../../shared/theme';
 
@@ -76,28 +78,36 @@ const CreateSplitScreen = () => {
       : 'monday'
   );
 
-  useEffect(() => {
-    const loadWorkouts = async () => {
-      setLoading(true);
-      try {
-        const templates = await fetchTemplatesFromFirestore();
-        const normalizedWorkouts = templates.map((template, index) => ({
-          id: template.id || `workout_${Date.now()}_${index}`,
-          templateName: template.templateName || `Workout ${index + 1}`,
-          duration: template.duration || 0,
-          exercises: Array.isArray(template.exercises) ? template.exercises : [],
-        }));
-        setWorkouts(normalizedWorkouts);
-      } catch (error) {
-        console.error('Error loading workouts:', error);
-        Alert.alert('Error', 'Failed to load workout templates.');
-        setWorkouts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadWorkouts();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let isFocused = true;
+      const loadWorkouts = async () => {
+        setLoading(true);
+        try {
+          const templates = await fetchTemplatesFromFirestore();
+          const normalizedWorkouts = templates.map((template, index) => ({
+            id: template.id || `workout_${Date.now()}_${index}`,
+            templateName: template.templateName || `Workout ${index + 1}`,
+            duration: template.duration || 0,
+            exercises: Array.isArray(template.exercises) ? template.exercises : [],
+          }));
+          if (isFocused) setWorkouts(normalizedWorkouts);
+        } catch (error) {
+          console.error('Error loading workouts:', error);
+          if (isFocused) {
+            Alert.alert('Error', 'Failed to load workout templates.');
+            setWorkouts([]);
+          }
+        } finally {
+          if (isFocused) setLoading(false);
+        }
+      };
+      void loadWorkouts();
+      return () => {
+        isFocused = false;
+      };
+    }, [])
+  );
 
   useEffect(() => {
     if (splitData.type === 'weekly') {
@@ -218,7 +228,7 @@ const CreateSplitScreen = () => {
   const validateForm = useCallback(() => {
     if (currentStep === 0) return splitData.name.trim().length > 0;
     if (currentStep === 1) {
-      const hasAssignedWorkouts = Object.values(splitData.schedule).some(w => w !== null);
+      const hasAssignedWorkouts = Object.values(splitData.schedule).some(hasScheduledWorkout);
       return hasAssignedWorkouts;
     }
     return true;

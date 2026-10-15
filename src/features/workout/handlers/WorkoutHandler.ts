@@ -3,6 +3,7 @@ import {
   collection,
   setDoc,
   getDocs,
+  runTransaction,
   deleteDoc,
   doc,
   query,
@@ -30,10 +31,38 @@ import type {
 import type { CatalogExercise, ExerciseGroup } from '../../../shared/types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthenticatedStackParamList } from '../../../shared/navigation';
+import { isValidWorkoutSetInput } from '../utils/workoutSetValidation';
+import { getExerciseHistorySets, getPreviousWorkoutExerciseSets } from '../utils/exerciseHistory';
+import { calculate1RM, findBestSet, getPersonalRecordSetIndexes } from '../utils/workoutMetrics';
+import { countWorkoutEntriesThisWeek } from '../utils/workoutHistory';
+export { calculate1RM, findBestSet, formatBestSet } from '../utils/workoutMetrics';
 
 type AppNav = NativeStackNavigationProp<AuthenticatedStackParamList>;
 type MessageFn = (message: string) => void;
 type FormatTimeFn = (seconds: number) => string;
+
+export class TemplateNameAlreadyExistsError extends Error {
+  constructor() {
+    super('A workout template with this name already exists.');
+    this.name = 'TemplateNameAlreadyExistsError';
+  }
+}
+
+const assertTemplateNameAvailable = (
+  templates: readonly { id: string; data: () => DocumentData }[],
+  templateName: string,
+  currentTemplateId?: string,
+): void => {
+  const normalizedName = templateName.trim().toLowerCase();
+  const duplicate = templates.some(template => {
+    if (template.id === currentTemplateId) return false;
+    const existingName = template.data()['templateName'];
+    return typeof existingName === 'string' &&
+      existingName.trim().toLowerCase() === normalizedName;
+  });
+
+  if (duplicate) throw new TemplateNameAlreadyExistsError();
+};
 
 export const SPLITS_CACHE_KEY = 'cached_splits';
 
@@ -47,30 +76,16 @@ export const sendWorkoutDataToFirestore = async (
     exerciseData: WorkoutExercise[],
     inputText: string,
     isValidationPressed: boolean,
-    navigation: AppNav,
+    navigation: Pick<AppNav, 'navigate'>,
     openAnimatedMessage: MessageFn,
     formatTime: FormatTimeFn,
     elapsedTime: number,
+    expectedUid: string,
     templateName = '',
 ): Promise<boolean> => {
     try {
         const hasEmptyOrInvalidInputs = exerciseData.some(exercise =>
-            exercise.sets.some(set => {
-                const weightIsValid = set.weight !== undefined && set.weight !== null &&
-                    (typeof set.weight === 'string' || typeof set.weight === 'number');
-                const repsIsValid = set.reps !== undefined && set.reps !== null &&
-                    (typeof set.reps === 'string' || typeof set.reps === 'number');
-                const weightString = typeof set.weight === 'number' ? String(set.weight) : set.weight;
-                const repsString = typeof set.reps === 'number' ? String(set.reps) : set.reps;
-
-                return (
-                    !weightIsValid || !repsIsValid ||
-                    weightString.trim() === '' ||
-                    repsString.trim() === '' ||
-                    !/^\d*\.?\d{0,2}$/.test(weightString) ||
-                    !/^\d*\.?\d{0,2}$/.test(repsString)
-                );
-            })
+            exercise.sets.some(set => !isValidWorkoutSetInput(set.weight, set.reps))
         );
 
         if (hasEmptyOrInvalidInputs) {
@@ -88,7 +103,7 @@ export const sendWorkoutDataToFirestore = async (
                         {
                             text: 'Proceed',
                             onPress: async () => {
-                                const saved = await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName);
+                                const saved = await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, expectedUid, templateName);
                                 resolve(saved);
                             },
                         },
@@ -96,7 +111,7 @@ export const sendWorkoutDataToFirestore = async (
                 );
             });
         } else {
-            return await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, templateName);
+            return await finishWorkout(exerciseData, inputText, navigation, openAnimatedMessage, formatTime, elapsedTime, expectedUid, templateName);
         }
     } catch (error) {
         console.error('Error adding workout data:', (error as Error).message);
@@ -108,44 +123,29 @@ export const sendWorkoutDataToFirestore = async (
 async function finishWorkout(
     exerciseData: WorkoutExercise[],
     inputText: string,
-    navigation: AppNav,
+    navigation: Pick<AppNav, 'navigate'>,
     openAnimatedMessage: MessageFn,
     formatTime: FormatTimeFn,
     elapsedTime: number,
+    expectedUid: string,
     templateName = '',
 ): Promise<boolean> {
     try {
         const auth = getAuth();
         const user = auth.currentUser;
-        if (!user) throw new Error('User not authenticated.');
+        if (!user || user.uid !== expectedUid) {
+            throw new Error('The signed-in user changed before the workout could be saved.');
+        }
 
         const uid = user.uid;
         const timestamp = new Date();
 
         const exercisesWithPR = exerciseData.map(exercise => {
-            const validSets = exercise.sets.filter(s => s.weight && s.reps);
-            if (!validSets.length) return { ...exercise };
-
-            const best = findBestSet(validSets);
-            const lastBest = exercise.lastWorkoutSets?.length
-                ? findBestSet(exercise.lastWorkoutSets.map(s => ({
-                    ...s,
-                    weight: parseFloat(s.weight) || 0,
-                    reps: parseInt(s.reps) || 0,
-                })))
-                : { estimated1RM: 0 };
-
-            const isExercisePR = best.estimated1RM > (lastBest.estimated1RM || 0);
+            const prSetIndexes = new Set(getPersonalRecordSetIndexes(exercise.sets, exercise.lastWorkoutSets || []));
 
             return {
                 ...exercise,
-                sets: exercise.sets.map(set => {
-                    const set1RM = calculate1RM(parseFloat(String(set.weight ?? 0)), parseInt(String(set.reps ?? 0), 10));
-                    return {
-                        ...set,
-                        isPR: isExercisePR && Math.abs(set1RM - best.estimated1RM) < 0.01,
-                    };
-                }),
+                sets: exercise.sets.map((set, index) => ({ ...set, isPR: prSetIndexes.has(index) })),
             };
         });
 
@@ -170,13 +170,23 @@ async function finishWorkout(
         const workoutDocRef = doc(collection(db, 'workoutHistory'));
         await setDoc(workoutDocRef, workoutDataToSend);
 
-        navigation.navigate('WorkoutDetails', {
-            duration: formatTime(elapsedTime),
-            notes: inputText,
-            exercises: exercisesWithPR,
-            timestamp: timestamp.toDateString() + ' ' + timestamp.toLocaleTimeString(),
-            workoutName: templateName || null,
-        });
+        if (getAuth().currentUser?.uid !== expectedUid) {
+            console.error('Workout saved, but the signed-in user changed before workout details could open.');
+            return true;
+        }
+
+        try {
+            navigation.navigate('WorkoutDetails', {
+                duration: formatTime(elapsedTime),
+                notes: inputText,
+                exercises: exercisesWithPR,
+                timestamp: timestamp.toDateString() + ' ' + timestamp.toLocaleTimeString(),
+                workoutName: templateName || null,
+            });
+        } catch (error) {
+            console.error('Workout saved but failed to open workout details:', (error as Error).message);
+            openAnimatedMessage('Workout saved, but workout details could not be opened.');
+        }
         return true;
     } catch (error) {
         console.error('Error finishing workout:', (error as Error).message);
@@ -185,25 +195,11 @@ async function finishWorkout(
     }
 }
 
-export const calculate1RM = (weight: number, reps: number): number => {
-  const clampedReps = Math.min(Math.max(reps, 1), 12);
-  return weight / (1.0278 - 0.0278 * clampedReps);
-};
-
 export const countTotalPRs = (lastWorkoutData: { exercises?: { sets?: { isPR?: boolean }[] }[] } | null | undefined): number => {
   return (lastWorkoutData?.exercises || []).reduce(
     (total, exercise) => total + (exercise.sets || []).filter(set => set.isPR).length,
     0
   );
-};
-
-export const findBestSet = (sets: Array<{ weight?: number | string; reps?: number | string; estimated1RM?: number | string }>): { weight: number; reps: number; estimated1RM: number } => {
-  return sets.reduce<{ weight: number; reps: number; estimated1RM: number }>((best, set) => {
-    const current1RM = calculate1RM(parseFloat(String(set.weight ?? 0)), parseInt(String(set.reps ?? 0), 10));
-    return current1RM > best.estimated1RM
-      ? { weight: Number(set.weight) || 0, reps: Number(set.reps) || 0, estimated1RM: current1RM }
-      : best;
-  }, { weight: 0, reps: 0, estimated1RM: 0 });
 };
 
 export const handleAddExercises = (navigation: AppNav): void => {
@@ -248,7 +244,7 @@ export const handleRepsChange = (text: string, exerciseIndex: number, setIndex: 
   }
 };
 
-export const getSetsFromLastWorkout = async (exerciseName: string): Promise<WorkoutSet[]> => {
+export const getSetsFromLastWorkout = async (exerciseName: string, muscleGroup?: string): Promise<WorkoutSet[]> => {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -268,13 +264,17 @@ export const getSetsFromLastWorkout = async (exerciseName: string): Promise<Work
 
     for (const snap of querySnapshot.docs) {
       const workoutData = snap.data() as {
-        exercises?: Array<{ exerciseName?: string; sets?: Array<{ weight?: unknown; reps?: unknown }> }>;
+        exercises?: Array<{
+          exerciseName?: string;
+          muscleGroup?: string;
+          sets?: Array<{ weight?: string | number; reps?: string | number }>;
+        }>;
       };
       const exercises = workoutData.exercises || [];
-      const exercise = exercises.find(ex => ex.exerciseName === exerciseName);
-      
-      if (exercise && exercise.sets && exercise.sets.length > 0) {
-        return exercise.sets.map((set, i) => ({
+      const previousSets = getPreviousWorkoutExerciseSets(exercises, exerciseName, muscleGroup);
+
+      if (previousSets.length > 0) {
+        return previousSets.map((set, i) => ({
           id: `${exerciseName}-${i}`,
           weight: set.weight !== undefined ? String(set.weight) : '',
           reps: set.reps !== undefined ? String(set.reps) : '',
@@ -305,16 +305,9 @@ export const countWorkoutsThisWeek = async (): Promise<number> => {
     const workoutsRef = collection(db, 'workoutHistory');
     const workoutsQuery = query(workoutsRef, where('uid', '==', uid));
     const querySnapshot = await getDocs(workoutsQuery);
-
-    let workoutCount = 0;
-    querySnapshot.forEach(doc => {
-      const [, , , , , docUid] = doc.id.split('_');
-      if (docUid === uid) {
-        workoutCount++;
-      }
-    });
-
-    return workoutCount;
+    return countWorkoutEntriesThisWeek(querySnapshot.docs.map(workout =>
+      workout.data() as { timestamp?: { toDate?: () => Date } | null }
+    ));
   } catch (error) {
     console.error('Error counting workouts for this week:', (error as Error).message);
     throw error;
@@ -355,15 +348,27 @@ export const addTemplateToFirestore = async (templateData: TemplateInput, templa
       throw new Error('User not authenticated.');
     }
 
-    const formattedTemplateName = `${templateName}_${user.uid}`;
+    const normalizedTemplateName = templateName.trim();
+    const formattedTemplateName = `${encodeURIComponent(normalizedTemplateName.toLowerCase())}_${user.uid}`;
 
     const fullTemplateData = {
       ...templateData,
+      templateName: normalizedTemplateName,
       uid: user.uid
     };
 
     const templateDocRef = doc(db, 'workoutTemplates', formattedTemplateName);
-    await setDoc(templateDocRef, fullTemplateData);
+    const templatesQuery = query(
+      collection(db, 'workoutTemplates'),
+      where('uid', '==', user.uid),
+    );
+    const templatesSnapshot = await getDocs(templatesQuery);
+    assertTemplateNameAvailable(templatesSnapshot.docs, normalizedTemplateName);
+    await runTransaction(db, async transaction => {
+      const existingTemplate = await transaction.get(templateDocRef);
+      if (existingTemplate.exists()) throw new TemplateNameAlreadyExistsError();
+      transaction.set(templateDocRef, fullTemplateData);
+    });
     return formattedTemplateName;
   } catch (error) {
     console.error('Error adding template data to Firestore:', (error as Error).message);
@@ -803,17 +808,28 @@ export const updateTemplateInFirestore = async (templateId: string, templateData
 
     
     const templateRef = doc(db, 'workoutTemplates', templateId);
-    
-    const updateData = {
-      templateName: templateData.templateName,
-      exercises: templateData.exercises,
-      note: templateData.note || '',
-      duration: templateData.duration || 60,
-      preferredDays: templateData.preferredDays || [],
-      workoutType: templateData.workoutType || 'Strength',
-      updatedAt: serverTimestamp(),
-    };
 
+    const normalizedTemplateName = templateData.templateName?.trim();
+    if (templateData.templateName !== undefined && !normalizedTemplateName) {
+      throw new Error('Template name cannot be empty');
+    }
+
+    const updateData: Record<string, unknown> = { updatedAt: serverTimestamp() };
+    if (normalizedTemplateName !== undefined) updateData['templateName'] = normalizedTemplateName;
+    if (templateData.exercises !== undefined) updateData['exercises'] = templateData.exercises;
+    if (templateData.note !== undefined) updateData['note'] = templateData.note;
+    if (templateData.duration !== undefined) updateData['duration'] = templateData.duration;
+    if (templateData.preferredDays !== undefined) updateData['preferredDays'] = templateData.preferredDays;
+    if (templateData.workoutType !== undefined) updateData['workoutType'] = templateData.workoutType;
+
+    if (normalizedTemplateName !== undefined) {
+      const templatesQuery = query(
+        collection(db, 'workoutTemplates'),
+        where('uid', '==', user.uid),
+      );
+      const templatesSnapshot = await getDocs(templatesQuery);
+      assertTemplateNameAvailable(templatesSnapshot.docs, normalizedTemplateName, templateId);
+    }
     await updateDoc(templateRef, updateData);
     return templateId;
   } catch (error) {
@@ -838,14 +854,12 @@ export const updateSplitInFirestore = async (splitId: string, splitData: Partial
     
     const splitRef = doc(db, 'workoutSplits', splitId);
     
-    const updateData = {
-      name: splitData.name,
-      description: splitData.description || '',
-      type: splitData.type,
-      schedule: splitData.schedule,
-      durationWeeks: splitData.durationWeeks || 8,
-      updatedAt: serverTimestamp(),
-    };
+    const updateData: Record<string, unknown> = { updatedAt: serverTimestamp() };
+    if (splitData.name !== undefined) updateData['name'] = splitData.name;
+    if (splitData.description !== undefined) updateData['description'] = splitData.description;
+    if (splitData.type !== undefined) updateData['type'] = splitData.type;
+    if (splitData.schedule !== undefined) updateData['schedule'] = splitData.schedule;
+    if (splitData.durationWeeks !== undefined) updateData['durationWeeks'] = splitData.durationWeeks;
 
     await updateDoc(splitRef, updateData);
     await clearSplitsCache();
@@ -893,6 +907,7 @@ export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
         if (template) {
           schedule[day] = {
             ...dayData,
+            id: template.id ?? templateId,
             templateName: template.templateName || dayData['templateName'],
             exercises: template.exercises || dayData['exercises'],
             duration: template.duration ?? dayData['duration'],
@@ -923,7 +938,7 @@ export const addSplitToFirestore = async (splitData: WorkoutSplit): Promise<stri
     const sanitizedSchedule: Record<string, Record<string, unknown>> = {};
     const schedule = (splitData.schedule || {}) as Record<string, Record<string, unknown>>;
     Object.keys(schedule).forEach(day => {
-      const dayData = schedule[day];
+      const dayData = schedule[day] || {};
       sanitizedSchedule[day] = {
         templateId: dayData['templateId'] || 'rest-day',
         templateName: dayData['templateName'] || 'Rest Day',
@@ -1025,7 +1040,7 @@ export const updateSplitProgress = async (splitId: string, currentWeek: number):
   }
 };
 
-export const getExerciseHistory = async (exerciseName: string): Promise<DocumentData[]> => {
+export const getExerciseHistory = async (exerciseName: string, muscleGroup?: string): Promise<DocumentData[]> => {
     try {
         const auth = getAuth();
         const user = auth.currentUser;
@@ -1044,23 +1059,22 @@ export const getExerciseHistory = async (exerciseName: string): Promise<Document
 
         for (const snap of querySnapshot.docs) {
             const data = snap.data() as {
-              exercises?: Array<{ exerciseName?: string; sets?: Array<{ weight?: string | number; reps?: string | number }> }>;
+              exercises?: Array<{ exerciseName?: string; muscleGroup?: string; sets?: Array<{ weight?: string | number; reps?: string | number }> }>;
               timestamp?: unknown;
               workoutName?: string;
             };
-            const exercises = data.exercises || [];
-            const exercise = exercises.find((ex) => ex.exerciseName === exerciseName);
-            if (!exercise || !exercise.sets?.length) continue;
+            const exerciseSets = getExerciseHistorySets(data.exercises || [], exerciseName, muscleGroup);
+            if (exerciseSets.length === 0) continue;
 
-            const validSets = exercise.sets.filter((s) =>
-                (parseFloat(String(s.weight)) > 0 && parseInt(String(s.reps), 10) > 0)
-            );
+            const validSets = exerciseSets.filter(s => {
+                const weight = parseFloat(String(s.weight));
+                const reps = parseInt(String(s.reps), 10);
+                return Number.isFinite(weight) && weight >= 0 && Number.isFinite(reps) && reps > 0;
+            });
             if (!validSets.length) continue;
 
-            const best = validSets.reduce((b: { e1rm: number; weight?: string | number; reps?: string | number }, s) => {
-                const e1rm = calculate1RM(parseFloat(String(s.weight)) || 0, parseInt(String(s.reps), 10) || 0);
-                return e1rm > b.e1rm ? { ...s, e1rm } : b;
-            }, { e1rm: 0 });
+            const bestSet = findBestSet(validSets);
+            const best = { ...bestSet, e1rm: bestSet.estimated1RM };
 
             sessions.push({
                 id: snap.id,
@@ -1076,6 +1090,6 @@ export const getExerciseHistory = async (exerciseName: string): Promise<Document
         return sessions;
     } catch (error) {
         console.error('Error fetching exercise history:', (error as Error).message);
-        return [];
+        throw error;
     }
 };

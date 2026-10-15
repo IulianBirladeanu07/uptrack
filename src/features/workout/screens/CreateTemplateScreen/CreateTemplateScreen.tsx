@@ -28,8 +28,13 @@ import {
   createTemplateData,
   TEMPLATE_STEPS
 } from '../../utils/createWorkoutUtils';
-import { addTemplateToFirestore, updateTemplateInFirestore } from '../../handlers/WorkoutHandler';
+import {
+  addTemplateToFirestore,
+  TemplateNameAlreadyExistsError,
+  updateTemplateInFirestore,
+} from '../../handlers/WorkoutHandler';
 import type { TemplateExercise } from '../../types';
+import { isSameExercise } from '../../utils/exerciseIdentity';
 
 type ExerciseRow = TemplateExercise & { id: string };
 
@@ -232,11 +237,7 @@ const CreateTemplate = () => {
 
   const addExerciseWithAnimation = useCallback((exercise: TemplateExercise) => {
     if (!exercise) return;
-    const isDuplicate = exercises.some(
-      (existingExercise) =>
-        (existingExercise.exerciseName || existingExercise.name) ===
-        (exercise.exerciseName || exercise.name)
-    );
+    const isDuplicate = exercises.some(existingExercise => isSameExercise(existingExercise, exercise));
     if (isDuplicate) {
       showNotification('This exercise is already added.', true);
       return;
@@ -265,8 +266,7 @@ const CreateTemplate = () => {
           const isDuplicate = exercises.some(
             (existingExercise) =>
               existingExercise.id !== replaceExerciseId &&
-              (existingExercise.exerciseName || existingExercise.name) ===
-              (exerciseToReplace.exerciseName || exerciseToReplace.name)
+              isSameExercise(existingExercise, exerciseToReplace)
           );
           if (isDuplicate) {
             showNotification('This exercise is already added.', true);
@@ -297,15 +297,32 @@ const CreateTemplate = () => {
         }
       } else {
         if (Array.isArray(newExercises)) {
+          const exercisesToAdd: TemplateExercise[] = [];
+          let hasDuplicate = false;
           newExercises.forEach((exercise: any) => {
             if (
               exercise &&
               typeof exercise === 'object' &&
               (exercise.exerciseName || exercise.name)
             ) {
-              addExerciseWithAnimation({ ...exercise, restTime: 180 });
+              const normalizedExercise = { ...exercise, restTime: 180 };
+              if (
+                exercises.some(existing => isSameExercise(existing, normalizedExercise)) ||
+                exercisesToAdd.some(existing => isSameExercise(existing, normalizedExercise))
+              ) {
+                hasDuplicate = true;
+              } else {
+                exercisesToAdd.push(normalizedExercise);
+              }
             }
           });
+          if (exercisesToAdd.length > 0) {
+            setExercises(prev => [...prev, ...exercisesToAdd.map(exercise => ({
+              ...exercise,
+              id: generateExerciseId(),
+            }))]);
+          }
+          if (hasDuplicate) showNotification('This exercise is already added.', true);
         } else if (
           newExercises &&
           typeof newExercises === 'object' &&
@@ -402,14 +419,18 @@ const CreateTemplate = () => {
         await updateTemplateInFirestore(existingTemplate.id, templateData);
         showNotification('Workout template updated successfully!');
       } else {
-        await addTemplateToFirestore(templateData, templateName);
+        await addTemplateToFirestore(templateData, templateData.templateName);
         showNotification('Workout template created successfully!');
       }
 
-      (navigation as any).navigate('WorkoutLibrary');
+      navigation.goBack();
     } catch (error) {
       console.error('Error saving template:', error);
-      showNotification(`Failed to ${isEditing ? 'update' : 'create'} workout template. Please try again.`, true);
+      if (error instanceof TemplateNameAlreadyExistsError) {
+        showNotification('A workout template with this name already exists. Choose a different name.', true);
+      } else {
+        showNotification(`Failed to ${isEditing ? 'update' : 'create'} workout template. Please try again.`, true);
+      }
     } finally {
       setLoading(false);
     }

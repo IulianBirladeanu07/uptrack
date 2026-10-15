@@ -5,6 +5,7 @@ import {
   getScheduledDay,
   getWeekSchedule,
   getWorkoutsPerWeek,
+  hasScheduledWorkout,
   isRotationSplit,
 } from './splitSchedule';
 
@@ -25,6 +26,20 @@ describe('toDateKey', () => {
   it('formats the local date', () => {
     expect(toDateKey(new Date(2026, 9, 5, 23, 59))).toBe('2026-10-05');
     expect(toDateKey(new Date(2026, 0, 9))).toBe('2026-01-09');
+  });
+});
+
+describe('hasScheduledWorkout', () => {
+  it('does not treat persisted rest-day records as workouts', () => {
+    expect(hasScheduledWorkout(rest)).toBe(false);
+    expect(hasScheduledWorkout(null)).toBe(false);
+    expect(hasScheduledWorkout(undefined)).toBe(false);
+  });
+
+  it('recognizes assigned workouts but rejects empty or malformed schedule entries', () => {
+    expect(hasScheduledWorkout(w('Push'))).toBe(true);
+    expect(hasScheduledWorkout({ templateId: 'push-template', exercises: [] })).toBe(false);
+    expect(hasScheduledWorkout({})).toBe(false);
   });
 });
 

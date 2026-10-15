@@ -6,6 +6,7 @@ import styles from './ReviewStepStyles';
 import DaySelector from '../components/DaySelector';
 import MuscleCoverageCard from '../components/MuscleCoverageCard';
 import { daysOfWeek } from '../constants/CreateSplitScreenConstants';
+import { hasScheduledWorkout } from '../../../utils/splitSchedule';
 
 const MAJOR_MUSCLE_GROUPS = ['Chest', 'Back', 'Biceps', 'Quads', 'Hamstring', 'Delts', 'Triceps'];
 
@@ -72,7 +73,7 @@ const ReviewStep = ({ splitData, setCurrentStep }: ReviewStepProps) => {
 
   const stats = useMemo(() => {
     const schedule = splitData.schedule || {};
-    const workouts = Object.values(schedule).filter((w): w is DayWorkout => w != null);
+    const workouts = Object.values(schedule).filter((w): w is DayWorkout => hasScheduledWorkout(w));
     const workoutDays = workouts.length;
 
     let totalDuration = 0;
@@ -148,7 +149,8 @@ const ReviewStep = ({ splitData, setCurrentStep }: ReviewStepProps) => {
 
   const renderSchedule = () => {
     const schedule = splitData.schedule || {};
-    const selectedWorkout = schedule[selectedDay ?? ''] ?? null;
+    const selectedWorkoutCandidate = schedule[selectedDay ?? ''] ?? null;
+    const selectedWorkout = hasScheduledWorkout(selectedWorkoutCandidate) ? selectedWorkoutCandidate : null;
     const isRestDay = !selectedWorkout;
 
     const muscleGroups = selectedWorkout?.exercises
@@ -169,7 +171,7 @@ const ReviewStep = ({ splitData, setCurrentStep }: ReviewStepProps) => {
               id: day.id,
               name: day.name ?? day.id,
               shortLabel: day.shortLabel,
-              hasWorkout: !!schedule[day.id],
+              hasWorkout: hasScheduledWorkout(schedule[day.id]),
             }))}
             selectedDayId={selectedDay}
             onSelectDay={setSelectedDay}

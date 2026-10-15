@@ -94,5 +94,6 @@ export type AuthenticatedStackParamList = {
   } | undefined;
   ExerciseHistory: {
     exerciseName: string;
+    muscleGroup?: string;
   };
 };

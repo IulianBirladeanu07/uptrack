@@ -11,6 +11,7 @@ import ExerciseOptionsModal from '../../components/ExerciseOptionsModal/Exercise
 import { sendWorkoutDataToFirestore } from '../../handlers/WorkoutHandler';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { workoutService, createEmptySet } from '../../services/WorkoutService';
+import { isSameExercise } from '../../utils/exerciseIdentity';
 import { workoutTimer, useWorkoutTimer } from '../../services/WorkoutTimerService';
 import styles from './StartWorkoutStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,6 +34,8 @@ type KeyboardInputData = {
 type SelectedExercise = {
     exerciseName: string;
     name?: string;
+    muscleGroup?: string;
+    category?: string;
     imageURL?: string;
     repRange?: string;
 };
@@ -104,6 +107,8 @@ const toSelectedExercises = (value: unknown): SelectedExercise[] => {
         if (!exerciseName) return [];
         const selected: SelectedExercise = { exerciseName };
         if (typeof exercise['name'] === 'string') selected.name = exercise['name'];
+        if (typeof exercise['muscleGroup'] === 'string') selected.muscleGroup = exercise['muscleGroup'];
+        if (typeof exercise['category'] === 'string') selected.category = exercise['category'];
         if (typeof exercise['imageURL'] === 'string') selected.imageURL = exercise['imageURL'];
         if (typeof exercise['repRange'] === 'string') selected.repRange = exercise['repRange'];
         return [selected];
@@ -141,7 +146,7 @@ const StartWorkout = () => {
     const isFinishingWorkout = useRef(false);
     const isInitialized = useRef(false);
     const isKeyboardVisibleRef = useRef(false);
-    const pendingReplaceRef = useRef<string | null>(null);
+    const pendingReplaceRef = useRef<number | null>(null);
     const initializationGeneration = useRef(0);
 
     const syncActiveWorkout = useCallback(() => {
@@ -177,10 +182,10 @@ const StartWorkout = () => {
 
     const handleMenuReplace = useCallback(() => {
         if (!activeExerciseMenu) return;
-        pendingReplaceRef.current = activeExerciseMenu.exercise.exerciseName;
+        pendingReplaceRef.current = activeExerciseMenu.exerciseIndex;
         navigation.navigate('ExerciseSelection', {
             previousScreen: 'StartWorkout',
-            replaceIndex: activeExerciseMenu.exercise.exerciseName,
+            replaceIndex: String(activeExerciseMenu.exerciseIndex),
         });
     }, [activeExerciseMenu, navigation]);
 
@@ -308,28 +313,32 @@ const StartWorkout = () => {
         workoutService.setWorkoutTemplateName(templateName || '');
         setInputText(note || '');
         workoutService.setWorkoutNote(note || '');
+        syncActiveWorkout();
         const loadedData = await workoutService.loadWorkoutFromTemplate(exercises);
         if (!isCurrentUser(uid) || requestGeneration !== initializationGeneration.current) return;
         setExerciseData(loadedData);
         workoutTimer.start();
         setSelectedExercise(loadedData[0]?.exerciseName || null);
         setIsValidationPressed(false);
-    }, []);
+    }, [syncActiveWorkout]);
 
     const addNewExercisesFromRoute = useCallback(async (exercises: unknown) => {
         const uid = getAuth().currentUser?.uid;
         if (!isCurrentUser(uid)) return;
+        const requestGeneration = initializationGeneration.current;
         const selectedExercises = toSelectedExercises(exercises);
         if (selectedExercises.length === 0) return;
         const currentData = workoutService.getExerciseData();
         const newExercises: WorkoutExercise[] = [];
 
         for (const ex of selectedExercises) {
-            if (currentData.some(existing => existing.exerciseName === ex.exerciseName)) continue;
-            const lastSets = await workoutService.fetchLastSets(ex.exerciseName);
-            if (!isCurrentUser(uid)) return;
+            if ([...currentData, ...newExercises].some(existing => isSameExercise(existing, ex))) continue;
+            const lastSets = await workoutService.fetchLastSets(ex.exerciseName, ex.muscleGroup);
+            if (!isCurrentUser(uid) || requestGeneration !== initializationGeneration.current) return;
             newExercises.push({
                 exerciseName: ex.exerciseName,
+                muscleGroup: ex.muscleGroup || '',
+                category: ex.category || '',
                 imageURL: ex.imageURL || '',
                 sets: [createEmptySet()],
                 lastWorkoutSets: lastSets,
@@ -347,9 +356,10 @@ const StartWorkout = () => {
         }
     }, [selectedExercise]);
 
-    const replaceExerciseFromRoute = useCallback(async (targetName: string, selected: unknown) => {
+    const replaceExerciseFromRoute = useCallback(async (targetIndex: number, selected: unknown) => {
         const uid = getAuth().currentUser?.uid;
         if (!isCurrentUser(uid)) return;
+        const requestGeneration = initializationGeneration.current;
         const incoming = toSelectedExercises(Array.isArray(selected) ? selected : [selected])[0];
         if (!incoming) {
             openAnimatedMessage('Failed to replace exercise. Please try again.');
@@ -358,23 +368,27 @@ const StartWorkout = () => {
         const newName = incoming.exerciseName;
 
         const currentData = workoutService.getExerciseData();
-        const targetIndex = currentData.findIndex(ex => ex.exerciseName === targetName);
-        if (targetIndex === -1) {
+        const replaced = currentData[targetIndex];
+        if (!replaced) {
             openAnimatedMessage('Failed to replace exercise. Please try again.');
             return;
         }
 
-        const isDuplicate = currentData.some((ex, idx) => idx !== targetIndex && ex.exerciseName === newName);
+        const isDuplicate = currentData.some((ex, idx) =>
+            idx !== targetIndex &&
+            isSameExercise(ex, incoming)
+        );
         if (isDuplicate) {
             openAnimatedMessage('This exercise is already added.');
             return;
         }
 
-        const lastSets = await workoutService.fetchLastSets(newName);
-        if (!isCurrentUser(uid)) return;
-        const replaced = currentData[targetIndex];
+        const lastSets = await workoutService.fetchLastSets(newName, incoming.muscleGroup);
+        if (!isCurrentUser(uid) || requestGeneration !== initializationGeneration.current) return;
         const newExercise = {
             exerciseName: newName,
+            muscleGroup: incoming.muscleGroup || '',
+            category: incoming.category || '',
             imageURL: incoming.imageURL || '',
             sets: replaced.sets.map(() => createEmptySet()),
             lastWorkoutSets: lastSets,
@@ -383,7 +397,7 @@ const StartWorkout = () => {
 
         workoutService.replaceExercise(targetIndex, newExercise);
         setExerciseData(workoutService.getExerciseData());
-        if (selectedExercise === targetName) {
+        if (selectedExercise === replaced.exerciseName) {
             setSelectedExercise(newName);
         }
     }, [openAnimatedMessage, selectedExercise]);
@@ -438,7 +452,7 @@ const StartWorkout = () => {
         useCallback(() => {
             if (isInitialized.current && routeParams?.selectedExercises) {
                 const replaceTarget = pendingReplaceRef.current;
-                if (replaceTarget) {
+                if (replaceTarget !== null) {
                     pendingReplaceRef.current = null;
                     replaceExerciseFromRoute(replaceTarget, routeParams.selectedExercises);
                 } else {
@@ -452,45 +466,69 @@ const StartWorkout = () => {
         }, [routeParams?.selectedExercises, routeParams?.selectedExercise, addNewExercisesFromRoute, replaceExerciseFromRoute, navigation])
     );
 
-    const handleExit = useCallback(() => {
-        Alert.alert("Exit Workout", "Are you sure you want to exit the workout?", [
-            { text: "Cancel", style: "cancel" },
-            { text: "YES", onPress: confirmExit },
-        ]);
-    }, []);
-
-    const confirmExit = useCallback(async () => {
+    const confirmExit = useCallback(async (uid: string) => {
+        if (!isCurrentUser(uid) || workoutService.uid !== uid) return;
         initializationGeneration.current++;
         workoutTimer.stop();
         await workoutService.clearWorkout();
+        if (!isCurrentUser(uid) || workoutService.uid !== uid) return;
         setActiveWorkout(null);
         setInputText('');
         await refreshAllData(true);
+        if (!isCurrentUser(uid) || workoutService.uid !== uid) return;
         navigation.goBack();
     }, [navigation, refreshAllData, setActiveWorkout]);
 
+    const handleExit = useCallback(() => {
+        if (isFinishingWorkout.current) return;
+        const uid = getAuth().currentUser?.uid;
+        if (!uid || workoutService.uid !== uid) return;
+        Alert.alert("Exit Workout", "Are you sure you want to exit the workout?", [
+            { text: "Cancel", style: "cancel" },
+            { text: "YES", onPress: () => confirmExit(uid) },
+        ]);
+    }, [confirmExit]);
+
     const handleFinishWorkout = useCallback(async () => {
-        if (exerciseData.length === 0) {
+        if (isFinishingWorkout.current) return;
+        const uid = getAuth().currentUser?.uid;
+        if (!uid || workoutService.uid !== uid) {
+            openAnimatedMessage('Unable to finish this workout because the signed-in account changed.');
+            return;
+        }
+        const currentExerciseData = workoutService.getExerciseData().map(exercise => ({
+            ...exercise,
+            sets: exercise.sets.map(set => ({ ...set })),
+            ...(exercise.lastWorkoutSets
+                ? { lastWorkoutSets: exercise.lastWorkoutSets.map(set => ({ ...set })) }
+                : {}),
+        }));
+        if (currentExerciseData.length === 0) {
             openAnimatedMessage('Add exercises to finish workout');
             return;
         }
-        if (isFinishingWorkout.current) return;
         try {
             isFinishingWorkout.current = true;
             const result = await sendWorkoutDataToFirestore(
-                [...exerciseData],
+                currentExerciseData,
                 inputText,
                 workoutService.areAllSetsValidated(),
                 navigation,
                 openAnimatedMessage,
                 () => workoutTimer.getFormattedTime(),
                 workoutTimer.getElapsed(),
-                toSelectedWorkout(routeParams?.selectedWorkout)?.templateName || 'Workout'
+                uid,
+                workoutService.getWorkoutTemplateName() || 'Workout'
             );
             if (result === false) {
                 isFinishingWorkout.current = false;
                 return;
             }
+            if (getAuth().currentUser?.uid !== uid || workoutService.uid !== uid) {
+                isFinishingWorkout.current = false;
+                return;
+            }
+            initializationGeneration.current++;
             workoutTimer.stop();
             await workoutService.clearWorkout();
             setActiveWorkout(null);
@@ -502,7 +540,7 @@ const StartWorkout = () => {
             Alert.alert('Error', 'An error occurred while finishing the workout.', [{ text: "OK" }]);
             isFinishingWorkout.current = false;
         }
-    }, [exerciseData, inputText, navigation, openAnimatedMessage, refreshAllData, routeParams, setActiveWorkout]);
+    }, [inputText, navigation, openAnimatedMessage, refreshAllData, setActiveWorkout]);
 
     const handleAddExercisePress = useCallback(async () => {
         if (!navigation) return;
@@ -576,7 +614,12 @@ const StartWorkout = () => {
                     navigation={{
                         navigate: (screen: string, params?: object) => {
                             if (screen === 'ExerciseHistory' && isRecord(params) && typeof params['exerciseName'] === 'string') {
-                                navigation.navigate('ExerciseHistory', { exerciseName: params['exerciseName'] });
+                                navigation.navigate('ExerciseHistory', {
+                                    exerciseName: params['exerciseName'],
+                                    ...(typeof params['muscleGroup'] === 'string'
+                                        ? { muscleGroup: params['muscleGroup'] }
+                                        : {}),
+                                });
                             }
                         },
                     }}
@@ -610,6 +653,7 @@ const StartWorkout = () => {
     const hasNavigatedBackRef = useRef(false);
 
     const handleBackPress = useCallback(() => {
+        if (isFinishingWorkout.current) return true;
         if (activeExerciseMenu) {
             setActiveExerciseMenu(null);
             return true;
@@ -631,6 +675,7 @@ const StartWorkout = () => {
 
     useFocusEffect(
         useCallback(() => {
+            hasNavigatedBackRef.current = false;
             const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
             return () => backHandler.remove();
         }, [handleBackPress])
