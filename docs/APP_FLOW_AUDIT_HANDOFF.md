@@ -5,7 +5,7 @@ Updated 2026-10-15 for the next coding agent. Read `AGENTS.md` before making cha
 ## Current state
 
 - The broader app-flow audit is ongoing, not complete. Workout and Progress have prior accumulated audit changes. This pass continued through Nutrition, Auth, Profile, and Dashboard; several confirmed issues were fixed, but the entire app has not been proven bug-free.
-- All current changes are uncommitted and have been validated with the checks below. Preserve the accumulated changes; do not reset, checkout, or overwrite them.
+- The audit changes from the 2026-10-15 passes are committed on `master` (`5359dca`, `db4d70b`, `7c8a189`, `424aafb`, `71888db`). A follow-up review of those commits is recorded under "Post-commit review" below; its fixes are uncommitted.
 - The workout flow has had a broad review across active workout restore and account switching, set validation and editing, exercise selection and identity, completion and exit, workout history, templates, splits, and navigation.
 - The latest follow-up found that template and split update functions accept partial data but wrote every possible field, including fields that were `undefined`. Firestore can reject those updates, and truthy defaults could discard intentional zero values. The update functions now include only supplied fields and preserve explicit zeroes. Template rename inputs are trimmed, and an empty renamed value is rejected.
 - Regression coverage for the handler persistence cases is in `src/features/workout/handlers/WorkoutHandler.test.ts`.
@@ -14,7 +14,7 @@ Updated 2026-10-15 for the next coding agent. Read `AGENTS.md` before making cha
 - Dashboard dismissal storage now validates persisted timestamp arrays and ignores stale loads when the authenticated uid changes. A failed workout-schedule fetch displays an unavailable state rather than presenting the failure as a rest day.
 - Meal mutations for one user/date/meal are now serialized as complete optimistic-write/rollback transactions. The next mutation reads state only after the previous write either succeeds or rolls back, avoiding stale queued snapshots.
 - Nutrition memo comparisons now include the displayed food name/image/icon and the actual `carbohydrates` field, so recent meal cards do not retain stale presentation data.
-- Nothing was committed or pushed. The worktree is already dirty with accumulated audit changes across workout, progress, navigation, and Jest configuration. Preserve those changes; do not reset, checkout, or overwrite them.
+- Nothing from the review fixes was committed or pushed. Preserve uncommitted work; do not reset, checkout, or overwrite it.
 - The accumulated work also includes progress changes and tests. Do not assume every dirty file belongs only to this last workout follow-up.
 
 ## Main fixes and rationale
@@ -60,6 +60,21 @@ This pass is **not a claim that all Nutrition defects are fixed**. Remaining wor
 4. Continue reviewing other flows not covered in this pass and add focused tests for confirmed defects.
 
 Known test limitation: Jest has no component/navigation harness. The new tests verify pure utilities and service/helper behavior, not end-to-end screen interactions on a device. Test device-only flows separately.
+
+## Post-commit review (2026-10-15)
+
+Reviewed the five commits from today against current code. Baseline before edits: `npx tsc --noEmit` clean; `npx jest --runInBand` 48 suites / 565 tests, also in `TZ=America/Los_Angeles`; `git diff --check` clean.
+
+Confirmed and fixed:
+
+- `addTemplateToFirestore` used a deterministic document id derived from the template name. Template ids do not change on rename, so after renaming "Push" to "Pull", creating a new "Push" hit the old document and failed with a false "name already exists" error. When the existing document has a different name, the template is now created under an auto-generated id; same-name collisions still throw. Test: `creates a template under a new id when the deterministic id belongs to a renamed template` in `WorkoutHandler.test.ts` (fails on the previous handler, passes now); the concurrent-creation test now supplies the existing document's name.
+- `ProfileScreen` returned early when the profile refresh failed after a successful write, without updating local saved state. Tapping Save again re-ran the whole save: a second email-verification request, a second picture upload and a repeated plan update. Local saved state is now updated once the write succeeds, and the alert no longer tells the user to tap Save again. Code-reviewed and type-checked only: there is no component harness.
+
+Reviewed with no defect found: auth generation guards, dashboard dismissal parsing and load-error state, meal mutation queue and rollback, meal cache validation, date helpers, weight chart/tracker date keys, `useWeightData` request tracking, food search request tracking, step flush retry, workout service persistence queue, set validation, PR calculation, exercise identity and history, split schedule helpers, template and split update payloads.
+
+Not verified: all screen behavior on a device; `fetchSplitsFromFirestore` enrichment against real legacy documents; Firestore rules for the new auto-id fallback path.
+
+Validation after the fixes: `npx tsc --noEmit` clean; `npx jest --runInBand` 48 suites / 566 tests, default timezone and `America/Los_Angeles`; `git diff --check` clean; `npx expo export --platform android` succeeded (temporary output removed).
 
 ## Verification
 
