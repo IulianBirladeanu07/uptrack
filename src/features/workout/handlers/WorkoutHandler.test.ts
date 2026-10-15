@@ -141,7 +141,10 @@ describe('sendWorkoutDataToFirestore', () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
     const transactionSet = jest.fn();
     (runTransaction as jest.Mock).mockImplementationOnce(async (_db, callback) => callback({
-      get: jest.fn().mockResolvedValue({ exists: () => true }),
+      get: jest.fn().mockResolvedValue({
+        exists: () => true,
+        data: () => ({ templateName: 'Push/Pull' }),
+      }),
       set: transactionSet,
       update: jest.fn(),
     }));
@@ -152,6 +155,30 @@ describe('sendWorkoutDataToFirestore', () => {
     )).rejects.toBeInstanceOf(TemplateNameAlreadyExistsError);
     expect(transactionSet).not.toHaveBeenCalled();
     consoleError.mockRestore();
+  });
+
+  test('creates a template under a new id when the deterministic id belongs to a renamed template', async () => {
+    const transactionSet = jest.fn();
+    (doc as jest.Mock).mockReturnValueOnce({}).mockReturnValueOnce({ id: 'auto-template-id' });
+    (runTransaction as jest.Mock).mockImplementationOnce(async (_db, callback) => callback({
+      get: jest.fn().mockResolvedValue({
+        exists: () => true,
+        data: () => ({ templateName: 'Pull Day' }),
+      }),
+      set: transactionSet,
+      update: jest.fn(),
+    }));
+
+    await expect(addTemplateToFirestore(
+      { templateName: 'Push Day', exercises: [] },
+      'Push Day',
+    )).resolves.toBe('auto-template-id');
+
+    expect(transactionSet).toHaveBeenCalledTimes(1);
+    expect(transactionSet).toHaveBeenCalledWith(
+      { id: 'auto-template-id' },
+      expect.objectContaining({ templateName: 'Push Day', uid: 'user-1' }),
+    );
   });
 
   test('rejects renaming a template to another template name', async () => {

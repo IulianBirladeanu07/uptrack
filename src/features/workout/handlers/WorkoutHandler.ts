@@ -364,12 +364,24 @@ export const addTemplateToFirestore = async (templateData: TemplateInput, templa
     );
     const templatesSnapshot = await getDocs(templatesQuery);
     assertTemplateNameAvailable(templatesSnapshot.docs, normalizedTemplateName);
+    let savedTemplateId = formattedTemplateName;
     await runTransaction(db, async transaction => {
       const existingTemplate = await transaction.get(templateDocRef);
-      if (existingTemplate.exists()) throw new TemplateNameAlreadyExistsError();
-      transaction.set(templateDocRef, fullTemplateData);
+      if (!existingTemplate.exists()) {
+        transaction.set(templateDocRef, fullTemplateData);
+        savedTemplateId = formattedTemplateName;
+        return;
+      }
+      const existingName = existingTemplate.data()?.['templateName'];
+      if (
+        typeof existingName !== 'string' ||
+        existingName.trim().toLowerCase() === normalizedTemplateName.toLowerCase()
+      ) throw new TemplateNameAlreadyExistsError();
+      const fallbackRef = doc(collection(db, 'workoutTemplates'));
+      transaction.set(fallbackRef, fullTemplateData);
+      savedTemplateId = fallbackRef.id;
     });
-    return formattedTemplateName;
+    return savedTemplateId;
   } catch (error) {
     console.error('Error adding template data to Firestore:', (error as Error).message);
     throw error;
