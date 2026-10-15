@@ -5,7 +5,7 @@ type NumericField = 'calories' | 'amount' | 'carbohydrates' | 'protein' | 'fats'
 export const validateField = (field: string, value: unknown, type?: string): string | null => {
     const parseNumber = (val: unknown): number | null => {
         if (val === null || val === undefined || val === '') return null;
-        const num = parseFloat(String(val));
+        const num = Number(val);
         return isNaN(num) ? null : num;
     };
 
@@ -94,7 +94,7 @@ export const validateFoodData = (foodData: FoodFormData, type?: string): { isVal
     numericFields.forEach(field => {
         const raw = parsedData[field];
         if (raw !== undefined && raw !== null && raw !== '') {
-            const parsed = parseFloat(String(raw));
+            const parsed = Number(raw);
             parsedData[field] = parsed;
             if (isNaN(parsed)) {
                 errors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be a number`;

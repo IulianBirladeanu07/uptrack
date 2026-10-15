@@ -19,6 +19,9 @@ type Filter = {
 type FoodSearchResultsProps = {
   searchResults?: FoodSearchItem[] | undefined;
   searchQuery?: string | undefined;
+  searchLoading?: boolean | undefined;
+  searchError?: string | null | undefined;
+  onRetrySearch?: (() => void) | undefined;
   onItemPress?: ((item: FoodItemData) => void) | undefined;
   onPlusPress?: ((item: FoodItemData) => void) | undefined;
   showPlusButton?: boolean | undefined;
@@ -33,6 +36,9 @@ type FoodSearchResultsProps = {
 const FoodSearchResults = memo(({
   searchResults = [],
   searchQuery = '',
+  searchLoading = false,
+  searchError,
+  onRetrySearch,
   onItemPress,
   onPlusPress,
   showPlusButton = false,
@@ -160,6 +166,23 @@ const FoodSearchResults = memo(({
           </View>
         )}
       </ScrollView>
+    );
+  }
+
+  if (searchQuery && searchLoading) return null;
+
+  if (searchQuery && searchError) {
+    return (
+      <View style={styles.emptyResults}>
+        <View style={styles.emptyIcon}>
+          <MaterialCommunityIcons name="cloud-alert" size={spacing[14]} color={colors.accent.error} />
+        </View>
+        <Text style={styles.emptyTitle}>Search Unavailable</Text>
+        <Text style={styles.emptySubtitle}>{searchError}</Text>
+        <TouchableOpacity onPress={onRetrySearch} style={styles.createBtn}>
+          <Text style={styles.createBtnText}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
     );
   }
 

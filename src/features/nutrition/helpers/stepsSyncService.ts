@@ -7,6 +7,11 @@ export const STEPS_BACKFILL_FROM = '2026-01-01';
 
 export const diffSteps = diffPastSteps;
 
+export const restorePendingSteps = (failed: DailySteps, pending: DailySteps): DailySteps => ({
+  ...failed,
+  ...pending,
+});
+
 export const chunkRange = (start: DateInput, end: DateInput, days = 30): [Date, Date][] => {
   const out: [Date, Date][] = [];
   const e = new Date(end);

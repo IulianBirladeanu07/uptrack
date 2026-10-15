@@ -21,6 +21,7 @@ import WeightChart, { getAvailablePeriods } from './WeightChart';
 import type { ChartDelta, ChartEntry, PeriodKey } from './WeightChart';
 import { isSuspiciousWeightEntry, getCurrentTrendWeight } from '../../../profile/utils/weightTrendEngine';
 import { useFoodContext } from '../../context/FoodContext';
+import { formatDate as formatDateKey } from '../../utils/dateUtils';
 import { useAppNavigation } from '../../../../shared/navigation';
 import type { DayKey, Numeric, WeightInWeek } from '../../../../shared/types';
 
@@ -79,7 +80,7 @@ const buildWeeklyGroups = (weightIns: WeightInWeek[]): WeekGroup[] => {
     const dayKeyOrder: DayKey[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
     return [...weightIns]
-        .sort((a, b) => new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime())
+        .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
         .map((week, idx, arr) => {
             const days = dayKeyOrder
                 .map((key, i) => {
@@ -337,7 +338,7 @@ const WeightTracker = () => {
         ? parseFloat(Math.abs(progressWeight - goalWeight).toFixed(1)) : null;
 
     const isExistingEntry = useMemo(() => {
-        const key = modalDate.toISOString().split('T')[0];
+        const key = formatDateKey(modalDate);
         return allEntries.some(e => e.dateKey === key);
     }, [modalDate, allEntries]);
 
@@ -390,7 +391,7 @@ const WeightTracker = () => {
 
     const selectDate = useCallback((d: Date) => {
         setModalDate(d);
-        const key   = d.toISOString().split('T')[0];
+        const key   = formatDateKey(d);
         const entry = allEntries.find(e => e.dateKey === key);
         if (entry) {
             setWeightInput(entry.weight.toFixed(1));
@@ -672,7 +673,7 @@ const WeightTracker = () => {
 
                             <View style={styles.dateStrip}>
                                 {dateOptions.map(d => {
-                                    const key       = d.toISOString().split('T')[0];
+                                    const key       = formatDateKey(d);
                                     const formatted = formatDate(d);
                                     const label     = formatted === 'Today' ? 'Today'
                                         : formatted === 'Yesterday' ? 'Yest'

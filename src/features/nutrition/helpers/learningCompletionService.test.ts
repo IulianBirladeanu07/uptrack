@@ -87,6 +87,16 @@ describe('deriveStartWeight', () => {
 });
 
 describe('getRollingWeekStats', () => {
+  test('includes local date-only range boundaries', () => {
+    const mealCache = new MealCache();
+    putDay(mealCache, '2026-02-02', { calories: 2000 });
+    putDay(mealCache, '2026-02-03', { calories: 2200 });
+
+    const stats = getRollingWeekStats(mealCache, '2026-02-02', '2026-02-03');
+    expect(stats.daysLoggedNutrition).toBe(2);
+    expect(stats.avgCalories).toBe(2100);
+  });
+
   test('aggregates only the days with logged nutrition or steps inside the range', () => {
     const mealCache = new MealCache();
     const weekStart = new Date('2026-02-02');
@@ -193,6 +203,24 @@ describe('snapshotPreviousWeek', () => {
     expect([end.getMonth(), end.getDate()]).toEqual([1, 1]);
     expect(result.daysLoggedNutrition).toBe(7);
     expect(result.avgCalories).toBe(2000);
+  });
+
+  test('counts full local weeks since the goal switch across daylight-saving changes', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({}) });
+    const mealCache = new MealCache();
+    putDay(mealCache, '2026-03-16', { calories: 2000 });
+
+    const result = await snapshotPreviousWeek(
+      'u1',
+      { weekStart: '2026-03-16' },
+      mealCache,
+      {
+        goalSwitchDate: '2026-03-09T08:00:00.000Z',
+        weightChangePlan: { type: 'weight_loss' },
+      },
+    );
+
+    expect(result.weeksSinceCutStart).toBe(1);
   });
 
   test('returns null when nothing was logged that week', async () => {
@@ -371,6 +399,15 @@ describe('initializeUserTargets', () => {
 });
 
 describe('calculateLearningStats', () => {
+  test('treats a date-only current date as a local calendar day', () => {
+    const mealCache = new MealCache();
+    putDay(mealCache, '2026-02-10', { calories: 2000 });
+
+    const stats = calculateLearningStats(mealCache, '2026-02-10', 1);
+    expect(stats.daysLogged).toBe(1);
+    expect(stats.isComplete).toBe(true);
+  });
+
   test('isComplete is false with fewer than requiredDays of logged nutrition', () => {
     const mealCache = new MealCache();
     const currentDate = new Date('2026-02-10');

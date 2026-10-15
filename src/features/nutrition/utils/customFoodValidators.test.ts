@@ -36,6 +36,17 @@ describe('validateField', () => {
     expect(validateField('amount', '100')).toBeNull();
   });
 
+  test('rejects numeric strings with trailing or repeated characters', () => {
+    expect(validateField('calories', '250xyz')).toBe('Calories are required and must be a number');
+    expect(validateField('amount', '1.2.3')).toBe('Serving amount is required and must be a number');
+    expect(validateFoodData({
+      productName: 'Yogurt',
+      calories: '90oops',
+      amount: '100',
+      unit: 'g',
+    }).isValid).toBe(false);
+  });
+
   test('optional macros', () => {
     ['carbohydrates', 'protein', 'fats', 'fiber', 'sugar', 'saturatedFats'].forEach(f => {
       const label = f.charAt(0).toUpperCase() + f.slice(1);

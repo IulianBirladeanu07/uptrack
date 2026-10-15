@@ -8,6 +8,7 @@ import {
   refreshWeightChangePlan,
 } from '../../profile/utils/nutritionPlanEngine';
 import { weekStepStats, overlayWeekSteps } from './stepStats';
+import { differenceInLocalDays, toLocalDate } from '../utils/dateUtils';
 import type {
   DailySteps,
   DateInput,
@@ -26,7 +27,6 @@ import type {
 type WeeklyEvalResult = Partial<UserData> & { suggestion: PlanAdjustment['suggestion'] | 'maintenance_refresh' };
 
 const DAY_MS = 1000 * 60 * 60 * 24;
-const WEEK_MS = 7 * DAY_MS;
 
 export const calculateDailyNutritionFromMeals = (meals: DayMeals | null | undefined): NutritionTotals =>
   Object.values(meals || {})
@@ -48,8 +48,8 @@ export const deriveStartWeight = (weightIns: WeightInWeek[] | null | undefined):
 };
 
 export const getRollingWeekStats = (mealCache: MealCacheLike, weekStart: DateInput, today: DateInput) => {
-  const start = new Date(weekStart);
-  const end   = new Date(today);
+  const start = toLocalDate(weekStart);
+  const end   = toLocalDate(today);
   end.setHours(23, 59, 59, 999);
 
   const days = mealCache.getDateRange(start, end);
@@ -127,7 +127,7 @@ export const snapshotPreviousWeek = async (
     const updated = [
       ...existing.filter(w => w.weekStart !== weekStart),
       snapshot,
-    ].sort((a, b) => new Date(a.weekStart).getTime() - new Date(b.weekStart).getTime());
+    ].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
 
     const isWeightLoss = userData?.weightChangePlan?.type === 'weight_loss';
     const goalSwitchDate = userData?.goalSwitchDate;
@@ -135,10 +135,8 @@ export const snapshotPreviousWeek = async (
     let weeksSinceCutStart = userData?.weeksSinceCutStart || 0;
     if (isWeightLoss) {
       if (goalSwitchDate) {
-        const switchDate = new Date(goalSwitchDate);
-        const snapshotDate = new Date(weekStart);
-        const diffMs = snapshotDate.getTime() - switchDate.getTime();
-        weeksSinceCutStart = Math.max(0, Math.floor(diffMs / WEEK_MS));
+        const daysSinceCutStart = differenceInLocalDays(weekStart, goalSwitchDate);
+        weeksSinceCutStart = Math.max(0, Math.floor(daysSinceCutStart / 7));
       } else {
         weeksSinceCutStart = weeksSinceCutStart + 1;
       }
@@ -330,7 +328,7 @@ export const initializeUserTargets = async (userId: string, weightChangePlan: We
 };
 
 export const calculateLearningStats = (mealCache: MealCacheLike, currentDate: DateInput, requiredDays = 7) => {
-  const end = new Date(currentDate);
+  const end = toLocalDate(currentDate);
   end.setHours(23, 59, 59, 999);
   const start = new Date(end);
   start.setDate(end.getDate() - 29);
@@ -369,12 +367,12 @@ export const checkAndBackfillStepsBonus = async (
   if (userData.lastCalorieAdjustment) return null;
   if (userData.stepsBonusAppliedAt) return null;
 
-  const end = new Date(currentDate);
+  const end = toLocalDate(currentDate);
   end.setHours(23, 59, 59, 999);
   const start = new Date(end);
   start.setDate(end.getDate() - STEPS_BONUS_WINDOW_DAYS);
 
-  const todayKey = mealCache.formatDate(new Date(currentDate));
+  const todayKey = mealCache.formatDate(end);
   const stepDays = mealCache.getStepsRange(start, end)
     .filter(d => d.date !== todayKey && d.steps > 0);
 

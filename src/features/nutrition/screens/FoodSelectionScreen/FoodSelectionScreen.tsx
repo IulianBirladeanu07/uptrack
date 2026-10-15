@@ -17,6 +17,7 @@ import { normalize } from '../../../../shared/hooks/useResponsive';
 import useFoodCategories from '../../helpers/useFoodCategories';
 import { colors } from '../../../../shared/theme';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import { toLocalDate } from '../../utils/dateUtils';
 import type { LoggedFood, MealType } from '../../../../shared/types';
 
 const LoadingView = memo(() => (
@@ -77,10 +78,11 @@ const FoodSelectionScreen = () => {
         searchResults,
         loading: searchLoading,
         handleSearch,
+        searchError,
     } = useFoodSearch();
 
     const formattedDate = useMemo(() => {
-        const date = selectedDate ? new Date(selectedDate) : new Date();
+        const date = selectedDate ? toLocalDate(selectedDate) : new Date();
         return date.toLocaleDateString('en-US', {
             weekday: 'long',
             month: 'long',
@@ -153,6 +155,10 @@ const FoodSelectionScreen = () => {
             Alert.alert("No Foods Selected", "Please select at least one food item.");
             return;
         }
+        if (!meal) {
+            Alert.alert('Unable to add foods', 'Select a meal before adding food.');
+            return;
+        }
         isSubmittingRef.current = true;
         const validatedFoods = selectedFoods.map(food => ({
             ...food,
@@ -164,8 +170,12 @@ const FoodSelectionScreen = () => {
             quantity: food.quantity || 1,
             mealType: meal,
         })) as LoggedFood[];
-        handleAddMeal(meal as MealType, validatedFoods, selectedDate).catch(() => {});
-        navigation.navigate('Nutrition', { refresh: true });
+        try {
+            await handleAddMeal(meal as MealType, validatedFoods, selectedDate);
+            navigation.navigate('Nutrition', { refresh: true });
+        } catch {
+            isSubmittingRef.current = false;
+        }
     }, [selectedFoods, handleAddMeal, meal, selectedDate, navigation]);
 
     const handleEnterSearch = useCallback(() => {
@@ -268,6 +278,9 @@ const FoodSelectionScreen = () => {
                     isSearching={isSearching}
                     selectedCategory={selectedCategory}
                     searchResults={searchResults}
+                    searchLoading={searchLoading}
+                    searchError={searchError}
+                    onRetrySearch={() => handleSearch(searchQuery)}
                     categoryFoods={categoryFoods}
                     searchQuery={searchQuery}
                     handleNavigateToFoodDetail={handleNavigateToFoodDetail}

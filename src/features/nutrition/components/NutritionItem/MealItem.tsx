@@ -4,6 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-na
 import FoodItem from './FoodItem';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { mealItemPropsEqual, foodItemPropsEqual } from '../../helpers/mealItemMemo';
+import { toLocalDate } from '../../utils/dateUtils';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import type { DateInput, LoggedFood } from '../../../../shared/types';
 
@@ -58,7 +59,7 @@ const formatMealTitle = (date: DateInput, mealType: string) => {
 
   const mealName = mealTypeNames[mealType.toLowerCase()] || mealType;
   const today = new Date();
-  const mealDate = new Date(date);
+  const mealDate = toLocalDate(date);
 
   const resetTime = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 

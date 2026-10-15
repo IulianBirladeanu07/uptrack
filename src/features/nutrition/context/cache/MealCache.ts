@@ -1,4 +1,5 @@
 import type { DateInput, LoggedFood, MealCacheLike, MealGroup, MealType, MealsByType } from '../../../../shared/types';
+import { formatDate, toLocalDate } from '../../utils/dateUtils';
 
 class MealCache implements MealCacheLike {
     data: Map<string, MealsByType>;
@@ -56,8 +57,8 @@ class MealCache implements MealCacheLike {
 
     getDateRange(startDate: DateInput, endDate: DateInput): { date: string; meals: MealsByType }[] {
         const results: { date: string; meals: MealsByType }[] = [];
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        const start = toLocalDate(startDate);
+        const end = toLocalDate(endDate);
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const dateKey = this.formatDate(d);
             results.push({ date: dateKey, meals: this.get(dateKey) });
@@ -75,8 +76,8 @@ class MealCache implements MealCacheLike {
 
     getStepsRange(startDate: DateInput, endDate: DateInput): { date: string; steps: number }[] {
         const results: { date: string; steps: number }[] = [];
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        const start = toLocalDate(startDate);
+        const end = toLocalDate(endDate);
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const dateKey = this.formatDate(d);
             results.push({ date: dateKey, steps: this.getSteps(dateKey) });
@@ -85,11 +86,7 @@ class MealCache implements MealCacheLike {
     }
 
     formatDate(date: DateInput): string {
-        const d = date instanceof Date ? date : new Date(date);
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
+        return formatDate(date);
     }
 }
 

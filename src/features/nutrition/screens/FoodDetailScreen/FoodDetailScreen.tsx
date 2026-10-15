@@ -15,6 +15,7 @@ import ServingSizeSelector from './ServingSizeSelector';
 import UnitPickerModal from './UnitPickerModal';
 import { calculateTotalNutrients, handleFoodAddition } from '../../helpers/useFoodDetails';
 import { convertQuantity } from '../../helpers/unitConversion';
+import { toLocalDate } from '../../utils/dateUtils';
 
 const DEFAULT_SERVING = Object.freeze({
   quantity: 100,
@@ -30,7 +31,7 @@ const FoodDetailScreen = () => {
   const { meal, update, foodId, selectedDate: rawSelectedDate } = route.params;
   const food = route.params.food as FoodDetailFood | undefined;
   const baseQuantity = food?.quantity == null ? null : Number(food.quantity);
-  const selectedDate = rawSelectedDate ? new Date(rawSelectedDate) : new Date();
+  const selectedDate = rawSelectedDate ? toLocalDate(rawSelectedDate) : new Date();
 
   const { updateMealInDatabase } = useFoodContext();
   const scrollRef = useRef<ScrollView>(null);

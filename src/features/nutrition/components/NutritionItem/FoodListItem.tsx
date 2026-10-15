@@ -41,6 +41,9 @@ type FoodListItemProps = {
     searchResults?: FoodSearchItem[] | undefined;
     categoryFoods?: CategoryFood[] | undefined;
     searchQuery?: string | undefined;
+    searchLoading?: boolean | undefined;
+    searchError?: string | null | undefined;
+    onRetrySearch?: (() => void) | undefined;
     handleNavigateToFoodDetail?: PressHandler;
     handlePlusPress?: PressHandler;
     onCreateFood?: (() => void) | undefined;
@@ -224,6 +227,9 @@ const FoodListItem = memo(({
     searchResults = [],
     categoryFoods = [],
     searchQuery = '',
+    searchLoading = false,
+    searchError,
+    onRetrySearch,
     handleNavigateToFoodDetail,
     handlePlusPress,
     onCreateFood,
@@ -303,6 +309,9 @@ const FoodListItem = memo(({
             <FoodSearchResults
                 searchResults={searchResults}
                 searchQuery={searchQuery}
+                searchLoading={searchLoading}
+                searchError={searchError}
+                onRetrySearch={onRetrySearch}
                 onItemPress={handleNavigateToFoodDetail}
                 onPlusPress={handlePlusPress}
                 showPlusButton={true}

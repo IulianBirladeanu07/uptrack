@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { fetchNonBarcodedProducts } from '../handlers/NutritionHandler';
+import { RequestTracker } from '../utils/requestTracker';
 import type { FoodSearchItem, FoodSuggestion } from '../../../shared/types';
 
 type CacheEntry = {
@@ -11,10 +12,11 @@ export const useFoodSearch = () => {
   const [searchQuery, setSearchQueryState] = useState('');
   const [searchResults, setSearchResults] = useState<FoodSearchItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchCache = useRef(new Map<string, CacheEntry>());
-  const latestRequestId = useRef(0);
+  const requestTracker = useRef(new RequestTracker());
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -47,21 +49,27 @@ export const useFoodSearch = () => {
   }, []);
 
   const performSearch = useCallback(async (query?: string | null) => {
+    const requestId = requestTracker.current.begin();
     if (!query || query.trim().length < 2) {
       setSearchResults([]);
+      setLoading(false);
+      setSearchError(null);
       return;
     }
 
     const trimmedQuery = query.trim();
     const cacheKey = `search_${trimmedQuery.toLowerCase()}`;
-    
+
+    setSearchError(null);
     const cached = getCachedResult<FoodSearchItem[]>(cacheKey);
     if (cached) {
-      setSearchResults(cached);
+      if (mountedRef.current && requestTracker.current.isCurrent(requestId)) {
+        setSearchResults(cached);
+        setLoading(false);
+      }
       return;
     }
 
-    const requestId = ++latestRequestId.current;
     setLoading(true);
 
     try {
@@ -101,17 +109,18 @@ export const useFoodSearch = () => {
       }));
 
       setCachedResult(cacheKey, processedResults);
-      if (requestId === latestRequestId.current && mountedRef.current) {
+      if (requestTracker.current.isCurrent(requestId) && mountedRef.current) {
         setSearchResults(processedResults);
       }
 
     } catch (error) {
       console.error('Search failed:', error);
-      if (requestId === latestRequestId.current && mountedRef.current) {
+      if (requestTracker.current.isCurrent(requestId) && mountedRef.current) {
         setSearchResults([]);
+        setSearchError('Unable to search foods. Check your connection and try again.');
       }
     } finally {
-      if (requestId === latestRequestId.current && mountedRef.current) {
+      if (requestTracker.current.isCurrent(requestId) && mountedRef.current) {
         setLoading(false);
       }
     }
@@ -120,14 +129,18 @@ export const useFoodSearch = () => {
   const setSearchQuery = useCallback((text?: string | null) => {
     const value = text || '';
     setSearchQueryState(value);
+    requestTracker.current.invalidate();
+    setSearchResults([]);
+    setSearchError(null);
 
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
 
     if (value.trim().length < 2) {
-      setSearchResults([]);
+      setLoading(false);
       return;
     }
 
+    setLoading(true);
     debounceTimeout.current = setTimeout(() => {
       performSearch(value);
     }, 300);
@@ -172,6 +185,9 @@ export const useFoodSearch = () => {
   const clearSearch = useCallback(() => {
     setSearchQueryState('');
     setSearchResults([]);
+    setSearchError(null);
+    setLoading(false);
+    requestTracker.current.invalidate();
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);
     }
@@ -182,6 +198,7 @@ export const useFoodSearch = () => {
     setSearchQuery,
     searchResults,
     loading,
+    searchError,
     
     handleSearch,
     getSuggestions,

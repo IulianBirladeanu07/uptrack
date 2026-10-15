@@ -13,6 +13,7 @@ import useWeightData from '../../helpers/useWeightData';
 import styles from './NutritionScreenStyles';
 import type { FoodItemData } from '../../components/NutritionItem/FoodItem';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import { formatDate } from '../../utils/dateUtils';
 import type { FoodDetailFood, LoggedFood, MealType } from '../../../../shared/types';
 
 const NutritionScreen = () => {
@@ -69,8 +70,9 @@ const NutritionScreen = () => {
 
     const handleFoodSelect = useCallback((item: FoodDetailFood) => {
         navigation.navigate('FoodDetail', {
-            food: { ...item, date: selectedDate.toISOString(), imageSource: item.image },
+            food: { ...item, date: formatDate(selectedDate), imageSource: item.image },
             meal: selectedMeal,
+            selectedDate: formatDate(selectedDate),
             update: true,
             foodId: item.id,
         });
@@ -92,7 +94,7 @@ const NutritionScreen = () => {
     const handleAddFood = useCallback(() => {
         navigation.navigate('FoodSelection', {
             meal:              selectedMeal,
-            selectedDate:      selectedDate.toISOString(),
+            selectedDate:      formatDate(selectedDate),
             remainingCalories: remainingCalories,
         });
     }, [navigation, selectedMeal, selectedDate, remainingCalories]);

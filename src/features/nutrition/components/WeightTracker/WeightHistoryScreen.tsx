@@ -52,7 +52,7 @@ const formatMonth = (weekStartStr: string) => {
 };
 
 const groupByMonth = (weightIns: WeightInWeek[]): MonthGroup[] => {
-    const sorted = [...weightIns].sort((a, b) => new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime());
+    const sorted = [...weightIns].sort((a, b) => b.weekStart.localeCompare(a.weekStart));
     const groups: Record<string, MonthGroup> = {};
     sorted.forEach(week => {
         const [y, m] = week.weekStart.split('-').map(Number);
@@ -149,7 +149,7 @@ const WeightHistoryScreen = () => {
     const monthGroups = useMemo(() => groupByMonth(weightIns), [weightIns]);
 
     const sortedAll = useMemo(() =>
-        [...weightIns].sort((a, b) => new Date(a.weekStart).getTime() - new Date(b.weekStart).getTime()),
+        [...weightIns].sort((a, b) => a.weekStart.localeCompare(b.weekStart)),
     [weightIns]);
 
     const prevAverageMap = useMemo(() => {

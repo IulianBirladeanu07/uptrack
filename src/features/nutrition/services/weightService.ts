@@ -2,13 +2,14 @@ import { doc, getDoc } from 'firebase/firestore';
 import { userConverter } from '../../../shared/firestore/converters';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../auth/services/firebaseConfigService';
+import { toLocalDate } from '../utils/dateUtils';
 import type { DateInput, UserData, WeightDisplayData } from '../../../shared/types';
 
 const memoryCache = new Map<string, UserData>();
 
 export class WeightService {
     static getWeekStartDate(date: DateInput): Date {
-        const d = new Date(date);
+        const d = toLocalDate(date);
         const day = d.getDay();
         const diff = d.getDate() - day + (day === 0 ? -6 : 1);
         const weekStart = new Date(d.setDate(diff));
@@ -101,9 +102,8 @@ export class WeightService {
                 };
             }
 
-            const sortedWeeks = [...userData.weightIns].sort((a, b) =>
-                new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime()
-            );
+            const sortedWeeks = [...userData.weightIns]
+                .sort((a, b) => b.weekStart.localeCompare(a.weekStart));
 
             const weekStartDate = this.getLocalWeekStartKey(selectedDate);
             const currentIndex = sortedWeeks.findIndex(entry => entry.weekStart === weekStartDate);

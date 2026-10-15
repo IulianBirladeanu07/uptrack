@@ -3,6 +3,7 @@ import { Alert, Keyboard } from 'react-native';
 import type { View } from 'react-native';
 import { supabase } from '../../../shared/services/supabaseClient';
 import { validateFoodData } from '../utils/customFoodValidators';
+import { formatDate } from '../utils/dateUtils';
 import { formatFoodDataForSubmission, getInitialFoodData, passesBarcodedProductsInsertPolicy, transformForBarcodeDB, transformForCustomFood } from '../utils/customFoodDataUtils';
 import type { AppNavigationProp } from '../../../shared/navigation';
 import type { FoodFormData, FoodFormErrors } from '../../../shared/types';
@@ -114,7 +115,7 @@ export const useCustomFood = (
         try {
             const formattedData = formatFoodDataForSubmission(formData);
             const updatedRemainingCalories = remainingCalories - formattedData.calories;
-            const serializedDate = selectedDate ? new Date(selectedDate).toISOString() : new Date().toISOString();
+            const serializedDate = selectedDate ? formatDate(selectedDate) : formatDate(new Date());
             
             if (type === 'foodWithBarcode') {
                 const barcodeId = formattedData.barcode;

@@ -1,5 +1,6 @@
 import { Alert } from 'react-native';
 import { scalingFactor } from './unitConversion';
+import { formatDate } from '../utils/dateUtils';
 import type { AuthenticatedStackParamList } from '../../../shared/navigation';
 import type { FoodDetailFood, MealType, NutrientTotals, NutrientValues } from '../../../shared/types';
 
@@ -113,7 +114,13 @@ export const handleFoodAddition = async ({
   };
 
   if (update) {
-    updateMealInDatabase(meal, currentFoodId, updatedFoodDetails).catch(() => {});
+    try {
+      await updateMealInDatabase(meal, currentFoodId, updatedFoodDetails);
+    } catch (error) {
+      console.error('Failed to update food item:', error);
+      Alert.alert("Couldn't save", 'Check your connection and try again.');
+      return { success: false };
+    }
     return {
       success: true,
       navigation: {
@@ -130,7 +137,7 @@ export const handleFoodAddition = async ({
       params: {
         selectedFoodDetail: updatedFoodDetails,
         meal,
-        selectedDate: selectedDate instanceof Date ? selectedDate.toISOString() : selectedDate,
+        selectedDate: formatDate(selectedDate),
         refresh: true,
         remainingCalories: remainingCalories,
       }

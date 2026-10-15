@@ -21,6 +21,18 @@ describe('sameFood', () => {
   it('treats fats and fat as the same field', () => {
     expect(sameFood({ id: 1, fats: 3 }, { id: 1, fat: 3 })).toBe(true);
   });
+
+  it.each([
+    ['productName', 'Oats', 'Rice'],
+    ['image', 'oats.png', 'rice.png'],
+    ['icon', 'oats', 'rice'],
+    ['carbohydrates', 20, 30],
+  ])('detects changes to rendered food field %s', (field, previous, next) => {
+    expect(sameFood(
+      { id: '1', [field]: previous },
+      { id: '1', [field]: next },
+    )).toBe(false);
+  });
 });
 
 describe('sameFoodList', () => {

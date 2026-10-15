@@ -15,8 +15,11 @@ import { getLocalWeekStart } from '../helpers/weightTrackerUtils';
 import { getRollingWeekStats, checkAndCompleteLearning, calculateLearningStats, checkAndRunWeeklyEval, checkAndBackfillStepsBonus } from '../helpers/learningCompletionService';
 import useDailyNutrition from '../helpers/useDailyNutrition';
 import MealCache from './cache/MealCache';
+import { parsePersistedMealCache } from './cache/mealCacheStorage';
+import { AsyncOperationQueue } from './AsyncOperationQueue';
 import { formatDate } from '../utils/dateUtils';
-import { diffSteps, persistDailySteps } from '../helpers/stepsSyncService';
+import { isCurrentUserRequest } from '../utils/userRequest';
+import { diffSteps, persistDailySteps, restorePendingSteps } from '../helpers/stepsSyncService';
 import type { User } from 'firebase/auth';
 import type {
     DailySteps, DateInput, EnhancedLearningData, FoodCategories, FoodDetailFood, FrequentFood, LoggedFood,
@@ -24,7 +27,6 @@ import type {
 } from '../../../shared/types';
 
 const MEAL_CACHE_KEY_PREFIX = 'meal_cache_v2_';
-const MEAL_CACHE_TTL        = 30 * 60 * 1000;
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
 const REQUIRED_LEARNING_DAYS = 7;
 
@@ -82,17 +84,18 @@ const persistMealCache = async (uid: string, meals: MealGroup[]) => {
             `${MEAL_CACHE_KEY_PREFIX}${uid}`,
             JSON.stringify({ meals, ts: Date.now() })
         );
-    } catch {}
+    } catch (error) {
+        console.error('[FoodContext] meal cache persist failed:', error);
+    }
 };
 
 const loadPersistedMealCache = async (uid: string): Promise<MealGroup[] | null> => {
     try {
         const raw = await AsyncStorage.getItem(`${MEAL_CACHE_KEY_PREFIX}${uid}`);
         if (!raw) return null;
-        const { meals, ts } = JSON.parse(raw) as { meals: MealGroup[]; ts: number };
-        if (Date.now() - ts > MEAL_CACHE_TTL) return null;
-        return meals;
-    } catch {
+        return parsePersistedMealCache(raw);
+    } catch (error) {
+        console.error('[FoodContext] meal cache load failed:', error);
         return null;
     }
 };
@@ -100,7 +103,9 @@ const loadPersistedMealCache = async (uid: string): Promise<MealGroup[] | null> 
 const clearPersistedMealCache = async (uid: string) => {
     try {
         await AsyncStorage.removeItem(`${MEAL_CACHE_KEY_PREFIX}${uid}`);
-    } catch {}
+    } catch (error) {
+        console.error('[FoodContext] meal cache clear failed:', error);
+    }
 };
 
 const getCurrentWeekRollingStats = (mealCache: MealCache | null, weightIns?: WeightInWeek[]) => {
@@ -204,9 +209,10 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     });
 
     const initializationRef = useRef(false);
+    const userGenerationRef = useRef(0);
     const mealCache         = useRef(new MealCache());
     const mountedRef        = useRef(true);
-    const operationQueues   = useRef(new Map<string, Promise<unknown>>());
+    const operationQueue    = useRef(new AsyncOperationQueue());
     const selectedDateRef   = useRef(selectedDate);
     const stepsDisplayRef   = useRef<StepDisplayHandle | null>(null);
     const stepsBonusCheckedRef = useRef(false);
@@ -214,7 +220,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     const currentUserRef    = useRef<User | null>(null);
     const pendingStepsRef   = useRef<DailySteps>({});
     const writtenStepsRef   = useRef<DailySteps>({});
-    const flushingStepsRef  = useRef(false);
+    const flushingStepsRef  = useRef<number | null>(null);
     const userDataRef       = useRef<UserData | null>(null);
 
     const { userData, refreshUserData } = useContext(AuthContext)!;
@@ -291,11 +297,8 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         return undefined;
     }, [error]);
 
-    const executeWithLock = useCallback((key: string, operation: () => Promise<unknown>): Promise<unknown> => {
-        const previous = operationQueues.current.get(key) || Promise.resolve();
-        const run = previous.then(operation, operation);
-        operationQueues.current.set(key, run.catch(() => {}));
-        return run;
+    const executeWithLock = useCallback(<T,>(key: string, operation: () => Promise<T>): Promise<T> => {
+        return operationQueue.current.run(key, operation);
     }, []);
 
     const updateMealState = useCallback((mealType: MealType, foods: LoggedFood[], dateKey?: string) => {
@@ -318,21 +321,27 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     const flushSteps = useCallback(async () => {
         const uid = currentUserRef.current?.uid;
         const ud  = userDataRef.current;
-        if (!uid || !ud || flushingStepsRef.current) return;
+        const generation = userGenerationRef.current;
+        if (!uid || !ud || (ud.uid && ud.uid !== uid) || flushingStepsRef.current === generation) return;
         const incoming = pendingStepsRef.current;
         if (!Object.keys(incoming).length) return;
         const stored  = { ...(ud.dailySteps || {}), ...writtenStepsRef.current };
         const toWrite = diffSteps(stored, incoming, formatDate(new Date()));
         pendingStepsRef.current = {};
         if (!Object.keys(toWrite).length) return;
-        flushingStepsRef.current = true;
+        flushingStepsRef.current = generation;
         try {
             await persistDailySteps(uid, toWrite);
-            writtenStepsRef.current = { ...writtenStepsRef.current, ...toWrite };
+            if (isCurrentUserRequest({ uid, generation }, currentUserRef.current?.uid, userGenerationRef.current)) {
+                writtenStepsRef.current = { ...writtenStepsRef.current, ...toWrite };
+            }
         } catch (e) {
-            console.error('persistDailySteps error:', e);
+            if (isCurrentUserRequest({ uid, generation }, currentUserRef.current?.uid, userGenerationRef.current)) {
+                pendingStepsRef.current = restorePendingSteps(toWrite, pendingStepsRef.current);
+                console.error('persistDailySteps error:', e);
+            }
         } finally {
-            flushingStepsRef.current = false;
+            if (flushingStepsRef.current === generation) flushingStepsRef.current = null;
         }
     }, []);
 
@@ -362,8 +371,9 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const retryStepsConnection = useCallback(() => {
+        flushSteps();
         stepsDisplayRef.current?.retry?.();
-    }, []);
+    }, [flushSteps]);
 
     const getWeeklyAvgSteps = useCallback(() => {
         const endDate   = new Date(selectedDateRef.current);
@@ -409,7 +419,11 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     const ensureDayLoaded = useCallback(async (dateKey: string, uid: string) => {
         if (mealCache.current.has(dateKey)) return;
         const day = await fetchRawMealsForDate(uid, dateKey);
-        if (!mountedRef.current || mealCache.current.has(dateKey)) return;
+        if (
+            !mountedRef.current ||
+            currentUserRef.current?.uid !== uid ||
+            mealCache.current.has(dateKey)
+        ) return;
         mealCache.current.set(dateKey, day);
     }, []);
 
@@ -420,32 +434,44 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
 
         try {
             await ensureDayLoaded(dateKey, uid);
+            if (currentUserRef.current?.uid !== uid) {
+                throw new Error('The signed-in user changed while loading meals.');
+            }
         } catch (error) {
-            handleError(error, 'load meals');
-            showSaveFailedAlert();
+            if (currentUserRef.current?.uid === uid) {
+                handleError(error, 'load meals');
+                showSaveFailedAlert();
+            }
             throw error;
         }
 
-        const existing     = mealCache.current.get(dateKey)[mealType];
-        const consolidated = consolidateFoodData(existing, foods);
-        const undoSpecs     = buildAddUndo(existing, foods);
-
-        updateMealState(mealType, consolidated, dateKey);
-        persistMealCache(uid, serializeCacheForPersist());
-
-        const operationKey = `${dateKey}-${mealType}`;
+        const operationKey = `${uid}-${dateKey}-${mealType}`;
         try {
-            await executeWithLock(operationKey, () => writeMealType(uid, mealType, consolidated, dateKey));
-            return consolidated;
-        } catch (error) {
-            handleError(error, 'add meal');
-            if (mountedRef.current) {
-                const currentArray = mealCache.current.get(dateKey)[mealType];
-                const rolledBack   = applyAddUndo(currentArray, undoSpecs);
-                updateMealState(mealType, rolledBack, dateKey);
+            return await executeWithLock(operationKey, async () => {
+                if (!mountedRef.current || currentUserRef.current?.uid !== uid) {
+                    throw new Error('The signed-in user changed before the meal could be saved.');
+                }
+                const existing = mealCache.current.get(dateKey)[mealType];
+                const consolidated = consolidateFoodData(existing, foods);
+                const undoSpecs = buildAddUndo(existing, foods);
+                updateMealState(mealType, consolidated, dateKey);
                 persistMealCache(uid, serializeCacheForPersist());
-            }
-            showSaveFailedAlert();
+                try {
+                    await writeMealType(uid, mealType, consolidated, dateKey);
+                    return consolidated;
+                } catch (error) {
+                    if (mountedRef.current && currentUserRef.current?.uid === uid) {
+                        const currentArray = mealCache.current.get(dateKey)[mealType];
+                        const rolledBack = applyAddUndo(currentArray, undoSpecs);
+                        updateMealState(mealType, rolledBack, dateKey);
+                        persistMealCache(uid, serializeCacheForPersist());
+                    }
+                    throw error;
+                }
+            });
+        } catch (error) {
+            if (currentUserRef.current?.uid === uid) handleError(error, 'add meal');
+            if (currentUserRef.current?.uid === uid) showSaveFailedAlert();
             throw error;
         }
     }, [currentUser, ensureDayLoaded, updateMealState, executeWithLock, handleError, serializeCacheForPersist, showSaveFailedAlert]);
@@ -455,28 +481,29 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         const dateKey = formatDate(selectedDateRef.current);
         const uid     = currentUser.uid;
 
-        const existing    = mealCache.current.get(dateKey)[mealType];
-        const deletedItem = existing.find(f => f.id === foodId);
-        if (!deletedItem) return false;
-        const updated = existing.filter(f => f.id !== foodId);
-
-        updateMealState(mealType, updated, dateKey);
-        persistMealCache(uid, serializeCacheForPersist());
-
-        const operationKey = `${dateKey}-${mealType}`;
+        const operationKey = `${uid}-${dateKey}-${mealType}`;
         try {
-            await executeWithLock(operationKey, () => writeMealType(uid, mealType, updated, dateKey));
-            return true;
-        } catch (error) {
-            handleError(error, 'delete meal item');
-            if (mountedRef.current) {
-                const currentArray = mealCache.current.get(dateKey)[mealType];
-                if (!currentArray.some(f => f.id === foodId)) {
-                    updateMealState(mealType, [...currentArray, deletedItem], dateKey);
-                    persistMealCache(uid, serializeCacheForPersist());
+            return await executeWithLock(operationKey, async () => {
+                if (!mountedRef.current || currentUserRef.current?.uid !== uid) return false;
+                const existing = mealCache.current.get(dateKey)[mealType];
+                if (!existing.some(food => food.id === foodId)) return false;
+                const updated = existing.filter(food => food.id !== foodId);
+                updateMealState(mealType, updated, dateKey);
+                persistMealCache(uid, serializeCacheForPersist());
+                try {
+                    await writeMealType(uid, mealType, updated, dateKey);
+                    return true;
+                } catch (error) {
+                    if (mountedRef.current && currentUserRef.current?.uid === uid) {
+                        updateMealState(mealType, existing, dateKey);
+                        persistMealCache(uid, serializeCacheForPersist());
+                    }
+                    throw error;
                 }
-            }
-            showSaveFailedAlert();
+            });
+        } catch (error) {
+            if (currentUserRef.current?.uid === uid) handleError(error, 'delete meal item');
+            if (currentUserRef.current?.uid === uid) showSaveFailedAlert();
             return false;
         }
     }, [currentUser, updateMealState, executeWithLock, handleError, serializeCacheForPersist, showSaveFailedAlert]);
@@ -486,31 +513,36 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         const dateKey = formatDate(selectedDateRef.current);
         const uid     = currentUser.uid;
 
-        const existing     = mealCache.current.get(dateKey)[mealType];
-        const previousItem = existing.find(f => f.id === foodId);
-        if (!previousItem) throw new Error('Food item not found');
-
-        const updated = existing.map(f =>
-            f.id === foodId ? { ...updatedFoodDetails, id: foodId, usageCount: f.usageCount || 1 } : f
-        );
-
-        updateMealState(mealType, updated, dateKey);
-        persistMealCache(uid, serializeCacheForPersist());
-
-        const operationKey = `${dateKey}-${mealType}`;
+        const operationKey = `${uid}-${dateKey}-${mealType}`;
         try {
-            await executeWithLock(operationKey, () => writeMealType(uid, mealType, updated, dateKey));
-        } catch (error) {
-            handleError(error, 'update meal item');
-            if (mountedRef.current) {
-                const currentArray = mealCache.current.get(dateKey)[mealType];
-                if (currentArray.some(f => f.id === foodId)) {
-                    const restored = currentArray.map(f => f.id === foodId ? previousItem : f);
-                    updateMealState(mealType, restored, dateKey);
-                    persistMealCache(uid, serializeCacheForPersist());
+            await executeWithLock(operationKey, async () => {
+                if (!mountedRef.current || currentUserRef.current?.uid !== uid) {
+                    throw new Error('The signed-in user changed before the meal could be saved.');
                 }
-            }
-            showSaveFailedAlert();
+                const existing = mealCache.current.get(dateKey)[mealType];
+                const previousItem = existing.find(food => food.id === foodId);
+                if (!previousItem) throw new Error('Food item not found');
+                const updated = existing.map(food =>
+                    food.id === foodId ? { ...updatedFoodDetails, id: foodId, usageCount: food.usageCount || 1 } : food
+                );
+                updateMealState(mealType, updated, dateKey);
+                persistMealCache(uid, serializeCacheForPersist());
+                try {
+                    await writeMealType(uid, mealType, updated, dateKey);
+                } catch (error) {
+                    if (mountedRef.current && currentUserRef.current?.uid === uid) {
+                        const currentArray = mealCache.current.get(dateKey)[mealType];
+                        if (currentArray.some(food => food.id === foodId)) {
+                            updateMealState(mealType, existing, dateKey);
+                            persistMealCache(uid, serializeCacheForPersist());
+                        }
+                    }
+                    throw error;
+                }
+            });
+        } catch (error) {
+            if (currentUserRef.current?.uid === uid) handleError(error, 'update meal item');
+            if (currentUserRef.current?.uid === uid) showSaveFailedAlert();
             throw error;
         }
     }, [currentUser, updateMealState, executeWithLock, handleError, serializeCacheForPersist, showSaveFailedAlert]);
@@ -535,7 +567,11 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         if (!uid || mealCache.current.has(dateKey)) return;
         ensureDayLoaded(dateKey, uid)
             .then(() => {
-                if (!mountedRef.current || formatDate(selectedDateRef.current) !== dateKey) return;
+                if (
+                    !mountedRef.current ||
+                    currentUserRef.current?.uid !== uid ||
+                    formatDate(selectedDateRef.current) !== dateKey
+                ) return;
                 updateCurrentDayMeals(date);
                 setCacheVersion(v => v + 1);
             })
@@ -544,6 +580,15 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
 
     const initializeAppData = useCallback(async (user: User) => {
         if (initializationRef.current || !mountedRef.current) return;
+        const request = { uid: user.uid, generation: userGenerationRef.current };
+        const isCurrentRequest = () =>
+            mountedRef.current &&
+            isCurrentUserRequest(
+                request,
+                currentUserRef.current?.uid,
+                userGenerationRef.current,
+            );
+        if (!isCurrentRequest()) return;
         initializationRef.current = true;
 
         setLoading(true);
@@ -552,7 +597,9 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         try {
             const cachedMeals = await loadPersistedMealCache(user.uid);
 
-            if (cachedMeals && mountedRef.current) {
+            if (!isCurrentRequest()) return;
+
+            if (cachedMeals) {
                 mealCache.current.buildFromMeals(cachedMeals);
                 updateCurrentDayMeals(new Date());
                 setCacheVersion(v => v + 1);
@@ -561,7 +608,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
 
             const last30DaysMeals = await fetchLast30DaysMeals(user.uid);
 
-            if (mountedRef.current) {
+            if (isCurrentRequest()) {
                 mealCache.current.buildFromMeals(last30DaysMeals);
                 setFreshMealsLoaded(true);
                 updateCurrentDayMeals(new Date());
@@ -572,26 +619,33 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
             }
         } catch (err) {
             console.error('[FoodContext] init failed:', err);
-            if (mountedRef.current) {
+            if (isCurrentRequest()) {
                 handleError(err, 'load application data');
                 initializationRef.current = false;
             }
         } finally {
-            if (mountedRef.current) setLoading(false);
+            if (isCurrentRequest()) setLoading(false);
         }
     }, [updateCurrentDayMeals, handleError]);
 
     useEffect(() => {
         const checkLearningCompletion = async () => {
             if (currentUser && enhancedLearningData.isLearningComplete && !nutritionHookData.hasTargets) {
+                const request = { uid: currentUser.uid, generation: userGenerationRef.current };
                 try {
                     const newTargets = await checkAndCompleteLearning(
                         currentUser.uid, mealCache.current, selectedDate, nutritionHookData.hasTargets
                     );
-                    if (newTargets) setUserProfile(prev => ({ ...prev, ...newTargets }));
+                    if (
+                        newTargets &&
+                        mountedRef.current &&
+                        isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)
+                    ) setUserProfile(prev => ({ ...prev, ...newTargets }));
                 } catch (error) {
                     console.error('Failed to complete learning phase:', error);
-                    handleError(error, 'complete learning phase');
+                    if (isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)) {
+                        handleError(error, 'complete learning phase');
+                    }
                 }
             }
         };
@@ -603,16 +657,23 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         stepsBonusCheckedRef.current = true;
 
         const runStepsBonusBackfill = async () => {
+            const request = { uid: currentUser.uid, generation: userGenerationRef.current };
             try {
                 const result = await checkAndBackfillStepsBonus(
                     currentUser.uid, userData, mealCache.current, new Date()
                 );
-                if (result && mountedRef.current) {
+                if (
+                    result &&
+                    mountedRef.current &&
+                    isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)
+                ) {
                     setUserProfile(prev => ({ ...prev, ...result }));
                     await refreshUserData();
                 }
             } catch (error) {
-                console.error('Failed to backfill steps bonus:', error);
+                if (isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)) {
+                    console.error('Failed to backfill steps bonus:', error);
+                }
             }
         };
         runStepsBonusBackfill();
@@ -623,14 +684,21 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         weeklyEvalCheckedRef.current = true;
 
         const runWeeklyEval = async () => {
+            const request = { uid: currentUser.uid, generation: userGenerationRef.current };
             try {
                 const adjustment = await checkAndRunWeeklyEval(currentUser.uid, userData, mealCache.current);
-                if (adjustment && mountedRef.current) {
+                if (
+                    adjustment &&
+                    mountedRef.current &&
+                    isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)
+                ) {
                     setUserProfile(prev => ({ ...prev, ...adjustment }));
                     await refreshUserData();
                 }
             } catch (error) {
-                console.error('Failed to run weekly evaluation:', error);
+                if (isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)) {
+                    console.error('Failed to run weekly evaluation:', error);
+                }
             }
         };
         runWeeklyEval();
@@ -640,12 +708,9 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (!mountedRef.current) return;
             const previousUser = currentUserRef.current;
-            currentUserRef.current = user;
-            setCurrentUser(user);
-            if (user && !initializationRef.current) {
-                initializeAppData(user);
-            } else if (!user) {
-                if (previousUser) clearPersistedMealCache(previousUser.uid);
+            const userChanged = previousUser?.uid !== user?.uid;
+            if (userChanged) {
+                userGenerationRef.current++;
                 initializationRef.current = false;
                 stepsBonusCheckedRef.current = false;
                 weeklyEvalCheckedRef.current = false;
@@ -662,9 +727,17 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                 setStepsConnected(null);
                 setCacheVersion(0);
                 setError(null);
-                setLoading(false);
                 setInitialLoadComplete(false);
                 setFreshMealsLoaded(false);
+                setLoading(!!user);
+            }
+            currentUserRef.current = user;
+            setCurrentUser(user);
+            if (user) {
+                initializeAppData(user);
+            } else {
+                if (previousUser) clearPersistedMealCache(previousUser.uid);
+                setLoading(false);
             }
         });
         return () => unsubscribe();

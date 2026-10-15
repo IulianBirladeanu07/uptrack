@@ -1,10 +1,15 @@
 type FoodLike = {
   id?: string | number | null | undefined;
+  productName?: unknown;
+  image?: unknown;
+  icon?: unknown;
+  mealType?: unknown;
   quantity?: unknown;
   unit?: unknown;
   calories?: unknown;
   protein?: unknown;
   carbs?: unknown;
+  carbohydrates?: unknown;
   fats?: unknown;
   fat?: unknown;
 } | null | undefined;
@@ -21,11 +26,16 @@ export const sameFood = (a: FoodLike, b: FoodLike): boolean => {
   if (!a || !b) return false;
   return (
     a.id === b.id &&
+    a.productName === b.productName &&
+    a.image === b.image &&
+    a.icon === b.icon &&
+    a.mealType === b.mealType &&
     a.quantity === b.quantity &&
     a.unit === b.unit &&
     a.calories === b.calories &&
     a.protein === b.protein &&
     a.carbs === b.carbs &&
+    a.carbohydrates === b.carbohydrates &&
     (a.fats ?? a.fat) === (b.fats ?? b.fat)
   );
 };

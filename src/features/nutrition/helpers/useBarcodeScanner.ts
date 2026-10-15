@@ -5,6 +5,7 @@ import type { BarcodeScanningResult } from 'expo-camera';
 import { transformBarcodeDBToFoodDetail } from '../utils/customFoodDataUtils';
 import type { AppNavigationProp } from '../../../shared/navigation';
 import { supabase } from '../../../shared/services/supabaseClient';
+import { BarcodeScanGuard } from '../utils/barcodeScanGuard';
 
 export const useBarcodeScanner = (
   navigation: AppNavigationProp,
@@ -19,6 +20,7 @@ export const useBarcodeScanner = (
   const errorOpacity = useRef(new Animated.Value(0)).current;
   const lastScannedRef = useRef<string | null>(null);
   const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scanGuardRef = useRef(new BarcodeScanGuard());
 
   const findProductByBarcode = async (barcode: string) => {
     const { data: product, error } = await supabase
@@ -37,6 +39,7 @@ export const useBarcodeScanner = (
     if (lastScannedRef.current === data && scanTimeoutRef.current) {
       return;
     }
+    if (!scanGuardRef.current.acquire()) return;
 
     lastScannedRef.current = data;
     if (scanTimeoutRef.current) {
@@ -75,6 +78,7 @@ export const useBarcodeScanner = (
       Alert.alert('Scan Error', 'Something went wrong while processing the barcode.');
       setIsScanning(true);
     } finally {
+      scanGuardRef.current.release();
       setLoadingProduct(false);
     }
   };

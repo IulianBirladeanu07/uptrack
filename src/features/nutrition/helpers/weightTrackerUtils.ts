@@ -9,6 +9,7 @@ import {
   checkAndRunWeeklyEval,
 } from '../helpers/learningCompletionService';
 import WeightService from '../services/weightService';
+import { differenceInLocalDays, formatDate as formatDateKey, toLocalDate } from '../utils/dateUtils';
 import type { DateInput, DayKey, MealCacheLike, Numeric, UserData, WeeklySnapshot, WeightInWeek } from '../../../shared/types';
 
 type Setter<T> = (value: T) => void;
@@ -42,7 +43,7 @@ export const validateWeight = (value: string | number): boolean => {
 };
 
 export const getWeekStartDate = (date: DateInput): Date => {
-  const d = new Date(date);
+  const d = toLocalDate(date);
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   return new Date(d.setDate(diff));
@@ -101,7 +102,7 @@ export const loadUserWeightData = async (
     setGoalWeight(data.targetWeight ?? null);
     setGoalSwitchDate(data.goalSwitchDate ?? null);
 
-    const today         = new Date(currentDate);
+    const today         = toLocalDate(currentDate);
     const weekStartDate = getLocalWeekStart(today);
     const currentWeek   = weightIns.find(e => e.weekStart === weekStartDate);
     setWeeklyData(currentWeek);
@@ -123,7 +124,7 @@ export const loadUserWeightData = async (
         if (weight == null || isNaN(Number(weight))) return;
         const entryDate = new Date(y, m - 1, d + dayIndex);
         allEntries.push({
-          date:   entryDate.toISOString(),
+          date:   formatDateKey(entryDate),
           weight: parseFloat(String(weight)),
         });
       });
@@ -145,7 +146,7 @@ export const handleSaveLogic = async (
   mealCache: MealCacheLike | null = null,
 ): Promise<void> => {
   try {
-    const today         = new Date(currentDate);
+    const today         = toLocalDate(currentDate);
     const weekStartDate = getLocalWeekStart(today);
     const dayKey        = getDayKey(today);
 
@@ -174,7 +175,7 @@ export const handleSaveLogic = async (
     const currentWeekEntry  = weightIns[currentWeekIndex];
     currentWeekEntry.average = calculateWeeklyAverage(currentWeekEntry.days ?? {});
 
-    weightIns.sort((a, b) => new Date(a.weekStart).getTime() - new Date(b.weekStart).getTime());
+    weightIns.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
 
     const sortedIndex = weightIns.findIndex(e => e.weekStart === weekStartDate);
     let weeklyTrend: number | null = null;
@@ -225,7 +226,7 @@ export const handleSaveLogic = async (
         const merged: WeeklySnapshot[] = [
           ...(updatedUserData.weeklyNutrition || []).filter(w => w.weekStart !== snapshot.weekStart),
           snapshot,
-        ].sort((a, b) => new Date(a.weekStart).getTime() - new Date(b.weekStart).getTime());
+        ].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
 
         updatedUserData = {
           ...updatedUserData,
@@ -267,7 +268,7 @@ const formatDisplayDate = (date: Date): string => {
   if (date.toDateString() === today.toDateString())     return 'Today';
   if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
 
-  const daysAgo = Math.floor((today.getTime() - date.getTime()) / 86400000);
+  const daysAgo = differenceInLocalDays(today, date);
   if (daysAgo <= 7) return `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
 
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -290,7 +291,7 @@ export const processWeightInsForDisplay = (weightIns: WeightInWeek[] | null | un
         weight:        parseFloat(String(weight)),
         weekStart:     week.weekStart,
         dayKey,
-        dateKey:       entryDate.toISOString().split('T')[0],
+        dateKey:       formatDateKey(entryDate),
         weekAverage:   week.average,
         formattedDate: formatDisplayDate(entryDate),
       });

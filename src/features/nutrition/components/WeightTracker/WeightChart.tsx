@@ -5,6 +5,7 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { colors, spacing, fontSize, fontWeight } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
+import { differenceInLocalDays, formatDate, getLocalDateBucket, toLocalDate } from '../../utils/dateUtils';
 
 export type PeriodKey = '7' | 'PHASE' | '6M' | 'ALL';
 type DateInput = string | Date;
@@ -58,20 +59,20 @@ const PERIOD_SPAN_WEEKS: Partial<Record<PeriodKey, number>> = {
 
 const getEarliestDate = (data: ChartEntry[]) =>
     data.reduce((min, e) => {
-        const d = new Date(e.date);
+        const d = toLocalDate(e.date);
         return d < min ? d : min;
     }, new Date());
 
 const getDataWeeks = (data: ChartEntry[]) =>
-    Math.max(1, Math.ceil((Date.now() - getEarliestDate(data).getTime()) / WEEK_MS));
+    Math.max(1, Math.ceil(differenceInLocalDays(new Date(), getEarliestDate(data)) / 7));
 
 const getPhaseSpanWeeks = (goalSwitchDate: DateInput | null | undefined) => {
     if (!goalSwitchDate) return null;
-    const switchDate = new Date(goalSwitchDate);
+    const switchDate = toLocalDate(goalSwitchDate);
     if (isNaN(switchDate.getTime())) return null;
-    const diffMs = Date.now() - switchDate.getTime();
-    if (diffMs <= 0) return null;
-    return Math.max(1, Math.ceil(diffMs / WEEK_MS));
+    const diffDays = differenceInLocalDays(new Date(), switchDate);
+    if (diffDays <= 0) return null;
+    return Math.max(1, Math.ceil(diffDays / 7));
 };
 
 export const getAvailablePeriods = (data: ChartEntry[] | undefined, goalSwitchDate: DateInput | null | undefined) => {
@@ -89,8 +90,6 @@ export const getAvailablePeriods = (data: ChartEntry[] | undefined, goalSwitchDa
         return span == null || dataWeeks >= span / 2;
     });
 };
-
-const toDateKey = (d: Date) => d.toISOString().split('T')[0];
 
 const getLast7Days = () => {
     const days: Date[] = [];
@@ -208,7 +207,7 @@ const pickEvenLabels = <T,>(labels: T[], max: number): T[] => {
 };
 
 const formatExactDate = (dateStr: DateInput) => {
-    const d = new Date(dateStr);
+    const d = toLocalDate(dateStr);
     if (isNaN(d.getTime())) return null;
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
@@ -225,15 +224,15 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
             const days   = getLast7Days();
             const byDate: Record<string, number> = {};
             data.forEach(e => {
-                const key = typeof e.date === 'string' ? e.date.split('T')[0] : toDateKey(new Date(e.date));
+                const key = formatDate(e.date);
                 if (e.weight > 0) byDate[key] = e.weight;
             });
 
             const slots = days.map((d, i) => ({
-                key:    toDateKey(d),
+                key:    formatDate(d),
                 i,
                 label:  DAY_LABELS[d.getDay() === 0 ? 6 : d.getDay() - 1],
-                weight: byDate[toDateKey(d)] ?? null,
+                weight: byDate[formatDate(d)] ?? null,
             }));
 
             const present = slots.filter((s): s is DaySlot & { weight: number } => s.weight != null);
@@ -265,28 +264,29 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
         const { unit, count } = resolveGranularity(spanWeeks, weeklyCap);
         const allSlots: BucketSlot[] = [];
 
-        const anchor = period === 'PHASE' && goalSwitchDate ? new Date(goalSwitchDate) : null;
+        const anchor = period === 'PHASE' && goalSwitchDate ? toLocalDate(goalSwitchDate) : null;
         if (anchor) anchor.setHours(0, 0, 0, 0);
         const hasAnchor = anchor && !isNaN(anchor.getTime()) && startWeight != null;
 
         if (hasAnchor) {
-            const bucketMs = unit === 'week' ? WEEK_MS : unit === 'month' ? WEEK_MS * 4.345 : WEEK_MS * 13;
+            const bucketDays = (unit === 'week' ? WEEK_MS : unit === 'month' ? WEEK_MS * 4.345 : WEEK_MS * 13)
+                / (24 * 60 * 60 * 1000);
 
             allSlots.push({
                 avg:   startWeight,
                 slot:  0,
                 label: formatExactDate(anchor),
-                key:   toDateKey(anchor),
+                key:   formatDate(anchor),
             });
 
             for (let i = 0; i < count; i++) {
-                const start = new Date(anchor.getTime() + i * bucketMs);
+                const { start, end: bucketEnd } = getLocalDateBucket(anchor, i, bucketDays);
                 if (start.getTime() > Date.now()) break;
-                const end = new Date(Math.min(anchor.getTime() + (i + 1) * bucketMs - 1, Date.now()));
+                const end = new Date(Math.min(bucketEnd.getTime(), Date.now()));
 
                 const entries = data.filter(e => {
                     if (!e.weight || e.weight <= 0) return false;
-                    const d = new Date(e.date);
+                    const d = toLocalDate(e.date);
                     return d >= start && d <= end;
                 });
 
@@ -298,7 +298,7 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
                     avg,
                     slot:  i + 1,
                     label: formatBucketLabel(unit, end),
-                    key:   toDateKey(end),
+                    key:   formatDate(end),
                 });
             }
         } else {
@@ -307,7 +307,7 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
 
                 const entries = data.filter(e => {
                     if (!e.weight || e.weight <= 0) return false;
-                    const d = new Date(e.date);
+                    const d = toLocalDate(e.date);
                     return d >= start && d <= end;
                 });
 
@@ -319,7 +319,7 @@ const WeightChart = ({ data, period, isBulking, width, onDeltaChange, goalSwitch
                     avg,
                     slot:  count - 1 - i,
                     label: formatBucketLabel(unit, start),
-                    key:   toDateKey(start),
+                    key:   formatDate(start),
                 });
             }
         }

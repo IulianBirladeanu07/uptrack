@@ -5,12 +5,25 @@ jest.mock('firebase/firestore', () => ({
 jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 
 import { setDoc } from 'firebase/firestore';
-import { diffSteps, chunkRange, persistDailySteps } from './stepsSyncService';
+import { diffSteps, chunkRange, persistDailySteps, restorePendingSteps } from './stepsSyncService';
 
 describe('diffSteps', () => {
   test('only past days, new or larger', () => {
     const out = diffSteps({ '2026-10-01': 8000, '2026-10-02': 9000 }, { '2026-10-01': 8000, '2026-10-02': 9500, '2026-10-03': 7000, '2026-10-04': 300 }, '2026-10-04');
     expect(out).toEqual({ '2026-10-02': 9500, '2026-10-03': 7000 });
+  });
+
+  describe('restorePendingSteps', () => {
+    test('requeues failed entries without overwriting newer pending values', () => {
+      expect(restorePendingSteps(
+        { '2026-10-01': 8000, '2026-10-02': 9000 },
+        { '2026-10-02': 10000, '2026-10-03': 7000 },
+      )).toEqual({
+        '2026-10-01': 8000,
+        '2026-10-02': 10000,
+        '2026-10-03': 7000,
+      });
+    });
   });
 
   test('ignores junk values', () => {
