@@ -290,7 +290,7 @@ const EnergyCard = ({ m, info, n }: { m: EnergyModel | null; info: PhaseInfo; n:
     );
 };
 
-const StrengthCard = ({ m, lifts, info, onLift }: { m: StrengthModel | null; lifts: ReturnType<typeof liftStats>; info: PhaseInfo; onLift: (name: string) => void }) => {
+const StrengthCard = ({ m, lifts, info, onLift }: { m: StrengthModel | null; lifts: ReturnType<typeof liftStats>; info: PhaseInfo; onLift: (name: string, muscleGroup?: string) => void }) => {
     if (!m) return <EmptyCard cap="Strength vs weight" text="Train at least two lifts across a few weeks to see how your strength moves with your weight." />;
 
     const more = lifts.stalled.length - 1;
@@ -328,13 +328,18 @@ const StrengthCard = ({ m, lifts, info, onLift }: { m: StrengthModel | null; lif
                 />
             )}
             {lifts.stalled.length > 0 && (
-                <TouchableOpacity style={styles.alert} activeOpacity={0.7} onPress={() => onLift(lifts.stalled[0].name)}>
+                <TouchableOpacity
+                    style={styles.alert}
+                    activeOpacity={0.7}
+                    onPress={() => onLift(lifts.stalled[0].name, lifts.stalled[0].muscleGroup)}
+                >
                     <View style={styles.alertIcon}>
                         <Ionicons name="warning-outline" size={spacing.iconSm} color={colors.accent.primary} />
                     </View>
                     <View style={styles.alertBody}>
                         <Text style={styles.alertTitle} numberOfLines={1}>{lifts.stalled[0].name}</Text>
                         <Text style={styles.alertSub}>
+                            {lifts.stalled[0].muscleGroup ? `${lifts.stalled[0].muscleGroup} · ` : ''}
                             No progress in {lifts.stalled[0].weeks} weeks{more > 0 ? ` · +${more} more stalled` : ''}
                         </Text>
                     </View>
@@ -582,7 +587,10 @@ const ProgressScreen = () => {
     const sets = useMemo(() => setsModel(weeks, n), [weeks, n]);
     const months = useMemo(() => monthsModel(weeks, planned), [weeks, planned]);
 
-    const openLift = useCallback((name: string) => navigation.navigate('ExerciseHistory', { exerciseName: name }), [navigation]);
+    const openLift = useCallback((name: string, muscleGroup?: string) => navigation.navigate('ExerciseHistory', {
+        exerciseName: name,
+        ...(muscleGroup ? { muscleGroup } : {}),
+    }), [navigation]);
 
     const openProfile = useCallback(() => navigation.navigate('Profile'), [navigation]);
 

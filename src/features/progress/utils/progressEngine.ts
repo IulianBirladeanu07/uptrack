@@ -54,7 +54,7 @@ export type RatedWeek = WeekRow & {
   chg: number | null;
   rate: number | null;
 };
-export type Lift = { name: string; loaded: boolean; values: (number | null)[] };
+export type Lift = { name: string; muscleGroup?: string; loaded: boolean; values: (number | null)[] };
 
 export type PhaseInfo = {
   type: PlanType;
@@ -293,7 +293,7 @@ export const buildWeeks = (src: BuildSource, now: Date = new Date()): { weeks: W
   const count = Math.min(MAX_HISTORY_WEEKS, Math.max(1, Math.round((cur.getTime() - parseKey(keys[0]).getTime()) / WEEK_MS) + 1));
   const start = addDays(cur, -(count - 1) * 7);
   const todayKey = toKey(now);
-  const raw = new Map<string, { loaded: boolean; wk: Map<number, Slot> }>();
+  const raw = new Map<string, { name: string; muscleGroup?: string; loaded: boolean; wk: Map<number, Slot> }>();
 
   const weeks: WeekRow[] = Array.from({ length: count }, (_, i) => {
     const monday = addDays(start, i * 7);
@@ -345,7 +345,9 @@ export const buildWeeks = (src: BuildSource, now: Date = new Date()): { weeks: W
         if (m) sets[m] = (sets[m] || 0) + valid.length;
         const name = ex.exerciseName;
         if (!name) return;
-        const sb: Slot = sess.get(name) || { e: null, r: null };
+        const muscleGroup = ex.muscleGroup?.trim() || undefined;
+        const identity = JSON.stringify([name, muscleGroup || '']);
+        const sb: Slot = sess.get(identity) || { e: null, r: null };
         valid.forEach(s => {
           const kg = parseFloat(String(s.weight)) || 0;
           const r = parseInt(String(s.reps), 10);
@@ -355,9 +357,16 @@ export const buildWeeks = (src: BuildSource, now: Date = new Date()): { weeks: W
           }
           sb.r = sb.r == null ? r : Math.max(sb.r, r);
         });
-        sess.set(name, sb);
-        if (!raw.has(name)) raw.set(name, { loaded: false, wk: new Map() });
-        const lf = raw.get(name)!;
+        sess.set(identity, sb);
+        if (!raw.has(identity)) {
+          raw.set(identity, {
+            name,
+            ...(muscleGroup ? { muscleGroup } : {}),
+            loaded: false,
+            wk: new Map(),
+          });
+        }
+        const lf = raw.get(identity)!;
         const slot: Slot = lf.wk.get(i) || { e: null, r: null };
         valid.forEach(s => {
           const kg = parseFloat(String(s.weight)) || 0;
@@ -371,11 +380,11 @@ export const buildWeeks = (src: BuildSource, now: Date = new Date()): { weeks: W
         });
         lf.wk.set(i, slot);
       });
-      sess.forEach((sb, name) => {
+      sess.forEach((sb, identity) => {
         const v = sb.e ?? sb.r ?? 0;
-        const prev = best.get(name);
+        const prev = best.get(identity);
         if (prev != null && v > prev + 0.01) prs += 1;
-        if (prev == null || v > prev) best.set(name, v);
+        if (prev == null || v > prev) best.set(identity, v);
       });
     });
 
@@ -397,8 +406,9 @@ export const buildWeeks = (src: BuildSource, now: Date = new Date()): { weeks: W
   });
 
   const lifts: Lift[] = [...raw.entries()]
-    .map(([name, lf]) => ({
-      name,
+    .map(([, lf]) => ({
+      name: lf.name,
+      ...(lf.muscleGroup ? { muscleGroup: lf.muscleGroup } : {}),
       loaded: lf.loaded,
       values: weeks.map((_, i) => {
         const s = lf.wk.get(i);
@@ -651,7 +661,7 @@ const relDrop = (loaded: boolean, top: number, best: number, wBest: number | nul
 
 export const liftSpan = (info: PhaseInfo): number => Math.max(8, Math.min(info.phaseWeeks, MAX_WEEKS));
 
-export const liftStats = (weeks: WeekRow[], lifts: Lift[], span: number = MAX_WEEKS): { up: number; flat: number; stalled: { name: string; weeks: number }[] } => {
+export const liftStats = (weeks: WeekRow[], lifts: Lift[], span: number = MAX_WEEKS): { up: number; flat: number; stalled: { name: string; muscleGroup?: string; weeks: number }[] } => {
   const L = weeks.length;
   const s = Math.max(0, L - span);
   const wAt = (i: number): number | null => {
@@ -682,7 +692,13 @@ export const liftStats = (weeks: WeekRow[], lifts: Lift[], span: number = MAX_WE
     const top = Math.max(...recent);
     const ch = top / Math.max(...prior) - 1;
     if (since <= 3 || ch >= 0.02) up += 1;
-    else if (since >= 6 && relDrop(lf.loaded, top, best, wAt(s + pr), wNow) > STALL_DROP) stalled.push({ name: lf.name, weeks: since });
+    else if (since >= 6 && relDrop(lf.loaded, top, best, wAt(s + pr), wNow) > STALL_DROP) {
+      stalled.push({
+        name: lf.name,
+        ...(lf.muscleGroup ? { muscleGroup: lf.muscleGroup } : {}),
+        weeks: since,
+      });
+    }
     else flat += 1;
   });
   stalled.sort((a, b) => b.weeks - a.weeks);

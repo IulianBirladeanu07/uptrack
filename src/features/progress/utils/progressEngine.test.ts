@@ -196,6 +196,21 @@ describe('buildWeeks', () => {
     expect(pull.values[10]).toBe(10);
     expect(bench.values[20]).toBeGreaterThan(bench.values[10]);
   });
+
+  test('tracks same-named lifts separately when their muscle groups differ', () => {
+    const workouts = [-14, -7, 0].map((offset, index) => ({
+      timestamp: { toDate: () => addDays(CUR, offset + 1) },
+      exercises: [
+        { exerciseName: 'Press', muscleGroup: 'Chest', sets: [{ weight: 80 + index * 5, reps: 8 }] },
+        { exerciseName: 'Press', muscleGroup: 'Shoulders', sets: [{ weight: 30 + index * 2, reps: 10 }] },
+      ],
+    }));
+    const { lifts } = buildWeeks({ workouts, calc1RM }, NOW);
+
+    expect(lifts).toHaveLength(2);
+    expect(lifts.map(lift => lift.muscleGroup)).toEqual(['Chest', 'Shoulders']);
+    expect(lifts[0].values).not.toEqual(lifts[1].values);
+  });
 });
 
 describe('withRates', () => {
