@@ -169,7 +169,14 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
       if (pendingUri) payload['profilePicture'] = await uploadPicture(user.uid, pendingUri);
 
       await setDoc(doc(db, 'users', user.uid), payload, { merge: true });
-      await refreshUserData();
+      const refreshedUserData = await refreshUserData();
+      if (!refreshedUserData) {
+        Alert.alert(
+          'Saved, but not refreshed',
+          'Your changes were saved, but the app could not reload your profile. Tap Save again to retry the refresh. If you changed email, check your inbox for the confirmation link.'
+        );
+        return;
+      }
 
       setOriginal({ ...form });
       const shownEmail = emailChangePending ? savedIdentity.email : email;

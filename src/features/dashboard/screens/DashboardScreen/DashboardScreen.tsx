@@ -19,6 +19,7 @@ import type { HomeNotice } from '../../../../shared/types';
 import type { PersistedWorkoutState, WorkoutSplit } from '../../../workout/types';
 import { fetchSplitsFromFirestore, SPLITS_CACHE_KEY } from '../../../workout/handlers/WorkoutHandler';
 import { getHomeNotices } from '../../../profile/utils/homeSurfaceEngine';
+import { parseDismissedAdjustmentTimestamps } from '../../../profile/utils/homeDismissalStorage';
 import { dirOf } from '../../../progress/utils/progressEngine';
 import { durationLabel } from '../../../workout/utils/durationUtils';
 import { getScheduledDay } from '../../../workout/utils/splitSchedule';
@@ -120,10 +121,11 @@ type TodayWorkoutProps = {
     workout: ScheduledWorkout | null;
     activeWorkout: PersistedWorkoutState | null;
     completed: CompletedToday | null;
+    loadError: boolean;
     onPress: () => void;
 };
 
-const TodayWorkout = ({ workout, activeWorkout, completed, onPress }: TodayWorkoutProps) => {
+const TodayWorkout = ({ workout, activeWorkout, completed, loadError, onPress }: TodayWorkoutProps) => {
     if (activeWorkout) {
         return (
             <TouchableOpacity style={styles.workoutCard} onPress={onPress} activeOpacity={0.85}>
@@ -166,6 +168,22 @@ const TodayWorkout = ({ workout, activeWorkout, completed, onPress }: TodayWorko
                     </View>
                 </View>
             </View>
+        );
+    }
+
+    if (loadError) {
+        return (
+            <TouchableOpacity style={styles.workoutCard} onPress={onPress} activeOpacity={0.85}>
+                <View style={styles.workoutContent}>
+                    <View style={styles.restIconContainer}>
+                        <Ionicons name="alert-circle-outline" size={spacing[6]} color={colors.accent.error} />
+                    </View>
+                    <View style={styles.workoutInfo}>
+                        <Text style={styles.workoutTitle}>Workout unavailable</Text>
+                        <Text style={styles.workoutSubtitle}>Couldn't load today's schedule. Tap to open Workouts.</Text>
+                    </View>
+                </View>
+            </TouchableOpacity>
         );
     }
 
@@ -423,6 +441,7 @@ const DashboardScreen = () => {
     const navInset = useBottomNavInset();
     const [todayScheduledWorkout, setTodayScheduledWorkout] = useState<ScheduledWorkout | null>(null);
     const [workoutLoading, setWorkoutLoading] = useState(true);
+    const [workoutLoadError, setWorkoutLoadError] = useState(false);
 
     const [dismissedAdjustments, setDismissedAdjustments] = useState<string[]>([]);
     const [goalReachedDismissed, setGoalReachedDismissed] = useState(false);
@@ -439,7 +458,15 @@ const DashboardScreen = () => {
     const uid = getAuth().currentUser?.uid;
 
     useEffect(() => {
-        if (!uid) return;
+        let cancelled = false;
+        setNoticesLoaded(false);
+        setDismissedAdjustments([]);
+        setGoalReachedDismissed(false);
+        setStepsPermissionDismissedAt(null);
+        if (!uid) {
+            setNoticesLoaded(true);
+            return () => { cancelled = true; };
+        }
         const loadDismissalState = async () => {
             try {
                 const [adjRaw, goalRaw, stepsRaw] = await Promise.all([
@@ -447,16 +474,23 @@ const DashboardScreen = () => {
                     AsyncStorage.getItem(`home_goal_reached_dismissed_${uid}`),
                     AsyncStorage.getItem(`home_steps_permission_dismissed_${uid}`),
                 ]);
-                setDismissedAdjustments(adjRaw ? JSON.parse(adjRaw) : []);
+                if (cancelled) return;
+                const adjustmentTimestamps = parseDismissedAdjustmentTimestamps(adjRaw);
+                if (adjustmentTimestamps === null) {
+                    console.error('Invalid persisted home adjustment dismissals.');
+                } else {
+                    setDismissedAdjustments(adjustmentTimestamps);
+                }
                 setGoalReachedDismissed(goalRaw === 'true');
                 setStepsPermissionDismissedAt(stepsRaw || null);
             } catch (e) {
                 console.error('loadDismissalState error:', e);
             } finally {
-                setNoticesLoaded(true);
+                if (!cancelled) setNoticesLoaded(true);
             }
         };
         loadDismissalState();
+        return () => { cancelled = true; };
     }, [uid]);
 
     const notices = useMemo(() => {
@@ -472,6 +506,7 @@ const DashboardScreen = () => {
     }, [noticesLoaded, userData, initialLoadComplete, stepsConnected, stepsLoading, dismissedAdjustments, stepsPermissionDismissedAt, goalReachedDismissed]);
 
     const handleDismissNotice = useCallback(async (notice: HomeNotice) => {
+        if (!uid) return;
         try {
             if (notice.type === 'calorie_adjustment') {
                 const updated = [...dismissedAdjustments, notice.dismissKey!];
@@ -502,6 +537,7 @@ const DashboardScreen = () => {
         useCallback(() => {
             let cancelled = false;
             setWorkoutLoading(true);
+            setWorkoutLoadError(false);
 
             const loadWorkout = async () => {
                 try {
@@ -516,16 +552,24 @@ const DashboardScreen = () => {
                             }
                         }
                     }
-                } catch {}
+                } catch (error) {
+                    console.error('Dashboard split cache load failed:', error);
+                }
 
                 try {
                     const splits = await fetchSplitsFromFirestore();
                     if (!cancelled) {
                         setTodayScheduledWorkout(resolveWorkoutFromSplits(splits, userData?.activeSplitId, userData?.rotationStartDate));
-                        AsyncStorage.setItem(SPLITS_CACHE_KEY, JSON.stringify({ splits, ts: Date.now() })).catch(() => {});
+                        setWorkoutLoadError(false);
+                        AsyncStorage.setItem(SPLITS_CACHE_KEY, JSON.stringify({ splits, ts: Date.now() }))
+                            .catch(error => console.error('Dashboard split cache save failed:', error));
                     }
-                } catch {
-                    if (!cancelled) setTodayScheduledWorkout(null);
+                } catch (error) {
+                    console.error('Dashboard split load failed:', error);
+                    if (!cancelled) {
+                        setTodayScheduledWorkout(null);
+                        setWorkoutLoadError(true);
+                    }
                 } finally {
                     if (!cancelled) setWorkoutLoading(false);
                 }
@@ -628,6 +672,7 @@ const DashboardScreen = () => {
                                 workout={todayScheduledWorkout}
                                 activeWorkout={activeWorkout}
                                 completed={completedToday}
+                                loadError={workoutLoadError}
                                 onPress={handleWorkoutPress}
                             />
                             <TodayNutrition

@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -12,6 +12,7 @@ import { SEARCH } from '../../../shared/theme/constants';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import type { UserData } from '../../../shared/types';
 import { needsEmailVerification } from '../utils/emailVerification';
+import { isCurrentAuthRequest } from '../utils/authRequest';
 import { syncAuthEmail } from '../services/emailSyncService';
 
 export type AuthContextValue = {
@@ -58,15 +59,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [profileSetupComplete, setProfileSetupComplete] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const authRequestGeneration = useRef(0);
 
   const refreshUserData = useCallback(async (): Promise<UserData | undefined> => {
+    const user = auth.currentUser;
+    if (!user) return undefined;
+    const request = { uid: user.uid, generation: authRequestGeneration.current };
+    const isCurrent = () =>
+      isCurrentAuthRequest(request, auth.currentUser?.uid ?? null, authRequestGeneration.current);
     try {
-      const user = auth.currentUser;
-      if (!user) return undefined;
-
       const userDoc = await getDoc(doc(db, 'users', user.uid).withConverter(userConverter));
+      if (!isCurrent()) return undefined;
       let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() ?? {});
+      if (!isCurrent()) return undefined;
       data = await applyProfileDefaults(user.uid, data);
+      if (!isCurrent()) return undefined;
       setUserData(data);
       return data;
     } catch (error) {
@@ -77,31 +84,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      const request = {
+        uid: user?.uid ?? null,
+        generation: authRequestGeneration.current + 1,
+      };
+      authRequestGeneration.current = request.generation;
+      const isCurrent = () =>
+        isCurrentAuthRequest(request, auth.currentUser?.uid ?? null, authRequestGeneration.current);
+      setLoading(true);
+      setAuthenticated(false);
+      setProfileSetupComplete(false);
+      setUserData(null);
       try {
         if (user && !needsEmailVerification(user)) {
           const userDoc = await getDoc(doc(db, 'users', user.uid).withConverter(userConverter));
+          if (!isCurrent()) return;
           let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() ?? {});
+          if (!isCurrent()) return;
           data = await applyProfileDefaults(user.uid, data);
+          if (!isCurrent()) return;
           data = await syncAuthEmail(user.uid, user.email, data);
+          if (!isCurrent()) return;
 
           setAuthenticated(true);
           setProfileSetupComplete(!!data.profileSetupComplete);
           setUserData(data);
           await AsyncStorage.setItem('auth_token', user.uid);
         } else {
-          setAuthenticated(false);
-          setProfileSetupComplete(false);
-          setUserData(null);
+          if (!isCurrent()) return;
           await AsyncStorage.multiRemove(['auth_token', SPLITS_CACHE_KEY, RECENT_SEARCHES_KEY, SEARCH.STORAGE_KEY]);
         }
       } catch (error) {
-        console.error('onAuthStateChanged error:', error);
+        if (isCurrent()) console.error('onAuthStateChanged error:', error);
       } finally {
-        setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      authRequestGeneration.current += 1;
+      unsubscribe();
+    };
   }, []);
 
   const logout = useCallback(async () => {
