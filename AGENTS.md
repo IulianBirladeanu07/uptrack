@@ -23,7 +23,7 @@ Uptrack is an Expo / React Native app for tracking nutrition, weight and workout
 
 | Command | Purpose |
 |---|---|
-| `npm ci --legacy-peer-deps` | Install. `postinstall` applies the patch. |
+| `npm ci --legacy-peer-deps` | Install. `.npmrc` sets `legacy-peer-deps=true` for EAS and other clean installs. `postinstall` applies the patch. |
 | `npx jest` | Unit tests |
 | `npm run test:rules` | Run Firestore and Storage security rules against local emulators |
 | `npx tsc --noEmit` | Type check |
