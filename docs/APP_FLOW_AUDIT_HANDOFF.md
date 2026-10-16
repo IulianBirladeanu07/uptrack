@@ -1,11 +1,11 @@
 # App flow audit handoff
 
-Updated 2026-10-15 for the next coding agent. Read `AGENTS.md` before making changes.
+Updated 2026-10-16 for the next coding agent. Read `AGENTS.md` before making changes.
 
 ## Current state
 
 - The broader app-flow audit is ongoing, not complete. Workout and Progress have prior accumulated audit changes. This pass continued through Nutrition, Auth, Profile, and Dashboard; several confirmed issues were fixed, but the entire app has not been proven bug-free.
-- The audit changes from the 2026-10-15 passes are committed on `master` (`5359dca`, `db4d70b`, `7c8a189`, `424aafb`, `71888db`). A follow-up review of those commits is recorded under "Post-commit review" below; its fixes are uncommitted.
+- The audit changes from the 2026-10-15 passes are committed on `master` (`5359dca`, `db4d70b`, `7c8a189`, `424aafb`, `71888db`). A follow-up review of those commits is recorded under "Post-commit review" and "Later fixes" below; its fixes are committed on `master` too.
 - The workout flow has had a broad review across active workout restore and account switching, set validation and editing, exercise selection and identity, completion and exit, workout history, templates, splits, and navigation.
 - The latest follow-up found that template and split update functions accept partial data but wrote every possible field, including fields that were `undefined`. Firestore can reject those updates, and truthy defaults could discard intentional zero values. The update functions now include only supplied fields and preserve explicit zeroes. Template rename inputs are trimmed, and an empty renamed value is rejected.
 - Regression coverage for the handler persistence cases is in `src/features/workout/handlers/WorkoutHandler.test.ts`.
@@ -14,8 +14,7 @@ Updated 2026-10-15 for the next coding agent. Read `AGENTS.md` before making cha
 - Dashboard dismissal storage now validates persisted timestamp arrays and ignores stale loads when the authenticated uid changes. A failed workout-schedule fetch displays an unavailable state rather than presenting the failure as a rest day.
 - Meal mutations for one user/date/meal are now serialized as complete optimistic-write/rollback transactions. The next mutation reads state only after the previous write either succeeds or rolls back, avoiding stale queued snapshots.
 - Nutrition memo comparisons now include the displayed food name/image/icon and the actual `carbohydrates` field, so recent meal cards do not retain stale presentation data.
-- Nothing from the review fixes was committed or pushed. Preserve uncommitted work; do not reset, checkout, or overwrite it.
-- The accumulated work also includes progress changes and tests. Do not assume every dirty file belongs only to this last workout follow-up.
+- The work in this section was committed in the five commits named above. It includes progress changes and tests; do not assume every change belongs only to the last workout follow-up.
 
 ## Main fixes and rationale
 
@@ -76,7 +75,75 @@ Not verified: all screen behavior on a device; `fetchSplitsFromFirestore` enrich
 
 Validation after the fixes: `npx tsc --noEmit` clean; `npx jest --runInBand` 48 suites / 566 tests, default timezone and `America/Los_Angeles`; `git diff --check` clean; `npx expo export --platform android` succeeded (temporary output removed).
 
+## Later fixes (2026-10-15 to 2026-10-16)
+
+Committed on `master`, in order:
+
+- Template names are reserved per user in `users/{uid}.workoutTemplateNames`, kept in one transaction on create, rename and delete (`Reserve template names per user`).
+- When the deterministic template id belongs to a renamed template, the new template gets the id `<autoId>_<uid>`, because the Firestore create rule for `workoutTemplates` requires ids ending in `_<uid>` (`Make the renamed-template fallback id satisfy Firestore rules`).
+- Macro bars show no progress when there is no target. The estimate path was removed.
+- `getWeightDisplayData` propagates read failures. Before, `useWeightData` cached an empty summary as real data. The hook already catches and retries.
+
+Security pass fixes, handed over as patches and applied by the owner:
+
+- Template creation no longer reads the template document inside its transaction. The deployed rule `allow read: if ownsDoc()` reads `resource.data.uid`, and `resource` is null for a document that does not exist, so the read was denied and creating any template with a free id probably failed. The taken-id check now uses the user's template list and the name registry. Found by comparing the rules with the code; it was not observed on a device or in the emulator.
+- `android.allowBackup` is false. The manifest had it enabled, so backups could copy AsyncStorage, which holds the Firebase refresh token and cached profile and meal data.
+- `android.permission.RECORD_AUDIO` is blocked. The app never records audio.
+- Google sign-in no longer fails for a returning user whose Google profile has no name or photo while the stored profile lacks them. `updateDoc` was given `undefined` values, which Firestore rejects.
+
+## Security pass (2026-10-16)
+
+Inspected, no defect found:
+
+- Secrets: the working tree and all 285 commits were scanned for Google API keys, JWTs, private keys, cloud and GitHub tokens, and for committed env, keystore and credential files. Nothing matched. `eas.json` holds only `${VAR}` placeholders. This is a pattern scan, not proof; the SEC-01 key was never committed and was rotated.
+- Logging: no console call prints tokens, emails or profile data. Errors are logged with their message.
+- Deep links: the scheme is registered and the main activity is exported for it, but there is no `linking` configuration, so nothing routes from a URL.
+- AsyncStorage: per-user keys carry the uid, device-wide caches are cleared on sign-out, the shared exercise catalog cache never holds custom exercises, and account deletion removes every key ending in the uid.
+- Auth: unverified password accounts are signed out by the services and treated as signed out by the listener. Password reset treats `auth/user-not-found` as success. Sign-up reveals `auth/email-already-in-use`; I believe the enumeration-protection setting does not hide that, but this was not checked.
+- Firestore and Storage rules against every read and write in the code: one mismatch (template creation, above). `meals`, `users` and `exercises` allow reading a missing document; the other user-data collections do not.
+- Generated Android main manifest (`expo prebuild` in a scratch copy, not a build; library manifests merged at build time were not inspected): permissions are CAMERA, INTERNET, READ_EXTERNAL_STORAGE, RECORD_AUDIO (now blocked), SYSTEM_ALERT_WINDOW, VIBRATE, WRITE_EXTERNAL_STORAGE and READ_STEPS.
+
+Recommendations, not applied (owner decides, and deploys any rule or SQL):
+
+1. The rules do not check email verification. The verification gate is client-side, so an unverified password account that keeps a session can use Firestore and Storage for its own documents. Enforcing it means `request.auth.token.email_verified` in `signedIn()` and a change to sign-up, which writes `users/{uid}` before the address is verified.
+2. `users/{uid}` has no field allow-list. Only the owner can read or write the document, so the impact is limited to their own data. No change recommended.
+3. Supabase sees every client as `anon`, because the app signs in with Firebase. Anyone with the public anon key can insert `barcoded_products` rows for barcodes not yet present. The policy bounds only the barcode format, the name length and non-negative macros; other columns such as `image` have no checks and there are no upper bounds or rate limits. Options: add upper bounds and length checks, or move inserts behind a function that verifies the Firebase ID token.
+4. SYSTEM_ALERT_WINDOW, READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE appear in the generated main manifest and nothing in `src` obviously needs them. `WorkoutDetails.tsx` calls `requestMediaLibraryPermissionsAsync`, which probably needs READ_EXTERNAL_STORAGE; test on a device before blocking any of them.
+5. EAS Update runs without code signing, so the Expo account is the trust root. Keep two-factor on the Expo and GitHub accounts.
+
+Not verified: everything above that needs a device, a build, the Firebase or Supabase consoles, or the Firestore emulator (not reachable from the sandbox). `fetchSplitsFromFirestore` orders by `createdAt`, which silently excludes any legacy split document without that field; check the console.
+
+Resolved open questions: `selectedDate` cannot be undefined in `handleFoodAddition`, because `FoodDetailScreen` normalizes the route param to a local `Date` (today when missing) before calling it.
+
+## Decisions
+
+- Weekly evaluation: keep the app-start trigger with the new-snapshot guard (`lastEvaluatedWeek`). Do not change its timing without the owner.
+- Macro bars: no target means no progress is shown.
+- Maintenance-goal UI (`docs/future-maintenance-goal-support.md`): do not implement.
+- SEC-12 dependencies: do not run `npm audit fix --force`; it proposes downgrades such as Expo 44 and Firebase 9. A plain `npm audit fix` does not clear the findings. Revisit at the next Expo SDK upgrade.
+- Serving-unit conversion semantics: do not change without the owner.
+
+## Template registry caveats
+
+- A template deleted outside `deleteTemplateFromFirestore` (the Firebase console, a future bulk delete) leaves a stale name reservation that blocks that name. In the code, the only other path that deletes templates is account deletion, which also deletes the whole `users/{uid}` document, so it is not affected.
+- Legacy templates have no registry entry. The duplicate-name query still catches them.
+- Deleting or renaming a template that was already deleted elsewhere is expected to fail with permission denied, because the transaction reads the missing document. Not observed.
+
+## Owner checklist
+
+Only the owner can do these:
+
+- Create a brand-new template on a device, then rename it and create another with the old name.
+- Android and iOS builds, and HealthKit steps on iOS. After the Android config changes, confirm the build installs and the barcode scanner and profile picture picker still work.
+- Device checks: Create Custom Food on an empty search, the active-split preview, recent-search Clear and remove, the weekly evaluation at cold start.
+- Firebase Auth email-enumeration protection setting.
+- Restrict the Firebase web API key in Google Cloud (Android package and SHA-1, iOS bundle id).
+- Check in the Firebase console that no split document lacks `createdAt`.
+- Deploy any rule or run any SQL recommended above, after checking it with the agent.
+
 ## Verification
+
+Latest run (2026-10-16, after the security pass fixes): `npx tsc --noEmit` clean; `npx jest --runInBand` 48 suites / 570 tests, in the default timezone and in `America/Los_Angeles`; `git diff --check` clean.
 
 Workout baseline at the prior handoff was fully validated: **36 suites, 530 tests**, `npx tsc --noEmit`, Android Expo bundle export, and `git diff --check` passed. The blank-template-name regression was added after an earlier type-check/export run; it was covered by the targeted and full Jest reruns, and the diff check passed afterward.
 
@@ -98,7 +165,7 @@ The audit plan's Nutrition candidates include unit changes, macro bars without t
 
 ## Handoff guardrails
 
-- Do not commit or push unless the owner asks.
-- Preserve all existing uncommitted work and never print environment values.
+- Do not push or open pull requests. Work in a sandbox clone and hand the owner numbered patches (`git format-patch`, applied with `git am`), one commit per logical change.
+- Never print environment values or secrets.
 - Keep fixes surgical, follow `AGENTS.md`, and avoid treating UI paths as tested when only unit tests and bundle export have run.
 - The next agent should report confirmed fixes, exact validation results, unverified device scenarios, and remaining product decisions.
