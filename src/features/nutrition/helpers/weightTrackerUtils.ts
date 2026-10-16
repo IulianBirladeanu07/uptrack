@@ -219,28 +219,32 @@ export const handleSaveLogic = async (
     let updatedUserData: UserData = { ...currentData, ...updateData };
 
     if (mealCache && isNewWeek) {
-      const prevWeekEntry = weightIns[sortedIndex - 1];
-      const snapshot      = await snapshotPreviousWeek(userId, prevWeekEntry, mealCache, updatedUserData);
+      try {
+        const prevWeekEntry = weightIns[sortedIndex - 1];
+        const snapshot      = await snapshotPreviousWeek(userId, prevWeekEntry, mealCache, updatedUserData);
 
-      if (snapshot) {
-        const merged: WeeklySnapshot[] = [
-          ...(updatedUserData.weeklyNutrition || []).filter(w => w.weekStart !== snapshot.weekStart),
-          snapshot,
-        ].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+        if (snapshot) {
+          const merged: WeeklySnapshot[] = [
+            ...(updatedUserData.weeklyNutrition || []).filter(w => w.weekStart !== snapshot.weekStart),
+            snapshot,
+          ].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
 
-        updatedUserData = {
-          ...updatedUserData,
-          weeksSinceCutStart: snapshot.weeksSinceCutStart ?? updatedUserData.weeksSinceCutStart,
-          weeklyNutrition: merged,
-          lastSnapshotWeek: prevWeekEntry.weekStart,
-        };
+          await setDoc(userDocRef, { lastSnapshotWeek: prevWeekEntry.weekStart }, { merge: true });
 
-        await setDoc(userDocRef, { lastSnapshotWeek: prevWeekEntry.weekStart }, { merge: true });
-      }
+          updatedUserData = {
+            ...updatedUserData,
+            weeksSinceCutStart: snapshot.weeksSinceCutStart ?? updatedUserData.weeksSinceCutStart,
+            weeklyNutrition: merged,
+            lastSnapshotWeek: prevWeekEntry.weekStart,
+          };
+        }
 
-      const adjustment = await evaluateWeeklyProgress(userId, updatedUserData, mealCache, today);
-      if (adjustment) {
-        updatedUserData = { ...updatedUserData, ...adjustment };
+        const adjustment = await evaluateWeeklyProgress(userId, updatedUserData, mealCache, today);
+        if (adjustment) {
+          updatedUserData = { ...updatedUserData, ...adjustment };
+        }
+      } catch (error) {
+        console.error('Weekly snapshot or evaluation failed after the weight was saved:', error);
       }
     }
 
