@@ -197,6 +197,21 @@ describe('buildWeeks', () => {
     expect(bench.values[20]).toBeGreaterThan(bench.values[10]);
   });
 
+  test('fills a missing muscle group when that exercise has only one known group', () => {
+    const workouts = [-14, -7, 0].map((offset, index) => ({
+      timestamp: { toDate: () => addDays(CUR, offset + 1) },
+      exercises: [
+        { exerciseName: 'Press', muscleGroup: 'Chest', sets: [{ weight: 80 + index * 5, reps: 8 }] },
+        { exerciseName: 'Press', sets: [{ weight: 75 + index * 3, reps: 10 }] },
+      ],
+    }));
+    const { lifts } = buildWeeks({ workouts, calc1RM }, NOW);
+
+    expect(lifts).toHaveLength(1);
+    expect(lifts[0].muscleGroup).toBe('Chest');
+    expect(lifts[0].values.some(value => value != null)).toBe(true);
+  });
+
   test('tracks same-named lifts separately when their muscle groups differ', () => {
     const workouts = [-14, -7, 0].map((offset, index) => ({
       timestamp: { toDate: () => addDays(CUR, offset + 1) },

@@ -284,6 +284,20 @@ export const buildWeeks = (src: BuildSource, now: Date = new Date()): { weeks: W
     list.push(doc);
   });
 
+  const groupsByName = new Map<string, Set<string>>();
+  workouts.forEach(doc => (doc?.exercises || []).forEach(ex => {
+    const group = ex.muscleGroup?.trim();
+    if (!ex.exerciseName || !group) return;
+    const groups = groupsByName.get(ex.exerciseName) ?? new Set<string>();
+    groups.add(group);
+    groupsByName.set(ex.exerciseName, groups);
+  }));
+  const resolveGroup = (name: string, group: string | undefined): string | undefined => {
+    if (group) return group;
+    const known = groupsByName.get(name);
+    return known && known.size === 1 ? [...known][0] : undefined;
+  };
+
   const keys = [...wMap.keys(), ...nMap.keys(), ...byWeek.keys()].sort();
   if (!keys.length) return { weeks: [], lifts: [] };
   const firstNutrition = [...nMap.keys()].sort()[0] ?? null;
@@ -345,7 +359,7 @@ export const buildWeeks = (src: BuildSource, now: Date = new Date()): { weeks: W
         if (m) sets[m] = (sets[m] || 0) + valid.length;
         const name = ex.exerciseName;
         if (!name) return;
-        const muscleGroup = ex.muscleGroup?.trim() || undefined;
+        const muscleGroup = resolveGroup(name, ex.muscleGroup?.trim() || undefined);
         const identity = JSON.stringify([name, muscleGroup || '']);
         const sb: Slot = sess.get(identity) || { e: null, r: null };
         valid.forEach(s => {
