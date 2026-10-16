@@ -107,11 +107,12 @@ const signInWithGoogle = async (
 
   if (userDoc.exists()) {
     const existing = userDoc.data() as UserData;
-    await updateDoc(userDocRef, {
-      displayName: displayName || existing.displayName,
-      photoURL: photoURL || existing.photoURL,
-      lastLogin: serverTimestamp(),
-    });
+    const update: Record<string, unknown> = { lastLogin: serverTimestamp() };
+    const nextName = displayName || existing.displayName;
+    const nextPhoto = photoURL || existing.photoURL;
+    if (nextName) update['displayName'] = nextName;
+    if (nextPhoto) update['photoURL'] = nextPhoto;
+    await updateDoc(userDocRef, update);
   } else {
     await setDoc(userDocRef, {
       email,

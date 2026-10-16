@@ -38,6 +38,8 @@ jest.mock('firebase/firestore', () => ({
 jest.mock('../../auth/services/firebaseConfigService', () => ({ auth: {}, db: {} }));
 jest.mock('expo-constants', () => ({ expoConfig: { extra: {} } }));
 
+import { signInWithCredential } from 'firebase/auth';
+import { updateDoc } from 'firebase/firestore';
 import firebaseAuthService from './firebaseAuthService';
 
 const passwordUser = (emailVerified) => ({
@@ -130,5 +132,39 @@ describe('resendVerificationEmail', () => {
       'Invalid email or password.'
     );
     expect(mockCalls).toEqual(['signIn']);
+  });
+});
+
+describe('signInWithGoogle', () => {
+  it('does not write undefined profile fields for a Google account without a photo', async () => {
+    (signInWithCredential as jest.Mock).mockResolvedValueOnce({
+      user: { uid: 'u1', email: 'a@b.co', displayName: 'Ana', photoURL: null },
+    });
+
+    await firebaseAuthService.signInWithGoogle({ params: { id_token: 't' } }, jest.fn(), jest.fn());
+
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+    const payload = (updateDoc as jest.Mock).mock.calls[0][1];
+    expect(Object.values(payload)).not.toContain(undefined);
+    expect(payload).toEqual({ displayName: 'Ana', lastLogin: 'ts' });
+  });
+
+  it('keeps the stored name and photo when Google returns none', async () => {
+    (signInWithCredential as jest.Mock).mockResolvedValueOnce({
+      user: { uid: 'u1', email: 'a@b.co', displayName: null, photoURL: null },
+    });
+    const { getDoc } = jest.requireMock('firebase/firestore');
+    getDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ displayName: 'Stored', photoURL: 'https://x/y.jpg', profileSetupComplete: true }),
+    });
+
+    await firebaseAuthService.signInWithGoogle({ params: { id_token: 't' } }, jest.fn(), jest.fn());
+
+    expect((updateDoc as jest.Mock).mock.calls[0][1]).toEqual({
+      displayName: 'Stored',
+      photoURL: 'https://x/y.jpg',
+      lastLogin: 'ts',
+    });
   });
 });
