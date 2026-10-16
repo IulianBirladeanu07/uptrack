@@ -91,10 +91,10 @@ const WorkoutDetails = () => {
     }));
 
     const handleImagePick = async (useCamera = false) => {
-        const permission = useCamera
-            ? await ImagePicker.requestCameraPermissionsAsync()
-            : await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (permission.status !== 'granted') return;
+        if (useCamera) {
+            const permission = await ImagePicker.requestCameraPermissionsAsync();
+            if (permission.status !== 'granted') return;
+        }
         const result = useCamera
             ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [9, 16], quality: 0.8 })
             : await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [9, 16], quality: 0.8 });
