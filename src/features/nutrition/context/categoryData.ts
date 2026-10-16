@@ -43,10 +43,12 @@ export const buildCategoryData = (cache: MealCache): FoodCategories => {
                     foodUsageMap.set(key, { ...food, mealType, usageCount: 0, lastUsed: date });
                 }
                 const entry = foodUsageMap.get(key)!;
-                entry.usageCount += 1;
-                const currentLastUsed = new Date(`${date}T00:00:00`).getTime();
-                const previousLastUsed = new Date(`${entry.lastUsed || date}T00:00:00`).getTime();
-                if (currentLastUsed > previousLastUsed) entry.lastUsed = date;
+                const foodUsageCount = Number(food.usageCount);
+                entry.usageCount += Number.isFinite(foodUsageCount) && foodUsageCount > 0 ? foodUsageCount : 1;
+                if (date >= entry.lastUsed) {
+                    entry.lastUsed = date;
+                    entry.mealType = mealType;
+                }
             });
         });
     });
@@ -54,7 +56,7 @@ export const buildCategoryData = (cache: MealCache): FoodCategories => {
     const frequentFoods = Array.from(foodUsageMap.values())
         .sort((a, b) => {
             if (b.usageCount !== a.usageCount) return b.usageCount - a.usageCount;
-            return new Date(`${b.lastUsed}T00:00:00`).getTime() - new Date(`${a.lastUsed}T00:00:00`).getTime();
+            return b.lastUsed.localeCompare(a.lastUsed);
         })
         .slice(0, 50);
 
