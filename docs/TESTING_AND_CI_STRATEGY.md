@@ -9,7 +9,7 @@ This is a staged proposal, not a claim that the proposed tooling is already inst
 ## Current baseline
 
 - Jest is the unit-test runner. `jest.config.js` explicitly includes tests under selected `src/features` and `src/shared` folders.
-- GitHub Actions runs `npm test -- --ci --coverage` and `npx tsc --noEmit` on pushes and pull requests targeting `master` in `.github/workflows/tests.yml`.
+- GitHub Actions runs three jobs on pushes and pull requests targeting `master` in `.github/workflows/tests.yml`: Jest in three time zones (UTC, America/Los_Angeles and Europe/Bucharest, so day-key bugs on both sides of UTC fail CI; coverage is collected in the UTC run only), `npx tsc --noEmit`, and `npx expo export --platform android` to catch import and bundling errors in the `.tsx` screens that Jest does not load. The export needs no secrets and takes about 20 seconds locally. It does not build a native app.
 - EAS has `development`, `preview`, and `production` build profiles in `eas.json`.
 - There is no configured lint script, React Native component-test setup, or mobile end-to-end suite in the existing package/workflow configuration.
 - The current local run (`npm test -- --ci --coverage`, 2026-10-16) passed 52 suites and 615 tests. Coverage for the configured `src/**/*.{js,ts}` scope was 67.63% lines, 61.44% branches, 67.04% functions, and 67.67% statements. `.tsx` screens/components are not instrumented; this is not whole-app coverage. CI reports this coverage and uploads the report as an artifact; it does not enforce a threshold.
@@ -86,6 +86,7 @@ Exercise the happy path and at least one meaningful failure/recovery path for ea
 Keep CI fast and deterministic. The existing workflow already runs Jest and TypeScript.
 
 - CI runs Jest with coverage, adds an informational coverage table to the job summary, and uploads the report for 14 days.
+- CI also runs Jest in America/Los_Angeles and Europe/Bucharest, type-checks in its own job, and bundles the Android app with `expo export`. `expo-doctor` is not run in CI: it needs the Expo API, and it currently reports `react-native` 0.81.5 against an expected 0.81.4, which is a deliberate pin with a patch-package patch.
 - Coverage includes configured JavaScript and TypeScript source files, excluding tests, declarations, styles, and type-only files. It does not instrument `.tsx`.
 - No coverage threshold is enforced; do not fail PRs for existing uncovered code.
 - Add a modest threshold only after a stable baseline exists; enforce changed/high-risk code or prevent coverage from falling, rather than requiring a sudden repo-wide percentage jump.

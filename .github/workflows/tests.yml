@@ -9,9 +9,23 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Jest (${{ matrix.tz }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [ UTC, America/Los_Angeles, Europe/Bucharest ]
+
+    env:
+      TZ: ${{ matrix.tz }}
 
     steps:
     - uses: actions/checkout@v4
@@ -25,20 +39,62 @@ jobs:
     - name: Install dependencies
       run: npm ci --legacy-peer-deps
 
-    - name: Run tests
+    - name: Run tests with coverage
+      if: ${{ matrix.tz == 'UTC' }}
       run: npm test -- --ci --coverage
 
-    - name: Type check
-      run: npx tsc --noEmit
+    - name: Run tests
+      if: ${{ matrix.tz != 'UTC' }}
+      run: npm test -- --ci
 
     - name: Coverage summary
-      if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+      if: ${{ !cancelled() && matrix.tz == 'UTC' && hashFiles('coverage/coverage-summary.json') != '' }}
       run: node scripts/coverage-summary.js >> "$GITHUB_STEP_SUMMARY"
 
     - name: Upload coverage report
-      if: ${{ !cancelled() && hashFiles('coverage/lcov.info') != '' }}
+      if: ${{ !cancelled() && matrix.tz == 'UTC' && hashFiles('coverage/lcov.info') != '' }}
       uses: actions/upload-artifact@v4
       with:
         name: coverage
         path: coverage/
         retention-days: 14
+
+  typecheck:
+    name: Type check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci --legacy-peer-deps
+
+    - name: Type check
+      run: npx tsc --noEmit
+
+  bundle:
+    name: Android bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci --legacy-peer-deps
+
+    - name: Export Android JavaScript bundle
+      run: npx expo export --platform android --output-dir "$RUNNER_TEMP/android-export"
