@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, memo, useMemo, useRef } from 'react';
 import { useAppRoute } from '../../../../shared/navigation';
 import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Animated, Easing, Platform } from 'react-native';
 import type { ListRenderItem, ListRenderItemInfo } from 'react-native';
-import type { NavigationProp, ParamListBase } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useAppNavigation } from '../../../../shared/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchExercises, clearExercisesCache } from '../../handlers/WorkoutHandler';
 import { colors, spacing } from '../../../../shared/theme';
@@ -403,7 +403,7 @@ const SectionHeader = memo(({ title }: { title: string }) => (
 ));
 
 const ExerciseSelectionScreen = () => {
-  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const navigation = useAppNavigation();
   const route = useAppRoute<'ExerciseSelection'>();
 
   const [allGroupedExercises, setAllGroupedExercises] = useState<ExerciseGroup[]>([]);
@@ -539,10 +539,14 @@ const ExerciseSelectionScreen = () => {
       .filter((exercise): exercise is ExerciseItemData => exercise !== undefined);
 
     setSelectedExercises(new Set());
-    navigation.navigate(previousScreen, {
-      selectedExercises: selectedData,
-      replaceIndex,
-    });
+    if (previousScreen === 'CreateTemplate') {
+      navigation.navigate('CreateTemplate', {
+        selectedExercises: selectedData,
+        ...(replaceIndex !== undefined ? { replaceIndex } : {}),
+      });
+    } else {
+      navigation.navigate('StartWorkout', { selectedExercises: selectedData });
+    }
   }, [selectedExercises, exerciseMap, route, navigation]);
 
   const handleGoBack = useCallback(() => {

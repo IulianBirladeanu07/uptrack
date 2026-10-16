@@ -229,7 +229,7 @@ const CreateTemplate = () => {
 
   const handleReplaceExercise = useCallback((id: string) => {
     Keyboard.dismiss();
-    (navigation as any).navigate('ExerciseSelection', {
+    navigation.navigate('ExerciseSelection', {
       previousScreen: 'CreateTemplate',
       replaceIndex: id,
     });
@@ -343,7 +343,7 @@ const CreateTemplate = () => {
 
   const handleAddExercise = useCallback(() => {
     Keyboard.dismiss();
-    (navigation as any).navigate('ExerciseSelection', {
+    navigation.navigate('ExerciseSelection', {
       previousScreen: 'CreateTemplate',
     });
   }, [navigation]);

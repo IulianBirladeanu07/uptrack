@@ -39,11 +39,6 @@ type SelectedExercise = {
     imageURL?: string;
     repRange?: string;
 };
-type StartWorkoutRouteParams = {
-    selectedWorkout?: unknown;
-    selectedExercises?: unknown[];
-    selectedExercise?: string;
-};
 type SelectedWorkout = {
     note?: string;
     exercises: WorkoutExercise[];
@@ -127,7 +122,7 @@ const TimerComponent = () => {
 
 const StartWorkout = () => {
     const route = useAppRoute<'StartWorkout'>();
-    const routeParams = route.params as StartWorkoutRouteParams | undefined;
+    const routeParams = route.params;
     const navigation = useAppNavigation();
     const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
     const [exerciseData, setExerciseData] = useState<WorkoutExercise[]>([]);

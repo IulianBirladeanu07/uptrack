@@ -242,12 +242,10 @@ const CreateSplitScreen = () => {
 
     setLoading(true);
     try {
-      let splitId;
       if (isEditing) {
         await updateSplitInFirestore(String(splitData.id), splitData);
-        splitId = splitData.id;
       } else {
-        splitId = await addSplitToFirestore(splitData);
+        await addSplitToFirestore(splitData);
       }
 
       Alert.alert(
@@ -260,10 +258,7 @@ const CreateSplitScreen = () => {
               if (isEditing) {
                 navigation.goBack();
               } else {
-                (navigation as any).navigate('WorkoutLibrary', {
-                  refresh: true,
-                  newSplitId: splitId
-                });
+                navigation.navigate('WorkoutLibrary');
               }
             }
           }

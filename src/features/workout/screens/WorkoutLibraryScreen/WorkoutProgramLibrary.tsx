@@ -37,7 +37,6 @@ const WorkoutProgramLibrary = ({
   const handleEditSplit = useCallback((split: SplitItem) => {
     navigation.navigate('CreateSplit', { 
       split: split,
-      isEditing: true,
     }); 
   }, [navigation]);
 

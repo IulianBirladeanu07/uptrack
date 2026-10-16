@@ -103,8 +103,12 @@ const WorkoutLibraryScreen = () => {
     }, [fetchData]);
 
     const handleCreate = useCallback(() => {
-        (navigation as any).navigate(activeSegment === 'Splits' ? 'CreateSplit' : 'CreateTemplate', { templates });
-    }, [navigation, activeSegment, templates]);
+        if (activeSegment === 'Splits') {
+            navigation.navigate('CreateSplit');
+        } else {
+            navigation.navigate('CreateTemplate');
+        }
+    }, [navigation, activeSegment]);
 
     const handleDeleteTemplate = useCallback(async (templateId: string) => {
         try {
@@ -132,9 +136,13 @@ const WorkoutLibraryScreen = () => {
         }
     }, [splits, activeSplitId, userData?.activeSplitId, refreshUserData]);
 
-    const handleActivateSplit = useCallback(async (split: any) => {
+    const handleActivateSplit = useCallback(async (split: WorkoutSplit) => {
+        if (!split.id) {
+            Alert.alert('Error', 'Unable to activate a split without an ID.');
+            return;
+        }
         if (activeSplitId === split.id) {
-            (navigation as any).navigate('PreviewSplit', { splitData: split });
+            navigation.navigate('PreviewSplit', { splitData: split });
             return;
         }
 

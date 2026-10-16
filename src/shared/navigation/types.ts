@@ -1,4 +1,5 @@
 import type { OnboardingFormData, WeightInWeek } from '../types';
+import type { WorkoutSplit } from '../../features/workout/types';
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -30,17 +31,15 @@ export type AuthenticatedStackParamList = {
     exercises?: unknown[];
     templateName?: string;
     isRestDay?: boolean;
+    selectedExercises?: unknown[];
+    selectedExercise?: string;
   } | undefined;
   ExerciseSelection: {
-    onExercisesSelected?: (exercises: unknown[]) => void;
-    selectedExercises?: unknown[];
-    previousScreen?: string;
+    previousScreen?: 'StartWorkout' | 'CreateTemplate';
     replaceIndex?: string | null;
   } | undefined;
   WorkoutLibrary: {
-    refresh?: boolean;
-    newSplitId?: string;
-    initialSegment?: string;
+    initialSegment?: 'Templates' | 'Splits';
   } | undefined;
   CreateTemplate: {
     template?: unknown;
@@ -74,14 +73,13 @@ export type AuthenticatedStackParamList = {
     selectedDate?: string | undefined;
   } | undefined;
   CreateSplit: {
-    split?: unknown;
-    isEditing?: boolean;
+    split?: WorkoutSplit;
   } | undefined;
   WeightTracker: {
     initialDate?: string;
   } | undefined;
   PreviewSplit: {
-    splitData?: unknown;
+    splitData?: WorkoutSplit;
   } | undefined;
   CreateExercise: {
     onExerciseCreated?: (exercise: unknown) => void;

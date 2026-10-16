@@ -218,10 +218,10 @@ const PreviewSplitScreen = () => {
   }, [navigation, activeWorkout]);
 
   const handleEditSplit = useCallback(() => {
+    if (!split) return;
     editedRef.current = true;
     navigation.navigate('CreateSplit', {
       split,
-      isEditing: true,
     });
   }, [navigation, split]);
 

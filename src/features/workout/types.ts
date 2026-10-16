@@ -83,6 +83,7 @@ export type WorkoutSplit = {
   id?: string;
   name?: string;
   splitName?: string;
+  templateName?: string;
   description?: string;
   type?: string;
   durationWeeks?: number;
