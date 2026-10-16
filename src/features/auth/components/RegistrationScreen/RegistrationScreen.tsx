@@ -167,7 +167,12 @@ const RegistrationScreen = () => {
 
       {error && <Text style={styles.error}>{error}</Text>}
 
-      <TouchableOpacity style={styles.button} onPress={handleSignUp} disabled={loading}>
+      <TouchableOpacity
+        testID="registration-submit-button"
+        style={styles.button}
+        onPress={handleSignUp}
+        disabled={loading}
+      >
         {loading ? (
           <ActivityIndicator color={colors.accent.buttonText} />
         ) : (
@@ -175,7 +180,10 @@ const RegistrationScreen = () => {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+      <TouchableOpacity
+        testID="registration-back-to-login"
+        onPress={() => navigation.navigate('Login')}
+      >
         <Text style={styles.linkText}>Already have an account? Login</Text>
       </TouchableOpacity>
     </View>

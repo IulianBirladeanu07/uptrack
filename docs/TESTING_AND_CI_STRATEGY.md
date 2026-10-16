@@ -11,7 +11,7 @@ This strategy is being implemented in stages. The baseline identifies the checks
 - Jest is the unit-test runner. `jest.config.js` explicitly includes tests under selected `src/features` and `src/shared` folders.
 - Firebase Firestore and Storage security rules are tested against local emulators with `npm run test:rules`; Supabase RLS remains untested in an emulator and needs a dedicated non-production Supabase project for integration tests.
 - GitHub Actions runs Jest in three time zones (UTC, America/Los_Angeles and Europe/Bucharest, so day-key bugs on both sides of UTC fail CI; coverage is collected in the UTC run only), `npx tsc --noEmit`, `npx expo export --platform android`, and Firebase emulator security-rule tests on pushes and pull requests targeting `master`. A weekly schedule runs the same checks plus an informational production dependency audit; it does not build or deploy a native app.
-- EAS has `development`, `preview`, and `production` build profiles in `eas.json`.
+- EAS has `development`, `preview`, and `production` build profiles in `eas.json`. Android preview build #2 succeeded on `72d643d`; it produced an APK for manual device testing.
 - There is no configured lint script or mobile end-to-end suite. React Native Testing Library and the Expo Jest preset are configured, with one Nutrition initialization error/retry screen journey.
 - The current local run (`npm test -- --ci --coverage`, 2026-10-16) passed 54 suites and 627 tests. Coverage for the configured `src/**/*.{js,ts}` scope was 68.37% lines, 61.47% branches, 67.15% functions, and 68.30% statements. `.tsx` screens/components are not instrumented; this is not whole-app coverage. CI reports this coverage and uploads the report as an artifact; it does not enforce a threshold.
 - The local Firebase emulator run (`npm run test:rules`) passed all six Firestore and Storage rule tests after a clean `npm ci --legacy-peer-deps`. It covers user ownership, meal day IDs and query constraints, workout/profile records, shared exercise reads, profile image ownership/type/size, and public catalog image reads.
@@ -105,6 +105,7 @@ Keep CI fast and deterministic. The existing workflow already runs Jest and Type
 
 - Add a manual or scheduled E2E workflow first; do not make flaky device infrastructure a required PR check until stable.
 - `.github/workflows/eas-preview.yml` provides a manually dispatched Android preview APK build. It requires the `confirm_preview_build` checkbox and an `EXPO_TOKEN` secret in the `eas-preview` GitHub environment; it was not run as part of this change.
+- `.github/workflows/android-ui-smoke.yml` can manually download a specified EAS APK and run a non-destructive Maestro auth-form/navigation flow on an API 36 emulator. It requires the same EAS token and a fresh build ID; it does not sign in or modify backend data. See [Android UI automation](./ANDROID_UI_AUTOMATION.md) for dispatch steps and the safe expansion plan.
 - Run Maestro against an emulator/device or an approved device service; upload logs/screenshots on failure.
 - Promote the stable, short smoke suite to a required check after repeated reliable runs.
 
@@ -113,6 +114,7 @@ Keep CI fast and deterministic. The existing workflow already runs Jest and Type
 - Do not schedule daily or weekly EAS builds or Play releases while the app is pre-launch; those create artifacts without a tester or release need and consume build quota.
 - Use the weekly scheduled CI above for drift and time-zone regression detection.
 - Build an Android preview APK on demand when a device-testing session is planned, using the gated manual workflow and an owner-managed `EXPO_TOKEN` secret. Each dispatch must be deliberate because EAS build quota may be consumed.
+- After a preview build completes, run the separate gated Android UI smoke workflow against that build ID. Downloading an existing APK and running the smoke test does not start a new EAS build.
 - Build a production AAB only for a reviewed release candidate. Keep Play upload/submission manual and separately approved; do not make it part of routine CI.
 
 ### Phase 4 — release gates

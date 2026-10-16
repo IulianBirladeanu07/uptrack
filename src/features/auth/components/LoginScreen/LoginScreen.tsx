@@ -147,10 +147,16 @@ const LoginScreen = () => {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+      <TouchableOpacity
+        testID="forgot-password-link"
+        onPress={() => navigation.navigate('ForgotPassword')}
+      >
         <Text style={styles.linkText}>Forgot Password?</Text>
       </TouchableOpacity>
-      <TouchableOpacity onPress={() => navigation.navigate('Registration')}>
+      <TouchableOpacity
+        testID="register-link"
+        onPress={() => navigation.navigate('Registration')}
+      >
         <Text style={styles.linkText}>Register</Text>
       </TouchableOpacity>
     </View>

@@ -18,7 +18,7 @@ The Play account type/creation date and whether this app has already been publis
 
 - CI runs Jest with coverage and `npx tsc --noEmit` on pushes and pull requests to `master`.
 - Push CI passed on GitHub for commits `71a800a` and `72d643d`, including three timezone Jest jobs, TypeScript, Android JS bundling, and Firebase emulator rules. The weekly scheduled dependency audit has not yet run; CI does not test Supabase RLS against a live non-production backend.
-- A separate manual Android preview workflow is gated by a confirmation checkbox and the `eas-preview` GitHub environment's `EXPO_TOKEN`. A first dispatch on `71a800a` uploaded to EAS but failed during remote dependency installation; root `.npmrc` now sets `legacy-peer-deps=true`, and a second preview build on `72d643d` is in progress. This workflow produces a preview APK, not a production AAB or Play submission.
+- A separate manual Android preview workflow is gated by a confirmation checkbox and the `eas-preview` GitHub environment's `EXPO_TOKEN`. The first dispatch on `71a800a` failed during remote dependency installation; after adding root `.npmrc` with `legacy-peer-deps=true`, preview build #2 on `72d643d` completed successfully and produced an APK. The Android UI smoke workflow can download a specified EAS build and run the non-destructive Maestro auth-form flow on an API 36 emulator. Neither workflow produces a production AAB or submits to Play.
 - `jest-expo` and React Native Testing Library are configured, with a Nutrition initialization error/retry journey test. Native permissions, keyboards, and device behavior still require real-device testing.
 - The latest local verification on 2026-10-16 passed **54 Jest suites / 627 tests** and **6 Firestore/Storage emulator tests**. Coverage for `src/**/*.{js,ts}` was **68.37% lines, 61.47% branches, 67.15% functions, and 68.30% statements**. `.tsx` screens/components are excluded, so this is not whole-app coverage.
 - `npx expo export --platform android` successfully bundled the Android JavaScript app. This verifies Metro bundling only; it does not verify a native build, signed AAB, merged manifest, or device behavior.
@@ -102,6 +102,8 @@ Run these against the signed **release-candidate** build obtained through Play i
 - **E2E:** pilot a small Maestro journey only after a stable development/preview build and deterministic test account/data exist. Keep flaky device/E2E infrastructure out of required PR checks until reliable.
 
 Current PR CI is useful but not a Play release gate: it does not build the signed production artifact, instrument `.tsx` UI, test native permission/API behavior, or exercise production backend integration. Do not set a repo-wide coverage threshold based on the current partial coverage number.
+
+For a step-by-step physical Android test, use the [Android device test flow](./ANDROID_DEVICE_TEST_FLOW.md). It records setup, expected outcomes, test-account safety, evidence, and no-go criteria; repeat the critical flows on the Play internal-track build before release.
 
 ## Play Console and launch checklist (owner tasks)
 

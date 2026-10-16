@@ -78,7 +78,12 @@ const ForgotPasswordScreen = () => {
 
       {error && <Text style={styles.error}>{error}</Text>}
 
-      <TouchableOpacity style={styles.button} onPress={handleForgotPassword} disabled={loading}>
+      <TouchableOpacity
+        testID="forgot-password-submit-button"
+        style={styles.button}
+        onPress={handleForgotPassword}
+        disabled={loading}
+      >
         {loading ? (
           <ActivityIndicator color={colors.accent.buttonText} />
         ) : (
@@ -87,6 +92,7 @@ const ForgotPasswordScreen = () => {
       </TouchableOpacity>
 
       <TouchableOpacity 
+        testID="forgot-password-back-to-login"
         style={styles.backToLoginButton} 
         onPress={() => navigation.navigate('Login')}
       >

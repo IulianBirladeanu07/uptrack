@@ -1,0 +1,27 @@
+appId: com.iulianbirladeanu.uptrack
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Login"
+    timeout: 20000
+- tapOn:
+    id: "register-link"
+- assertVisible: "Registration"
+- tapOn:
+    id: "registration-submit-button"
+- assertVisible: "Please fill out all fields."
+- tapOn:
+    id: "registration-back-to-login"
+- assertVisible: "Login"
+- tapOn:
+    id: "forgot-password-link"
+- assertVisible: "Forgot Password"
+- tapOn:
+    id: "forgot-password-submit-button"
+- assertVisible: "Email is required"
+- tapOn: "OK"
+- assertVisible: "Email is required"
+- tapOn:
+    id: "forgot-password-back-to-login"
+- assertVisible: "Login"
