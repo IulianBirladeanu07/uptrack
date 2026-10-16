@@ -1,17 +1,21 @@
 jest.mock('firebase/auth', () => ({ getAuth: jest.fn() }));
+const mockTransaction = {
+  get: jest.fn(async () => ({ exists: () => false, data: () => undefined })),
+  set: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+};
 jest.mock('firebase/firestore', () => ({
   collection: jest.fn(() => ({})),
-  doc: jest.fn(() => ({})),
+  doc: jest.fn((_db, collection, id) => collection === undefined
+    ? { collection: 'workoutTemplates', id: 'auto-template-id' }
+    : { collection, id }),
   getDocs: jest.fn(),
   limit: jest.fn(() => ({})),
   orderBy: jest.fn(() => ({})),
   query: jest.fn(() => ({})),
   setDoc: jest.fn(),
-  runTransaction: jest.fn(async (_db, callback) => callback({
-    get: jest.fn().mockResolvedValue({ exists: () => false }),
-    set: jest.fn(),
-    update: jest.fn(),
-  })),
+  runTransaction: jest.fn(async (_db, callback) => callback(mockTransaction)),
   updateDoc: jest.fn(),
   where: jest.fn(() => ({})),
   serverTimestamp: jest.fn(() => 'server-timestamp'),
@@ -34,6 +38,7 @@ import { doc, getDocs, runTransaction, setDoc, updateDoc } from 'firebase/firest
 import {
   addTemplateToFirestore,
   addSplitToFirestore,
+  deleteTemplateFromFirestore,
   getExerciseHistory,
   fetchSplitsFromFirestore,
   sendWorkoutDataToFirestore,
@@ -45,6 +50,7 @@ import {
 describe('sendWorkoutDataToFirestore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockTransaction.get.mockImplementation(async () => ({ exists: () => false, data: () => undefined }));
     (getAuth as jest.Mock).mockReturnValue({ currentUser: { uid: 'user-1' } });
     (getDocs as jest.Mock).mockResolvedValue({ docs: [] });
     (setDoc as jest.Mock).mockResolvedValue(undefined);
@@ -122,6 +128,11 @@ describe('sendWorkoutDataToFirestore', () => {
     expect(doc).toHaveBeenCalledWith({}, 'workoutTemplates', 'push%2Fpull_user-1');
     expect(runTransaction).toHaveBeenCalledTimes(1);
     expect(setDoc).not.toHaveBeenCalled();
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      { collection: 'users', id: 'user-1' },
+      { workoutTemplateNames: { 'push%2Fpull': 'push%2Fpull_user-1' } },
+      { mergeFields: ['workoutTemplateNames'] },
+    );
   });
 
   test('rejects a template name already used regardless of case or surrounding spaces', async () => {
@@ -141,10 +152,10 @@ describe('sendWorkoutDataToFirestore', () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
     const transactionSet = jest.fn();
     (runTransaction as jest.Mock).mockImplementationOnce(async (_db, callback) => callback({
-      get: jest.fn().mockResolvedValue({
-        exists: () => true,
-        data: () => ({ templateName: 'Push/Pull' }),
-      }),
+      get: jest.fn().mockImplementation(async ref => ({
+        exists: () => ref.collection === 'workoutTemplates',
+        data: () => ref.collection === 'workoutTemplates' ? { templateName: 'Push/Pull' } : undefined,
+      })),
       set: transactionSet,
       update: jest.fn(),
     }));
@@ -158,15 +169,9 @@ describe('sendWorkoutDataToFirestore', () => {
   });
 
   test('creates a template under a new id when the deterministic id belongs to a renamed template', async () => {
-    const transactionSet = jest.fn();
-    (doc as jest.Mock).mockReturnValueOnce({}).mockReturnValueOnce({ id: 'auto-template-id' });
-    (runTransaction as jest.Mock).mockImplementationOnce(async (_db, callback) => callback({
-      get: jest.fn().mockResolvedValue({
-        exists: () => true,
-        data: () => ({ templateName: 'Pull Day' }),
-      }),
-      set: transactionSet,
-      update: jest.fn(),
+    mockTransaction.get.mockImplementation(async ref => ({
+      exists: () => ref.collection === 'workoutTemplates',
+      data: () => ref.collection === 'workoutTemplates' ? { templateName: 'Pull Day' } : undefined,
     }));
 
     await expect(addTemplateToFirestore(
@@ -174,9 +179,13 @@ describe('sendWorkoutDataToFirestore', () => {
       'Push Day',
     )).resolves.toBe('auto-template-id');
 
-    expect(transactionSet).toHaveBeenCalledTimes(1);
-    expect(transactionSet).toHaveBeenCalledWith(
-      { id: 'auto-template-id' },
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      { collection: 'users', id: 'user-1' },
+      { workoutTemplateNames: { 'push%20day': 'auto-template-id' } },
+      { mergeFields: ['workoutTemplateNames'] },
+    );
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      { collection: 'workoutTemplates', id: 'auto-template-id' },
       expect.objectContaining({ templateName: 'Push Day', uid: 'user-1' }),
     );
   });
@@ -193,8 +202,39 @@ describe('sendWorkoutDataToFirestore', () => {
     consoleError.mockRestore();
   });
 
+  test('rejects a rename reserved by a concurrent template update', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (getDocs as jest.Mock).mockResolvedValueOnce({ docs: [] });
+    mockTransaction.get.mockImplementation(async ref => {
+      if (ref.collection === 'users') {
+        return {
+          exists: () => true,
+          data: () => ({ workoutTemplateNames: { 'leg%20day': 'other-template' } }),
+        };
+      }
+      return {
+        exists: () => true,
+        data: () => ({ templateName: 'Push Day' }),
+      };
+    });
+
+    await expect(updateTemplateInFirestore('current-template', {
+      templateName: 'Leg Day',
+    })).rejects.toBeInstanceOf(TemplateNameAlreadyExistsError);
+
+    expect(mockTransaction.update).not.toHaveBeenCalled();
+    expect(updateDoc).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
   test('updates only supplied template fields and preserves explicit zero values', async () => {
     (getDocs as jest.Mock).mockResolvedValueOnce({ docs: [] });
+    mockTransaction.get.mockImplementation(async ref => ({
+      exists: () => true,
+      data: () => ref.collection === 'workoutTemplates'
+        ? { templateName: 'Old Name' }
+        : { workoutTemplateNames: { 'old%20name': 'template-1' } },
+    }));
 
     await expect(updateTemplateInFirestore('template-1', {
       templateName: '  Push Day  ',
@@ -202,11 +242,41 @@ describe('sendWorkoutDataToFirestore', () => {
       note: '',
     })).resolves.toBe('template-1');
 
-    expect(updateDoc).toHaveBeenCalledWith({}, {
-      templateName: 'Push Day',
-      duration: 0,
-      note: '',
-      updatedAt: 'server-timestamp',
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      { collection: 'workoutTemplates', id: 'template-1' },
+      {
+        templateName: 'Push Day',
+        duration: 0,
+        note: '',
+        updatedAt: 'server-timestamp',
+      },
+    );
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      { collection: 'users', id: 'user-1' },
+      { workoutTemplateNames: { 'push%20day': 'template-1' } },
+      { mergeFields: ['workoutTemplateNames'] },
+    );
+  });
+
+  test('releases a template name reservation when deleting its template', async () => {
+    mockTransaction.get.mockImplementation(async ref => ({
+      exists: () => true,
+      data: () => ref.collection === 'workoutTemplates'
+        ? { templateName: 'Push Day' }
+        : { workoutTemplateNames: { 'push%20day': 'template-1', 'leg%20day': 'template-2' } },
+    }));
+
+    await expect(deleteTemplateFromFirestore('template-1')).resolves.toBe(true);
+
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      { collection: 'users', id: 'user-1' },
+      { workoutTemplateNames: { 'leg%20day': 'template-2' } },
+      { mergeFields: ['workoutTemplateNames'] },
+    );
+    expect(mockTransaction.delete).toHaveBeenCalledWith({
+      collection: 'workoutTemplates',
+      id: 'template-1',
     });
   });
 
@@ -227,7 +297,7 @@ describe('sendWorkoutDataToFirestore', () => {
       durationWeeks: 0,
     })).resolves.toBe('split-1');
 
-    expect(updateDoc).toHaveBeenCalledWith({}, {
+    expect(updateDoc).toHaveBeenCalledWith({ collection: 'workoutSplits', id: 'split-1' }, {
       name: 'Strength',
       durationWeeks: 0,
       updatedAt: 'server-timestamp',

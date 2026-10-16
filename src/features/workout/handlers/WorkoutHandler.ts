@@ -64,6 +64,17 @@ const assertTemplateNameAvailable = (
   if (duplicate) throw new TemplateNameAlreadyExistsError();
 };
 
+const getTemplateNameKey = (templateName: string): string =>
+  encodeURIComponent(templateName.trim().toLowerCase());
+
+const getTemplateNameRegistry = (userData: DocumentData | undefined): Record<string, string> => {
+  const registry = userData?.['workoutTemplateNames'];
+  if (!registry || typeof registry !== 'object' || Array.isArray(registry)) return {};
+  return Object.fromEntries(
+    Object.entries(registry).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  );
+};
+
 export const SPLITS_CACHE_KEY = 'cached_splits';
 
 export const clearSplitsCache = async (): Promise<void> => {
@@ -364,22 +375,35 @@ export const addTemplateToFirestore = async (templateData: TemplateInput, templa
     );
     const templatesSnapshot = await getDocs(templatesQuery);
     assertTemplateNameAvailable(templatesSnapshot.docs, normalizedTemplateName);
+    const userDocRef = doc(db, 'users', user.uid);
+    const nameKey = getTemplateNameKey(normalizedTemplateName);
     let savedTemplateId = formattedTemplateName;
     await runTransaction(db, async transaction => {
-      const existingTemplate = await transaction.get(templateDocRef);
-      if (!existingTemplate.exists()) {
-        transaction.set(templateDocRef, fullTemplateData);
-        savedTemplateId = formattedTemplateName;
-        return;
+      const [userDoc, existingTemplate] = await Promise.all([
+        transaction.get(userDocRef),
+        transaction.get(templateDocRef),
+      ]);
+      const nameRegistry = getTemplateNameRegistry(userDoc.exists() ? userDoc.data() : undefined);
+      if (nameRegistry[nameKey]) throw new TemplateNameAlreadyExistsError();
+
+      let targetRef = templateDocRef;
+      savedTemplateId = formattedTemplateName;
+      if (existingTemplate.exists()) {
+        const existingName = existingTemplate.data()?.['templateName'];
+        if (typeof existingName !== 'string' || getTemplateNameKey(existingName) === nameKey) {
+          throw new TemplateNameAlreadyExistsError();
+        }
+        targetRef = doc(collection(db, 'workoutTemplates'));
+        savedTemplateId = targetRef.id;
       }
-      const existingName = existingTemplate.data()?.['templateName'];
-      if (
-        typeof existingName !== 'string' ||
-        existingName.trim().toLowerCase() === normalizedTemplateName.toLowerCase()
-      ) throw new TemplateNameAlreadyExistsError();
-      const fallbackRef = doc(collection(db, 'workoutTemplates'));
-      transaction.set(fallbackRef, fullTemplateData);
-      savedTemplateId = fallbackRef.id;
+
+      nameRegistry[nameKey] = savedTemplateId;
+      transaction.set(
+        userDocRef,
+        { workoutTemplateNames: nameRegistry },
+        { mergeFields: ['workoutTemplateNames'] },
+      );
+      transaction.set(targetRef, fullTemplateData);
     });
     return savedTemplateId;
   } catch (error) {
@@ -426,10 +450,28 @@ export const deleteTemplateFromFirestore = async (templateId: string): Promise<b
     const user = auth.currentUser;
     if (!user) throw new Error('User not authenticated.');
 
-    
     const templateRef = doc(db, 'workoutTemplates', templateId);
-    
-    await deleteDoc(templateRef);
+    const userDocRef = doc(db, 'users', user.uid);
+    await runTransaction(db, async transaction => {
+      const [userDoc, templateDoc] = await Promise.all([
+        transaction.get(userDocRef),
+        transaction.get(templateRef),
+      ]);
+      const nameRegistry = getTemplateNameRegistry(userDoc.exists() ? userDoc.data() : undefined);
+      const templateName = templateDoc.exists() ? templateDoc.data()['templateName'] : undefined;
+      if (typeof templateName === 'string') {
+        const nameKey = getTemplateNameKey(templateName);
+        if (nameRegistry[nameKey] === templateId) {
+          delete nameRegistry[nameKey];
+          transaction.set(
+            userDocRef,
+            { workoutTemplateNames: nameRegistry },
+            { mergeFields: ['workoutTemplateNames'] },
+          );
+        }
+      }
+      transaction.delete(templateRef);
+    });
     return true;
   } catch (error) {
     console.error('Error deleting template from Firestore:', (error as Error).message);
@@ -841,8 +883,34 @@ export const updateTemplateInFirestore = async (templateId: string, templateData
       );
       const templatesSnapshot = await getDocs(templatesQuery);
       assertTemplateNameAvailable(templatesSnapshot.docs, normalizedTemplateName, templateId);
+
+      const userDocRef = doc(db, 'users', user.uid);
+      const nameKey = getTemplateNameKey(normalizedTemplateName);
+      await runTransaction(db, async transaction => {
+        const [userDoc, templateDoc] = await Promise.all([
+          transaction.get(userDocRef),
+          transaction.get(templateRef),
+        ]);
+        const nameRegistry = getTemplateNameRegistry(userDoc.exists() ? userDoc.data() : undefined);
+        const existingTemplateName = templateDoc.exists() ? templateDoc.data()['templateName'] : undefined;
+        if (typeof existingTemplateName === 'string') {
+          const previousNameKey = getTemplateNameKey(existingTemplateName);
+          if (nameRegistry[previousNameKey] === templateId) delete nameRegistry[previousNameKey];
+        }
+        if (nameRegistry[nameKey] && nameRegistry[nameKey] !== templateId) {
+          throw new TemplateNameAlreadyExistsError();
+        }
+        nameRegistry[nameKey] = templateId;
+        transaction.set(
+          userDocRef,
+          { workoutTemplateNames: nameRegistry },
+          { mergeFields: ['workoutTemplateNames'] },
+        );
+        transaction.update(templateRef, updateData);
+      });
+    } else {
+      await updateDoc(templateRef, updateData);
     }
-    await updateDoc(templateRef, updateData);
     return templateId;
   } catch (error) {
     console.error('Error updating template:', error);
