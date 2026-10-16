@@ -17,17 +17,17 @@ import useDailyNutrition from '../helpers/useDailyNutrition';
 import MealCache from './cache/MealCache';
 import { parsePersistedMealCache } from './cache/mealCacheStorage';
 import { AsyncOperationQueue } from './AsyncOperationQueue';
+import { buildCategoryData } from './categoryData';
 import { formatDate } from '../utils/dateUtils';
 import { isCurrentUserRequest } from '../utils/userRequest';
 import { diffSteps, persistDailySteps, restorePendingSteps } from '../helpers/stepsSyncService';
 import type { User } from 'firebase/auth';
 import type {
-    DailySteps, DateInput, EnhancedLearningData, FoodCategories, FoodDetailFood, FrequentFood, LoggedFood,
+    DailySteps, DateInput, EnhancedLearningData, FoodCategories, FoodDetailFood, LoggedFood,
     MealGroup, MealType, MealsByType, NutritionTotals, UserData, WeightInWeek,
 } from '../../../shared/types';
 
 const MEAL_CACHE_KEY_PREFIX = 'meal_cache_v2_';
-const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
 const REQUIRED_LEARNING_DAYS = 7;
 
 type DayCalories = { date: string; calories: number };
@@ -141,49 +141,6 @@ const getCurrentWeekRollingStats = (mealCache: MealCache | null, weightIns?: Wei
         daysLoggedSteps:     nutritionStats.daysLoggedSteps,
         daysLoggedWeight,
     };
-};
-
-const buildCategoryData = (cache: MealCache): FoodCategories => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const allDays = cache.getDateRange(thirtyDaysAgo, new Date());
-
-    const recentMeals = allDays
-        .flatMap(({ date, meals }) =>
-            MEAL_TYPES
-                .filter(mealType => (meals[mealType] || []).length > 0)
-                .map(mealType => ({
-                    id:            `${date}_${mealType}`,
-                    date,
-                    mealType,
-                    foods:         meals[mealType],
-                    totalCalories: meals[mealType].reduce((s, f) => s + (Number(f.calories) || 0), 0),
-                }))
-        )
-        .reverse()
-        .slice(0, 30);
-
-    const foodUsageMap = new Map<string, FrequentFood>();
-    allDays.forEach(({ date, meals }) => {
-        MEAL_TYPES.forEach(mealType => {
-            (meals[mealType] || []).forEach(food => {
-                const key = `${food.id}_${mealType}`;
-                if (!foodUsageMap.has(key)) {
-                    foodUsageMap.set(key, { ...food, mealType, usageCount: 0, lastUsed: date });
-                }
-                const entry = foodUsageMap.get(key)!;
-                entry.usageCount += 1;
-                if (date > entry.lastUsed) entry.lastUsed = date;
-            });
-        });
-    });
-
-    const frequentFoods = Array.from(foodUsageMap.values())
-        .sort((a, b) => b.usageCount - a.usageCount)
-        .slice(0, 50);
-
-    return { recentMeals, frequentFoods, favoriteFoods: [] };
 };
 
 export const FoodProvider = ({ children }: { children: ReactNode }) => {
