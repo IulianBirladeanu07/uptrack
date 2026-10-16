@@ -15,8 +15,8 @@ This plan is for the next agent working on the October 2026 audit findings. Read
 ## Owner tasks
 
 1. **SEC-01:** done on 2026-10-11. The app uses a publishable key, the legacy API keys are disabled, the legacy JWT secret is revoked and `SUPABASE_SERVICE_ROLE_KEY` is deleted from EAS.
-2. **SEC-05:** done on 2026-10-11. `rules/firestore.rules` and `rules/storage.rules` are deployed and checked on a device. `storage.rules` also allows public read of `exercise_images/` and `nutrition_images/`, because the food image URLs in Supabase carry no token.
-3. **SEC-04:** done on 2026-10-11. RLS and the policies in `rules/supabase-rls.sql` are applied in Supabase and checked with `scripts/verify-rls.js`.
+2. **SEC-05:** done on 2026-10-11. `firebase/firestore.rules` and `firebase/storage.rules` are deployed and checked on a device. The rules also have local emulator tests. Storage allows public read of `exercise_images/` and `nutrition_images/`, because the food image URLs in Supabase carry no token.
+3. **SEC-04:** done on 2026-10-11. RLS and the policies in `supabase/rls.sql` are applied in Supabase and checked with `scripts/verify-rls.js`.
 4. **Builds:** an iOS dev-client or EAS build to confirm HealthKit steps (BUG-26), and an Android build after SEC-12.
 5. **Device checks** for paths that never ran in production:
    - "Create Custom Food" in empty search results (BUG-17).
@@ -89,7 +89,7 @@ flowchart TB
 - **Steps:**
   1. Write custom exercises to `customExercises/{auto}` with `uid`, keeping the duplicate-name check against the catalog and the user's own exercises.
   2. Load the user's custom exercises (`where('uid', '==', uid)`) and merge them into the catalog by muscle group. Keep the catalog cache device-wide, but do not put custom exercises in it.
-  3. Add a `customExercises` block to `rules/firestore.rules`. Use read and delete with `ownsDoc()`, create with `claimsDoc()`, and update with `ownsDoc() && keepsOwner()`.
+  3. Add a `customExercises` block to `firebase/firestore.rules`. Use read and delete with `ownsDoc()`, create with `claimsDoc()`, and update with `ownsDoc() && keepsOwner()`.
   4. Migration, run by the owner with the Admin SDK: move catalog entries with `isCustom: true` into `customExercises`, using `createdBy` as `uid`, then strip them from the catalog docs.
   5. Keep the BUG-09 behavior: ExerciseSelection reloads after CreateExercise.
 - **Tests:** make the merge a pure function in `workout/utils` and test it.
@@ -109,7 +109,7 @@ flowchart TB
 ### 4. SEC-04: anonymous inserts into `barcoded_products` (Medium, decision)
 
 - **Where:** `useCustomFood.js:102-128` (existence check, then `insert` at 120-122).
-- **Options:** (a) keep the inserts under the validation policy in `rules/supabase-rls.sql`, (b) insert into a separate table that the owner reviews, (c) store user-created barcoded foods per user in Firestore.
+- **Options:** (a) keep the inserts under the validation policy in `supabase/rls.sql`, (b) insert into a separate table that the owner reviews, (c) store user-created barcoded foods per user in Firestore.
 - **Code work:** none for (a). For (b) or (c), change the insert and the lookup in `NutritionHandler.js`.
 
 ### 5. SEC-09: email change without verification (Low, decision)

@@ -25,6 +25,7 @@ Uptrack is an Expo / React Native app for tracking nutrition, weight and workout
 |---|---|
 | `npm ci --legacy-peer-deps` | Install. `postinstall` applies the patch. |
 | `npx jest` | Unit tests |
+| `npm run test:rules` | Run Firestore and Storage security rules against local emulators |
 | `npx tsc --noEmit` | Type check |
 | `npx expo config --type introspect --json` | Resolved config after plugins (Info.plist, entitlements, manifest) |
 | `npx expo export --platform android --output-dir <temp dir>` | Builds the JS bundle. Catches import and syntax errors without a native build. |
@@ -80,6 +81,9 @@ src/features/<area>/   auth, dashboard, nutrition, profile, progress, workout
 src/shared/            theme, shared components and hooks, supabaseClient, types.ts
 docs/                  design notes
 audit/                 temporary: October 2026 audit findings and fix plan
+firebase/              canonical Firestore and Storage security rules
+supabase/               canonical Supabase RLS policy SQL
+tests/rules/            Firebase Emulator security-rule tests
 ```
 
 ## How the app fits together
@@ -173,9 +177,9 @@ Dates:
 - PowerShell `>` writes UTF-16. Use `git diff --output=<file>` or `Out-File -Encoding utf8` for patches and logs.
 - The weekly evaluation writes calorie and macro targets to `users/{uid}`. It runs at app start (`FoodContext.js`) and after the first weigh-in of a new week (`weightTrackerUtils.ts`), at most once every 6 days, and never when `autoAdjustEnabled === false`. Read the notes in `audit/PLAN.md` before changing it.
 - `workoutService` (`WorkoutService.js`) is a singleton. Its in-memory workout survives sign-out.
-- Firestore rules in `audit/rules/firestore.rules` deny reading a document that does not exist wherever the read rule uses `resource.data` (`workoutHistory`, `measurements`, `workoutTemplates`, `workoutSplits`, `customExercises`). Never `getDoc` or `transaction.get` an id that may be missing in those collections; check existence with a uid-filtered query instead. `users`, `meals` and `exercises` allow it. Jest mocks cannot show this, so compare new Firestore access with the rules by reading them.
+- Firestore rules in `firebase/firestore.rules` deny reading a document that does not exist wherever the read rule uses `resource.data` (`workoutHistory`, `measurements`, `workoutTemplates`, `workoutSplits`, `customExercises`). Never `getDoc` or `transaction.get` an id that may be missing in those collections; check existence with a uid-filtered query instead. `users`, `meals` and `exercises` allow it. Jest mocks cannot show this; run `npm run test:rules` when changing rules or Firestore access.
 - Native configuration goes through `app.config.js` or `plugins/`, never through edits to generated `android/` or `ios/` folders.
 
 ## Open work
 
-`audit/` holds the October 2026 audit: `FINDINGS.md` lists every finding and its status, and `PLAN.md` is the fix plan. The directory is temporary. The owner will delete it once the plan is done.
+`audit/` holds the October 2026 audit: `FINDINGS.md` lists every finding and its status, and `PLAN.md` is the fix plan. The audit notes are temporary; deployable rules live in `firebase/` and `supabase/`.

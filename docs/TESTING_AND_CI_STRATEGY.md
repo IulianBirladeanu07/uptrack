@@ -4,15 +4,17 @@
 
 Build confidence in user-visible workflows and high-risk data behavior without chasing 100% coverage for its own sake. Prioritize regressions that can lose user data, cross account boundaries, report success when a save failed, or make a core workflow unusable.
 
-This is a staged proposal, not a claim that the proposed tooling is already installed.
+This strategy is being implemented in stages. The baseline identifies the checks configured now; the roadmap distinguishes completed work from proposed work.
 
 ## Current baseline
 
 - Jest is the unit-test runner. `jest.config.js` explicitly includes tests under selected `src/features` and `src/shared` folders.
-- GitHub Actions runs three jobs on pushes and pull requests targeting `master` in `.github/workflows/tests.yml`: Jest in three time zones (UTC, America/Los_Angeles and Europe/Bucharest, so day-key bugs on both sides of UTC fail CI; coverage is collected in the UTC run only), `npx tsc --noEmit`, and `npx expo export --platform android` to catch import and bundling errors in the `.tsx` screens that Jest does not load. The export needs no secrets and takes about 20 seconds locally. It does not build a native app.
+- Firebase Firestore and Storage security rules are tested against local emulators with `npm run test:rules`; Supabase RLS remains untested in an emulator and needs a dedicated non-production Supabase project for integration tests.
+- GitHub Actions runs Jest in three time zones (UTC, America/Los_Angeles and Europe/Bucharest, so day-key bugs on both sides of UTC fail CI; coverage is collected in the UTC run only), `npx tsc --noEmit`, `npx expo export --platform android`, and Firebase emulator security-rule tests on pushes and pull requests targeting `master`. A weekly schedule runs the same checks plus an informational production dependency audit; it does not build or deploy a native app.
 - EAS has `development`, `preview`, and `production` build profiles in `eas.json`.
 - There is no configured lint script, React Native component-test setup, or mobile end-to-end suite in the existing package/workflow configuration.
-- The current local run (`npm test -- --ci --coverage`, 2026-10-16) passed 52 suites and 615 tests. Coverage for the configured `src/**/*.{js,ts}` scope was 67.63% lines, 61.44% branches, 67.04% functions, and 67.67% statements. `.tsx` screens/components are not instrumented; this is not whole-app coverage. CI reports this coverage and uploads the report as an artifact; it does not enforce a threshold.
+- The current local run (`npm test -- --ci --coverage`, 2026-10-16) passed 54 suites and 627 tests. Coverage for the configured `src/**/*.{js,ts}` scope was 68.37% lines, 61.47% branches, 67.15% functions, and 68.30% statements. `.tsx` screens/components are not instrumented; this is not whole-app coverage. CI reports this coverage and uploads the report as an artifact; it does not enforce a threshold.
+- The local Firebase emulator run (`npm run test:rules`) passed all six Firestore and Storage rule tests after a clean `npm ci --legacy-peer-deps`. It covers user ownership, meal day IDs and query constraints, workout/profile records, shared exercise reads, profile image ownership/type/size, and public catalog image reads.
 
 ## Test pyramid
 
@@ -87,6 +89,7 @@ Keep CI fast and deterministic. The existing workflow already runs Jest and Type
 
 - CI runs Jest with coverage, adds an informational coverage table to the job summary, and uploads the report for 14 days.
 - CI also runs Jest in America/Los_Angeles and Europe/Bucharest, type-checks in its own job, and bundles the Android app with `expo export`. `expo-doctor` is not run in CI: it needs the Expo API, and it currently reports `react-native` 0.81.5 against an expected 0.81.4, which is a deliberate pin with a patch-package patch.
+- CI runs Firestore and Storage security-rule tests against emulators using the checked-in rules. A weekly schedule (and manual workflow dispatch) repeats all checks and adds an informational `npm audit --omit=dev` summary. It never builds, deploys, or submits an app.
 - Coverage includes configured JavaScript and TypeScript source files, excluding tests, declarations, styles, and type-only files. It does not instrument `.tsx`.
 - No coverage threshold is enforced; do not fail PRs for existing uncovered code.
 - Add a modest threshold only after a stable baseline exists; enforce changed/high-risk code or prevent coverage from falling, rather than requiring a sudden repo-wide percentage jump.
@@ -94,16 +97,23 @@ Keep CI fast and deterministic. The existing workflow already runs Jest and Type
 
 ### Phase 2 — component tests
 
-- Add a compatible React Native Testing Library setup as a separate, reviewed dependency change.
-- Pilot a single Nutrition error/retry journey and one save flow.
-- Run component tests in the existing Jest job.
+- Added a compatible React Native Testing Library and Expo Jest setup.
+- The first pilot covers the Nutrition initialization error and verifies that the Retry button calls the recovery handler.
+- The screen test is included in the existing Jest job; add further journeys only after this setup remains stable in CI.
 
 ### Phase 3 — mobile E2E and preview builds
 
 - Add a manual or scheduled E2E workflow first; do not make flaky device infrastructure a required PR check until stable.
-- Build an Android preview/development artifact using EAS only with repository secrets configured and least privilege.
+- `.github/workflows/eas-preview.yml` provides a manually dispatched Android preview APK build. It requires the `confirm_preview_build` checkbox and an `EXPO_TOKEN` secret in the `eas-preview` GitHub environment; it was not run as part of this change.
 - Run Maestro against an emulator/device or an approved device service; upload logs/screenshots on failure.
 - Promote the stable, short smoke suite to a required check after repeated reliable runs.
+
+### Build cadence recommendation
+
+- Do not schedule daily or weekly EAS builds or Play releases while the app is pre-launch; those create artifacts without a tester or release need and consume build quota.
+- Use the weekly scheduled CI above for drift and time-zone regression detection.
+- Build an Android preview APK on demand when a device-testing session is planned, using the gated manual workflow and an owner-managed `EXPO_TOKEN` secret. Each dispatch must be deliberate because EAS build quota may be consumed.
+- Build a production AAB only for a reviewed release candidate. Keep Play upload/submission manual and separately approved; do not make it part of routine CI.
 
 ### Phase 4 — release gates
 

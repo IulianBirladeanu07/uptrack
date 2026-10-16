@@ -1,4 +1,5 @@
 module.exports = {
+  preset: 'jest-expo',
   testEnvironment: 'node',
   testMatch: [
     '<rootDir>/src/features/auth/utils/**/*.test.{js,ts}',
@@ -10,6 +11,7 @@ module.exports = {
     '<rootDir>/src/features/nutrition/handlers/**/*.test.{js,ts}',
     '<rootDir>/src/features/nutrition/services/**/*.test.{js,ts}',
     '<rootDir>/src/features/nutrition/context/**/*.test.{js,ts}',
+    '<rootDir>/src/features/nutrition/screens/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/progress/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/workout/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/workout/services/**/*.test.{js,ts}',
@@ -17,10 +19,7 @@ module.exports = {
     '<rootDir>/src/shared/firestore/**/*.test.{js,ts}',
     '<rootDir>/src/shared/services/**/*.test.{js,ts}',
   ],
-  moduleFileExtensions: ['js', 'ts', 'json'],
-  transform: {
-    '^.+\\.[jt]s$': ['babel-jest', { presets: [['@babel/preset-env', { targets: { node: 'current' } }], '@babel/preset-typescript'] }],
-  },
+  moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx', 'json'],
   clearMocks: true,
   collectCoverageFrom: [
     'src/**/*.{js,ts}',

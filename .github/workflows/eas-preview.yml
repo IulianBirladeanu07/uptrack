@@ -1,0 +1,46 @@
+name: Android preview build
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_preview_build:
+        description: "Run one EAS Android preview APK build (uses build quota)"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    if: ${{ inputs.confirm_preview_build }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: eas-preview
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci --legacy-peer-deps
+
+    - name: Verify EAS token is configured
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      run: |
+        if [ -z "$EXPO_TOKEN" ]; then
+          echo "::error title=Missing secret::Set EXPO_TOKEN in the eas-preview GitHub environment before running this workflow."
+          exit 1
+        fi
+
+    - name: Build Android preview APK
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      run: npx --yes eas-cli@25.0.0 build --platform android --profile preview --non-interactive

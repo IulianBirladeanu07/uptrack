@@ -5,6 +5,9 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -98,3 +101,47 @@ jobs:
 
     - name: Export Android JavaScript bundle
       run: npx expo export --platform android --output-dir "$RUNNER_TEMP/android-export"
+
+  rules:
+    name: Firebase security rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci --legacy-peer-deps
+
+    - name: Test Firestore and Storage rules in emulators
+      run: npm run test:rules
+
+  dependency-audit:
+    name: Weekly production dependency audit
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+        cache: 'npm'
+
+    - name: Report production dependency advisories
+      run: node scripts/report-npm-audit.js
