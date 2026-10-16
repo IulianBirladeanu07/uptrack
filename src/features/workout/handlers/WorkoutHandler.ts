@@ -166,7 +166,7 @@ async function finishWorkout(
             note: inputText,
             duration: formatTime(elapsedTime),
             workoutName: templateName || null,
-            exercises: exercisesWithPR.map(exercise => ({
+            exercises: exercisesWithPR.map(({ lastWorkoutSets, ...exercise }) => ({
                 ...exercise,
                 sets: exercise.sets.map(set => ({
                     weight: parseFloat(String(set.weight ?? 0)),

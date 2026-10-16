@@ -95,6 +95,33 @@ describe('sendWorkoutDataToFirestore', () => {
     consoleError.mockRestore();
   });
 
+  test('does not store the previous workout sets inside the saved exercises', async () => {
+    const navigation = { navigate: jest.fn() };
+
+    await expect(sendWorkoutDataToFirestore(
+      [{
+        exerciseName: 'Bench Press',
+        sets: [{ id: 'set-1', weight: '55', reps: '8', isValidated: true, repsModified: false }],
+        lastWorkoutSets: [{ id: 'old-1', weight: '50', reps: '8', isValidated: false, repsModified: false }],
+      }],
+      '',
+      true,
+      navigation,
+      jest.fn(),
+      seconds => `0:${seconds}`,
+      60,
+      'user-1',
+    )).resolves.toBe(true);
+
+    const saved = (setDoc as jest.Mock).mock.calls[0][1];
+    expect(saved.exercises).toHaveLength(1);
+    expect(saved.exercises[0]).not.toHaveProperty('lastWorkoutSets');
+    expect(saved.exercises[0].sets[0]).toMatchObject({ weight: 55, reps: 8, isPR: true });
+    expect(navigation.navigate).toHaveBeenCalledWith('WorkoutDetails', expect.objectContaining({
+      exercises: [expect.objectContaining({ lastWorkoutSets: expect.any(Array) })],
+    }));
+  });
+
   test('does not save a workout after the signed-in account changes', async () => {
     const showMessage = jest.fn();
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
