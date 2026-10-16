@@ -18,6 +18,7 @@ import MealCache from './cache/MealCache';
 import { parsePersistedMealCache } from './cache/mealCacheStorage';
 import { AsyncOperationQueue } from './AsyncOperationQueue';
 import { buildCategoryData } from './categoryData';
+import { loadSelectedDateMeals } from './selectedDateMealLoad';
 import { formatDate } from '../utils/dateUtils';
 import { isCurrentUserRequest } from '../utils/userRequest';
 import { diffSteps, persistDailySteps, restorePendingSteps } from '../helpers/stepsSyncService';
@@ -522,17 +523,21 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         const uid     = currentUserRef.current?.uid;
         const dateKey = formatDate(date);
         if (!uid || mealCache.current.has(dateKey)) return;
-        ensureDayLoaded(dateKey, uid)
-            .then(() => {
-                if (
-                    !mountedRef.current ||
-                    currentUserRef.current?.uid !== uid ||
-                    formatDate(selectedDateRef.current) !== dateKey
-                ) return;
+        void loadSelectedDateMeals(
+            () => ensureDayLoaded(dateKey, uid),
+            () =>
+                mountedRef.current &&
+                currentUserRef.current?.uid === uid &&
+                formatDate(selectedDateRef.current) === dateKey,
+            () => {
                 updateCurrentDayMeals(date);
                 setCacheVersion(v => v + 1);
-            })
-            .catch(error => console.error('load day failed:', error));
+            },
+            error => {
+                console.error('load day failed:', error);
+                Alert.alert('Unable to load meals', 'Could not load meals for this date. Check your connection and try again.');
+            },
+        );
     }, [updateCurrentDayMeals, ensureDayLoaded]);
 
     const initializeAppData = useCallback(async (user: User) => {

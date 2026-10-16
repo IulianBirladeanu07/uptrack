@@ -49,7 +49,8 @@ The current Nutrition pass has confirmed and addressed these issues:
 - Barcode lookups reject overlapping scan events, step history writes requeue failed values without discarding newer pending values, and the food-selection screen navigates only after its meal save succeeds.
 - Queued meal writes now calculate and persist each mutation inside the serialized operation, and perform rollback before releasing the queue to the next mutation.
 - Recent-meal memo comparators include all food presentation fields used by `FoodItem`, including `productName`, `image`, `icon`, and `carbohydrates`.
-- Focused regression tests cover date helpers and DST, meal-cache ranges/storage, request generations, failed edits, serialized meal mutations, barcode guards, step retries, numeric validators, memo comparisons, and weight week/display date behavior.
+- Failed reads for a newly selected Nutrition date now show an explicit alert instead of leaving an apparently empty meal list. Completion and error callbacks are ignored if the user or selected date changed while the request was pending.
+- Focused regression tests cover date helpers and DST, meal-cache ranges/storage, request generations, selected-date read success/failure and stale-result guards, failed edits, serialized meal mutations, barcode guards, step retries, numeric validators, memo comparisons, and weight week/display date behavior.
 
 This pass is **not a claim that all Nutrition defects are fixed**. Remaining work:
 
@@ -147,7 +148,7 @@ Latest run (2026-10-16, after the security pass fixes): `npx tsc --noEmit` clean
 
 Workout baseline at the prior handoff was fully validated: **36 suites, 530 tests**, `npx tsc --noEmit`, Android Expo bundle export, and `git diff --check` passed. The blank-template-name regression was added after an earlier type-check/export run; it was covered by the targeted and full Jest reruns, and the diff check passed afterward.
 
-After the latest changes, the full configured Jest suite passed in the default timezone and in `America/Los_Angeles`: **48 suites, 565 tests** in each run. `npx tsc --noEmit`, Android Expo bundle export, and `git diff --check` also passed. This validates the current changes, but it does not complete the broader app-flow review.
+After the 2026-10-16 Nutrition follow-up, the full configured Jest suite passed in the default timezone and in `America/Los_Angeles`: **50 suites, 577 tests** in each run. `npx tsc --noEmit`, Android Expo bundle export, and `git diff --check` also passed. This validates the current changes, but it does not complete the broader app-flow review.
 
 There is no component or navigation test harness. The test results establish service, handler, and utility behavior, not actual screen interactions on a device. Native builds and device-only behavior were not exercised here.
 
