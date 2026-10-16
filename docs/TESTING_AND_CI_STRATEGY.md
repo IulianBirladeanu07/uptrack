@@ -9,11 +9,10 @@ This is a staged proposal, not a claim that the proposed tooling is already inst
 ## Current baseline
 
 - Jest is the unit-test runner. `jest.config.js` explicitly includes tests under selected `src/features` and `src/shared` folders.
-- GitHub Actions runs `npm test -- --ci` and `npx tsc --noEmit` on pushes and pull requests targeting `master` in `.github/workflows/tests.yml`.
+- GitHub Actions runs `npm test -- --ci --coverage` and `npx tsc --noEmit` on pushes and pull requests targeting `master` in `.github/workflows/tests.yml`.
 - EAS has `development`, `preview`, and `production` build profiles in `eas.json`.
 - There is no configured lint script, React Native component-test setup, or mobile end-to-end suite in the existing package/workflow configuration.
-- The recent coverage run over `src/**/*.ts` measured 65.12% lines, 59.82% branches, 65.01% statements, and 64.39% functions. It does not include `.tsx` screens/components; treat it as a partial baseline, not whole-app coverage.
-- Existing changes to Jest tests, `WeightService`, and the Nutrition handoff may be present in the worktree. Review and preserve them; do not stage or revert unrelated work.
+- The current local run (`npm test -- --ci --coverage`, 2026-10-16) passed 52 suites and 615 tests. Coverage for the configured `src/**/*.{js,ts}` scope was 67.63% lines, 61.44% branches, 67.04% functions, and 67.67% statements. `.tsx` screens/components are not instrumented; this is not whole-app coverage. CI reports this coverage and uploads the report as an artifact; it does not enforce a threshold.
 
 ## Test pyramid
 
@@ -82,13 +81,13 @@ Exercise the happy path and at least one meaningful failure/recovery path for ea
 
 ## CI/CD roadmap
 
-### Phase 1 — strengthen existing PR checks
+### Phase 1 — strengthen existing PR checks (complete)
 
 Keep CI fast and deterministic. The existing workflow already runs Jest and TypeScript.
 
-- Add a coverage summary artifact or PR report after confirming the output format and runtime.
-- Collect coverage for production code only; exclude test files, generated files, and style-only modules from any gate.
-- Start with informational per-file/aggregate coverage. Do not fail PRs for existing uncovered code.
+- CI runs Jest with coverage, adds an informational coverage table to the job summary, and uploads the report for 14 days.
+- Coverage includes configured JavaScript and TypeScript source files, excluding tests, declarations, styles, and type-only files. It does not instrument `.tsx`.
+- No coverage threshold is enforced; do not fail PRs for existing uncovered code.
 - Add a modest threshold only after a stable baseline exists; enforce changed/high-risk code or prevent coverage from falling, rather than requiring a sudden repo-wide percentage jump.
 - Add linting only after the team chooses and configures a lint tool and cleans or scopes baseline findings; do not add a failing `npm run lint` placeholder.
 
@@ -124,12 +123,10 @@ Track whether tests protect workflows, not only how many lines execute:
 
 ## Suggested order
 
-1. Preserve and validate current in-progress tests and fixes.
-2. Produce a current per-file coverage report and list uncovered high-risk branches.
-3. Add service/context regression tests for account/cache boundaries and persistence failures.
-4. Pilot component interaction tests.
-5. Pilot a small Maestro journey on a development build.
-6. Add coverage artifacts and non-regression thresholds to CI.
-7. Add approved EAS preview automation; consider production automation only after preview checks are reliable.
+1. Preserve and validate current tests and fixes; prioritize uncovered high-risk branches and account/cache boundaries.
+2. Pilot component interaction tests for a user-visible error/retry or save flow.
+3. Pilot a small Maestro journey on a development build.
+4. Consider a modest changed-code or non-regression coverage threshold after a stable baseline exists.
+5. Add approved EAS preview automation; consider production automation only after preview checks are reliable and release approvals are explicit.
 
 At each step, keep the change small, run the targeted test first, then the full Jest suite and `npx tsc --noEmit`. Do not commit or push unless explicitly requested.

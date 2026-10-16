@@ -9,6 +9,7 @@ module.exports = {
     userInterfaceStyle: "light",
     plugins: [
       "expo-font",
+      "expo-system-ui",
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
       "react-native-health",
@@ -17,8 +18,9 @@ module.exports = {
         "expo-build-properties",
         {
           android: {
-            newArchEnabled: true,
+            compileSdkVersion: 36,
             minSdkVersion: 26,
+            targetSdkVersion: 36,
           },
           ios: {
             useFrameworks: "static",
