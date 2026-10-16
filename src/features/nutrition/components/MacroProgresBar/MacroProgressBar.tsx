@@ -20,7 +20,7 @@ const MacroProgressBar = memo(({
   hasTargets,
   testID
 }: MacroProgressBarProps) => {
-  const { safeValue, safeMaxValue, hasTarget, displayMax, fillPercentage } = getMacroBarState(value, maxValue, hasTargets, label);
+  const { safeValue, safeMaxValue, hasTarget, fillPercentage } = getMacroBarState(value, maxValue, hasTargets);
   const progressColor = hasTarget ? color : '#64748B';
   const opacity = hasTarget ? 1 : 0.7;
 
@@ -32,7 +32,7 @@ const MacroProgressBar = memo(({
       <View 
         style={styles.macroProgressContainer}
         accessibilityRole="progressbar"
-        accessibilityValue={{ min: 0, max: displayMax, now: safeValue }}
+        accessibilityValue={hasTarget ? { min: 0, max: safeMaxValue, now: safeValue } : undefined}
       >
         <View 
           style={[
