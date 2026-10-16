@@ -22,4 +22,14 @@ module.exports = {
     '^.+\\.[jt]s$': ['babel-jest', { presets: [['@babel/preset-env', { targets: { node: 'current' } }], '@babel/preset-typescript'] }],
   },
   clearMocks: true,
+  collectCoverageFrom: [
+    'src/**/*.{js,ts}',
+    '!src/**/*.test.{js,ts}',
+    '!src/**/*.d.ts',
+    '!src/**/*Style.ts',
+    '!src/**/*Styles.ts',
+    '!src/**/types.ts',
+    '!src/**/*.types.ts',
+  ],
+  coverageReporters: ['text-summary', 'json-summary', 'lcov'],
 };

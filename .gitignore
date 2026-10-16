@@ -87,3 +87,4 @@ yarn-error.*
 
 .vscode
 service-account-key.json
+coverage/
