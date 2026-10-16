@@ -375,24 +375,18 @@ export const addTemplateToFirestore = async (templateData: TemplateInput, templa
     );
     const templatesSnapshot = await getDocs(templatesQuery);
     assertTemplateNameAvailable(templatesSnapshot.docs, normalizedTemplateName);
+    const idInUse = templatesSnapshot.docs.some(template => template.id === formattedTemplateName);
     const userDocRef = doc(db, 'users', user.uid);
     const nameKey = getTemplateNameKey(normalizedTemplateName);
     let savedTemplateId = formattedTemplateName;
     await runTransaction(db, async transaction => {
-      const [userDoc, existingTemplate] = await Promise.all([
-        transaction.get(userDocRef),
-        transaction.get(templateDocRef),
-      ]);
+      const userDoc = await transaction.get(userDocRef);
       const nameRegistry = getTemplateNameRegistry(userDoc.exists() ? userDoc.data() : undefined);
       if (nameRegistry[nameKey]) throw new TemplateNameAlreadyExistsError();
 
       let targetRef = templateDocRef;
       savedTemplateId = formattedTemplateName;
-      if (existingTemplate.exists()) {
-        const existingName = existingTemplate.data()?.['templateName'];
-        if (typeof existingName !== 'string' || getTemplateNameKey(existingName) === nameKey) {
-          throw new TemplateNameAlreadyExistsError();
-        }
+      if (idInUse || Object.values(nameRegistry).includes(formattedTemplateName)) {
         savedTemplateId = `${doc(collection(db, 'workoutTemplates')).id}_${user.uid}`;
         targetRef = doc(db, 'workoutTemplates', savedTemplateId);
       }

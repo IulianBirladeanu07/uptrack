@@ -148,13 +148,15 @@ describe('sendWorkoutDataToFirestore', () => {
     consoleError.mockRestore();
   });
 
-  test('rejects a template created concurrently after the duplicate-name query', async () => {
+  test('rejects a template name reserved concurrently after the duplicate-name query', async () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
     const transactionSet = jest.fn();
     (runTransaction as jest.Mock).mockImplementationOnce(async (_db, callback) => callback({
       get: jest.fn().mockImplementation(async ref => ({
-        exists: () => ref.collection === 'workoutTemplates',
-        data: () => ref.collection === 'workoutTemplates' ? { templateName: 'Push/Pull' } : undefined,
+        exists: () => ref.collection === 'users',
+        data: () => ref.collection === 'users'
+          ? { workoutTemplateNames: { 'push%2Fpull': 'push%2Fpull_user-1' } }
+          : undefined,
       })),
       set: transactionSet,
       update: jest.fn(),
@@ -168,11 +170,49 @@ describe('sendWorkoutDataToFirestore', () => {
     consoleError.mockRestore();
   });
 
-  test('creates a template under a new id when the deterministic id belongs to a renamed template', async () => {
+  test('does not read the template document inside the creation transaction', async () => {
+    await addTemplateToFirestore(
+      { templateName: 'Push Day', exercises: [] },
+      'Push Day',
+    );
+
+    expect(mockTransaction.get).toHaveBeenCalledTimes(1);
+    expect(mockTransaction.get).toHaveBeenCalledWith({ collection: 'users', id: 'user-1' });
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      { collection: 'workoutTemplates', id: 'push%20day_user-1' },
+      expect.objectContaining({ templateName: 'Push Day', uid: 'user-1' }),
+    );
+  });
+
+  test('creates a template under a new id when the registry holds the deterministic id for a renamed template', async () => {
     mockTransaction.get.mockImplementation(async ref => ({
-      exists: () => ref.collection === 'workoutTemplates',
-      data: () => ref.collection === 'workoutTemplates' ? { templateName: 'Pull Day' } : undefined,
+      exists: () => ref.collection === 'users',
+      data: () => ref.collection === 'users'
+        ? { workoutTemplateNames: { 'pull%20day': 'push%20day_user-1' } }
+        : undefined,
     }));
+
+    await expect(addTemplateToFirestore(
+      { templateName: 'Push Day', exercises: [] },
+      'Push Day',
+    )).resolves.toBe('auto-template-id_user-1');
+
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      { collection: 'users', id: 'user-1' },
+      {
+        workoutTemplateNames: {
+          'pull%20day': 'push%20day_user-1',
+          'push%20day': 'auto-template-id_user-1',
+        },
+      },
+      { mergeFields: ['workoutTemplateNames'] },
+    );
+  });
+
+  test('creates a template under a new id when the deterministic id belongs to a renamed template', async () => {
+    (getDocs as jest.Mock).mockResolvedValueOnce({
+      docs: [{ id: 'push%20day_user-1', data: () => ({ templateName: 'Pull Day' }) }],
+    });
 
     await expect(addTemplateToFirestore(
       { templateName: 'Push Day', exercises: [] },
