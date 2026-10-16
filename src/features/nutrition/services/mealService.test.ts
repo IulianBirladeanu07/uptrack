@@ -1,14 +1,90 @@
-jest.mock('firebase/firestore', () => ({}));
+jest.mock('firebase/firestore', () => ({
+  collection: jest.fn(() => ({ withConverter: jest.fn(() => ({})) })),
+  doc: jest.fn(() => ({ withConverter: jest.fn(() => ({})) })),
+  getDoc: jest.fn(),
+  getDocs: jest.fn(),
+  orderBy: jest.fn(() => ({})),
+  query: jest.fn(() => ({})),
+  where: jest.fn(() => ({})),
+}));
 jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 
-import { consolidateFoodData, buildAddUndo, applyAddUndo, normalizeLoggedFoods } from './mealService';
+import { getDoc, getDocs } from 'firebase/firestore';
+import {
+  consolidateFoodData,
+  buildAddUndo,
+  applyAddUndo,
+  normalizeLoggedFoods,
+  fetchMealsForDate,
+  fetchRawMealsForDate,
+  fetchLast30DaysMeals,
+} from './mealService';
+
+const validFood = { id: 'food-1', productName: 'Oats', calories: 100 };
 
 describe('normalizeLoggedFoods', () => {
   test('filters null and malformed meal entries', () => {
-    const validFood = { id: 'food-1', calories: 100 };
-
     expect(normalizeLoggedFoods([validFood, null, undefined, {}, 'invalid', []])).toEqual([validFood]);
     expect(normalizeLoggedFoods(null)).toEqual([]);
+  });
+});
+
+describe('meal reads', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('fetchMealsForDate decorates valid foods and drops malformed entries', async () => {
+    const timestamp = { toDate: jest.fn() };
+    getDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        breakfast: [validFood, null, { calories: 5 }],
+        lunch: ['malformed'],
+        dinner: [{ id: 'food-2', calories: 200 }],
+        snacks: null,
+        timestamp,
+      }),
+    });
+
+    await expect(fetchMealsForDate('user-1', '2026-10-16')).resolves.toEqual({
+      breakfast: [{ ...validFood, mealType: 'breakfast', timestamp }],
+      lunch: [],
+      dinner: [{ id: 'food-2', calories: 200, mealType: 'dinner', timestamp }],
+      snacks: [],
+    });
+  });
+
+  test('fetchRawMealsForDate returns empty slots for a missing day', async () => {
+    getDoc.mockResolvedValue({ exists: () => false });
+
+    await expect(fetchRawMealsForDate('user-1', '2026-10-16')).resolves.toEqual({
+      breakfast: [],
+      lunch: [],
+      dinner: [],
+      snacks: [],
+    });
+  });
+
+  test('fetchLast30DaysMeals only returns meal groups containing valid foods', async () => {
+    getDocs.mockResolvedValue({
+      docs: [
+        {
+          data: () => ({
+            date: '2026-10-15',
+            breakfast: [validFood, null],
+            lunch: [{ calories: 50 }],
+            dinner: [],
+            snacks: [{ id: 'food-2', calories: 25 }],
+          }),
+        },
+      ],
+    });
+
+    await expect(fetchLast30DaysMeals('user-1')).resolves.toEqual([
+      { date: '2026-10-15', mealType: 'breakfast', foods: [validFood] },
+      { date: '2026-10-15', mealType: 'snacks', foods: [{ id: 'food-2', calories: 25 }] },
+    ]);
   });
 });
 

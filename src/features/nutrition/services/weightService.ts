@@ -41,7 +41,8 @@ export class WeightService {
         if (!data) return false;
         const cacheTime = new Date(data.lastWeightUpdate || 0).getTime();
         if (!cacheTime) return false;
-        return Date.now() - cacheTime < maxAgeMs;
+        const age = Date.now() - cacheTime;
+        return age >= 0 && age < maxAgeMs;
     }
 
     static async getUserWeightData(userId: string): Promise<UserData | null> {
