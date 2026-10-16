@@ -53,6 +53,7 @@ module.exports = {
         backgroundColor: "#ffffff",
       },
       package: "com.iulianbirladeanu.uptrack",
+      allowBackup: false,
       versionCode: 3,
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
     },
