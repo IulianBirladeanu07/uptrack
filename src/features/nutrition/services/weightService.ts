@@ -90,48 +90,37 @@ export class WeightService {
     }
 
     static async getWeightDisplayData(userId: string, selectedDate: DateInput = new Date()): Promise<WeightDisplayData> {
-        try {
-            const userData = await this.getUserWeightData(userId);
-            if (!userData || !userData.weightIns) {
-                return {
-                    currentWeight: userData?.currentWeight || null,
-                    weeklyAverage: null,
-                    lastWeekAverage: null,
-                    weeklyTrend: null,
-                    weighInCount: 0,
-                };
-            }
-
-            const sortedWeeks = [...userData.weightIns]
-                .sort((a, b) => b.weekStart.localeCompare(a.weekStart));
-
-            const weekStartDate = this.getLocalWeekStartKey(selectedDate);
-            const currentIndex = sortedWeeks.findIndex(entry => entry.weekStart === weekStartDate);
-
-            const currentWeek = currentIndex >= 0 ? sortedWeeks[currentIndex] : null;
-            const lastWeek    = currentIndex >= 0 ? sortedWeeks[currentIndex + 1] : null;
-
-            const weeklyTrend = currentWeek?.average != null && lastWeek?.average != null
-                ? parseFloat((currentWeek.average - lastWeek.average).toFixed(2))
-                : null;
-
+        const userData = await this.getUserWeightData(userId);
+        if (!userData || !userData.weightIns) {
             return {
-                currentWeight: userData.currentWeight || null,
-                weeklyAverage: currentWeek?.average || null,
-                lastWeekAverage: lastWeek?.average || null,
-                weeklyTrend,
-                weighInCount: currentWeek ? Object.keys(currentWeek.days || {}).length : 0,
-            };
-        } catch (error) {
-            console.error('Error getting weight display data:', error);
-            return {
-                currentWeight: null,
+                currentWeight: userData?.currentWeight || null,
                 weeklyAverage: null,
                 lastWeekAverage: null,
                 weeklyTrend: null,
                 weighInCount: 0,
             };
         }
+
+        const sortedWeeks = [...userData.weightIns]
+            .sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+
+        const weekStartDate = this.getLocalWeekStartKey(selectedDate);
+        const currentIndex = sortedWeeks.findIndex(entry => entry.weekStart === weekStartDate);
+
+        const currentWeek = currentIndex >= 0 ? sortedWeeks[currentIndex] : null;
+        const lastWeek    = currentIndex >= 0 ? sortedWeeks[currentIndex + 1] : null;
+
+        const weeklyTrend = currentWeek?.average != null && lastWeek?.average != null
+            ? parseFloat((currentWeek.average - lastWeek.average).toFixed(2))
+            : null;
+
+        return {
+            currentWeight: userData.currentWeight || null,
+            weeklyAverage: currentWeek?.average || null,
+            lastWeekAverage: lastWeek?.average || null,
+            weeklyTrend,
+            weighInCount: currentWeek ? Object.keys(currentWeek.days || {}).length : 0,
+        };
     }
 }
 
