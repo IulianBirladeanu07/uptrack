@@ -50,7 +50,12 @@ module.exports = {
     android: {
       jsEngine: "hermes",
       permissions: ["CAMERA", "android.permission.health.READ_STEPS"],
-      blockedPermissions: ["android.permission.RECORD_AUDIO"],
+      blockedPermissions: [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+      ],
       adaptiveIcon: {
         foregroundImage: "./assets/uptrack-icon.png",
         backgroundColor: "#ffffff",
