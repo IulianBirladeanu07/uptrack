@@ -177,15 +177,15 @@ describe('sendWorkoutDataToFirestore', () => {
     await expect(addTemplateToFirestore(
       { templateName: 'Push Day', exercises: [] },
       'Push Day',
-    )).resolves.toBe('auto-template-id');
+    )).resolves.toBe('auto-template-id_user-1');
 
     expect(mockTransaction.set).toHaveBeenCalledWith(
       { collection: 'users', id: 'user-1' },
-      { workoutTemplateNames: { 'push%20day': 'auto-template-id' } },
+      { workoutTemplateNames: { 'push%20day': 'auto-template-id_user-1' } },
       { mergeFields: ['workoutTemplateNames'] },
     );
     expect(mockTransaction.set).toHaveBeenCalledWith(
-      { collection: 'workoutTemplates', id: 'auto-template-id' },
+      { collection: 'workoutTemplates', id: 'auto-template-id_user-1' },
       expect.objectContaining({ templateName: 'Push Day', uid: 'user-1' }),
     );
   });

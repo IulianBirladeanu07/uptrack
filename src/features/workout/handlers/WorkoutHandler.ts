@@ -393,8 +393,8 @@ export const addTemplateToFirestore = async (templateData: TemplateInput, templa
         if (typeof existingName !== 'string' || getTemplateNameKey(existingName) === nameKey) {
           throw new TemplateNameAlreadyExistsError();
         }
-        targetRef = doc(collection(db, 'workoutTemplates'));
-        savedTemplateId = targetRef.id;
+        savedTemplateId = `${doc(collection(db, 'workoutTemplates')).id}_${user.uid}`;
+        targetRef = doc(db, 'workoutTemplates', savedTemplateId);
       }
 
       nameRegistry[nameKey] = savedTemplateId;
