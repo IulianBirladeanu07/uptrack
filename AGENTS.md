@@ -110,10 +110,10 @@ Firestore. Every user-data query filters on a `uid` field or uses a uid-based do
 
 | Collection | Document ID | Contents |
 |---|---|---|
-| `users` | uid | Profile, plan targets, `weightIns`, `dailySteps`, `weeklyNutrition`, `activeSplitId`, `rotationStartDate`. Many modules write here with `setDoc(..., { merge: true })`. |
+| `users` | uid | Profile, plan targets, `weightIns`, `dailySteps`, `weeklyNutrition`, `activeSplitId`, `rotationStartDate`, `workoutTemplateNames` (per-user template name registry). Many modules write here with `setDoc(..., { merge: true })`. |
 | `meals` | `{uid}_{YYYY-MM-DD}`, local date | One document per day |
 | `workoutHistory` | auto | Finished workouts, `uid` field |
-| `workoutTemplates` | `{templateName}_{uid}` | `uid` field |
+| `workoutTemplates` | `{encodeURIComponent(lowercased name)}_{uid}`, or `{autoId}_{uid}` when that id belongs to a renamed template | `uid` field. The create rule requires ids ending in `_{uid}`. |
 | `workoutSplits` | auto | `uid` field. `schedule` is keyed by weekday names, or `"1"` to `"n"` for rotation splits. Today's rotation day is the whole days since `users.rotationStartDate`, mod n, plus 1 (`workout/utils/splitSchedule.ts`). |
 | `measurements` | auto | `uid` field |
 | `exercises` | muscle group | Shared catalog. Clients only read it. |
@@ -133,7 +133,7 @@ AsyncStorage:
 | `meal_cache_v2_{uid}`, `user_{uid}`, `home_*_{uid}` | Per user |
 | `cached_splits`, `@food_recent_searches`, `@recent_searches` | Device-wide, removed on sign-out in `AuthContext.tsx` |
 | `exercises_cache_v3`, `exercise_images_cache` | Device-wide copy of the shared catalog. Never holds custom exercises. |
-| `activeWorkout` | Device-wide and never cleared, so it leaks across accounts (SEC-07) |
+| `activeWorkout_{uid}` | Per user. The legacy device-wide `activeWorkout` key is removed on user change (SEC-07) |
 | `auth_token` | Holds the uid. Written, never read. |
 
 New per-user data needs the uid in its key, or an entry in the sign-out `multiRemove` in `AuthContext.tsx`.
@@ -173,6 +173,7 @@ Dates:
 - PowerShell `>` writes UTF-16. Use `git diff --output=<file>` or `Out-File -Encoding utf8` for patches and logs.
 - The weekly evaluation writes calorie and macro targets to `users/{uid}`. It runs at app start (`FoodContext.js`) and after the first weigh-in of a new week (`weightTrackerUtils.ts`), at most once every 6 days, and never when `autoAdjustEnabled === false`. Read the notes in `audit/PLAN.md` before changing it.
 - `workoutService` (`WorkoutService.js`) is a singleton. Its in-memory workout survives sign-out.
+- Firestore rules in `audit/rules/firestore.rules` deny reading a document that does not exist wherever the read rule uses `resource.data` (`workoutHistory`, `measurements`, `workoutTemplates`, `workoutSplits`, `customExercises`). Never `getDoc` or `transaction.get` an id that may be missing in those collections; check existence with a uid-filtered query instead. `users`, `meals` and `exercises` allow it. Jest mocks cannot show this, so compare new Firestore access with the rules by reading them.
 - Native configuration goes through `app.config.js` or `plugins/`, never through edits to generated `android/` or `ios/` folders.
 
 ## Open work
