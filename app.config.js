@@ -19,7 +19,7 @@ module.exports = {
         {
           android: {
             compileSdkVersion: 36,
-            minSdkVersion: 26,
+            minSdkVersion: 30,
             targetSdkVersion: 36,
           },
           ios: {

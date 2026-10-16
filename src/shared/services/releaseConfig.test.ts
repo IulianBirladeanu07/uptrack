@@ -16,14 +16,14 @@ describe('Android release configuration', () => {
     expect(expo.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it('targets API 36 with minimum SDK 26', () => {
+  it('targets API 36 with minimum SDK 30', () => {
     const buildProperties = expo.plugins.find(
       (plugin: unknown) => Array.isArray(plugin) && plugin[0] === 'expo-build-properties',
     );
     expect(buildProperties[1].android).toMatchObject({
       compileSdkVersion: 36,
       targetSdkVersion: 36,
-      minSdkVersion: 26,
+      minSdkVersion: 30,
     });
   });
 
