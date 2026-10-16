@@ -60,6 +60,8 @@ export type FoodContextValue = {
     loading:                  boolean;
     error:                    string | null;
     initialLoadComplete:      boolean;
+    initializationError:      string | null;
+    retryInitialization:      () => void;
     rollingWeekStats:         ReturnType<typeof getCurrentWeekRollingStats>;
     getCaloriesForDateRange:  (startDate: DateInput, endDate: DateInput) => DayCalories[];
     getNutritionForDateRange: (startDate: DateInput, endDate: DateInput) => ({ date: string } & NutritionTotals)[];
@@ -151,6 +153,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     const [loading,             setLoading]             = useState(false);
     const [error,               setError]               = useState<string | null>(null);
     const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+    const [initializationError, setInitializationError] = useState<string | null>(null);
     const [freshMealsLoaded,    setFreshMealsLoaded]    = useState(false);
     const [dailySteps,          setDailySteps]          = useState(0);
     const [stepsVersion,        setStepsVersion]        = useState(0);
@@ -555,6 +558,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
 
         setLoading(true);
         setError(null);
+        setInitializationError(null);
 
         try {
             const cachedMeals = await loadPersistedMealCache(user.uid);
@@ -578,10 +582,12 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                 if (!cachedMeals) setInitialLoadComplete(true);
 
                 persistMealCache(user.uid, last30DaysMeals);
+                setInitializationError(null);
             }
         } catch (err) {
             console.error('[FoodContext] init failed:', err);
             if (isCurrentRequest()) {
+                setInitializationError('Unable to load nutrition data. Check your connection and try again.');
                 handleError(err, 'load application data');
                 initializationRef.current = false;
             }
@@ -589,6 +595,11 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
             if (isCurrentRequest()) setLoading(false);
         }
     }, [updateCurrentDayMeals, handleError]);
+
+    const retryInitialization = useCallback(() => {
+        const user = currentUserRef.current;
+        if (user) void initializeAppData(user);
+    }, [initializeAppData]);
 
     useEffect(() => {
         const checkLearningCompletion = async () => {
@@ -690,6 +701,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                 setCacheVersion(0);
                 setError(null);
                 setInitialLoadComplete(false);
+                setInitializationError(null);
                 setFreshMealsLoaded(false);
                 setLoading(!!user);
             }
@@ -745,6 +757,8 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         loading,
         error,
         initialLoadComplete,
+        initializationError,
+        retryInitialization,
         rollingWeekStats,
         getCaloriesForDateRange,
         getNutritionForDateRange,
@@ -760,7 +774,8 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         remainingCalories, nutritionHookData.dailyNutrition, nutritionHookData.userMacros,
         handleAddMeal, handleDeleteMeal, updateMealInDatabase, updateMealState,
         getTrendData, dailySteps, updateDailySteps, getWeeklyAvgSteps,
-        loading, error, initialLoadComplete, rollingWeekStats, getCaloriesForDateRange,
+        loading, error, initialLoadComplete, initializationError, retryInitialization,
+        rollingWeekStats, getCaloriesForDateRange,
         getNutritionForDateRange, getStepsForDateRange, getMealCache, stepsLoading, stepsError,
         stepsConnected, retryStepsConnection,
     ]);

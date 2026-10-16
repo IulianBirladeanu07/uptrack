@@ -1,6 +1,7 @@
 import { useContext, useMemo } from 'react';
 import { AuthContext } from '../../auth/context/AuthContext';
-import type { FoodItem, NutritionTotals } from '../../../shared/types';
+import type { FoodItem } from '../../../shared/types';
+import { calculateDailyNutrition } from './nutritionTotals';
 
 const useDailyNutrition = (
   breakfastFoods: FoodItem[],
@@ -29,12 +30,7 @@ const useDailyNutrition = (
 
   const dailyNutrition = useMemo(() => {
     const allFoods = [...breakfastFoods, ...lunchFoods, ...dinnerFoods, ...(snacksFoods || [])];
-    return allFoods.reduce<NutritionTotals>((totals, food) => ({
-      calories: totals.calories + (Number(food.calories) || 0),
-      protein: totals.protein + (Number(food.protein) || 0),
-      carbs: totals.carbs + (Number(food.carbohydrates) || 0),
-      fat: totals.fat + (Number(food.fats) || 0),
-    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+    return calculateDailyNutrition(allFoods);
   }, [breakfastFoods, lunchFoods, dinnerFoods, snacksFoods]);
 
   return {

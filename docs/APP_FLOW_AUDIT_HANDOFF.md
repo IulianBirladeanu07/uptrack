@@ -50,16 +50,18 @@ The current Nutrition pass has confirmed and addressed these issues:
 - Queued meal writes now calculate and persist each mutation inside the serialized operation, and perform rollback before releasing the queue to the next mutation.
 - Recent-meal memo comparators include all food presentation fields used by `FoodItem`, including `productName`, `image`, `icon`, and `carbohydrates`.
 - Failed reads for a newly selected Nutrition date now show an explicit alert instead of leaving an apparently empty meal list. Completion and error callbacks are ignored if the user or selected date changed while the request was pending.
-- Focused regression tests cover date helpers and DST, meal-cache ranges/storage, request generations, selected-date read success/failure and stale-result guards, failed edits, serialized meal mutations, barcode guards, step retries, numeric validators, memo comparisons, and weight week/display date behavior.
+- Firestore meal reads now discard null or malformed entries before they reach meal-list state or the recent-meal cache; daily totals also ignore null or undefined entries and treat missing or non-numeric nutrient values as zero.
+- If the initial meal load fails without usable cached data, Nutrition now presents a retry action instead of leaving the screen on an indefinite loading indicator.
+- Focused regression tests cover date helpers and DST, meal-cache ranges/storage, request generations, selected-date read success/failure and stale-result guards, malformed meal normalization, null-safe daily totals, failed edits, serialized meal mutations, barcode guards, step retries, numeric validators, memo comparisons, and weight week/display date behavior.
 
 This pass is **not a claim that all Nutrition defects are fixed**. Remaining work:
 
-1. Continue tracing all remaining Nutrition flows, especially daily totals, account/cache transitions, and the weekly evaluation. Read `audit/PLAN.md` before changing evaluation timing.
+1. Continue tracing all remaining Nutrition flows, especially account/cache transitions and the weekly evaluation. Read `audit/PLAN.md` before changing evaluation timing.
 2. The serving-unit conversion behavior is a product decision. Do not change it without the owner confirming the intended amount/nutrient scaling.
 3. Reconfirm outstanding audit-plan candidates against current code before acting; the plan predates some fixes and contains stale file names/line numbers.
 4. Continue reviewing other flows not covered in this pass and add focused tests for confirmed defects.
 
-Known test limitation: Jest has no component/navigation harness. The new tests verify pure utilities and service/helper behavior, not end-to-end screen interactions on a device. Test device-only flows separately.
+Known test limitation: Jest has no component/navigation harness. The new tests verify pure utilities and service/helper behavior, not end-to-end screen interactions on a device. The new initial-load retry UI needs a device check. Test device-only flows separately.
 
 ## Post-commit review (2026-10-15)
 

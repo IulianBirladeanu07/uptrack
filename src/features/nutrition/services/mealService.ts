@@ -10,6 +10,15 @@ const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
 
 const num = (v: unknown): number => Number(v) || 0;
 
+const isRecord = (food: unknown): food is Record<string, unknown> =>
+    food !== null && typeof food === 'object' && !Array.isArray(food);
+
+const isLoggedFood = (food: unknown): food is LoggedFood =>
+    isRecord(food) && typeof food['id'] === 'string';
+
+export const normalizeLoggedFoods = (foods: unknown): LoggedFood[] =>
+    Array.isArray(foods) ? foods.filter(isLoggedFood) : [];
+
 export const consolidateFoodData = (existingFoods: LoggedFood[], newFoods: LoggedFood[]): LoggedFood[] => {
     const foods = [...existingFoods];
     newFoods.forEach(newFood => {
@@ -79,10 +88,10 @@ export const fetchMealsForDate = async (uid: string, date: string): Promise<Meal
     if (!snap.exists()) return { breakfast: [], lunch: [], dinner: [], snacks: [] };
     const data = snap.data()!;
     return {
-        breakfast: (data.breakfast || []).map(f => ({ ...f, mealType: 'breakfast', timestamp: data.timestamp })),
-        lunch:     (data.lunch     || []).map(f => ({ ...f, mealType: 'lunch',     timestamp: data.timestamp })),
-        dinner:    (data.dinner    || []).map(f => ({ ...f, mealType: 'dinner',    timestamp: data.timestamp })),
-        snacks:    (data.snacks    || []).map(f => ({ ...f, mealType: 'snacks',    timestamp: data.timestamp })),
+        breakfast: normalizeLoggedFoods(data.breakfast).map(f => ({ ...f, mealType: 'breakfast', timestamp: data.timestamp })),
+        lunch:     normalizeLoggedFoods(data.lunch).map(f => ({ ...f, mealType: 'lunch',     timestamp: data.timestamp })),
+        dinner:    normalizeLoggedFoods(data.dinner).map(f => ({ ...f, mealType: 'dinner',    timestamp: data.timestamp })),
+        snacks:    normalizeLoggedFoods(data.snacks).map(f => ({ ...f, mealType: 'snacks',    timestamp: data.timestamp })),
     };
 };
 
@@ -90,10 +99,10 @@ export const fetchRawMealsForDate = async (uid: string, date: string): Promise<M
     const snap = await getDoc(dayDocRef(uid, date));
     const data: Partial<MealsByType> = snap.exists() ? (snap.data() ?? {}) : {};
     return {
-        breakfast: data.breakfast || [],
-        lunch:     data.lunch     || [],
-        dinner:    data.dinner    || [],
-        snacks:    data.snacks    || [],
+        breakfast: normalizeLoggedFoods(data.breakfast),
+        lunch:     normalizeLoggedFoods(data.lunch),
+        dinner:    normalizeLoggedFoods(data.dinner),
+        snacks:    normalizeLoggedFoods(data.snacks),
     };
 };
 
@@ -112,9 +121,10 @@ export const fetchLast30DaysMeals = async (uid: string): Promise<MealGroup[]> =>
     const snap = await getDocs(q);
     return snap.docs.flatMap(d => {
         const data = d.data();
-        return MEAL_TYPES
-            .filter(mealType => (data[mealType] || []).length > 0)
-            .map(mealType => ({ date: data.date, mealType, foods: data[mealType] ?? [] }));
+        return MEAL_TYPES.flatMap(mealType => {
+            const foods = normalizeLoggedFoods(data[mealType]);
+            return foods.length > 0 ? [{ date: data.date, mealType, foods }] : [];
+        });
     });
 };
 
@@ -123,7 +133,7 @@ export const deleteMealItem = async (uid: string, mealType: MealType, foodId: st
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error('Meal document does not exist');
 
-    const updated = ((snap.data()!)[mealType] || []).filter(f => f.id !== foodId);
+    const updated = normalizeLoggedFoods(snap.data()![mealType]).filter(f => f.id !== foodId);
     await updateDoc(ref, { [mealType]: updated });
     return updated;
 };
@@ -139,7 +149,7 @@ export const updateMealItem = async (
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error('Meal document does not exist');
 
-    const updated = ((snap.data()!)[mealType] || []).map(f =>
+    const updated = normalizeLoggedFoods(snap.data()![mealType]).map(f =>
         f.id === foodId ? { ...updatedFood, id: foodId, usageCount: f.usageCount || 1 } : f
     );
     await updateDoc(ref, { [mealType]: updated });

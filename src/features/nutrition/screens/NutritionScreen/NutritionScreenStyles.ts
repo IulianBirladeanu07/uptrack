@@ -15,6 +15,24 @@ const styles = createStyles(() => ({
     justifyContent: 'center',
     padding: spacing[2],
   },
+  initializationError: {
+    color: colors.text.secondary,
+    fontSize: fontSize[14],
+    textAlign: 'center',
+    marginBottom: spacing[4],
+    paddingHorizontal: spacing[8],
+  },
+  retryButton: {
+    paddingHorizontal: spacing[8],
+    paddingVertical: spacing[3],
+    backgroundColor: colors.accent.primary,
+    borderRadius: radius[3],
+  },
+  retryButtonText: {
+    color: colors.accent.buttonText,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
+  },
   dateNavigation: {
     flexDirection: 'row',
     justifyContent: 'center',

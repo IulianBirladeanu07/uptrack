@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { getAuth } from 'firebase/auth';
 import { useFoodContext } from '../../context/FoodContext';
 
@@ -33,6 +33,8 @@ const NutritionScreen = () => {
         dailyNutrition,
         userMacros,
         initialLoadComplete,
+        initializationError,
+        retryInitialization,
         hasTargets,
         learningData,
         dailySteps,
@@ -121,7 +123,20 @@ const NutritionScreen = () => {
         return (
             <ApplicationCustomScreen>
                 <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                    <ActivityIndicator size="large" color="#FF9500" />
+                    {initializationError ? (
+                        <>
+                            <Text style={styles.initializationError}>{initializationError}</Text>
+                            <TouchableOpacity
+                                accessibilityRole="button"
+                                onPress={retryInitialization}
+                                style={styles.retryButton}
+                            >
+                                <Text style={styles.retryButtonText}>Retry</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <ActivityIndicator size="large" color="#FF9500" />
+                    )}
                 </View>
             </ApplicationCustomScreen>
         );

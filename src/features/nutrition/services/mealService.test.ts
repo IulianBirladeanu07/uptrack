@@ -1,7 +1,16 @@
 jest.mock('firebase/firestore', () => ({}));
 jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 
-import { consolidateFoodData, buildAddUndo, applyAddUndo } from './mealService';
+import { consolidateFoodData, buildAddUndo, applyAddUndo, normalizeLoggedFoods } from './mealService';
+
+describe('normalizeLoggedFoods', () => {
+  test('filters null and malformed meal entries', () => {
+    const validFood = { id: 'food-1', calories: 100 };
+
+    expect(normalizeLoggedFoods([validFood, null, undefined, {}, 'invalid', []])).toEqual([validFood]);
+    expect(normalizeLoggedFoods(null)).toEqual([]);
+  });
+});
 
 describe('consolidateFoodData', () => {
   test('appends a new food with quantity defaulting to 1 and usageCount 1', () => {
