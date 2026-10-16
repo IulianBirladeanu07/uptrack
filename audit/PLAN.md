@@ -253,11 +253,6 @@ Both call `evaluateWeeklyProgress` (`learningCompletionService.ts:210-281`):
   - `lastCalorieAdjustment`, `lastAdjustmentDate`, `planConfidence`, `slowEvalPending`.
   - `maintenanceCalories`, `maintenanceUpdatedAt`, `weightChangePlan`.
 
-**Concern (found by reading, not reproduced).** Weekly nutrition snapshots are only created in the weigh-in path. So the app-start trigger can misfire early in a week:
+**Stale-snapshot guard confirmed in current code and tests.** `checkAndRunWeeklyEval` compares the latest `weeklyNutrition.weekStart` with `lastEvaluatedWeek` and returns without evaluating when there is no newer snapshot. Both a weekly adjustment and a maintenance-only refresh persist the latest evaluated week. Accounts with an existing `lastAdjustmentDate` but no marker are left to the weigh-in evaluation path, while accounts without a prior adjustment can evaluate their existing snapshots once. Regression coverage is in `learningCompletionService.test.ts` under `checkAndRunWeeklyEval` → `new snapshot guard`.
 
-1. It runs before the user's first weigh-in of the week.
-2. It evaluates calorie snapshots that the previous evaluation already used.
-3. It sets `lastAdjustmentDate`.
-4. That blocks the weigh-in path for 6 days, so the newest snapshot waits a week to be evaluated.
-
-The fix options are in task 7.
+This prevents the app-start path from consuming an already evaluated snapshot early in a week and delaying evaluation of the next snapshot. The remaining validation is to verify the app-start trigger on a device; do not change evaluation timing unless that check reveals a defect.
