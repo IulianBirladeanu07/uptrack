@@ -17,8 +17,9 @@ The Play account type/creation date and whether this app has already been publis
 ## What is already in place
 
 - CI runs Jest with coverage and `npx tsc --noEmit` on pushes and pull requests to `master`.
-- CI is configured to run six Firestore and Storage security-rule tests against local emulators on PRs and pushes. The weekly scheduled workflow also reports production dependency advisories without failing solely because advisories exist. The workflow has not yet run on GitHub, and this does not test Supabase RLS against a live non-production backend.
-- A separate manual Android preview workflow is configured, gated by a confirmation checkbox and the `eas-preview` GitHub environment's `EXPO_TOKEN`. Whether that GitHub environment/secret exists has not been verified. The workflow has not been triggered and is not a production AAB or Play submission workflow.
+- Push CI passed on GitHub for commits `71a800a` and `72d643d`, including three timezone Jest jobs, TypeScript, Android JS bundling, and Firebase emulator rules. The weekly scheduled dependency audit has not yet run; CI does not test Supabase RLS against a live non-production backend.
+- A separate manual Android preview workflow is gated by a confirmation checkbox and the `eas-preview` GitHub environment's `EXPO_TOKEN`. A first dispatch on `71a800a` uploaded to EAS but failed during remote dependency installation; root `.npmrc` now sets `legacy-peer-deps=true`, and a second preview build on `72d643d` is in progress. This workflow produces a preview APK, not a production AAB or Play submission.
+- `jest-expo` and React Native Testing Library are configured, with a Nutrition initialization error/retry journey test. Native permissions, keyboards, and device behavior still require real-device testing.
 - The latest local verification on 2026-10-16 passed **54 Jest suites / 627 tests** and **6 Firestore/Storage emulator tests**. Coverage for `src/**/*.{js,ts}` was **68.37% lines, 61.47% branches, 67.15% functions, and 68.30% statements**. `.tsx` screens/components are excluded, so this is not whole-app coverage.
 - `npx expo export --platform android` successfully bundled the Android JavaScript app. This verifies Metro bundling only; it does not verify a native build, signed AAB, merged manifest, or device behavior.
 - EAS has development, preview, and production profiles.

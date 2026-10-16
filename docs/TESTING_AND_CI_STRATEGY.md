@@ -12,7 +12,7 @@ This strategy is being implemented in stages. The baseline identifies the checks
 - Firebase Firestore and Storage security rules are tested against local emulators with `npm run test:rules`; Supabase RLS remains untested in an emulator and needs a dedicated non-production Supabase project for integration tests.
 - GitHub Actions runs Jest in three time zones (UTC, America/Los_Angeles and Europe/Bucharest, so day-key bugs on both sides of UTC fail CI; coverage is collected in the UTC run only), `npx tsc --noEmit`, `npx expo export --platform android`, and Firebase emulator security-rule tests on pushes and pull requests targeting `master`. A weekly schedule runs the same checks plus an informational production dependency audit; it does not build or deploy a native app.
 - EAS has `development`, `preview`, and `production` build profiles in `eas.json`.
-- There is no configured lint script, React Native component-test setup, or mobile end-to-end suite in the existing package/workflow configuration.
+- There is no configured lint script or mobile end-to-end suite. React Native Testing Library and the Expo Jest preset are configured, with one Nutrition initialization error/retry screen journey.
 - The current local run (`npm test -- --ci --coverage`, 2026-10-16) passed 54 suites and 627 tests. Coverage for the configured `src/**/*.{js,ts}` scope was 68.37% lines, 61.47% branches, 67.15% functions, and 68.30% statements. `.tsx` screens/components are not instrumented; this is not whole-app coverage. CI reports this coverage and uploads the report as an artifact; it does not enforce a threshold.
 - The local Firebase emulator run (`npm run test:rules`) passed all six Firestore and Storage rule tests after a clean `npm ci --legacy-peer-deps`. It covers user ownership, meal day IDs and query constraints, workout/profile records, shared exercise reads, profile image ownership/type/size, and public catalog image reads.
 
@@ -44,7 +44,7 @@ Prefer focused service/context tests over broad mocks of entire screens. Tests s
 
 ### 3. Component tests: simulate user interaction
 
-Consider adding React Native Testing Library only after checking compatibility with the installed React Native, Expo, Jest, and Babel versions. Pilot on one critical, self-contained screen before expanding.
+The pilot uses React Native Testing Library with the installed React Native, Expo, Jest, and Babel versions. Expand only after the setup remains stable in CI.
 
 Test user-visible contracts rather than component internals:
 
@@ -98,8 +98,8 @@ Keep CI fast and deterministic. The existing workflow already runs Jest and Type
 ### Phase 2 — component tests
 
 - Added a compatible React Native Testing Library and Expo Jest setup.
-- The first pilot covers the Nutrition initialization error and verifies that the Retry button calls the recovery handler.
-- The screen test is included in the existing Jest job; add further journeys only after this setup remains stable in CI.
+- The first pilot covers the Nutrition initialization error, verifies the Retry action, and checks the recovered meal view.
+- The screen test is included in the existing Jest job. Expand coverage after the setup remains stable in CI.
 
 ### Phase 3 — mobile E2E and preview builds
 
@@ -135,8 +135,8 @@ Track whether tests protect workflows, not only how many lines execute:
 ## Suggested order
 
 1. Preserve and validate current tests and fixes; prioritize uncovered high-risk branches and account/cache boundaries.
-2. Pilot component interaction tests for a user-visible error/retry or save flow.
-3. Pilot a small Maestro journey on a development build.
+2. Expand component interaction tests for another high-risk user-visible save or failure/recovery flow.
+3. Pilot a small Maestro journey once the preview build is stable and a dedicated test account/data set is ready.
 4. Consider a modest changed-code or non-regression coverage threshold after a stable baseline exists.
 5. Add approved EAS preview automation; consider production automation only after preview checks are reliable and release approvals are explicit.
 
