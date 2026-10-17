@@ -204,12 +204,18 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Added regression tests for future-only records and mixed past/future entries. This intentionally changes the prior behavior that counted future-dated entries as completed workouts.
 - Updated `countWorkoutEntriesThisWeek` to count only the current local week through `now`; coverage includes later-today and later-this-week records.
 
+### Dashboard weekly overview
+
+- Extracted the Dashboard weekly chart/stat card into `WeeklyOverview.tsx` and its local-week calorie-day and weight-delta projections into `weeklyOverviewModel.ts`. The Dashboard screen now delegates the card; its date boundaries, labels, values, goal colors, and render dependencies remain unchanged.
+- Added model tests for local Monday/Sunday boundaries, hidden future days, calorie defaults, the three-day weight threshold, goal alignment, and rounded-zero changes. `DashboardScreen.tsx` decreased from 691 to 508 lines.
+
 The latest validation was:
 
-- `npx jest --runInBand --ci src/features/workout/utils/workoutHistory.test.ts`: 1 suite / 3 tests passed.
-- `npx jest --runInBand --ci`: 108 suites / 954 tests passed.
+- `npx jest --runInBand --ci src/features/dashboard/screens/DashboardScreen`: 2 suites / 11 tests passed.
+- `npx jest --runInBand --ci`: 109 suites / 959 tests passed.
 - `.\node_modules\.bin\tsc.cmd --noEmit`: passed.
 - `git diff --check`: passed.
+- `npx expo export --platform android --output-dir <temporary directory>`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
 
 ## Repository map
 
@@ -227,8 +233,9 @@ This is a ranked starting point based on the current source inventory, not a man
 
 1. **FoodContext:** meal writes, step flushing, cache-then-fresh initialization loading, selected-date orchestration, auth callback sequencing and background evaluations are extracted and tested. Account reset operations remain owned by the provider; avoid broadening into the separate Nutrition audit.
 2. **Profile follow-ups:** inspect other profile screens only for a cohesive seam; the form-state lifecycle of `ProfileScreen.tsx` is now extracted and tested.
-3. **Workout follow-ups:** `CreateTemplateScreen` list updates, `ExerciseItem` swipe intent, `WorkoutHistoryScreen` grouping/payload/presentation, `CreateSplitScreen` review summaries, WorkoutDetails card stats, WorkoutScreen preview summaries/scheduled-day mapping and deterministic WorkoutTemplateLibrary keys are covered by tests. Any further extraction should begin with inspection and characterization; do not refactor solely for file size.
-4. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
+3. **Dashboard follow-ups:** the weekly overview is now isolated and its date/weight projections are tested; inspect remaining screen-level state and asynchronous loading only for a cohesive, behavior-preserving seam.
+4. **Workout follow-ups:** `CreateTemplateScreen` list updates, `ExerciseItem` swipe intent, `WorkoutHistoryScreen` grouping/payload/presentation, `CreateSplitScreen` review summaries, WorkoutDetails card stats, WorkoutScreen preview summaries/scheduled-day mapping and deterministic WorkoutTemplateLibrary keys are covered by tests. Any further extraction should begin with inspection and characterization; do not refactor solely for file size.
+5. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 
 ## Separate app-flow audit: status and source of truth
 

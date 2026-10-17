@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useMemo, useContext, useCallback, useRef } from 'react';
-import type { ComponentProps } from 'react';
 import { View, ScrollView, TouchableOpacity, Text, ActivityIndicator, Animated } from 'react-native';
 import { Image } from 'expo-image';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth } from 'firebase/auth';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
-import type { FoodContextValue } from '../../../nutrition/context/FoodContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
@@ -25,6 +23,7 @@ import { dirOf } from '../../../progress/utils/progressEngine';
 import { getScheduledDay } from '../../../workout/utils/splitSchedule';
 import type { SplitLike } from '../../../workout/utils/splitSchedule';
 import { styles } from './DashboardScreenStyles';
+import WeeklyOverview from './WeeklyOverview';
 import {
     countWeeklyWorkouts,
     getCompletedToday,
@@ -33,36 +32,12 @@ import {
 } from './dashboardWorkoutSummary';
 
 const SPLITS_CACHE_TTL = 15 * 60 * 1000;
-const MIN_DELTA_DAYS = 3;
 
 type ScheduledWorkout = {
     name: string;
     duration: number;
     exerciseCount: number;
     exercises: unknown[];
-};
-
-type WeightDelta = {
-    text: string;
-    icon: ComponentProps<typeof Ionicons>['name'];
-    bg: string;
-    fg: string;
-};
-
-const toLocalDateKey = (date: Date): string => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-};
-
-const getMonday = (date: Date): Date => {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    d.setDate(d.getDate() + diff);
-    d.setHours(0, 0, 0, 0);
-    return d;
 };
 
 const resolveWorkoutFromSplits = (splits: WorkoutSplit[], activeSplitId: string | null | undefined, rotationStartDate: unknown): ScheduledWorkout | null => {
@@ -270,164 +245,6 @@ const TodayNutrition = ({ calories, targetCalories, macros, macroTargets, onPres
                 ))}
             </View>
         </TouchableOpacity>
-    );
-};
-
-type WeeklyOverviewProps = {
-    rollingStats: FoodContextValue['rollingWeekStats'];
-    weeklyWorkouts: number;
-    targetWorkouts: number;
-    goalDir: number;
-    getCaloriesForDateRange: FoodContextValue['getCaloriesForDateRange'];
-    onWeightPress: () => void;
-    dataReady: boolean;
-};
-
-const WeeklyOverview = ({ rollingStats, weeklyWorkouts, targetWorkouts, goalDir, getCaloriesForDateRange, onWeightPress, dataReady }: WeeklyOverviewProps) => {
-    const weekDays = useMemo(() => {
-        const today = new Date();
-        const monday = getMonday(today);
-        const todayKey = toLocalDateKey(today);
-        const todayEnd = new Date(today);
-        todayEnd.setHours(23, 59, 59, 999);
-
-        const calMap: Record<string, number> = {};
-        const range = getCaloriesForDateRange(monday, todayEnd);
-        range.forEach(d => { calMap[d.date] = d.calories; });
-
-        return Array.from({ length: 7 }, (_, i) => {
-            const day = new Date(monday);
-            day.setDate(monday.getDate() + i);
-            const dateKey = toLocalDateKey(day);
-            const isFuture = dateKey > todayKey;
-            const isToday = dateKey === todayKey;
-            return {
-                dateKey,
-                dayLabel: day.toLocaleDateString('en-US', { weekday: 'short' }),
-                calories: isFuture ? null : (calMap[dateKey] || 0),
-                isToday,
-                isFuture,
-            };
-        });
-    }, [getCaloriesForDateRange, dataReady]);
-
-    const maxCalories = Math.max(...weekDays.filter(d => !d.isFuture).map(d => d.calories || 0), 2500);
-
-    const weightDelta = useMemo<WeightDelta | null>(() => {
-        const { avgWeight, prevAvgWeight, daysLoggedWeight } = rollingStats;
-        if (avgWeight == null || prevAvgWeight == null || daysLoggedWeight < MIN_DELTA_DAYS) return null;
-        const rounded = Math.round((avgWeight - prevAvgWeight) * 10) / 10;
-        if (rounded === 0) return null;
-        const aligned = goalDir !== 0 && Math.sign(rounded) === goalDir;
-        return {
-            text: Math.abs(rounded).toFixed(1),
-            icon: rounded < 0 ? 'arrow-down' : 'arrow-up',
-            bg: aligned ? colors.faded.successAlt : colors.faded.surface,
-            fg: aligned ? colors.accent.success : colors.text.secondary,
-        };
-    }, [rollingStats, goalDir]);
-
-    return (
-        <View style={styles.weeklyCard}>
-            <View style={styles.weeklyCardHeader}>
-                <View style={styles.cardHeader}>
-                    <Ionicons name="trending-up-outline" size={spacing[3]} color={colors.text.secondary} />
-                    <Text style={styles.cardLabel}>THIS WEEK</Text>
-                </View>
-                <Text style={styles.chartTitle}>Daily Calories</Text>
-            </View>
-            <View style={styles.chartContainer}>
-                <View style={styles.chartContent}>
-                    <View style={styles.barsRow}>
-                        {weekDays.map((point, index) => {
-                            const cal = point.calories ?? 0;
-                            const showValue = !point.isFuture && cal > 0;
-                            const share = Math.max(cal > 0 ? (cal / maxCalories) * 100 : 0, 4);
-                            return (
-                                <View key={index} style={styles.barContainer}>
-                                    <View style={{ flex: point.isFuture ? 1 : 100 - share }} />
-                                    <Text style={[
-                                        styles.barValueText,
-                                        point.isToday && styles.barValueTextToday,
-                                        !showValue && styles.barValueHidden,
-                                    ]}>
-                                        {showValue ? Math.round(cal) : 0}
-                                    </Text>
-                                    <View style={[
-                                        styles.bar,
-                                        point.isFuture ? styles.barFuture : { flex: share },
-                                        point.isToday && styles.barToday,
-                                    ]} />
-                                </View>
-                            );
-                        })}
-                    </View>
-                    <View style={styles.daysRow}>
-                        {weekDays.map((point, index) => (
-                            <View key={index} style={styles.dayContainer}>
-                                <Text style={[styles.dayLabel, point.isToday && styles.dayLabelToday]}>
-                                    {point.dayLabel}
-                                </Text>
-                            </View>
-                        ))}
-                    </View>
-                </View>
-            </View>
-            <View style={styles.weeklyGrid}>
-                {[
-                    {
-                        icon: <Ionicons name="flame-outline" size={spacing[5]} color={colors.accent.primary} />,
-                        bg: colors.faded.primary,
-                        value: rollingStats.avgCalories > 0 ? Math.round(rollingStats.avgCalories).toLocaleString() : '--',
-                        label: 'Avg Calories',
-                    },
-                    {
-                        icon: <MaterialCommunityIcons name="scale-bathroom" size={spacing[5]} color={colors.accent.purple} />,
-                        bg: colors.faded.purple,
-                        value: rollingStats.avgWeight ? `${rollingStats.avgWeight.toFixed(1)} kg` : '--',
-                        label: 'Avg Weight',
-                        delta: weightDelta,
-                        onPress: onWeightPress,
-                    },
-                    {
-                        icon: <Ionicons name="walk-outline" size={spacing[5]} color={colors.accent.stepsRed} />,
-                        bg: colors.faded.error,
-                        value: rollingStats.avgSteps > 0 ? `${(rollingStats.avgSteps / 1000).toFixed(1)}k` : '--',
-                        label: 'Avg Steps',
-                    },
-                    {
-                        icon: <Ionicons name="barbell-outline" size={spacing[5]} color={colors.accent.cyan} />,
-                        bg: colors.faded.cyan,
-                        value: `${weeklyWorkouts}/${targetWorkouts}`,
-                        label: 'Workouts',
-                    },
-                ].map((stat, i) => {
-                    const CardComponent = (stat.onPress ? TouchableOpacity : View) as typeof TouchableOpacity;
-                    return (
-                        <CardComponent
-                            key={i}
-                            style={styles.weeklyStatItem}
-                            onPress={stat.onPress}
-                            activeOpacity={stat.onPress ? 0.7 : 1}
-                        >
-                            <View style={[styles.weeklyIconContainer, { backgroundColor: stat.bg }]}>{stat.icon}</View>
-                            <View style={styles.weeklyStatText}>
-                                <View style={styles.weeklyStatValueRow}>
-                                    <Text style={styles.weeklyStatValue}>{stat.value}</Text>
-                                    {stat.delta && (
-                                        <View style={[styles.weeklyBadge, { backgroundColor: stat.delta.bg }]}>
-                                            <Ionicons name={stat.delta.icon} size={spacing[2] + 2} color={stat.delta.fg} />
-                                            <Text style={[styles.weeklyBadgeText, { color: stat.delta.fg }]}>{stat.delta.text}</Text>
-                                        </View>
-                                    )}
-                                </View>
-                                <Text style={styles.weeklyStatLabel}>{stat.label}</Text>
-                            </View>
-                        </CardComponent>
-                    );
-                })}
-            </View>
-        </View>
     );
 };
 
