@@ -10,8 +10,7 @@ import type { StepDisplayHandle } from '../../../shared/components/StepDisplay/S
 import {
     writeMealType, consolidateFoodData, buildAddUndo, applyAddUndo, fetchLast30DaysMeals, fetchRawMealsForDate,
 } from '../services/mealService';
-import { getLocalWeekStart } from '../helpers/weightTrackerUtils';
-import { getRollingWeekStats, checkAndCompleteLearning, calculateLearningStats, checkAndRunWeeklyEval, checkAndBackfillStepsBonus } from '../helpers/learningCompletionService';
+import { checkAndCompleteLearning, calculateLearningStats, checkAndRunWeeklyEval, checkAndBackfillStepsBonus } from '../helpers/learningCompletionService';
 import useDailyNutrition from '../helpers/useDailyNutrition';
 import MealCache from './cache/MealCache';
 import {
@@ -21,6 +20,15 @@ import {
 } from './cache/mealCacheStorage';
 import { AsyncOperationQueue } from './AsyncOperationQueue';
 import { buildCategoryData } from './categoryData';
+import {
+    getCaloriesForDateRange as summarizeCaloriesForDateRange,
+    getCurrentWeekRollingStats,
+    getNutritionForDateRange as summarizeNutritionForDateRange,
+    getStepsForDateRange as summarizeStepsForDateRange,
+    getTrendData as summarizeTrendData,
+    getWeeklyAvgSteps as summarizeWeeklyAvgSteps,
+    type DayCalories,
+} from './nutritionSummaries';
 import { loadSelectedDateMeals } from './selectedDateMealLoad';
 import { formatDate } from '../utils/dateUtils';
 import { isCurrentUserRequest } from '../utils/userRequest';
@@ -28,12 +36,10 @@ import { diffSteps, persistDailySteps, restorePendingSteps } from '../helpers/st
 import type { User } from 'firebase/auth';
 import type {
     DailySteps, DateInput, EnhancedLearningData, FoodCategories, FoodDetailFood, LoggedFood,
-    MealGroup, MealType, MealsByType, NutritionTotals, UserData, WeightInWeek,
+    MealGroup, MealType, MealsByType, NutritionTotals, UserData,
 } from '../../../shared/types';
 
 const REQUIRED_LEARNING_DAYS = 7;
-
-type DayCalories = { date: string; calories: number };
 
 export type FoodContextValue = {
     breakfastFoods:           LoggedFood[];
@@ -81,41 +87,6 @@ export const useFoodContext = () => {
     const context = useContext(FoodContext);
     if (!context) throw new Error('useFoodContext must be used within a FoodProvider');
     return context;
-};
-
-const getCurrentWeekRollingStats = (mealCache: MealCache | null, weightIns?: WeightInWeek[]) => {
-    if (!mealCache) return { avgCalories: 0, avgSteps: 0, avgWeight: null, prevAvgWeight: null };
-
-    const today        = new Date();
-    const weekStartStr = getLocalWeekStart(today);
-    const [sy, sm, sd] = weekStartStr.split('-').map(Number);
-    const weekStartDate = new Date(sy, sm - 1, sd, 0, 0, 0, 0);
-    const todayEnd      = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-
-    const nutritionStats = getRollingWeekStats(mealCache, weekStartDate, todayEnd);
-
-    const prevWeekDate   = new Date(sy, sm - 1, sd - 7);
-    const prevWeekStr    = getLocalWeekStart(prevWeekDate);
-    const weekEntry      = weightIns?.find(w => w.weekStart === weekStartStr);
-    const prevWeekEntry  = weightIns?.find(w => w.weekStart === prevWeekStr);
-    const avgWeight      = weekEntry?.average ?? null;
-    const prevAvgWeight  = prevWeekEntry?.average ?? null;
-    const daysLoggedWeight = weekEntry?.days
-        ? Object.values(weekEntry.days).filter(w => w != null && !isNaN(Number(w))).length
-        : 0;
-
-    return {
-        avgCalories:         nutritionStats.avgCalories,
-        avgProtein:          nutritionStats.avgProtein,
-        avgCarbs:            nutritionStats.avgCarbs,
-        avgFats:             nutritionStats.avgFats,
-        avgSteps:            nutritionStats.avgSteps,
-        avgWeight,
-        prevAvgWeight,
-        daysLoggedNutrition: nutritionStats.daysLoggedNutrition,
-        daysLoggedSteps:     nutritionStats.daysLoggedSteps,
-        daysLoggedWeight,
-    };
 };
 
 export const FoodProvider = ({ children }: { children: ReactNode }) => {
@@ -209,10 +180,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     }, [stepsVersion, selectedDate]);
 
     const getCaloriesForDateRange = useCallback((startDate: DateInput, endDate: DateInput) =>
-        mealCache.current.getDateRange(startDate, endDate).map(({ date, meals }) => ({
-            date,
-            calories: Object.values(meals ?? {}).flat().reduce((sum, food) => sum + (Number(food?.calories) || 0), 0),
-        })),
+        summarizeCaloriesForDateRange(mealCache.current, startDate, endDate),
     []);
 
     useEffect(() => { return () => { mountedRef.current = false; }; }, []);
@@ -309,32 +277,15 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     }, [flushSteps]);
 
     const getWeeklyAvgSteps = useCallback(() => {
-        const endDate   = new Date(selectedDateRef.current);
-        const startDate = new Date(endDate);
-        startDate.setDate(endDate.getDate() - 7);
-        const data          = mealCache.current.getStepsRange(startDate, endDate);
-        const todayKey      = formatDate(selectedDateRef.current);
-        const isToday       = todayKey === formatDate(new Date());
-        const completedDays = isToday ? data.filter(d => d.date !== todayKey) : data;
-        const total         = completedDays.reduce((sum, d) => sum + d.steps, 0);
-        return completedDays.length > 0 ? Math.round(total / completedDays.length) : 0;
+        return summarizeWeeklyAvgSteps(mealCache.current, selectedDateRef.current);
     }, []);
 
     const getNutritionForDateRange = useCallback((startDate: DateInput, endDate: DateInput) =>
-        mealCache.current.getDateRange(startDate, endDate).map(({ date, meals }) => {
-            const foods = Object.values(meals ?? {}).flat();
-            return {
-                date,
-                calories: foods.reduce((s, f) => s + (Number(f?.calories) || 0), 0),
-                protein:  foods.reduce((s, f) => s + (Number(f?.protein)  || 0), 0),
-                carbs:    foods.reduce((s, f) => s + (Number(f?.carbohydrates) || 0), 0),
-                fat:      foods.reduce((s, f) => s + (Number(f?.fats)     || 0), 0),
-            };
-        }),
+        summarizeNutritionForDateRange(mealCache.current, startDate, endDate),
     []);
 
     const getStepsForDateRange = useCallback((startDate: DateInput, endDate: DateInput) =>
-        mealCache.current.getStepsRange(startDate, endDate),
+        summarizeStepsForDateRange(mealCache.current, startDate, endDate),
     []);
 
     const getMealCache = useCallback(() => mealCache.current, []);
@@ -690,16 +641,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     }, [initializeAppData]);
 
     const getTrendData = useCallback((days = 7) => {
-        const endDate   = new Date(selectedDateRef.current);
-        const startDate = new Date(endDate);
-        startDate.setDate(endDate.getDate() - days + 1);
-        const daily   = mealCache.current.getDateRange(startDate, endDate).map(({ date, meals }) => ({
-            date,
-            calories: Object.values(meals ?? {}).flat().reduce((sum, food) => sum + (Number(food?.calories) || 0), 0),
-        }));
-        const total   = daily.reduce((sum, d) => sum + d.calories, 0);
-        const average = daily.length ? total / daily.length : 0;
-        return { daily, total, average };
+        return summarizeTrendData(mealCache.current, selectedDateRef.current, days);
     }, []);
 
     const contextValue = useMemo<FoodContextValue>(() => ({
