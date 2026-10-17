@@ -11,7 +11,7 @@ import ApplicationCustomScreen from '../../../../shared/components/ApplicationCu
 import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
 import { fetchSplitsFromFirestore } from '../../services/workoutSplitService';
 import { WorkoutContext } from '../../context/WorkoutContext';
-import { getScheduledDay, getWeekSchedule, getCycleLength } from '../../utils/splitSchedule';
+import { getWeekSchedule } from '../../utils/splitSchedule';
 import type { SplitLike } from '../../utils/splitSchedule';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { colors, spacing } from '../../../../shared/theme';
@@ -21,12 +21,12 @@ import { getWorkoutHistorySummary } from './workoutHistorySummary';
 import ComingUpCard from './ComingUpCard';
 import type { UpcomingWorkout, WorkoutPreview } from './ComingUpCard';
 import ThisWeekCard from './ThisWeekCard';
-import type { ThisWeekScheduleDay, WorkoutWeekSchedule } from './thisWeekSchedule';
+import type { WorkoutWeekSchedule } from './thisWeekSchedule';
 import MainWorkoutCard from './MainWorkoutCard';
 import type { WorkoutDisplayData } from './MainWorkoutCard';
 import WorkoutPreviewModal from './WorkoutPreviewModal';
+import { buildWorkoutScheduleDisplay } from './workoutScheduleDisplay';
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 type AppNavigation = NativeStackNavigationProp<AuthenticatedStackParamList>;
 const WorkoutScreen = () => {
     const navigation = useNavigation<AppNavigation>();
@@ -77,37 +77,13 @@ const WorkoutScreen = () => {
             };
             setActiveSplit(active);
 
-            const now = new Date();
-            const startDate = userData?.rotationStartDate;
-            const todayData = getScheduledDay(active, now, startDate) as ThisWeekScheduleDay | null;
-
-            const todayExercises = todayData?.exercises ?? [];
-            setTodayWorkout(todayData && todayExercises.length > 0 ? {
-                name: todayData.templateName ?? 'Workout',
-                duration: todayData.duration ? `${todayData.duration} min` : '45 min',
-                exercises: todayExercises,
-            } : null);
-
-            const upcoming: UpcomingWorkout[] = [];
-            const horizon = Math.max(13, getCycleLength(active));
-            for (let i = 1; i <= horizon && upcoming.length < 4; i++) {
-                const futureDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-                const w = getScheduledDay(active, futureDate, startDate) as ThisWeekScheduleDay | null;
-                if (!w) continue;
-                const exercises = w.exercises ?? [];
-
-                if (exercises.length > 0) {
-                    upcoming.push({
-                        name: w.templateName ?? 'Workout',
-                        day: DAY_LABELS[futureDate.getDay()],
-                        exercises,
-                        duration: w.duration ? `${w.duration} min` : '45 min',
-                        isRest: false,
-                    });
-                }
-            }
-
-            setUpcomingWorkouts(upcoming);
+            const scheduleDisplay = buildWorkoutScheduleDisplay(
+                active,
+                new Date(),
+                userData?.rotationStartDate,
+            );
+            setTodayWorkout(scheduleDisplay.todayWorkout);
+            setUpcomingWorkouts(scheduleDisplay.upcomingWorkouts);
         } catch (e) {
             console.error('Error loading split:', e);
         } finally {
