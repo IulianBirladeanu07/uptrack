@@ -6,7 +6,7 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Previously pushed Workout refactoring batches are included in `f8d875f test: cover rotation workout schedule previews`. The current uncommitted behavior fix excludes future-dated history from completed-workout summaries; verify `git log --oneline -10` and `git status --short --branch` before continuing.
+- The future-dated completion-summary fix was published in `8cbd45f fix: ignore future workouts in completion summaries`; the weekly Workout count follow-up is recorded below.
 - Three patch files mentioned in an earlier handoff (`0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`) are not present in this checkout at the current base commit.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
@@ -123,7 +123,7 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Moved the Dashboard's weekly workout count and latest workout completed today into `src/features/dashboard/screens/DashboardScreen/dashboardWorkoutSummary.ts`. `DashboardScreen.tsx` still owns the state and rendering; both calculations retain their original memoization and date-time behavior.
 - Added five tests for the inclusive local Monday boundary, empty history, selecting the latest same-day workout, absent details, and the displayed duration/exercise count. Added Jest discovery for `DashboardScreen`.
 - A deliberate change from `date >= weekStart` to `date > weekStart` made the Monday-boundary test fail before restoring the original comparison.
-- Not changed: the weekly count includes a history entry with a future timestamp if it falls after Monday of the current week. This matches the old implementation; decide separately whether future-dated records should be excluded.
+- The separate `countWorkoutEntriesThisWeek` helper in `src/features/workout/utils/workoutHistory.ts` also excludes timestamps after `now`, keeping the weekly count consistent with the completed-workout summaries.
 
 ### Progress screen model
 
@@ -202,18 +202,14 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 
 - Updated the Dashboard weekly count/today summary and Workout-screen weekly/latest/today summaries to ignore history timestamps after the injected/current `now`.
 - Added regression tests for future-only records and mixed past/future entries. This intentionally changes the prior behavior that counted future-dated entries as completed workouts.
+- Updated `countWorkoutEntriesThisWeek` to count only the current local week through `now`; coverage includes later-today and later-this-week records.
 
 The latest validation was:
 
-- `npx jest --runInBand --ci src/features/dashboard/screens/DashboardScreen/dashboardWorkoutSummary.test.ts src/features/workout/screens/WorkoutScreen/workoutHistorySummary.test.ts`: 2 suites / 12 tests passed.
-- `npx jest --runInBand --ci src/features/workout/components/ExerciseHistoryScreen/exerciseHistoryChart.test.ts src/features/workout/components/ExerciseHistoryScreen/exerciseHistoryPresentation.test.ts`: 2 suites / 5 tests passed.
-- `npx jest --runInBand --ci src/features/workout/utils/exerciseHistory.test.ts src/features/workout/utils/workoutMetrics.test.ts`: 2 suites / 15 tests passed.
-- `npx jest --runInBand --ci src/features/workout/screens/WorkoutScreen/workoutScheduleDisplay.test.ts src/features/workout/utils/splitSchedule.test.ts`: 2 suites / 30 tests passed.
+- `npx jest --runInBand --ci src/features/workout/utils/workoutHistory.test.ts`: 1 suite / 3 tests passed.
 - `npx jest --runInBand --ci`: 108 suites / 954 tests passed.
-- `npx tsc --noEmit`: passed using the repository-local TypeScript compiler.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed.
 - `git diff --check`: passed.
-- Android Expo export succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
-- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-exercise-chart-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
 
 ## Repository map
 

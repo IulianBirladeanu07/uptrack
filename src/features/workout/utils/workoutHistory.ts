@@ -11,14 +11,11 @@ export const countWorkoutEntriesThisWeek = (
     weekStart.setDate(weekStart.getDate() + (day === 0 ? -6 : 1 - day));
     weekStart.setHours(0, 0, 0, 0);
 
-    const nextWeekStart = new Date(weekStart);
-    nextWeekStart.setDate(nextWeekStart.getDate() + 7);
-
     return workouts.filter(workout => {
         const timestamp = workout.timestamp?.toDate?.();
         return timestamp instanceof Date &&
             !Number.isNaN(timestamp.getTime()) &&
             timestamp >= weekStart &&
-            timestamp < nextWeekStart;
+            timestamp <= now;
     }).length;
 };
