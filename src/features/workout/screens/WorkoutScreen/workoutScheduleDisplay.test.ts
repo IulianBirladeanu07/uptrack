@@ -72,4 +72,24 @@ describe('buildWorkoutScheduleDisplay', () => {
             upcomingWorkouts: [],
         });
     });
+
+    it('projects upcoming rotation workouts through the cycle wrap', () => {
+        const display = buildWorkoutScheduleDisplay({
+            type: 'rotation',
+            schedule: {
+                1: { templateName: 'Push', exercises: [{ exerciseName: 'Press' }] },
+                2: { templateName: 'Pull', exercises: [{ exerciseName: 'Row' }] },
+                3: { templateName: 'Rest Day', exercises: [] },
+                4: { templateName: 'Legs', exercises: [{ exerciseName: 'Squat' }] },
+            },
+        }, new Date(2026, 9, 6), '2026-10-05');
+
+        expect(display.todayWorkout).toMatchObject({ name: 'Pull' });
+        expect(display.upcomingWorkouts.map(workout => [workout.name, workout.day])).toEqual([
+            ['Legs', 'Thu'],
+            ['Push', 'Fri'],
+            ['Pull', 'Sat'],
+            ['Legs', 'Mon'],
+        ]);
+    });
 });
