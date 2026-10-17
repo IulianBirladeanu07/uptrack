@@ -3,14 +3,12 @@ import {
   collection,
   setDoc,
   getDocs,
-  runTransaction,
   doc,
   query,
   where,
   orderBy,
   limit,
   serverTimestamp,
-  updateDoc,
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
@@ -24,16 +22,13 @@ import type {
   WorkoutExercise,
   WorkoutSet,
   WorkoutSplit,
-  WorkoutTemplate,
-  TemplateInput,
 } from '../types';
 import type { CatalogExercise, ExerciseGroup } from '../../../shared/types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthenticatedStackParamList } from '../../../shared/navigation';
 import { isValidWorkoutSetInput } from '../utils/workoutSetValidation';
-import { getPreviousWorkoutExerciseSets } from '../utils/exerciseHistory';
 import { calculate1RM, getPersonalRecordSetIndexes } from '../utils/workoutMetrics';
-import { countWorkoutEntriesThisWeek } from '../utils/workoutHistory';
+import { fetchTemplatesFromFirestore as fetchWorkoutTemplates } from '../services/workoutTemplateService';
 export { clearSplitsCache, SPLITS_CACHE_KEY } from '../services/splitCache';
 export {
   addSplitToFirestore,
@@ -43,45 +38,23 @@ export {
   updateSplitProgress,
 } from '../services/workoutSplitService';
 export { getExerciseHistory } from '../services/exerciseHistoryService';
+export {
+  countWorkoutsThisWeek,
+  getLastWorkout,
+  getSetsFromLastWorkout,
+} from '../services/workoutHistoryService';
+export {
+  addTemplateToFirestore,
+  deleteTemplateFromFirestore,
+  fetchTemplatesFromFirestore,
+  TemplateNameAlreadyExistsError,
+  updateTemplateInFirestore,
+} from '../services/workoutTemplateService';
 export { calculate1RM, findBestSet, formatBestSet } from '../utils/workoutMetrics';
 
 type AppNav = NativeStackNavigationProp<AuthenticatedStackParamList>;
 type MessageFn = (message: string) => void;
 type FormatTimeFn = (seconds: number) => string;
-
-export class TemplateNameAlreadyExistsError extends Error {
-  constructor() {
-    super('A workout template with this name already exists.');
-    this.name = 'TemplateNameAlreadyExistsError';
-  }
-}
-
-const assertTemplateNameAvailable = (
-  templates: readonly { id: string; data: () => DocumentData }[],
-  templateName: string,
-  currentTemplateId?: string,
-): void => {
-  const normalizedName = templateName.trim().toLowerCase();
-  const duplicate = templates.some(template => {
-    if (template.id === currentTemplateId) return false;
-    const existingName = template.data()['templateName'];
-    return typeof existingName === 'string' &&
-      existingName.trim().toLowerCase() === normalizedName;
-  });
-
-  if (duplicate) throw new TemplateNameAlreadyExistsError();
-};
-
-const getTemplateNameKey = (templateName: string): string =>
-  encodeURIComponent(templateName.trim().toLowerCase());
-
-const getTemplateNameRegistry = (userData: DocumentData | undefined): Record<string, string> => {
-  const registry = userData?.['workoutTemplateNames'];
-  if (!registry || typeof registry !== 'object' || Array.isArray(registry)) return {};
-  return Object.fromEntries(
-    Object.entries(registry).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
-  );
-};
 
 export const sendWorkoutDataToFirestore = async (
     exerciseData: WorkoutExercise[],
@@ -252,224 +225,6 @@ export const handleRepsChange = (text: string, exerciseIndex: number, setIndex: 
     return updatedData;
   } else {
     return exerciseData;
-  }
-};
-
-export const getSetsFromLastWorkout = async (exerciseName: string, muscleGroup?: string): Promise<WorkoutSet[]> => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-    const uid = user.uid;
-
-    const workoutsRef = collection(db, 'workoutHistory');
-    const workoutQuery = query(
-      workoutsRef,
-      where('uid', '==', uid),
-      orderBy('timestamp', 'desc'),
-      limit(50)
-    );
-    const querySnapshot = await getDocs(workoutQuery);
-
-    for (const snap of querySnapshot.docs) {
-      const workoutData = snap.data() as {
-        exercises?: Array<{
-          exerciseName?: string;
-          muscleGroup?: string;
-          sets?: Array<{ weight?: string | number; reps?: string | number }>;
-        }>;
-      };
-      const exercises = workoutData.exercises || [];
-      const previousSets = getPreviousWorkoutExerciseSets(exercises, exerciseName, muscleGroup);
-
-      if (previousSets.length > 0) {
-        return previousSets.map((set, i) => ({
-          id: `${exerciseName}-${i}`,
-          weight: set.weight !== undefined ? String(set.weight) : '',
-          reps: set.reps !== undefined ? String(set.reps) : '',
-          isValidated: false,
-          repsModified: false,
-        }));
-      }
-    }
-    
-    return [];
-  } catch (error) {
-    console.error('Error retrieving sets from last workout:', (error as Error).message);
-    return [];
-  }
-};
-
-export const countWorkoutsThisWeek = async (): Promise<number> => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-
-    
-    const uid = user.uid;
-
-    const workoutsRef = collection(db, 'workoutHistory');
-    const workoutsQuery = query(workoutsRef, where('uid', '==', uid));
-    const querySnapshot = await getDocs(workoutsQuery);
-    return countWorkoutEntriesThisWeek(querySnapshot.docs.map(workout =>
-      workout.data() as { timestamp?: { toDate?: () => Date } | null }
-    ));
-  } catch (error) {
-    console.error('Error counting workouts for this week:', (error as Error).message);
-    throw error;
-  }
-};
-
-export const getLastWorkout = async (): Promise<DocumentData | null> => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-
-    
-    const uid = user.uid;
-
-    const workoutsRef = collection(db, 'workoutHistory');
-    const workoutsQuery = query(workoutsRef, where('uid', '==', uid), orderBy('timestamp', 'desc'), limit(1));
-    const querySnapshot = await getDocs(workoutsQuery);
-
-    if (!querySnapshot.empty) {
-      return querySnapshot.docs[0].data() as DocumentData;
-    } else {
-      return null;
-    }
-  } catch (error) {
-    console.error('Error fetching last workout:', (error as Error).message);
-    throw error;
-  }
-};
-
-export const addTemplateToFirestore = async (templateData: TemplateInput, templateName: string): Promise<string> => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-
-    const normalizedTemplateName = templateName.trim();
-    const formattedTemplateName = `${encodeURIComponent(normalizedTemplateName.toLowerCase())}_${user.uid}`;
-
-    const fullTemplateData = {
-      ...templateData,
-      templateName: normalizedTemplateName,
-      uid: user.uid
-    };
-
-    const templateDocRef = doc(db, 'workoutTemplates', formattedTemplateName);
-    const templatesQuery = query(
-      collection(db, 'workoutTemplates'),
-      where('uid', '==', user.uid),
-    );
-    const templatesSnapshot = await getDocs(templatesQuery);
-    assertTemplateNameAvailable(templatesSnapshot.docs, normalizedTemplateName);
-    const idInUse = templatesSnapshot.docs.some(template => template.id === formattedTemplateName);
-    const userDocRef = doc(db, 'users', user.uid);
-    const nameKey = getTemplateNameKey(normalizedTemplateName);
-    let savedTemplateId = formattedTemplateName;
-    await runTransaction(db, async transaction => {
-      const userDoc = await transaction.get(userDocRef);
-      const nameRegistry = getTemplateNameRegistry(userDoc.exists() ? userDoc.data() : undefined);
-      if (nameRegistry[nameKey]) throw new TemplateNameAlreadyExistsError();
-
-      let targetRef = templateDocRef;
-      savedTemplateId = formattedTemplateName;
-      if (idInUse || Object.values(nameRegistry).includes(formattedTemplateName)) {
-        savedTemplateId = `${doc(collection(db, 'workoutTemplates')).id}_${user.uid}`;
-        targetRef = doc(db, 'workoutTemplates', savedTemplateId);
-      }
-
-      nameRegistry[nameKey] = savedTemplateId;
-      transaction.set(
-        userDocRef,
-        { workoutTemplateNames: nameRegistry },
-        { mergeFields: ['workoutTemplateNames'] },
-      );
-      transaction.set(targetRef, fullTemplateData);
-    });
-    return savedTemplateId;
-  } catch (error) {
-    console.error('Error adding template data to Firestore:', (error as Error).message);
-    throw error;
-  }
-};
-
-export const fetchTemplatesFromFirestore = async (): Promise<WorkoutTemplate[]> => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-
-    
-    const templatesCollectionRef = collection(db, 'workoutTemplates');
-    const templatesQuery = query(templatesCollectionRef, where("uid", "==", user.uid));
-    const querySnapshot = await getDocs(templatesQuery);
-
-    if (querySnapshot.empty) {
-      console.log('No templates found');
-      return [];
-    }
-
-    const templates: WorkoutTemplate[] = querySnapshot.docs.map(docSnap => ({
-      ...(docSnap.data() as WorkoutTemplate),
-      id: docSnap.id,
-    }));
-
-    return templates;
-  } catch (error) {
-    console.error('Error retrieving user templates from Firestore:', (error as Error).message);
-    throw error;
-  }
-};
-
-export const deleteTemplateFromFirestore = async (templateId: string): Promise<boolean> => {
-  try {
-    if (!templateId) throw new Error('No template ID provided');
-    
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) throw new Error('User not authenticated.');
-
-    const templateRef = doc(db, 'workoutTemplates', templateId);
-    const userDocRef = doc(db, 'users', user.uid);
-    await runTransaction(db, async transaction => {
-      const [userDoc, templateDoc] = await Promise.all([
-        transaction.get(userDocRef),
-        transaction.get(templateRef),
-      ]);
-      const nameRegistry = getTemplateNameRegistry(userDoc.exists() ? userDoc.data() : undefined);
-      const templateName = templateDoc.exists() ? templateDoc.data()['templateName'] : undefined;
-      if (typeof templateName === 'string') {
-        const nameKey = getTemplateNameKey(templateName);
-        if (nameRegistry[nameKey] === templateId) {
-          delete nameRegistry[nameKey];
-          transaction.set(
-            userDocRef,
-            { workoutTemplateNames: nameRegistry },
-            { mergeFields: ['workoutTemplateNames'] },
-          );
-        }
-      }
-      transaction.delete(templateRef);
-    });
-    return true;
-  } catch (error) {
-    console.error('Error deleting template from Firestore:', (error as Error).message);
-    throw error;
   }
 };
 
@@ -841,77 +596,6 @@ export const fetchLastMeasurements = async (): Promise<BodyMeasurements | null> 
   }
 };
 
-export const updateTemplateInFirestore = async (templateId: string, templateData: Partial<TemplateInput>): Promise<string> => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    if (!templateId) {
-      throw new Error('Template ID is required for update');
-    }
-
-    
-    const templateRef = doc(db, 'workoutTemplates', templateId);
-
-    const normalizedTemplateName = templateData.templateName?.trim();
-    if (templateData.templateName !== undefined && !normalizedTemplateName) {
-      throw new Error('Template name cannot be empty');
-    }
-
-    const updateData: Record<string, unknown> = { updatedAt: serverTimestamp() };
-    if (normalizedTemplateName !== undefined) updateData['templateName'] = normalizedTemplateName;
-    if (templateData.exercises !== undefined) updateData['exercises'] = templateData.exercises;
-    if (templateData.note !== undefined) updateData['note'] = templateData.note;
-    if (templateData.duration !== undefined) updateData['duration'] = templateData.duration;
-    if (templateData.preferredDays !== undefined) updateData['preferredDays'] = templateData.preferredDays;
-    if (templateData.workoutType !== undefined) updateData['workoutType'] = templateData.workoutType;
-
-    if (normalizedTemplateName !== undefined) {
-      const templatesQuery = query(
-        collection(db, 'workoutTemplates'),
-        where('uid', '==', user.uid),
-      );
-      const templatesSnapshot = await getDocs(templatesQuery);
-      assertTemplateNameAvailable(templatesSnapshot.docs, normalizedTemplateName, templateId);
-
-      const userDocRef = doc(db, 'users', user.uid);
-      const nameKey = getTemplateNameKey(normalizedTemplateName);
-      await runTransaction(db, async transaction => {
-        const [userDoc, templateDoc] = await Promise.all([
-          transaction.get(userDocRef),
-          transaction.get(templateRef),
-        ]);
-        const nameRegistry = getTemplateNameRegistry(userDoc.exists() ? userDoc.data() : undefined);
-        const existingTemplateName = templateDoc.exists() ? templateDoc.data()['templateName'] : undefined;
-        if (typeof existingTemplateName === 'string') {
-          const previousNameKey = getTemplateNameKey(existingTemplateName);
-          if (nameRegistry[previousNameKey] === templateId) delete nameRegistry[previousNameKey];
-        }
-        if (nameRegistry[nameKey] && nameRegistry[nameKey] !== templateId) {
-          throw new TemplateNameAlreadyExistsError();
-        }
-        nameRegistry[nameKey] = templateId;
-        transaction.set(
-          userDocRef,
-          { workoutTemplateNames: nameRegistry },
-          { mergeFields: ['workoutTemplateNames'] },
-        );
-        transaction.update(templateRef, updateData);
-      });
-    } else {
-      await updateDoc(templateRef, updateData);
-    }
-    return templateId;
-  } catch (error) {
-    console.error('Error updating template:', error);
-    throw error;
-  }
-};
-
 export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
   try {
     const auth = getAuth();
@@ -937,7 +621,7 @@ export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
       id: docSnap.id,
     }));
 
-    const templates = await fetchTemplatesFromFirestore();
+    const templates = await fetchWorkoutTemplates();
     const templateMap = new Map(templates.map(tmpl => [tmpl.id, tmpl]));
 
     splits.forEach(split => {

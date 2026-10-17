@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getSetsFromLastWorkout } from '../handlers/WorkoutHandler';
+import { getSetsFromLastWorkout } from './workoutHistoryService';
 import { isSameExercise } from '../utils/exerciseIdentity';
 import { isValidWorkoutSetInput } from '../utils/workoutSetValidation';
 import type { PersistedWorkoutState, WorkoutExercise, WorkoutListener, WorkoutSet } from '../types';

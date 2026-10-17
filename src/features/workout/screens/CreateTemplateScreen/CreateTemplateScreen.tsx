@@ -29,10 +29,10 @@ import {
   TEMPLATE_STEPS
 } from '../../utils/createWorkoutUtils';
 import {
-  addTemplateToFirestore,
   TemplateNameAlreadyExistsError,
+  addTemplateToFirestore,
   updateTemplateInFirestore,
-} from '../../handlers/WorkoutHandler';
+} from '../../services/workoutTemplateService';
 import type { TemplateExercise } from '../../types';
 import { isSameExercise } from '../../utils/exerciseIdentity';
 

@@ -10,7 +10,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
     mockStore.delete(k);
   }),
 }));
-jest.mock('../handlers/WorkoutHandler', () => ({
+jest.mock('./workoutHistoryService', () => ({
   getSetsFromLastWorkout: (...args) => mockGetSetsFromLastWorkout(...args),
 }));
 

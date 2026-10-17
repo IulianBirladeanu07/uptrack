@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getDocs, collection, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
-import { fetchTemplatesFromFirestore } from '../handlers/WorkoutHandler';
+import { fetchTemplatesFromFirestore } from '../services/workoutTemplateService';
 import { workoutService } from '../services/WorkoutService';
 import { workoutTimer } from '../services/WorkoutTimerService';
 import type { PersistedWorkoutState } from '../types';

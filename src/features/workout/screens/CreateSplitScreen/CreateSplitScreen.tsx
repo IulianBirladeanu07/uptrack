@@ -38,7 +38,7 @@ import { ProgressSteps } from '../CreateTemplateScreen/components/ProgressSteps'
 import { NavigationButtons } from '../CreateTemplateScreen/components/NavigationButtons';
 import { Header } from '../CreateTemplateScreen/components/Header';
 
-import { fetchTemplatesFromFirestore } from '../../../workout/handlers/WorkoutHandler';
+import { fetchTemplatesFromFirestore } from '../../../workout/services/workoutTemplateService';
 import { addSplitToFirestore, updateSplitInFirestore } from '../../../workout/services/workoutSplitService';
 import { STEPS } from './constants/CreateSplitScreenConstants';
 import { SPLIT_STEPS } from '../../utils/createWorkoutUtils';
