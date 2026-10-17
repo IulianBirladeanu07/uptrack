@@ -4,8 +4,6 @@ import {
   getCurrentWeekRollingStats,
   getNutritionForDateRange,
   getStepsForDateRange,
-  getTrendData,
-  getWeeklyAvgSteps,
 } from './nutritionSummaries';
 
 jest.mock('../helpers/weightTrackerUtils', () => ({
@@ -68,24 +66,14 @@ describe('nutrition summaries', () => {
       { date: '2026-10-12', calories: 220, protein: 9, carbs: 33, fat: 6 },
       { date: '2026-10-13', calories: 200, protein: 4, carbs: 45, fat: 1 },
     ]);
-    expect(getTrendData(cache, end, 2)).toEqual({
-      daily: [
-        { date: '2026-10-12', calories: 220 },
-        { date: '2026-10-13', calories: 200 },
-      ],
-      total: 420,
-      average: 210,
-    });
   });
 
-  it('returns daily steps and averages only completed days when the selected date is today', () => {
+  it('returns daily steps for the inclusive date range', () => {
     expect(getStepsForDateRange(cache, new Date(2026, 9, 12), new Date(2026, 9, 14))).toEqual([
       { date: '2026-10-12', steps: 1000 },
       { date: '2026-10-13', steps: 3000 },
       { date: '2026-10-14', steps: 5000 },
     ]);
-    expect(getWeeklyAvgSteps(cache, new Date(2026, 9, 14), new Date(2026, 9, 14))).toBe(571);
-    expect(getWeeklyAvgSteps(cache, new Date(2026, 9, 14), new Date(2026, 9, 15))).toBe(1125);
   });
 
   it('combines rolling nutrition/step stats with current and previous weekly weights', () => {

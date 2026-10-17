@@ -5,7 +5,6 @@ import type {
 } from '../../../shared/types';
 import { getLocalWeekStart } from '../helpers/weightTrackerUtils';
 import { getRollingWeekStats } from '../helpers/learningCompletionService';
-import { formatDate } from '../utils/dateUtils';
 import MealCache from './cache/MealCache';
 
 export type DayCalories = { date: string; calories: number };
@@ -79,32 +78,3 @@ export const getStepsForDateRange = (
   startDate: DateInput,
   endDate: DateInput,
 ): { date: string; steps: number }[] => mealCache.getStepsRange(startDate, endDate);
-
-export const getWeeklyAvgSteps = (
-  mealCache: MealCache,
-  selectedDate: Date,
-  today = new Date(),
-): number => {
-  const endDate = new Date(selectedDate);
-  const startDate = new Date(endDate);
-  startDate.setDate(endDate.getDate() - 7);
-  const data = mealCache.getStepsRange(startDate, endDate);
-  const selectedDateKey = formatDate(selectedDate);
-  const isToday = selectedDateKey === formatDate(today);
-  const completedDays = isToday ? data.filter(day => day.date !== selectedDateKey) : data;
-  const total = completedDays.reduce((sum, day) => sum + day.steps, 0);
-  return completedDays.length > 0 ? Math.round(total / completedDays.length) : 0;
-};
-
-export const getTrendData = (
-  mealCache: MealCache,
-  selectedDate: Date,
-  days = 7,
-): { daily: DayCalories[]; total: number; average: number } => {
-  const endDate = new Date(selectedDate);
-  const startDate = new Date(endDate);
-  startDate.setDate(endDate.getDate() - days + 1);
-  const daily = getCaloriesForDateRange(mealCache, startDate, endDate);
-  const total = daily.reduce((sum, day) => sum + day.calories, 0);
-  return { daily, total, average: daily.length ? total / daily.length : 0 };
-};

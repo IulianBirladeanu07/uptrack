@@ -15,7 +15,6 @@ import {
   buildAddUndo,
   applyAddUndo,
   normalizeLoggedFoods,
-  fetchMealsForDate,
   fetchRawMealsForDate,
   fetchLast30DaysMeals,
 } from './mealService';
@@ -32,27 +31,6 @@ describe('normalizeLoggedFoods', () => {
 describe('meal reads', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  test('fetchMealsForDate decorates valid foods and drops malformed entries', async () => {
-    const timestamp = { toDate: jest.fn() };
-    getDoc.mockResolvedValue({
-      exists: () => true,
-      data: () => ({
-        breakfast: [validFood, null, { calories: 5 }],
-        lunch: ['malformed'],
-        dinner: [{ id: 'food-2', calories: 200 }],
-        snacks: null,
-        timestamp,
-      }),
-    });
-
-    await expect(fetchMealsForDate('user-1', '2026-10-16')).resolves.toEqual({
-      breakfast: [{ ...validFood, mealType: 'breakfast', timestamp }],
-      lunch: [],
-      dinner: [{ id: 'food-2', calories: 200, mealType: 'dinner', timestamp }],
-      snacks: [],
-    });
   });
 
   test('fetchRawMealsForDate returns empty slots for a missing day', async () => {

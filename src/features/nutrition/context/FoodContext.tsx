@@ -26,8 +26,6 @@ import {
     getCurrentWeekRollingStats,
     getNutritionForDateRange as summarizeNutritionForDateRange,
     getStepsForDateRange as summarizeStepsForDateRange,
-    getTrendData as summarizeTrendData,
-    getWeeklyAvgSteps as summarizeWeeklyAvgSteps,
     type DayCalories,
 } from './nutritionSummaries';
 import { loadSelectedDateMeals } from './selectedDateMealLoad';
@@ -52,20 +50,16 @@ export type FoodContextValue = {
     recentMeals:              FoodCategories['recentMeals'];
     frequentFoods:            FoodCategories['frequentFoods'];
     favoriteFoods:            FoodCategories['favoriteFoods'];
-    userProfile:              Partial<UserData> | null;
     hasTargets:               boolean;
     learningData:             EnhancedLearningData;
     remainingCalories:        number;
     dailyNutrition:           NutritionTotals;
     userMacros:               ReturnType<typeof useDailyNutrition>['userMacros'];
     handleAddMeal:            (mealType: MealType, foods: LoggedFood[], mealDate?: DateInput) => Promise<LoggedFood[]>;
-    addMultipleFoods:         (mealType: MealType, foods: LoggedFood[], mealDate?: DateInput) => Promise<LoggedFood[]>;
     handleDeleteMeal:         (mealType: MealType, foodId: string) => Promise<boolean>;
     updateMealInDatabase:     (mealType: MealType, foodId: string, updatedFoodDetails: FoodDetailFood) => Promise<void>;
-    getTrendData:             (days?: number) => { daily: DayCalories[]; total: number; average: number };
     dailySteps:               number;
     updateDailySteps:         (steps: number, dateKey?: string) => void;
-    getWeeklyAvgSteps:        () => number;
     loading:                  boolean;
     error:                    string | null;
     initialLoadComplete:      boolean;
@@ -93,7 +87,6 @@ export const useFoodContext = () => {
 export const FoodProvider = ({ children }: { children: ReactNode }) => {
     const [currentUser,         setCurrentUser]         = useState<User | null>(null);
     const [selectedDate,        setSelectedDate]        = useState(new Date());
-    const [userProfile,         setUserProfile]         = useState<Partial<UserData> | null>(null);
     const [loading,             setLoading]             = useState(false);
     const [error,               setError]               = useState<string | null>(null);
     const [initialLoadComplete, setInitialLoadComplete] = useState(false);
@@ -276,10 +269,6 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         flushSteps();
         stepsDisplayRef.current?.retry?.();
     }, [flushSteps]);
-
-    const getWeeklyAvgSteps = useCallback(() => {
-        return summarizeWeeklyAvgSteps(mealCache.current, selectedDateRef.current);
-    }, []);
 
     const getNutritionForDateRange = useCallback((startDate: DateInput, endDate: DateInput) =>
         summarizeNutritionForDateRange(mealCache.current, startDate, endDate),
@@ -533,7 +522,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                         newTargets &&
                         mountedRef.current &&
                         isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)
-                    ) setUserProfile(prev => ({ ...prev, ...newTargets }));
+                    ) await refreshUserData();
                 } catch (error) {
                     console.error('Failed to complete learning phase:', error);
                     if (isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)) {
@@ -543,7 +532,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
             }
         };
         checkLearningCompletion();
-    }, [currentUser, enhancedLearningData.isLearningComplete, nutritionHookData.hasTargets, selectedDate, handleError]);
+    }, [currentUser, enhancedLearningData.isLearningComplete, nutritionHookData.hasTargets, selectedDate, handleError, refreshUserData]);
 
     useEffect(() => {
         if (!currentUser || !stepsConnected || !userData || stepsBonusCheckedRef.current) return;
@@ -560,7 +549,6 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                     mountedRef.current &&
                     isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)
                 ) {
-                    setUserProfile(prev => ({ ...prev, ...result }));
                     await refreshUserData();
                 }
             } catch (error) {
@@ -585,7 +573,6 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                     mountedRef.current &&
                     isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)
                 ) {
-                    setUserProfile(prev => ({ ...prev, ...adjustment }));
                     await refreshUserData();
                 }
             } catch (error) {
@@ -611,7 +598,6 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                 writtenStepsRef.current = {};
                 mealCache.current.clear();
                 setCategoryData({ recentMeals: [], frequentFoods: [], favoriteFoods: [] });
-                setUserProfile(null);
                 setMealState({ breakfast: [], lunch: [], dinner: [], snacks: [] });
                 setDailySteps(0);
                 setStepsVersion(0);
@@ -637,10 +623,6 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         return () => unsubscribe();
     }, [initializeAppData]);
 
-    const getTrendData = useCallback((days = 7) => {
-        return summarizeTrendData(mealCache.current, selectedDateRef.current, days);
-    }, []);
-
     const contextValue = useMemo<FoodContextValue>(() => ({
         breakfastFoods:   mealState.breakfast,
         lunchFoods:       mealState.lunch,
@@ -651,20 +633,16 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         recentMeals:      categoryData.recentMeals,
         frequentFoods:    categoryData.frequentFoods,
         favoriteFoods:    categoryData.favoriteFoods,
-        userProfile,
         hasTargets:       nutritionHookData.hasTargets,
         learningData:     enhancedLearningData,
         remainingCalories,
         dailyNutrition:   nutritionHookData.dailyNutrition,
         userMacros:       nutritionHookData.userMacros,
         handleAddMeal,
-        addMultipleFoods: handleAddMeal,
         handleDeleteMeal,
         updateMealInDatabase,
-        getTrendData,
         dailySteps,
         updateDailySteps,
-        getWeeklyAvgSteps,
         loading,
         error,
         initialLoadComplete,
@@ -681,10 +659,10 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         retryStepsConnection,
     }), [
         mealState, selectedDate, handleDateChange, categoryData,
-        userProfile, nutritionHookData.hasTargets, enhancedLearningData,
+        nutritionHookData.hasTargets, enhancedLearningData,
         remainingCalories, nutritionHookData.dailyNutrition, nutritionHookData.userMacros,
         handleAddMeal, handleDeleteMeal, updateMealInDatabase, updateMealState,
-        getTrendData, dailySteps, updateDailySteps, getWeeklyAvgSteps,
+        dailySteps, updateDailySteps,
         loading, error, initialLoadComplete, initializationError, retryInitialization,
         rollingWeekStats, getCaloriesForDateRange,
         getNutritionForDateRange, getStepsForDateRange, getMealCache, stepsLoading, stepsError,

@@ -83,18 +83,6 @@ export const writeMealType = async (uid: string, mealType: MealType, foods: Logg
     return foods;
 };
 
-export const fetchMealsForDate = async (uid: string, date: string): Promise<MealsByType> => {
-    const snap = await getDoc(dayDocRef(uid, date));
-    if (!snap.exists()) return { breakfast: [], lunch: [], dinner: [], snacks: [] };
-    const data = snap.data()!;
-    return {
-        breakfast: normalizeLoggedFoods(data.breakfast).map(f => ({ ...f, mealType: 'breakfast', timestamp: data.timestamp })),
-        lunch:     normalizeLoggedFoods(data.lunch).map(f => ({ ...f, mealType: 'lunch',     timestamp: data.timestamp })),
-        dinner:    normalizeLoggedFoods(data.dinner).map(f => ({ ...f, mealType: 'dinner',    timestamp: data.timestamp })),
-        snacks:    normalizeLoggedFoods(data.snacks).map(f => ({ ...f, mealType: 'snacks',    timestamp: data.timestamp })),
-    };
-};
-
 export const fetchRawMealsForDate = async (uid: string, date: string): Promise<MealsByType> => {
     const snap = await getDoc(dayDocRef(uid, date));
     const data: Partial<MealsByType> = snap.exists() ? (snap.data() ?? {}) : {};
@@ -126,32 +114,4 @@ export const fetchLast30DaysMeals = async (uid: string): Promise<MealGroup[]> =>
             return foods.length > 0 ? [{ date: data.date, mealType, foods }] : [];
         });
     });
-};
-
-export const deleteMealItem = async (uid: string, mealType: MealType, foodId: string, date: string): Promise<LoggedFood[]> => {
-    const ref  = dayDocRef(uid, date);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) throw new Error('Meal document does not exist');
-
-    const updated = normalizeLoggedFoods(snap.data()![mealType]).filter(f => f.id !== foodId);
-    await updateDoc(ref, { [mealType]: updated });
-    return updated;
-};
-
-export const updateMealItem = async (
-    uid: string,
-    mealType: MealType,
-    foodId: string,
-    updatedFood: LoggedFood,
-    date: string,
-): Promise<LoggedFood[]> => {
-    const ref  = dayDocRef(uid, date);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) throw new Error('Meal document does not exist');
-
-    const updated = normalizeLoggedFoods(snap.data()![mealType]).map(f =>
-        f.id === foodId ? { ...updatedFood, id: foodId, usageCount: f.usageCount || 1 } : f
-    );
-    await updateDoc(ref, { [mealType]: updated });
-    return updated;
 };
