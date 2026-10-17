@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useContext, useCallback, useRef } 
 import { View, ScrollView, TouchableOpacity, Text, ActivityIndicator, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth } from 'firebase/auth';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
@@ -15,12 +14,12 @@ import { useAppNavigation } from '../../../../shared/navigation';
 import type { HomeNotice } from '../../../../shared/types';
 import type { PersistedWorkoutState } from '../../../workout/types';
 import { getHomeNotices } from '../../../profile/utils/homeSurfaceEngine';
-import { parseDismissedAdjustmentTimestamps } from '../../../profile/utils/homeDismissalStorage';
 import { dirOf } from '../../../progress/utils/progressEngine';
 import { styles } from './DashboardScreenStyles';
 import WeeklyOverview from './WeeklyOverview';
 import { useDashboardScheduledWorkout } from './useDashboardScheduledWorkout';
 import type { ScheduledWorkout } from './useDashboardScheduledWorkout';
+import { useHomeNoticeDismissals } from './useHomeNoticeDismissals';
 import {
     countWeeklyWorkouts,
     getCompletedToday,
@@ -227,11 +226,6 @@ const DashboardScreen = () => {
     const navigation = useAppNavigation();
     const navInset = useBottomNavInset();
 
-    const [dismissedAdjustments, setDismissedAdjustments] = useState<string[]>([]);
-    const [goalReachedDismissed, setGoalReachedDismissed] = useState(false);
-    const [stepsPermissionDismissedAt, setStepsPermissionDismissedAt] = useState<string | null>(null);
-    const [noticesLoaded, setNoticesLoaded] = useState(false);
-
     const { dailyNutrition, userMacros, rollingWeekStats, getCaloriesForDateRange, initialLoadComplete, stepsConnected, stepsLoading, retryStepsConnection } = useFoodContext();
     const { workoutHistory, activeWorkout } = useContext(WorkoutContext)!;
     const { userData } = useContext(AuthContext)!;
@@ -242,42 +236,13 @@ const DashboardScreen = () => {
     const uid = getAuth().currentUser?.uid;
     const { workout: todayScheduledWorkout, loading: workoutLoading, loadError: workoutLoadError } =
         useDashboardScheduledWorkout(userData?.activeSplitId, userData?.rotationStartDate);
-
-    useEffect(() => {
-        let cancelled = false;
-        setNoticesLoaded(false);
-        setDismissedAdjustments([]);
-        setGoalReachedDismissed(false);
-        setStepsPermissionDismissedAt(null);
-        if (!uid) {
-            setNoticesLoaded(true);
-            return () => { cancelled = true; };
-        }
-        const loadDismissalState = async () => {
-            try {
-                const [adjRaw, goalRaw, stepsRaw] = await Promise.all([
-                    AsyncStorage.getItem(`home_dismissed_adjustments_${uid}`),
-                    AsyncStorage.getItem(`home_goal_reached_dismissed_${uid}`),
-                    AsyncStorage.getItem(`home_steps_permission_dismissed_${uid}`),
-                ]);
-                if (cancelled) return;
-                const adjustmentTimestamps = parseDismissedAdjustmentTimestamps(adjRaw);
-                if (adjustmentTimestamps === null) {
-                    console.error('Invalid persisted home adjustment dismissals.');
-                } else {
-                    setDismissedAdjustments(adjustmentTimestamps);
-                }
-                setGoalReachedDismissed(goalRaw === 'true');
-                setStepsPermissionDismissedAt(stepsRaw || null);
-            } catch (e) {
-                console.error('loadDismissalState error:', e);
-            } finally {
-                if (!cancelled) setNoticesLoaded(true);
-            }
-        };
-        loadDismissalState();
-        return () => { cancelled = true; };
-    }, [uid]);
+    const {
+        dismissedAdjustments,
+        goalReachedDismissed,
+        stepsPermissionDismissedAt,
+        noticesLoaded,
+        dismissNotice,
+    } = useHomeNoticeDismissals(uid);
 
     const notices = useMemo(() => {
         if (!noticesLoaded || !userData || !initialLoadComplete) return [];
@@ -290,26 +255,6 @@ const DashboardScreen = () => {
             goalReachedDismissed,
         });
     }, [noticesLoaded, userData, initialLoadComplete, stepsConnected, stepsLoading, dismissedAdjustments, stepsPermissionDismissedAt, goalReachedDismissed]);
-
-    const handleDismissNotice = useCallback(async (notice: HomeNotice) => {
-        if (!uid) return;
-        try {
-            if (notice.type === 'calorie_adjustment') {
-                const updated = [...dismissedAdjustments, notice.dismissKey!];
-                setDismissedAdjustments(updated);
-                await AsyncStorage.setItem(`home_dismissed_adjustments_${uid}`, JSON.stringify(updated));
-            } else if (notice.type === 'goal_reached') {
-                setGoalReachedDismissed(true);
-                await AsyncStorage.setItem(`home_goal_reached_dismissed_${uid}`, 'true');
-            } else if (notice.type === 'steps_permission') {
-                const now = new Date().toISOString();
-                setStepsPermissionDismissedAt(now);
-                await AsyncStorage.setItem(`home_steps_permission_dismissed_${uid}`, now);
-            }
-        } catch (e) {
-            console.error('handleDismissNotice error:', e);
-        }
-    }, [uid, dismissedAdjustments]);
 
     const handleNoticeAction = useCallback((notice: HomeNotice) => {
         if (notice.type === 'goal_reached') {
@@ -393,7 +338,7 @@ const DashboardScreen = () => {
                                     actionLabel={
                                         notice.type === 'goal_reached' ? 'Update Goal' : 'Connect'
                                     }
-                                    onDismiss={() => handleDismissNotice(notice)}
+                                    onDismiss={() => dismissNotice(notice)}
                                 />
                             ))}
                             <TodayWorkout
