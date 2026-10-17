@@ -30,6 +30,7 @@ import {
     WEEK_DAYS,
     type WeekGroup,
 } from './weightTrackerPresentation';
+import { applyWeightKey } from './weightInput';
 
 type TrendBadgeProps = { value: number | null; isBulking: boolean };
 type WeekRowProps = { group: WeekGroup; isBulking: boolean; expanded: boolean; onToggle: () => void };
@@ -303,21 +304,8 @@ const WeightTracker = () => {
         freshEntryRef.current = false;
         setIsSelected(false);
 
-        let next = weightInput;
-        if (key === 'backspace') {
-            next = weightInput.slice(0, -1);
-        } else if (key === '.') {
-            const base = isFresh ? '' : weightInput;
-            if (base.includes('.')) return;
-            next = base === '' ? '0.' : base + '.';
-        } else {
-            const base = isFresh ? '' : weightInput;
-            const [, decimals] = base.split('.');
-            if (decimals != null && decimals.length >= 1) return;
-            const digitsOnly = base.replace('.', '');
-            if (digitsOnly.length >= 4) return;
-            next = base + key;
-        }
+        const next = applyWeightKey(weightInput, key, isFresh);
+        if (next == null) return;
         setWeightInput(next);
         setIsValid(next !== '' && validateWeight(next));
     };
