@@ -13,6 +13,7 @@ export const useLearningCompletion = (learningData: LearningData | null | undefi
 
     if (wasInLearning && hasTargets && !justCompleted) {
       setJustCompleted(true);
+      setWasInLearning(false);
       
       Alert.alert(
         "Learning Complete! 🎉",
@@ -37,7 +38,6 @@ export const useLearningCompletion = (learningData: LearningData | null | undefi
   useEffect(() => {
     if (!hasTargets) {
       setJustCompleted(false);
-      setWasInLearning(false);
     }
   }, [hasTargets]);
 

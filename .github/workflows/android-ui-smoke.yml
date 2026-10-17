@@ -56,7 +56,10 @@ jobs:
               --status finished \
               --limit 50 \
               --json > eas-builds.json; then
-              echo "::error title=EAS build lookup failed::EAS CLI could not list finished Android preview builds. Check EXPO_TOKEN access and try again, or provide a build ID."
+              echo "::group::EAS build-list diagnostics"
+              node -e "const fs=require('fs'); const output=fs.readFileSync('eas-builds.json','utf8'); try { console.error(JSON.stringify(JSON.parse(output), null, 2).slice(0,4000) || 'EAS CLI returned no diagnostic output.') } catch { console.error(output.slice(0,4000) || 'EAS CLI returned no diagnostic output.') }"
+              echo "::endgroup::"
+              echo "::error title=EAS build lookup failed::See the EAS build-list diagnostics above. Check EXPO_TOKEN access, or provide a build ID."
               exit 1
             fi
             raw_value="$(node -e "const result=JSON.parse(require('fs').readFileSync('eas-builds.json','utf8')); const builds=Array.isArray(result)?result:(result.builds??[]); const target=process.env.GITHUB_SHA.toLowerCase(); const match=builds.find(build=>build.gitCommitHash?.toLowerCase()===target); process.stdout.write(match?.id??'')")"
@@ -80,7 +83,13 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         shell: bash
         run: |
-          npx --yes eas-cli@25.0.0 build:download --build-id "$EAS_BUILD_ID" --json > eas-download.json
+          if ! npx --yes eas-cli@25.0.0 build:download --build-id "$EAS_BUILD_ID" --json > eas-download.json; then
+            echo "::group::EAS build download diagnostics"
+            node -e "const fs=require('fs'); const output=fs.readFileSync('eas-download.json','utf8'); try { console.error(JSON.stringify(JSON.parse(output), null, 2).slice(0,4000) || 'EAS CLI returned no diagnostic output.') } catch { console.error(output.slice(0,4000) || 'EAS CLI returned no diagnostic output.') }"
+            echo "::endgroup::"
+            echo "::error title=EAS APK download failed::See the EAS build download diagnostics above. Confirm this build is finished and has an application archive."
+            exit 1
+          fi
           apk_path="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('eas-download.json', 'utf8')).path ?? '')")"
           if [[ "$apk_path" != *.apk || ! -f "$apk_path" ]]; then
             echo "::error title=APK download failed::The selected EAS build did not provide a downloadable APK."

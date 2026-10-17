@@ -2,18 +2,18 @@
 
 ## Purpose
 
-Build confidence in user-visible workflows and high-risk data behavior without chasing 100% coverage for its own sake. Prioritize regressions that can lose user data, cross account boundaries, report success when a save failed, or make a core workflow unusable.
+Build confidence in user-visible workflows and high-risk data behavior. Pursue comprehensive coverage through meaningful behavioral tests, prioritizing regressions that can lose user data, cross account boundaries, report success when a save failed, or make a core workflow unusable; do not add assertions solely to inflate a percentage.
 
 This strategy is being implemented in stages. The baseline identifies the checks configured now; the roadmap distinguishes completed work from proposed work.
 
 ## Current baseline
 
-- Jest is the unit-test runner. `jest.config.js` explicitly includes tests under selected `src/features` and `src/shared` folders.
+- Jest is the unit-test runner. `jest.config.js` includes tests under selected `src/features` folders and shared Firestore, service, and utility folders.
 - Firebase Firestore and Storage security rules are tested against local emulators with `npm run test:rules`; Supabase RLS remains untested in an emulator and needs a dedicated non-production Supabase project for integration tests.
 - GitHub Actions runs Jest in three time zones (UTC, America/Los_Angeles and Europe/Bucharest, so day-key bugs on both sides of UTC fail CI; coverage is collected in the UTC run only), `npx tsc --noEmit`, `npx expo export --platform android`, and Firebase emulator security-rule tests on pushes and pull requests targeting `master`. A weekly schedule runs the same checks plus an informational production dependency audit; it does not build or deploy a native app.
 - EAS has `development`, `preview`, and `production` build profiles in `eas.json`. Android preview build #2 succeeded on `72d643d`; it produced an APK for manual device testing.
 - There is no configured lint script or mobile end-to-end suite. React Native Testing Library and the Expo Jest preset are configured, with one Nutrition initialization error/retry screen journey.
-- The current local run (`npm test -- --ci --coverage`, 2026-10-16) passed 54 suites and 627 tests. Coverage for the configured `src/**/*.{js,ts}` scope was 68.37% lines, 61.47% branches, 67.15% functions, and 68.30% statements. `.tsx` screens/components are not instrumented; this is not whole-app coverage. CI reports this coverage and uploads the report as an artifact; it does not enforce a threshold.
+- The current local run (`npm test -- --ci --coverage --runInBand`, 2026-10-17) passed 66 suites and 669 tests. Coverage instruments `src/**/*.{js,ts,tsx}` (excluding tests, declarations, styles, and type-only files): 32.52% lines, 28.02% branches, 27.51% functions, and 32.62% statements. This is the first whole-source baseline; the earlier 68.37% line figure excluded `.tsx` and must not be compared as if it represented the same scope. CI reports coverage and uploads the report as an artifact; it does not enforce a threshold.
 - The local Firebase emulator run (`npm run test:rules`) passed all six Firestore and Storage rule tests after a clean `npm ci --legacy-peer-deps`. It covers user ownership, meal day IDs and query constraints, workout/profile records, shared exercise reads, profile image ownership/type/size, and public catalog image reads.
 
 ## Test pyramid
@@ -90,7 +90,7 @@ Keep CI fast and deterministic. The existing workflow already runs Jest and Type
 - CI runs Jest with coverage, adds an informational coverage table to the job summary, and uploads the report for 14 days.
 - CI also runs Jest in America/Los_Angeles and Europe/Bucharest, type-checks in its own job, and bundles the Android app with `expo export`. `expo-doctor` is not run in CI: it needs the Expo API, and it currently reports `react-native` 0.81.5 against an expected 0.81.4, which is a deliberate pin with a patch-package patch.
 - CI runs Firestore and Storage security-rule tests against emulators using the checked-in rules. A weekly schedule (and manual workflow dispatch) repeats all checks and adds an informational `npm audit --omit=dev` summary. It never builds, deploys, or submits an app.
-- Coverage includes configured JavaScript and TypeScript source files, excluding tests, declarations, styles, and type-only files. It does not instrument `.tsx`.
+- Coverage instruments JavaScript, TypeScript, and TSX source files, excluding tests, declarations, styles, and type-only files.
 - No coverage threshold is enforced; do not fail PRs for existing uncovered code.
 - Add a modest threshold only after a stable baseline exists; enforce changed/high-risk code or prevent coverage from falling, rather than requiring a sudden repo-wide percentage jump.
 - Add linting only after the team chooses and configures a lint tool and cleans or scopes baseline findings; do not add a failing `npm run lint` placeholder.
