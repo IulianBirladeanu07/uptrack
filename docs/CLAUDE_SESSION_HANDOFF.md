@@ -6,7 +6,7 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Last code batch recorded here: `83ba720 refactor: extract exercise item option helpers`. A handoff update cannot name its own commit, so run `git log --oneline -10` and `git status --short --branch` for the real current state.
+- Last code batch recorded here: `656a501 refactor: extract create exercise form logic`; the picker move below follows it. A handoff update cannot name its own commit, so run `git log --oneline -10` and `git status --short --branch` for the real current state.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
 ## How to continue
@@ -61,19 +61,19 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Moved `CustomButton`, `ModalWrapper` and `Chip` into `ExerciseItemControls.tsx`, and `RestTimeModal` and `RestTimeSelector` into `RestTimeControls.tsx`. `ExerciseItem.tsx` went from about 790 to about 380 lines. The moved blocks and the remaining component body were checked to be byte-identical to the original apart from `export` keywords and imports; `ExerciseItem` itself and its default export are unchanged.
 - `ReviewStep.tsx` has its own `formatRestTime` that disagrees with this one (90 seconds shows as "1m 30s" there and "1.5m" on the exercise card). Merging them would change a visible string, so it is left for the owner to decide.
 
-### Create exercise (in progress)
+### Create exercise
 
 - Moved the picker option data (`EXERCISE_DATA`), the form types, the blank form factory, progress calculation, validation, the create payload builder and the picker search filter out of `CreateExerciseScreen.tsx` into `src/features/workout/screens/CreateExerciseScreen/createExerciseForm.ts`. The screen went from 648 to 581 lines.
 - Added 17 tests in `createExerciseForm.test.ts` and Jest discovery for the folder. The validation, progress, option data and filter were compared against the original inline code, taken verbatim, on 96 cases with no difference.
-- Not moved yet: `OptionItem` and `ModalPicker` (about 260 lines of picker UI and animation) are still in the screen file and are the next candidate.
+- Moved `OptionItem` and `ModalPicker` (picker UI, modal animation and search box) into `src/features/workout/screens/CreateExerciseScreen/ExerciseModalPicker.tsx`, which exports `ModalPicker` and the `ModalPickerHandle` type. `CreateExerciseScreen.tsx` went from 581 to 309 lines. A script confirmed the moved block is identical to the original apart from the two `export` keywords, and that the screen component and its default export are identical to the original. No new tests: the moved code is UI only and there is no component test harness.
 
 The latest validation was:
 
-- `npx jest --runInBand --ci`: 91 suites / 811 tests passed, in the default time zone and in `America/Los_Angeles`.
+- `npx jest --runInBand --ci`: 91 suites / 811 tests passed, in the default time zone and in `America/Los_Angeles`. No tests were added in this batch.
 - `npx tsc --noEmit`: passed.
 - `git diff --check`: passed.
 - `npx expo export --platform android`: succeeded. This checks bundling only; no screen was run on a device.
-- Hooks lint (scratch setup from `AGENTS.md`): the `ExerciseItem` folder has 0 errors and one warning, the same one the original file had (`saveRepModal` lists `modalState.customRep.value` while the callback reads `modalState.customRep`, not changed in this batch); the `CreateExerciseScreen` folder is clean before and after.
+- Hooks lint (scratch setup from `AGENTS.md`): `CreateExerciseScreen.tsx`, `ExerciseModalPicker.tsx` and `createExerciseForm.ts` report no errors and no warnings; the original `CreateExerciseScreen.tsx` was also clean.
 
 ## Repository map
 
@@ -90,7 +90,7 @@ The latest validation was:
 This is a ranked starting point based on the current source inventory, not a mandate to refactor by line count. Inspect responsibilities and coupling first; skip or reorder when the code shows a better seam.
 
 1. **Workout component layer:** `ExerciseItem.tsx` is done for now: the pure helpers and the rest time UI are extracted and the file is about 380 lines. Optionally look at the swipe gesture and card header later. UI-only moves have no test harness, so verify with `tsc`, the Android export, the hooks lint, and a script comparing the moved code to the original.
-2. **Workout authoring flows:** `CreateExerciseScreen` has its form logic extracted; next move `OptionItem` and `ModalPicker` into a picker component file. Then inspect `CreateTemplateScreen` (about 485 lines). Keep validation, persistence, and navigation behavior unchanged; first look for existing shared form helpers and tests.
+2. **Workout authoring flows:** `CreateExerciseScreen` is done for now (form logic and picker extracted). Next inspect `CreateTemplateScreen` (about 485 lines). Keep validation, persistence, and navigation behavior unchanged; first look for existing shared form helpers and tests.
 3. **Nutrition UI/data boundaries:** inspect `FoodSearchResults.tsx` (about 594 lines), then `FoodContext.tsx` (about 624 lines). This area has account-scoped async state, caching, rollback, and date semantics; avoid moving logic without tracing its callers and failure paths. Coordinate with the open Nutrition audit rather than duplicating it.
 4. **Other large screens:** review `DashboardScreen` (about 658 lines), `ProgressScreen` (about 669 lines), and Profile screens for discrete view-model/presentation responsibilities. Prefer the smallest seam with strong behavior tests.
 5. **Maintenance pass:** once a feature batch is complete, reconcile directly related docs and test discovery. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
