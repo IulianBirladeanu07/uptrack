@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useContext, useCallback, useRef } 
 import { View, ScrollView, TouchableOpacity, Text, ActivityIndicator, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth } from 'firebase/auth';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
@@ -14,44 +13,20 @@ import HomeNoticeCard from '../../../../shared/components/HomeNoticeCard/HomeNot
 import { colors, spacing } from '../../../../shared/theme';
 import { useAppNavigation } from '../../../../shared/navigation';
 import type { HomeNotice } from '../../../../shared/types';
-import type { PersistedWorkoutState, WorkoutSplit } from '../../../workout/types';
-import { fetchSplitsFromFirestore } from '../../../workout/services/workoutSplitService';
-import { SPLITS_CACHE_KEY } from '../../../workout/services/splitCache';
+import type { PersistedWorkoutState } from '../../../workout/types';
 import { getHomeNotices } from '../../../profile/utils/homeSurfaceEngine';
 import { parseDismissedAdjustmentTimestamps } from '../../../profile/utils/homeDismissalStorage';
 import { dirOf } from '../../../progress/utils/progressEngine';
-import { getScheduledDay } from '../../../workout/utils/splitSchedule';
-import type { SplitLike } from '../../../workout/utils/splitSchedule';
 import { styles } from './DashboardScreenStyles';
 import WeeklyOverview from './WeeklyOverview';
+import { useDashboardScheduledWorkout } from './useDashboardScheduledWorkout';
+import type { ScheduledWorkout } from './useDashboardScheduledWorkout';
 import {
     countWeeklyWorkouts,
     getCompletedToday,
     type CompletedToday,
     type DashboardWorkoutHistoryEntry,
 } from './dashboardWorkoutSummary';
-
-const SPLITS_CACHE_TTL = 15 * 60 * 1000;
-
-type ScheduledWorkout = {
-    name: string;
-    duration: number;
-    exerciseCount: number;
-    exercises: unknown[];
-};
-
-const resolveWorkoutFromSplits = (splits: WorkoutSplit[], activeSplitId: string | null | undefined, rotationStartDate: unknown): ScheduledWorkout | null => {
-    if (!splits?.length) return null;
-    const activeSplit = (activeSplitId && splits.find(s => s.id === activeSplitId)) || splits[0];
-    const workout = getScheduledDay(activeSplit as SplitLike, new Date(), rotationStartDate);
-    const exercises = workout?.exercises || [];
-    return exercises.length > 0 ? {
-        name: (workout?.['templateName'] as string | undefined) || 'Workout',
-        duration: (workout?.['duration'] as number | undefined) || 45,
-        exerciseCount: exercises.length,
-        exercises,
-    } : null;
-};
 
 const LiveTimer = ({ startTime }: { startTime: number }) => {
     const [elapsed, setElapsed] = useState(0);
@@ -251,9 +226,6 @@ const TodayNutrition = ({ calories, targetCalories, macros, macroTargets, onPres
 const DashboardScreen = () => {
     const navigation = useAppNavigation();
     const navInset = useBottomNavInset();
-    const [todayScheduledWorkout, setTodayScheduledWorkout] = useState<ScheduledWorkout | null>(null);
-    const [workoutLoading, setWorkoutLoading] = useState(true);
-    const [workoutLoadError, setWorkoutLoadError] = useState(false);
 
     const [dismissedAdjustments, setDismissedAdjustments] = useState<string[]>([]);
     const [goalReachedDismissed, setGoalReachedDismissed] = useState(false);
@@ -268,6 +240,8 @@ const DashboardScreen = () => {
     const targetCalories = userMacros?.targetCalories || 2000;
     const goalDir = dirOf(userData?.weightChangePlan?.type);
     const uid = getAuth().currentUser?.uid;
+    const { workout: todayScheduledWorkout, loading: workoutLoading, loadError: workoutLoadError } =
+        useDashboardScheduledWorkout(userData?.activeSplitId, userData?.rotationStartDate);
 
     useEffect(() => {
         let cancelled = false;
@@ -344,53 +318,6 @@ const DashboardScreen = () => {
             retryStepsConnection();
         }
     }, [navigation, retryStepsConnection]);
-
-    useFocusEffect(
-        useCallback(() => {
-            let cancelled = false;
-            setWorkoutLoading(true);
-            setWorkoutLoadError(false);
-
-            const loadWorkout = async () => {
-                try {
-                    const cached = await AsyncStorage.getItem(SPLITS_CACHE_KEY);
-                    if (cached) {
-                        const { splits, ts } = JSON.parse(cached) as { splits: WorkoutSplit[]; ts: number };
-                        if (Date.now() - ts < SPLITS_CACHE_TTL) {
-                            if (!cancelled) {
-                                setTodayScheduledWorkout(resolveWorkoutFromSplits(splits, userData?.activeSplitId, userData?.rotationStartDate));
-                                setWorkoutLoading(false);
-                                return;
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error('Dashboard split cache load failed:', error);
-                }
-
-                try {
-                    const splits = await fetchSplitsFromFirestore();
-                    if (!cancelled) {
-                        setTodayScheduledWorkout(resolveWorkoutFromSplits(splits, userData?.activeSplitId, userData?.rotationStartDate));
-                        setWorkoutLoadError(false);
-                        AsyncStorage.setItem(SPLITS_CACHE_KEY, JSON.stringify({ splits, ts: Date.now() }))
-                            .catch(error => console.error('Dashboard split cache save failed:', error));
-                    }
-                } catch (error) {
-                    console.error('Dashboard split load failed:', error);
-                    if (!cancelled) {
-                        setTodayScheduledWorkout(null);
-                        setWorkoutLoadError(true);
-                    }
-                } finally {
-                    if (!cancelled) setWorkoutLoading(false);
-                }
-            };
-
-            loadWorkout();
-            return () => { cancelled = true; };
-        }, [userData?.activeSplitId, userData?.rotationStartDate])
-    );
 
     const weeklyWorkoutsCount = useMemo(
         () => countWeeklyWorkouts(workoutHistory as DashboardWorkoutHistoryEntry[]),
