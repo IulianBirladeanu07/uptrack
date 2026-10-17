@@ -52,7 +52,7 @@ describe('useCustomFood', () => {
       result.current.changeUnit('ml');
     });
     expect(result.current.foodData).toMatchObject({
-      calories: '200.5', amount: '125', productName: 'Oats', unit: 'ml',
+      calories: '200.5', amount: '1.25', productName: 'Oats', unit: 'ml',
     });
     expect(result.current.isDirty).toMatchObject({
       calories: true, amount: true, productName: true, unit: true,

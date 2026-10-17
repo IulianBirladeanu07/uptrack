@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { normalizeDecimalSeparator } from '../../utils/decimalInput';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import { colors, spacing, radius, fontSize, fontWeight } from '../../../../shared/theme';
 
@@ -41,7 +42,7 @@ const ServingSizeSelector = ({
       return;
     }
 
-    const parsedValue = parseFloat(text);
+    const parsedValue = parseFloat(normalizeDecimalSeparator(text));
 
     if (isNaN(parsedValue) || parsedValue <= 0) {
       setErrorMessage('Please enter a valid positive number.');

@@ -5,6 +5,7 @@ import { supabase } from '../../../shared/services/supabaseClient';
 import { validateFoodData } from '../utils/customFoodValidators';
 import { formatDate } from '../utils/dateUtils';
 import { formatFoodDataForSubmission, getInitialFoodData, passesBarcodedProductsInsertPolicy, transformForBarcodeDB, transformForCustomFood } from '../utils/customFoodDataUtils';
+import { sanitizeDecimalInput } from '../utils/decimalInput';
 import type { AppNavigationProp } from '../../../shared/navigation';
 import type { FoodFormData, FoodFormErrors } from '../../../shared/types';
 
@@ -64,7 +65,7 @@ export const useCustomFood = (
 
     const handleFieldChange = useCallback((field: Field, value: string) => {
         const processedValue = field !== 'productName' && field !== 'barcode' 
-            ? value.replace(/[^\d.]/g, '')
+            ? sanitizeDecimalInput(value)
             : value;
         
         setFormData(prev => ({
@@ -81,8 +82,7 @@ export const useCustomFood = (
     }, [validateField]);
 
     const handleAmountChange = useCallback((value: string) => {
-        const numericValue = value.replace(/[^\d.]/g, '');
-        handleFieldChange('amount', numericValue);
+        handleFieldChange('amount', sanitizeDecimalInput(value));
     }, [handleFieldChange]);
 
     const handleFieldFocus = useCallback((_field: Field) => {

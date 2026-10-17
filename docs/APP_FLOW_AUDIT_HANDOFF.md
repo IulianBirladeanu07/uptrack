@@ -34,6 +34,27 @@ Concrete code-level findings to address or explicitly accept:
 
 The reviewers reported no additional concrete findings in Auth/Profile or in the already tested Workout Details/Create Template helper boundaries. Findings above were code-path reviews; UI timing and live data cases were not reproduced on a device/backend. No code fixes were made as part of this audit request.
 
+### Second review and revalidation (2026-10-17)
+
+Run on `origin/master` at `5be358b` with a clean install. Baseline: `tsc` clean; Jest 126 suites / 1,044 tests in UTC, America/Los_Angeles and Europe/Bucharest; `npx expo install --check` passed; Android bundle export passed in production and `--dev` mode. Secrets pattern scan of the tree and of all 385 commits found nothing. `firebase/`, `supabase/rls.sql`, `eas.json` and the three workflows were re-read; the rules have not changed since `71a800a`. The Firebase emulator tests could not run in this review environment.
+
+Revalidated against current code and still present: the custom-food unit control has no `onPress` (`CustomFoodScreen.tsx` line 179), `FoodSelectionScreen.tsx` still keys selection by `productName` (lines 98, 145 to 147), and `useWorkoutScreenSchedule.ts` has no stale-result guard around the async `loadActiveSplit`. The `AuthContext` and `useFoodSearch` and `useWeightData` leads from the first-pass review were checked only for `AuthContext` (below).
+
+New findings:
+
+| Severity | Finding | Evidence | Status |
+|---|---|---|---|
+| Medium | Decimal commas were mangled in the custom-food form (`12,5` became `125`) and read as `1` in the serving-size input (`parseFloat('1,5')`). Silent wrong data for anyone whose numeric keyboard shows a comma. | `useCustomFood.ts` stripped everything except digits and points; `ServingSizeSelector.tsx` parsed the raw text. An existing test asserted `'1,25g'` becomes `'125'`. The weight entry uses an in-app keypad and is not affected. | Fixed: `utils/decimalInput.ts`, both inputs, tests added, the characterization test updated. Not tried on a device keyboard. |
+| Medium | After a dependency bump the committed `package-lock.json` has `expo-modules-core` 3.0.30 (was 3.0.21) and `expo` 54.0.37 (was 54.0.13), but `runtimeVersion` is `{ policy: "appVersion" }` and the version is still `2.0.5`. An OTA update published from this tree would be delivered to older binaries built with the previous native module. A dev client built before the bump does not match the current JS. | `package.json`, `package-lock.json`, `app.config.js`. | Open. Rebuild the dev client and any preview or release binary after pulling, and bump `version` (or change the runtime policy) before publishing any EAS Update. No update workflow exists in the repo. |
+| Low | `AuthContext` sets `loading` to `true` on every auth event, and `App.tsx` swaps the whole navigator for the splash stack while it is true. The login and registration screens therefore unmount and remount during sign-in and sign-up, including the intermediate unverified-user event. | `AuthContext.tsx` lines 94 to 120, `App.tsx` lines 83 to 90. | Open. Likely effect: typed fields reset and a visible flash after an unverified sign-in. Not observed on a device. |
+| Low | Weekly and completion counts now exclude workouts whose timestamp is later than the device clock (`<= now`). History timestamps are Firestore server times, so a device clock that runs behind hides a just-finished workout until the clock catches up. | `workoutHistory.ts`, `dashboardWorkoutSummary.ts`, `workoutHistorySummary.ts` (commits `cabacfa`, `8cbd45f`). History cannot contain future workouts through the app, so the guard protects against no known case. | Open. Consider a tolerance of a few minutes, or reverting. Not reproduced. |
+| Low | `updateSplitInFirestore` writes the schedule without the sanitizer that `addSplitToFirestore` uses, so edited splits keep hydrated template fields and could carry `undefined` for legacy data, which Firestore rejects. | `workoutSplitService.ts`, `CreateSplitScreen.tsx` line 216. | Open, low likelihood. |
+| Low | The Maestro install step runs `curl ... | bash` from an unpinned URL, and actions are pinned by tag, not commit SHA. `eas-cli` is pinned. The workflows have read-only `contents` permission and are manual with a confirmation input. | `android-ui-smoke.yml`, `tests.yml`. | Open, accepted risk for a manual workflow; pin when convenient. |
+| Info | `AsyncStorage` key `auth_token` stores the user's uid, is written and removed in `AuthContext` and never read. | `git grep auth_token`. | Misleading name, no security effect; remove when touching the file. |
+| Info | `READ_EXTERNAL_STORAGE` and `WRITE_EXTERNAL_STORAGE` are now blocked in `app.config.js`. The Play readiness doc argues the app does not need them. | `app.config.js`, `docs/PLAY_STORE_RELEASE_READINESS.md`. | Needs the profile picture and workout photo pickers checked on an Android 11 to 13 device. |
+
+The dependency numbers in `docs/PLAY_STORE_RELEASE_READINESS.md` (65 and 91 advisories) are from 2026-10-16 and are stale; the current production audit is 28 (22 high, 6 moderate, 0 critical), all in the Expo CLI, Metro, Jest and React Native tooling chains. They were not shown to be reachable from app code, and not proven unreachable either.
+
 ### Verification and release boundary
 
 - Local Jest: 126 suites / 1,044 tests passed in UTC, America/Los_Angeles, and Europe/Bucharest.
