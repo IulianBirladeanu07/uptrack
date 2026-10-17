@@ -1,4 +1,8 @@
-import { getExerciseHistorySets, getPreviousWorkoutExerciseSets } from './exerciseHistory';
+import {
+    getExerciseHistorySets,
+    getPreviousWorkoutExerciseSets,
+    toExerciseHistorySession,
+} from './exerciseHistory';
 
 describe('getExerciseHistorySets', () => {
     test('combines sets for same-named exercises in a workout', () => {
@@ -10,6 +14,53 @@ describe('getExerciseHistorySets', () => {
             { exerciseName: 'Row', sets: [{ weight: 60, reps: 10 }] },
             { exerciseName: 'Press', sets: [shoulderSet] },
         ], 'Press')).toEqual([chestSet, shoulderSet]);
+    });
+
+    describe('toExerciseHistorySession', () => {
+        it('filters invalid sets and computes the best set and total volume', () => {
+            const timestamp = { seconds: 123 };
+
+            expect(toExerciseHistorySession('workout-1', {
+                timestamp,
+                workoutName: 'Upper A',
+                exercises: [{
+                    exerciseName: 'Bench Press',
+                    muscleGroup: 'Chest',
+                    sets: [
+                        { weight: '80', reps: '8' },
+                        { weight: '90', reps: '5', isPR: true },
+                        { weight: '-1', reps: '8' },
+                        { weight: '60', reps: '0' },
+                        { weight: 'invalid', reps: '8' },
+                    ],
+                }],
+            }, 'Bench Press', 'Chest')).toEqual({
+                id: 'workout-1',
+                timestamp,
+                workoutName: 'Upper A',
+                sets: [
+                    { weight: '80', reps: '8' },
+                    { weight: '90', reps: '5', isPR: true },
+                ],
+                best: expect.objectContaining({
+                    weight: 90,
+                    reps: 5,
+                    estimated1RM: expect.any(Number),
+                    e1rm: expect.any(Number),
+                }),
+                totalVolume: 1090,
+            });
+        });
+
+        it('returns null when no matching valid sets exist and defaults the workout name', () => {
+            expect(toExerciseHistorySession('workout-2', {
+                exercises: [{ exerciseName: 'Bench Press', sets: [{ weight: 50, reps: 0 }] }],
+            }, 'Bench Press')).toBeNull();
+
+            expect(toExerciseHistorySession('workout-3', {
+                exercises: [{ exerciseName: 'Bench Press', sets: [{ weight: 50, reps: 5 }] }],
+            }, 'Bench Press')).toMatchObject({ workoutName: 'Workout' });
+        });
     });
 
     describe('getPreviousWorkoutExerciseSets', () => {
