@@ -28,53 +28,25 @@ import { Image } from 'expo-image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import styles, { COLORS } from './ExerciseItemStyle';
+import {
+  SET_OPTIONS,
+  REP_RANGE_OPTIONS,
+  REST_TIME_OPTIONS,
+  formatRestTime,
+  isCustomRepRange as hasCustomRepRange,
+  isCustomRestTime as hasCustomRestTime,
+  getSetsRepsLabel,
+  sanitizeTimeInput,
+  isValidSecondsInput,
+  getRestInputs,
+  getTotalRestSeconds,
+} from './exerciseItemUtils';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import type { TemplateExercise } from '../../types';
-
-const SET_OPTIONS = [1, 2, 3, 4, 5];
-const REP_RANGE_OPTIONS = [
-  { label: '5-8', value: '5-8' },
-  { label: '8-12', value: '8-12' },
-  { label: '12-15', value: '12-15' },
-];
-
-const REST_TIME_OPTIONS = [
-  { label: '2m', value: 120 },
-  { label: '3m', value: 180 },
-  { label: '4m', value: 240 },
-  { label: '5m', value: 300 },
-];
 
 const SWIPE_THRESHOLD = 60;
 
 const BUTTON_HIT_SLOP = { top: 10, right: 10, bottom: 10, left: 10 };
-
-const formatRestTime = (seconds?: number) => {
-  if (!seconds) return '3m';
-
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-
-  const minutes = seconds / 60;
-
-  if (seconds % 60 === 0) {
-    return `${Math.floor(minutes)}m`;
-  }
-
-  if (seconds % 30 === 0) {
-    return `${minutes}m`;
-  }
-
-  const wholeMinutes = Math.floor(minutes);
-  const remainingSeconds = seconds % 60;
-
-  if (wholeMinutes === 0) {
-    return `${remainingSeconds}s`;
-  }
-
-  return `${wholeMinutes}m ${remainingSeconds}s`;
-};
 
 type CustomButtonProps = Pick<
   TouchableOpacityProps,
@@ -178,30 +150,25 @@ const RestTimeModal = ({ visible, onClose, currentValue, onSave }: RestTimeModal
 
   useEffect(() => {
     if (visible && currentValue) {
-      const m = Math.floor(currentValue / 60);
-      const s = currentValue % 60;
-      setMinutes(m > 0 ? m.toString() : '');
-      setSeconds(s > 0 ? s.toString() : '');
+      const inputs = getRestInputs(currentValue);
+      setMinutes(inputs.minutes);
+      setSeconds(inputs.seconds);
     }
   }, [visible, currentValue]);
 
   const handleMinutesChange = (text: string) => {
-    const cleaned = text.replace(/[^0-9]/g, '');
-    setMinutes(cleaned);
+    setMinutes(sanitizeTimeInput(text));
   };
 
   const handleSecondsChange = (text: string) => {
-    const cleaned = text.replace(/[^0-9]/g, '');
-    const num = parseInt(cleaned) || 0;
-    if (num <= 59) {
+    const cleaned = sanitizeTimeInput(text);
+    if (isValidSecondsInput(cleaned)) {
       setSeconds(cleaned);
     }
   };
 
   const handleSave = () => {
-    const m = parseInt(minutes) || 0;
-    const s = parseInt(seconds) || 0;
-    const totalSeconds = m * 60 + s;
+    const totalSeconds = getTotalRestSeconds(minutes, seconds);
     if (totalSeconds > 0) {
       onSave(totalSeconds);
       onClose();
@@ -304,9 +271,7 @@ const RestTimeSelector = ({ selectedValue, onSelect, onCustomPress }: RestTimeSe
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   const isSelectedTime = selectedValue !== undefined && selectedValue !== null;
-  const isCustomRestTime = Boolean(
-    selectedValue && !REST_TIME_OPTIONS.some((opt) => opt.value === selectedValue)
-  );
+  const isCustomRestTime = hasCustomRestTime(selectedValue);
 
   const toggleExpansion = useCallback(() => {
     const newValue = !isExpanded;
@@ -564,9 +529,7 @@ const ExerciseItem = memo(
 
     const exerciseName = exercise?.exerciseName || exercise?.name || '';
     const muscleGroup = exercise?.muscleGroup || '';
-    const isCustomRepRange = Boolean(
-      exercise?.repRange && !REP_RANGE_OPTIONS.some((opt) => opt.value === exercise.repRange)
-    );
+    const isCustomRepRange = hasCustomRepRange(exercise?.repRange);
 
     useEffect(() => {
       if (exercise.restTime === undefined) {
@@ -726,13 +689,7 @@ const ExerciseItem = memo(
                       <View style={styles.setsRepsSummary}>
                         {(exercise.numSets || exercise.repRange) && (
                           <Text style={styles.setsRepsText}>
-                            {exercise.numSets && exercise.repRange
-                              ? `${exercise.numSets} x ${exercise.repRange}`
-                              : exercise.numSets
-                              ? `${exercise.numSets} sets`
-                              : exercise.repRange
-                              ? `${exercise.repRange} reps`
-                              : ''}
+                            {getSetsRepsLabel(exercise.numSets, exercise.repRange)}
                           </Text>
                         )}
                         {muscleGroup && (exercise.numSets || exercise.repRange) && (
