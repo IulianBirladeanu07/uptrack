@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../../auth/services/firebaseConfigService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { AuthContext } from '../../auth/context/AuthContext';
@@ -15,7 +14,11 @@ import { getLocalWeekStart } from '../helpers/weightTrackerUtils';
 import { getRollingWeekStats, checkAndCompleteLearning, calculateLearningStats, checkAndRunWeeklyEval, checkAndBackfillStepsBonus } from '../helpers/learningCompletionService';
 import useDailyNutrition from '../helpers/useDailyNutrition';
 import MealCache from './cache/MealCache';
-import { parsePersistedMealCache } from './cache/mealCacheStorage';
+import {
+    clearPersistedMealCache,
+    loadPersistedMealCache,
+    persistMealCache,
+} from './cache/mealCacheStorage';
 import { AsyncOperationQueue } from './AsyncOperationQueue';
 import { buildCategoryData } from './categoryData';
 import { loadSelectedDateMeals } from './selectedDateMealLoad';
@@ -28,7 +31,6 @@ import type {
     MealGroup, MealType, MealsByType, NutritionTotals, UserData, WeightInWeek,
 } from '../../../shared/types';
 
-const MEAL_CACHE_KEY_PREFIX = 'meal_cache_v2_';
 const REQUIRED_LEARNING_DAYS = 7;
 
 type DayCalories = { date: string; calories: number };
@@ -79,36 +81,6 @@ export const useFoodContext = () => {
     const context = useContext(FoodContext);
     if (!context) throw new Error('useFoodContext must be used within a FoodProvider');
     return context;
-};
-
-const persistMealCache = async (uid: string, meals: MealGroup[]) => {
-    try {
-        await AsyncStorage.setItem(
-            `${MEAL_CACHE_KEY_PREFIX}${uid}`,
-            JSON.stringify({ meals, ts: Date.now() })
-        );
-    } catch (error) {
-        console.error('[FoodContext] meal cache persist failed:', error);
-    }
-};
-
-const loadPersistedMealCache = async (uid: string): Promise<MealGroup[] | null> => {
-    try {
-        const raw = await AsyncStorage.getItem(`${MEAL_CACHE_KEY_PREFIX}${uid}`);
-        if (!raw) return null;
-        return parsePersistedMealCache(raw);
-    } catch (error) {
-        console.error('[FoodContext] meal cache load failed:', error);
-        return null;
-    }
-};
-
-const clearPersistedMealCache = async (uid: string) => {
-    try {
-        await AsyncStorage.removeItem(`${MEAL_CACHE_KEY_PREFIX}${uid}`);
-    } catch (error) {
-        console.error('[FoodContext] meal cache clear failed:', error);
-    }
 };
 
 const getCurrentWeekRollingStats = (mealCache: MealCache | null, weightIns?: WeightInWeek[]) => {
