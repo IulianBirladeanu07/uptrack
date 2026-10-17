@@ -50,14 +50,16 @@ jobs:
           fi
           raw_value="$EAS_BUILD_ID_INPUT"
           if [[ -z "$raw_value" ]]; then
-            npx --yes eas-cli@25.0.0 build:list \
+            if ! npx --yes eas-cli@25.0.0 build:list \
               --platform android \
               --build-profile preview \
               --status finished \
-              --git-commit-hash "$GITHUB_SHA" \
-              --limit 1 \
-              --json > eas-builds.json
-            raw_value="$(node -e "const result=JSON.parse(require('fs').readFileSync('eas-builds.json','utf8')); const builds=Array.isArray(result)?result:(result.builds??[]); process.stdout.write(builds[0]?.id??'')")"
+              --limit 50 \
+              --json > eas-builds.json; then
+              echo "::error title=EAS build lookup failed::EAS CLI could not list finished Android preview builds. Check EXPO_TOKEN access and try again, or provide a build ID."
+              exit 1
+            fi
+            raw_value="$(node -e "const result=JSON.parse(require('fs').readFileSync('eas-builds.json','utf8')); const builds=Array.isArray(result)?result:(result.builds??[]); const target=process.env.GITHUB_SHA.toLowerCase(); const match=builds.find(build=>build.gitCommitHash?.toLowerCase()===target); process.stdout.write(match?.id??'')")"
             if [[ -z "$raw_value" ]]; then
               echo "::error title=No matching preview APK::No finished Android preview build was found for this commit. Run Android preview build first, then retry."
               exit 1
