@@ -6,6 +6,7 @@ import { workoutService } from '../../services/WorkoutService';
 import { workoutTimer } from '../../services/WorkoutTimerService';
 import { toSelectedWorkout } from './selectedWorkoutData';
 import type { SelectedWorkout } from './selectedWorkoutData';
+import { isCurrentWorkoutUser } from './workoutUserGuard';
 
 type WorkoutSessionInitializationOptions = {
     selectedWorkout: unknown;
@@ -16,9 +17,6 @@ type WorkoutSessionInitializationOptions = {
     setActiveWorkout: (workout: PersistedWorkoutState | null) => void;
     refreshAllData: () => unknown;
 };
-
-const isCurrentUser = (uid: string | undefined): uid is string =>
-    !!uid && getAuth().currentUser?.uid === uid;
 
 export const useWorkoutSessionInitialization = ({
     selectedWorkout: selectedWorkoutInput,
@@ -34,6 +32,7 @@ export const useWorkoutSessionInitialization = ({
     const isInitialized = useRef(false);
     const initializationGeneration = useRef(0);
     const selectedWorkoutRef = useRef(selectedWorkoutInput);
+    selectedWorkoutRef.current = selectedWorkoutInput;
 
     const syncActiveWorkout = useCallback(() => {
         const startTime = workoutService.getStartTime();
@@ -55,14 +54,14 @@ export const useWorkoutSessionInitialization = ({
         const { note, exercises, templateName } = selectedWorkout;
         if (!exercises || !Array.isArray(exercises)) return;
         const uid = getAuth().currentUser?.uid;
-        if (!isCurrentUser(uid)) return;
+        if (!isCurrentWorkoutUser(uid)) return;
         workoutService.startWorkout();
         workoutService.setWorkoutTemplateName(templateName || '');
         setInputText(note || '');
         workoutService.setWorkoutNote(note || '');
         syncActiveWorkout();
         const loadedData = await workoutService.loadWorkoutFromTemplate(exercises);
-        if (!isCurrentUser(uid) || requestGeneration !== initializationGeneration.current) return;
+        if (!isCurrentWorkoutUser(uid) || requestGeneration !== initializationGeneration.current) return;
         setExerciseData(loadedData);
         workoutTimer.start();
         setSelectedExercise(loadedData[0]?.exerciseName || null);
@@ -87,14 +86,14 @@ export const useWorkoutSessionInitialization = ({
 
         const initWorkout = async () => {
             const uid = getAuth().currentUser?.uid;
-            if (!isCurrentUser(uid)) return;
+            if (!isCurrentWorkoutUser(uid)) return;
             if (selectedWorkout) {
                 await handleSelectedWorkout(selectedWorkout, requestGeneration);
-                if (!isCurrentUser(uid) || requestGeneration !== initializationGeneration.current) return;
+                if (!isCurrentWorkoutUser(uid) || requestGeneration !== initializationGeneration.current) return;
                 setIsInitializing(false);
             } else {
                 const restored = await workoutService.restoreWorkout();
-                if (!isCurrentUser(uid) || requestGeneration !== initializationGeneration.current) return;
+                if (!isCurrentWorkoutUser(uid) || requestGeneration !== initializationGeneration.current) return;
                 if (restored) {
                     workoutTimer.restore(restored.startTime);
                     setExerciseData(workoutService.getExerciseData());

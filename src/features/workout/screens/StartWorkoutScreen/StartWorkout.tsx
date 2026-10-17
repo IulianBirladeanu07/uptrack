@@ -10,16 +10,16 @@ import ExerciseInput from '../../components/ExerciseInput/ExerciseInput';
 import ExerciseOptionsModal from '../../components/ExerciseOptionsModal/ExerciseOptionsModal';
 import { sendWorkoutDataToFirestore } from '../../services/workoutSessionService';
 import { WorkoutContext } from '../../context/WorkoutContext';
-import { workoutService, createEmptySet } from '../../services/WorkoutService';
-import { isSameExercise } from '../../utils/exerciseIdentity';
+import { workoutService } from '../../services/WorkoutService';
 import { workoutTimer, useWorkoutTimer } from '../../services/WorkoutTimerService';
 import styles from './StartWorkoutStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import CustomNumericKeyboard from '../../components/CustomNumericKeyboard/CustomNumericKeyboard';
 import type { WorkoutExercise } from '../../types';
-import { toSelectedExercises } from './selectedWorkoutData';
 import { useWorkoutSessionInitialization } from './useWorkoutSessionInitialization';
+import { useWorkoutExerciseSelection } from './useWorkoutExerciseSelection';
+import { isCurrentWorkoutUser } from './workoutUserGuard';
 
 type FocusedInputData = {
     type: 'weight' | 'reps';
@@ -35,9 +35,6 @@ type KeyboardInputData = {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;
-
-const isCurrentUser = (uid: string | undefined): uid is string =>
-    !!uid && getAuth().currentUser?.uid === uid;
 
 const TimerComponent = () => {
     const { formattedTime } = useWorkoutTimer();
@@ -67,7 +64,6 @@ const StartWorkout = () => {
     const { refreshAllData, setActiveWorkout } = useContext(WorkoutContext)!;
     const insets = useSafeAreaInsets();
     const isKeyboardVisibleRef = useRef(false);
-    const pendingReplaceRef = useRef<number | null>(null);
     const {
         isInitializing,
         isFinishingWorkout,
@@ -82,11 +78,23 @@ const StartWorkout = () => {
         setActiveWorkout,
         refreshAllData,
     });
-
     const openAnimatedMessage = useCallback((message: string) => {
         setAnimatedMessage(message);
         setTimeout(() => setAnimatedMessage(''), 2000);
     }, []);
+
+    const {
+        markExerciseForReplacement,
+        takePendingReplacement,
+        addNewExercisesFromRoute,
+        replaceExerciseFromRoute,
+    } = useWorkoutExerciseSelection({
+        initializationGeneration,
+        selectedExercise,
+        setSelectedExercise,
+        setExerciseData,
+        openAnimatedMessage,
+    });
 
     const handleMenuPress = useCallback((exercise: WorkoutExercise, exerciseIndex: number) => {
         if (isKeyboardVisibleRef.current) {
@@ -103,12 +111,12 @@ const StartWorkout = () => {
 
     const handleMenuReplace = useCallback(() => {
         if (!activeExerciseMenu) return;
-        pendingReplaceRef.current = activeExerciseMenu.exerciseIndex;
+        markExerciseForReplacement(activeExerciseMenu.exerciseIndex);
         navigation.navigate('ExerciseSelection', {
             previousScreen: 'StartWorkout',
             replaceIndex: String(activeExerciseMenu.exerciseIndex),
         });
-    }, [activeExerciseMenu, navigation]);
+    }, [activeExerciseMenu, markExerciseForReplacement, navigation]);
 
     const handleMenuDelete = useCallback(() => {
         if (!activeExerciseMenu) return;
@@ -223,92 +231,11 @@ const StartWorkout = () => {
         }
     }, [focusedInputData, exerciseData]);
 
-    const addNewExercisesFromRoute = useCallback(async (exercises: unknown) => {
-        const uid = getAuth().currentUser?.uid;
-        if (!isCurrentUser(uid)) return;
-        const requestGeneration = initializationGeneration.current;
-        const selectedExercises = toSelectedExercises(exercises);
-        if (selectedExercises.length === 0) return;
-        const currentData = workoutService.getExerciseData();
-        const newExercises: WorkoutExercise[] = [];
-
-        for (const ex of selectedExercises) {
-            if ([...currentData, ...newExercises].some(existing => isSameExercise(existing, ex))) continue;
-            const lastSets = await workoutService.fetchLastSets(ex.exerciseName, ex.muscleGroup);
-            if (!isCurrentUser(uid) || requestGeneration !== initializationGeneration.current) return;
-            newExercises.push({
-                exerciseName: ex.exerciseName,
-                muscleGroup: ex.muscleGroup || '',
-                category: ex.category || '',
-                imageURL: ex.imageURL || '',
-                sets: [createEmptySet()],
-                lastWorkoutSets: lastSets,
-                repRange: ex.repRange || '',
-            });
-        }
-
-        if (newExercises.length > 0) {
-            workoutService.addExercises(newExercises);
-            const updatedData = workoutService.getExerciseData();
-            setExerciseData(updatedData);
-            if (!selectedExercise) {
-                setSelectedExercise(newExercises[0]?.exerciseName || null);
-            }
-        }
-    }, [selectedExercise]);
-
-    const replaceExerciseFromRoute = useCallback(async (targetIndex: number, selected: unknown) => {
-        const uid = getAuth().currentUser?.uid;
-        if (!isCurrentUser(uid)) return;
-        const requestGeneration = initializationGeneration.current;
-        const incoming = toSelectedExercises(Array.isArray(selected) ? selected : [selected])[0];
-        if (!incoming) {
-            openAnimatedMessage('Failed to replace exercise. Please try again.');
-            return;
-        }
-        const newName = incoming.exerciseName;
-
-        const currentData = workoutService.getExerciseData();
-        const replaced = currentData[targetIndex];
-        if (!replaced) {
-            openAnimatedMessage('Failed to replace exercise. Please try again.');
-            return;
-        }
-
-        const isDuplicate = currentData.some((ex, idx) =>
-            idx !== targetIndex &&
-            isSameExercise(ex, incoming)
-        );
-        if (isDuplicate) {
-            openAnimatedMessage('This exercise is already added.');
-            return;
-        }
-
-        const lastSets = await workoutService.fetchLastSets(newName, incoming.muscleGroup);
-        if (!isCurrentUser(uid) || requestGeneration !== initializationGeneration.current) return;
-        const newExercise = {
-            exerciseName: newName,
-            muscleGroup: incoming.muscleGroup || '',
-            category: incoming.category || '',
-            imageURL: incoming.imageURL || '',
-            sets: replaced.sets.map(() => createEmptySet()),
-            lastWorkoutSets: lastSets,
-            repRange: incoming.repRange || replaced.repRange || '',
-        };
-
-        workoutService.replaceExercise(targetIndex, newExercise);
-        setExerciseData(workoutService.getExerciseData());
-        if (selectedExercise === replaced.exerciseName) {
-            setSelectedExercise(newName);
-        }
-    }, [openAnimatedMessage, selectedExercise]);
-
     useFocusEffect(
         useCallback(() => {
             if (isInitialized.current && routeParams?.selectedExercises) {
-                const replaceTarget = pendingReplaceRef.current;
+                const replaceTarget = takePendingReplacement();
                 if (replaceTarget !== null) {
-                    pendingReplaceRef.current = null;
                     replaceExerciseFromRoute(replaceTarget, routeParams.selectedExercises);
                 } else {
                     addNewExercisesFromRoute(routeParams.selectedExercises);
@@ -318,19 +245,26 @@ const StartWorkout = () => {
             if (isInitialized.current && routeParams?.selectedExercise) {
                 setSelectedExercise(routeParams.selectedExercise);
             }
-        }, [routeParams?.selectedExercises, routeParams?.selectedExercise, addNewExercisesFromRoute, replaceExerciseFromRoute, navigation])
+        }, [
+            routeParams?.selectedExercises,
+            routeParams?.selectedExercise,
+            addNewExercisesFromRoute,
+            replaceExerciseFromRoute,
+            takePendingReplacement,
+            navigation,
+        ])
     );
 
     const confirmExit = useCallback(async (uid: string) => {
-        if (!isCurrentUser(uid) || workoutService.uid !== uid) return;
+        if (!isCurrentWorkoutUser(uid) || workoutService.uid !== uid) return;
         initializationGeneration.current++;
         workoutTimer.stop();
         await workoutService.clearWorkout();
-        if (!isCurrentUser(uid) || workoutService.uid !== uid) return;
+        if (!isCurrentWorkoutUser(uid) || workoutService.uid !== uid) return;
         setActiveWorkout(null);
         setInputText('');
         await refreshAllData(true);
-        if (!isCurrentUser(uid) || workoutService.uid !== uid) return;
+        if (!isCurrentWorkoutUser(uid) || workoutService.uid !== uid) return;
         navigation.goBack();
     }, [navigation, refreshAllData, setActiveWorkout]);
 
