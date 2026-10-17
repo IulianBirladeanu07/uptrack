@@ -4,9 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       eas_build_id:
-        description: "EAS Android preview build ID to test"
-        required: true
+        description: "Optional EAS Android preview build ID (blank selects the latest successful preview build for this commit)"
+        required: false
         type: string
+        default: ""
       confirm_ui_test:
         description: "Download the selected APK and run the non-destructive Maestro smoke flow"
         required: true
@@ -22,8 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: eas-preview
-    env:
-      EAS_BUILD_ID: ${{ inputs.eas_build_id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,25 +37,40 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Verify inputs and EAS token
+      - name: Resolve EAS build and verify token
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EAS_BUILD_ID_INPUT: ${{ inputs.eas_build_id }}
+          GITHUB_SHA: ${{ github.sha }}
         shell: bash
         run: |
-          raw_value="$EAS_BUILD_ID_INPUT"
-          if [[ "$raw_value" =~ https?://[^[:space:]]+/builds/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}) ]]; then
-            raw_value="${BASH_REMATCH[1]}"
-          fi
-          if [[ ! "$raw_value" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
-            echo "::error title=Invalid build ID::Provide the UUID or Expo build URL of a completed EAS Android preview build."
-            exit 1
-          fi
-          echo "EAS_BUILD_ID=$raw_value" >> "$GITHUB_ENV"
           if [[ -z "$EXPO_TOKEN" ]]; then
             echo "::error title=Missing secret::Set EXPO_TOKEN in the eas-preview GitHub environment."
             exit 1
           fi
+          raw_value="$EAS_BUILD_ID_INPUT"
+          if [[ -z "$raw_value" ]]; then
+            npx --yes eas-cli@25.0.0 build:list \
+              --platform android \
+              --build-profile preview \
+              --status finished \
+              --git-commit-hash "$GITHUB_SHA" \
+              --limit 1 \
+              --json > eas-builds.json
+            raw_value="$(node -e "const result=JSON.parse(require('fs').readFileSync('eas-builds.json','utf8')); const builds=Array.isArray(result)?result:(result.builds??[]); process.stdout.write(builds[0]?.id??'')")"
+            if [[ -z "$raw_value" ]]; then
+              echo "::error title=No matching preview APK::No finished Android preview build was found for this commit. Run Android preview build first, then retry."
+              exit 1
+            fi
+          elif [[ "$raw_value" =~ https?://[^[:space:]]+/builds/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}) ]]; then
+            raw_value="${BASH_REMATCH[1]}"
+          fi
+          if [[ ! "$raw_value" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+            echo "::error title=Invalid build ID::Provide a valid EAS build UUID or Expo build URL."
+            exit 1
+          fi
+          echo "EAS_BUILD_ID=$raw_value" >> "$GITHUB_ENV"
+          echo "::notice title=Selected EAS build::$raw_value"
 
       - name: Download selected EAS APK
         id: download

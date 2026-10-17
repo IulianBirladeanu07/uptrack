@@ -10,11 +10,10 @@ This first flow is intentionally non-destructive: it does not sign in, create an
 
 1. Commit and push the flow, selectors, and `.github/workflows/android-ui-smoke.yml`.
 2. Build a fresh preview APK from that commit using **Actions → Android preview build**. The current existing APK predates the test IDs, so it cannot run this flow.
-3. From the successful EAS build page, copy the build UUID.
-4. Open **Actions → Android UI smoke → Run workflow**, enter that EAS build ID, and check `confirm_ui_test`.
-5. The workflow downloads only that existing APK using `EXPO_TOKEN` from the `eas-preview` environment, installs Maestro 2.11.0, runs the flow on an API 36 emulator, and uploads the JUnit report as a 14-day artifact.
+3. Open **Actions → Android UI smoke → Run workflow**. Leave the optional build ID blank to automatically select the latest finished Android `preview` build for the selected commit. You can provide a UUID or Expo build URL to override this, then check `confirm_ui_test`.
+4. The workflow uses `EXPO_TOKEN` from the `eas-preview` environment to resolve and download that existing APK, installs Maestro 2.11.0, runs the flow on an API 36 emulator, and uploads the JUnit report as a 14-day artifact.
 
-The UI smoke workflow does not start a new EAS build and does not use Maestro Cloud. The workflow and EAS token are restricted to a manually requested run. A fresh preview build still uses EAS build quota.
+The UI smoke workflow does not start a new EAS build and does not use Maestro Cloud. Automatic selection is restricted to a finished Android `preview` build associated with the same Git commit, so dispatch **Android preview build** once for a new commit before running the smoke test. The workflow and EAS token are restricted to a manually requested run. A fresh preview build still uses EAS build quota.
 
 ## Safe expansion plan
 
