@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useState, useContext, useRef } from 'react';
 import {
-    View, Text, TouchableOpacity, Modal, Pressable,
-    ScrollView, ActivityIndicator, Alert,
+    View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +15,6 @@ import { getScheduledDay, getWeekSchedule, getCycleLength } from '../../utils/sp
 import type { SplitLike } from '../../utils/splitSchedule';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { colors, spacing } from '../../../../shared/theme';
-import { ExercisePreviewList } from '../../components/WorkoutExercisePreview/WorkoutExercisePreview';
 import type { AuthenticatedStackParamList } from '../../../../shared/navigation';
 import styles from './WorkoutScreenStyles';
 import { getWorkoutHistorySummary } from './workoutHistorySummary';
@@ -26,6 +24,7 @@ import ThisWeekCard from './ThisWeekCard';
 import type { ThisWeekScheduleDay, WorkoutWeekSchedule } from './thisWeekSchedule';
 import MainWorkoutCard from './MainWorkoutCard';
 import type { WorkoutDisplayData } from './MainWorkoutCard';
+import WorkoutPreviewModal from './WorkoutPreviewModal';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 type AppNavigation = NativeStackNavigationProp<AuthenticatedStackParamList>;
@@ -186,6 +185,18 @@ const WorkoutScreen = () => {
         setPreviewWorkout(null);
     }, []);
 
+    const handleStartPreviewWorkout = useCallback(() => {
+        if (activeWorkout) return;
+        setIsModalVisible(false);
+        navigation.navigate('StartWorkout', {
+            selectedWorkout: {
+                note: '',
+                templateName: previewWorkout?.name,
+                exercises: previewWorkout?.exercises ?? [],
+            },
+        });
+    }, [activeWorkout, navigation, previewWorkout]);
+
     const handleLibraryPress = useCallback(() => navigation.navigate('WorkoutLibrary'), [navigation]);
     const handleHistoryPress = useCallback(() => navigation.navigate('WorkoutHistory'), [navigation]);
 
@@ -253,71 +264,14 @@ const WorkoutScreen = () => {
 
             <BottomNav />
 
-            <Modal animationType="slide" transparent visible={isModalVisible} onRequestClose={handleCloseModal}>
-                <Pressable style={styles.modalOverlay} onPress={handleCloseModal}>
-                    <View style={[styles.modalContent, { paddingBottom: insets.bottom + spacing[4] }]}>
-                        <View style={styles.modalHandle} />
-
-                        <View style={styles.modalHeader}>
-                            <View style={styles.modalHeaderLeft}>
-                                {previewWorkout?.day && (
-                                    <Text style={styles.modalDayLabel}>{previewWorkout.day}</Text>
-                                )}
-                                <Text style={styles.modalTitle}>{previewWorkout?.name ?? 'Workout'}</Text>
-                            </View>
-                            <TouchableOpacity onPress={handleCloseModal} style={styles.modalCloseButton}>
-                                <Ionicons name="close" size={16} color={colors.text.primary} />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.modalStatsRow}>
-                            <View style={styles.modalStatItem}>
-                                <Text style={styles.modalStatValue}>
-                                    {previewWorkout?.duration.replace(' min', 'm') ?? '0m'}
-                                </Text>
-                                <Text style={styles.modalStatLabel}>Time</Text>
-                            </View>
-                            <View style={styles.modalStatDivider} />
-                            <View style={styles.modalStatItem}>
-                                <Text style={styles.modalStatValue}>
-                                    {previewWorkout?.exercises?.reduce((a, e) => a + (parseInt(String(e.numSets ?? 0), 10) || 0), 0) ?? 0}
-                                </Text>
-                                <Text style={styles.modalStatLabel}>Sets</Text>
-                            </View>
-                            <View style={styles.modalStatDivider} />
-                            <View style={styles.modalStatItem}>
-                                <Text style={styles.modalStatValue}>{previewWorkout?.exercises?.length ?? 0}</Text>
-                                <Text style={styles.modalStatLabel}>Exercises</Text>
-                            </View>
-                        </View>
-
-                        <ScrollView style={styles.modalExList} showsVerticalScrollIndicator={false}>
-                            <ExercisePreviewList exercises={previewWorkout?.exercises} />
-                        </ScrollView>
-
-                        <TouchableOpacity
-                            style={[styles.startButton, activeWorkout && styles.startButtonDisabled]}
-                            onPress={() => {
-                                if (activeWorkout) return;
-                                setIsModalVisible(false);
-                                navigation.navigate('StartWorkout', {
-                                    selectedWorkout: {
-                                        note: '',
-                                        templateName: previewWorkout?.name,
-                                        exercises: previewWorkout?.exercises ?? [],
-                                    },
-                                });
-                            }}
-                            disabled={!!activeWorkout}
-                        >
-                            {!activeWorkout && <Ionicons name="play" size={14} color={colors.accent.buttonText} />}
-                            <Text style={[styles.startButtonText, activeWorkout && styles.startButtonTextDisabled]}>
-                                {activeWorkout ? 'Workout in Progress' : 'Start Workout'}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                </Pressable>
-            </Modal>
+            <WorkoutPreviewModal
+                visible={isModalVisible}
+                workout={previewWorkout}
+                bottomPadding={insets.bottom + spacing[4]}
+                isWorkoutActive={!!activeWorkout}
+                onClose={handleCloseModal}
+                onStart={handleStartPreviewWorkout}
+            />
         </ApplicationCustomScreen>
     );
 };
