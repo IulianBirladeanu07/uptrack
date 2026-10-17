@@ -19,7 +19,7 @@ Before each batch:
 2. Read `AGENTS.md`, then inspect the target and its callers/tests. Read `docs/APP_FLOW_AUDIT_HANDOFF.md` and the relevant `audit/` notes if the work concerns correctness or user flows.
 3. Make a focused change, preserve user-visible behavior, add tests for extracted logic or confirmed defects, and update directly related docs.
 4. Run focused tests, `npx tsc --noEmit`, and `git diff --check`. Run the full Jest suite for a coherent batch. Use Android Expo export for screen/import changes when appropriate; test date logic in `America/Los_Angeles`; run `npm run test:rules` for Firestore rules/access changes.
-5. Report what was actually verified. Jest has React Native Testing Library component tests only for `FoodSearchResults` and `NutritionScreen`; there is no navigation or device-level coverage, so do not describe a bundle export or helper test as an end-to-end UI test.
+5. Report what was actually verified. Jest has React Native Testing Library tests for `FoodSearchResults`, `NutritionScreen` and the `FoodProvider` meal writes (rendered as a hook, with Firebase, storage and the step display mocked); there is no navigation or device-level coverage, so do not describe a bundle export or helper test as an end-to-end UI test.
 
 6. Update this file in the same commit as the batch. Add the batch under "Work completed", replace the "latest validation" block with the numbers you actually ran, refresh the roadmap, and name the next candidate. Keep entries short and factual. Never record a check that was not run.
 
@@ -79,13 +79,20 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Moved the two result filters into `foodSearchFilters.ts` (`applyFoodFilter`, `LOW_CALORIE_LIMIT`, `HIGH_PROTEIN_MIN`) so the pill counts and the filtered list share one definition instead of repeating the 200 calorie and 10 g protein rules. Added 6 unit tests. `FoodSearchResults.tsx` changes by about 10 lines; its JSX, the inline styles and its props are unchanged.
 - Not covered by the new tests: removing a single recent search (the close icon has no label or test id) and the visual layout.
 
+### Food context meal writes
+
+- Added `src/features/nutrition/context/FoodProvider.test.tsx` (15 tests, React Native Testing Library `renderHook` with `FoodProvider` mounted for real). Firebase auth and Firestore, AsyncStorage, `mealService` reads and writes, the persisted meal cache, the learning service and the step display are mocked. It covers add (consolidation of the same food, serialized simultaneous adds, rollback after a failed write, invalid parameters, a failed day load), delete (success, unknown id, failed write) and update (success keeps id and usage count, unknown id, failed write), the alert text and error message on each failure, no alert or error for a write that fails after the account changed, and rejected mutations with nobody signed in. They were written first and passed against the unchanged provider.
+- `jest.config.js`: the `nutrition/context` pattern now includes `tsx`.
+- Refactor in `FoodContext.tsx` (about 11 lines shorter): the three handlers (`handleAddMeal`, `handleDeleteMeal`, `updateMealInDatabase`) each repeated the same `persistOptimisticMealWrite` wiring and the same failure reporting. They now call two provider callbacks, `writeMealOptimistically` (fills in the cache read, state update, cache persist and current-user check; the caller still supplies the next foods and its own rollback) and `reportMealFailure` (current-user check, `handleError`, then the save-failed alert). Ordering, error contexts (`add meal`, `delete meal item`, `update meal item`, `load meals`), alert text and return values are unchanged. A deliberate removal of the current-user check in `reportMealFailure` made the account-change test fail.
+- Not changed: step flushing, initialization, the auth listener, date change handling and the learning/weekly-evaluation effects. They are the next seams if this file is split further; step flushing is the most self-contained.
+
 The latest validation was:
 
-- `npx jest --runInBand --ci`: 93 suites / 856 tests passed, in the default time zone and in `America/Los_Angeles`.
+- `npx jest --runInBand --ci`: 94 suites / 871 tests passed in `UTC` (the default here), `America/Los_Angeles` and `Europe/Bucharest`.
 - `npx tsc --noEmit`: passed.
 - `git diff --check`: passed.
 - `npx expo export --platform android`: succeeded. This checks bundling only; no screen was run on a device.
-- Hooks lint (scratch setup from `AGENTS.md`): `FoodSearchResults.tsx` and `foodSearchFilters.ts` report no errors and no warnings; the original `FoodSearchResults.tsx` was also clean.
+- Hooks lint (scratch setup from `AGENTS.md`): `FoodContext.tsx` reports the same three `exhaustive-deps` warnings before and after (`mealState`, `cacheVersion` and `stepsVersion`, and `updateMealState` listed as unnecessary dependencies), no errors, no new warnings.
 
 ## Repository map
 
@@ -103,7 +110,7 @@ This is a ranked starting point based on the current source inventory, not a man
 
 1. **Workout component layer:** `ExerciseItem.tsx` is done for now: the pure helpers and the rest time UI are extracted and the file is about 380 lines. Optionally look at the swipe gesture and card header later. Most components have no tests. A React Native Testing Library setup exists (see `FoodSearchResults.test.tsx`), so write characterization tests against the unchanged component before a UI move when the component is simple enough to render; otherwise verify with `tsc`, the Android export, the hooks lint, and a script comparing the moved code to the original.
 2. **Workout authoring flows:** `CreateExerciseScreen` is done for now. `CreateTemplateScreen` has its selection handling extracted; the undo state and list updaters could follow but are small, so it is reasonable to move on. Keep validation, persistence, and navigation behavior unchanged; first look for existing shared form helpers and tests.
-3. **Nutrition UI/data boundaries:** `FoodSearchResults.tsx` is done for now (tests added, filters extracted; the rest is JSX and inline styles that follow the nutrition components' convention). Suggested next: `FoodContext.tsx` (about 624 lines). This area has account-scoped async state, caching, rollback, and date semantics; avoid moving logic without tracing its callers and failure paths. Coordinate with the open Nutrition audit rather than duplicating it.
+3. **Nutrition UI/data boundaries:** `FoodSearchResults.tsx` is done for now (tests added, filters extracted; the rest is JSX and inline styles that follow the nutrition components' convention). `FoodContext.tsx` has provider tests for the meal writes and shares the write wiring; the step flushing, initialization and auth-change handling are still in the file. Suggested next: extract step flushing, or move to the other large screens below. This area has account-scoped async state, caching, rollback, and date semantics; avoid moving logic without tracing its callers and failure paths. Coordinate with the open Nutrition audit rather than duplicating it.
 4. **Other large screens:** review `DashboardScreen` (about 658 lines), `ProgressScreen` (about 669 lines), and Profile screens for discrete view-model/presentation responsibilities. Prefer the smallest seam with strong behavior tests.
 5. **Maintenance pass:** once a feature batch is complete, reconcile directly related docs and test discovery. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 

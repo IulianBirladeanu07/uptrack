@@ -301,6 +301,30 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         mealCache.current.set(dateKey, day);
     }, []);
 
+    const writeMealOptimistically = useCallback((
+        uid: string,
+        mealType: MealType,
+        dateKey: string,
+        nextFoods: LoggedFood[],
+        rollback: (currentFoods: LoggedFood[]) => LoggedFood[] | null,
+    ) => persistOptimisticMealWrite({
+        uid,
+        mealType,
+        dateKey,
+        nextFoods,
+        getCurrentFoods: () => mealCache.current.get(dateKey)[mealType],
+        updateFoods: foods => updateMealState(mealType, foods, dateKey),
+        persistCache: () => { void persistMealCache(uid, serializeCacheForPersist()); },
+        isCurrentRequest: () => mountedRef.current && currentUserRef.current?.uid === uid,
+        rollback,
+    }), [updateMealState, serializeCacheForPersist]);
+
+    const reportMealFailure = useCallback((uid: string, context: string, error: unknown) => {
+        if (currentUserRef.current?.uid !== uid) return;
+        handleError(error, context);
+        showSaveFailedAlert();
+    }, [handleError, showSaveFailedAlert]);
+
     const handleAddMeal = useCallback(async (mealType: MealType, foods: LoggedFood[], mealDate?: DateInput): Promise<LoggedFood[]> => {
         if (!currentUser || !mealType || !foods?.length) throw new Error('Invalid meal parameters');
         const dateKey = formatDate(mealDate || selectedDateRef.current);
@@ -312,10 +336,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                 throw new Error('The signed-in user changed while loading meals.');
             }
         } catch (error) {
-            if (currentUserRef.current?.uid === uid) {
-                handleError(error, 'load meals');
-                showSaveFailedAlert();
-            }
+            reportMealFailure(uid, 'load meals', error);
             throw error;
         }
 
@@ -328,25 +349,14 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                 const existing = mealCache.current.get(dateKey)[mealType];
                 const consolidated = consolidateFoodData(existing, foods);
                 const undoSpecs = buildAddUndo(existing, foods);
-                await persistOptimisticMealWrite({
-                    uid,
-                    mealType,
-                    dateKey,
-                    nextFoods: consolidated,
-                    getCurrentFoods: () => mealCache.current.get(dateKey)[mealType],
-                    updateFoods: foods => updateMealState(mealType, foods, dateKey),
-                    persistCache: () => { void persistMealCache(uid, serializeCacheForPersist()); },
-                    isCurrentRequest: () => mountedRef.current && currentUserRef.current?.uid === uid,
-                    rollback: currentFoods => applyAddUndo(currentFoods, undoSpecs),
-                });
+                await writeMealOptimistically(uid, mealType, dateKey, consolidated, currentFoods => applyAddUndo(currentFoods, undoSpecs));
                 return consolidated;
             });
         } catch (error) {
-            if (currentUserRef.current?.uid === uid) handleError(error, 'add meal');
-            if (currentUserRef.current?.uid === uid) showSaveFailedAlert();
+            reportMealFailure(uid, 'add meal', error);
             throw error;
         }
-    }, [currentUser, ensureDayLoaded, updateMealState, executeWithLock, handleError, serializeCacheForPersist, showSaveFailedAlert]);
+    }, [currentUser, ensureDayLoaded, writeMealOptimistically, executeWithLock, reportMealFailure]);
 
     const handleDeleteMeal = useCallback(async (mealType: MealType, foodId: string): Promise<boolean> => {
         if (!currentUser || !mealType || !foodId) return false;
@@ -360,25 +370,14 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                 const existing = mealCache.current.get(dateKey)[mealType];
                 if (!existing.some(food => food.id === foodId)) return false;
                 const updated = existing.filter(food => food.id !== foodId);
-                await persistOptimisticMealWrite({
-                    uid,
-                    mealType,
-                    dateKey,
-                    nextFoods: updated,
-                    getCurrentFoods: () => mealCache.current.get(dateKey)[mealType],
-                    updateFoods: foods => updateMealState(mealType, foods, dateKey),
-                    persistCache: () => { void persistMealCache(uid, serializeCacheForPersist()); },
-                    isCurrentRequest: () => mountedRef.current && currentUserRef.current?.uid === uid,
-                    rollback: () => existing,
-                });
+                await writeMealOptimistically(uid, mealType, dateKey, updated, () => existing);
                 return true;
             });
         } catch (error) {
-            if (currentUserRef.current?.uid === uid) handleError(error, 'delete meal item');
-            if (currentUserRef.current?.uid === uid) showSaveFailedAlert();
+            reportMealFailure(uid, 'delete meal item', error);
             return false;
         }
-    }, [currentUser, updateMealState, executeWithLock, handleError, serializeCacheForPersist, showSaveFailedAlert]);
+    }, [currentUser, writeMealOptimistically, executeWithLock, reportMealFailure]);
 
     const updateMealInDatabase = useCallback(async (mealType: MealType, foodId: string, updatedFoodDetails: FoodDetailFood): Promise<void> => {
         if (!currentUser || !mealType || !foodId || !updatedFoodDetails) throw new Error('Invalid update parameters');
@@ -397,25 +396,15 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                 const updated = existing.map(food =>
                     food.id === foodId ? { ...updatedFoodDetails, id: foodId, usageCount: food.usageCount || 1 } : food
                 );
-                await persistOptimisticMealWrite({
-                    uid,
-                    mealType,
-                    dateKey,
-                    nextFoods: updated,
-                    getCurrentFoods: () => mealCache.current.get(dateKey)[mealType],
-                    updateFoods: foods => updateMealState(mealType, foods, dateKey),
-                    persistCache: () => { void persistMealCache(uid, serializeCacheForPersist()); },
-                    isCurrentRequest: () => mountedRef.current && currentUserRef.current?.uid === uid,
-                    rollback: currentFoods =>
-                        currentFoods.some(food => food.id === foodId) ? existing : null,
-                });
+                await writeMealOptimistically(uid, mealType, dateKey, updated, currentFoods =>
+                    currentFoods.some(food => food.id === foodId) ? existing : null
+                );
             });
         } catch (error) {
-            if (currentUserRef.current?.uid === uid) handleError(error, 'update meal item');
-            if (currentUserRef.current?.uid === uid) showSaveFailedAlert();
+            reportMealFailure(uid, 'update meal item', error);
             throw error;
         }
-    }, [currentUser, updateMealState, executeWithLock, handleError, serializeCacheForPersist, showSaveFailedAlert]);
+    }, [currentUser, writeMealOptimistically, executeWithLock, reportMealFailure]);
 
     const updateCurrentDayMeals = useCallback((date: DateInput) => {
         if (!mountedRef.current) return;
