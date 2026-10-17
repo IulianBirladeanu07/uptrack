@@ -2,6 +2,7 @@ import {
     buildWeekDayDisplay,
     countCompletedScheduledDays,
     countScheduledWorkoutDays,
+    toScheduledWorkoutPreview,
 } from './thisWeekSchedule';
 
 describe('buildWeekDayDisplay', () => {
@@ -48,5 +49,42 @@ describe('scheduled-day counts', () => {
 
         expect(countCompletedScheduledDays(days)).toBe(1);
         expect(countScheduledWorkoutDays(days)).toBe(2);
+    });
+});
+
+describe('scheduled workout previews', () => {
+    it('maps the scheduled workout and preserves display defaults', () => {
+        const day = buildWeekDayDisplay([], {
+            monday: {
+                templateName: 'Upper A',
+                duration: 35,
+                exercises: [{ exerciseName: 'Bench Press' }],
+            },
+        }, 2)[0];
+
+        expect(toScheduledWorkoutPreview(day)).toEqual({
+            name: 'Upper A',
+            duration: '35 min',
+            exercises: [{ exerciseName: 'Bench Press' }],
+            day: 'Mon',
+        });
+    });
+
+    it('uses the default name and duration when schedule values are absent or falsy', () => {
+        const day = buildWeekDayDisplay([], {
+            monday: { exercises: [{ exerciseName: 'Squat' }], duration: 0 },
+        }, 2)[0];
+
+        expect(toScheduledWorkoutPreview(day)).toEqual({
+            name: 'Workout',
+            duration: '45 min',
+            exercises: [{ exerciseName: 'Squat' }],
+            day: 'Mon',
+        });
+    });
+
+    it('returns no preview when the schedule day has no workout data', () => {
+        const day = buildWeekDayDisplay([], null, 2)[0];
+        expect(toScheduledWorkoutPreview(day)).toBeNull();
     });
 });

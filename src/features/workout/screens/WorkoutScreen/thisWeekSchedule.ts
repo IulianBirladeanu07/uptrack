@@ -18,6 +18,13 @@ export type WeekDayDisplay = {
     isToday: boolean;
 };
 
+export type ScheduledWorkoutPreview = {
+    name: string;
+    duration: string;
+    exercises: TemplateExercise[];
+    day: string;
+};
+
 const WEEK_DAYS = [
     { key: 'monday', jsDay: 1 },
     { key: 'tuesday', jsDay: 2 },
@@ -52,3 +59,16 @@ export const countCompletedScheduledDays = (days: WeekDayDisplay[]): number =>
 
 export const countScheduledWorkoutDays = (days: WeekDayDisplay[]): number =>
     days.filter(day => day.hasWorkout).length;
+
+export const toScheduledWorkoutPreview = (
+    day: WeekDayDisplay,
+): ScheduledWorkoutPreview | null => {
+    if (!day.workoutData) return null;
+
+    return {
+        name: day.workoutData.templateName ?? 'Workout',
+        duration: day.workoutData.duration ? `${day.workoutData.duration} min` : '45 min',
+        exercises: day.workoutData.exercises ?? [],
+        day: day.short,
+    };
+};

@@ -8,6 +8,7 @@ import {
     buildWeekDayDisplay,
     countCompletedScheduledDays,
     countScheduledWorkoutDays,
+    toScheduledWorkoutPreview,
 } from './thisWeekSchedule';
 import type { WorkoutWeekSchedule } from './thisWeekSchedule';
 
@@ -42,13 +43,9 @@ const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }: ThisWe
                             style={styles.weekCol}
                             activeOpacity={day.hasWorkout ? 0.7 : 1}
                             onPress={() => {
-                                if (!day.hasWorkout || !day.workoutData) return;
-                                onDayPress({
-                                    name: day.workoutData.templateName ?? 'Workout',
-                                    duration: day.workoutData.duration ? `${day.workoutData.duration} min` : '45 min',
-                                    exercises: day.workoutData.exercises ?? [],
-                                    day: day.short,
-                                });
+                                if (!day.hasWorkout) return;
+                                const preview = toScheduledWorkoutPreview(day);
+                                if (preview) onDayPress(preview);
                             }}
                         >
                             <View style={[styles.dayCircle, circleStyle]}>
