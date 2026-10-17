@@ -31,8 +31,8 @@ import type { CatalogExercise, ExerciseGroup } from '../../../shared/types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthenticatedStackParamList } from '../../../shared/navigation';
 import { isValidWorkoutSetInput } from '../utils/workoutSetValidation';
-import { getExerciseHistorySets, getPreviousWorkoutExerciseSets } from '../utils/exerciseHistory';
-import { calculate1RM, findBestSet, getPersonalRecordSetIndexes } from '../utils/workoutMetrics';
+import { getPreviousWorkoutExerciseSets } from '../utils/exerciseHistory';
+import { calculate1RM, getPersonalRecordSetIndexes } from '../utils/workoutMetrics';
 import { countWorkoutEntriesThisWeek } from '../utils/workoutHistory';
 export { clearSplitsCache, SPLITS_CACHE_KEY } from '../services/splitCache';
 export {
@@ -42,6 +42,7 @@ export {
   updateSplitInFirestore,
   updateSplitProgress,
 } from '../services/workoutSplitService';
+export { getExerciseHistory } from '../services/exerciseHistoryService';
 export { calculate1RM, findBestSet, formatBestSet } from '../utils/workoutMetrics';
 
 type AppNav = NativeStackNavigationProp<AuthenticatedStackParamList>;
@@ -963,58 +964,4 @@ export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
     console.error('Error fetching user splits from Firestore:', (error as Error).message);
     throw error;
   }
-};
-
-export const getExerciseHistory = async (exerciseName: string, muscleGroup?: string): Promise<DocumentData[]> => {
-    try {
-        const auth = getAuth();
-        const user = auth.currentUser;
-        if (!user) throw new Error('User not authenticated.');
-
-        const workoutsRef = collection(db, 'workoutHistory');
-        const workoutQuery = query(
-            workoutsRef,
-            where('uid', '==', user.uid),
-            orderBy('timestamp', 'desc'),
-            limit(100)
-        );
-        const querySnapshot = await getDocs(workoutQuery);
-
-        const sessions: DocumentData[] = [];
-
-        for (const snap of querySnapshot.docs) {
-            const data = snap.data() as {
-              exercises?: Array<{ exerciseName?: string; muscleGroup?: string; sets?: Array<{ weight?: string | number; reps?: string | number }> }>;
-              timestamp?: unknown;
-              workoutName?: string;
-            };
-            const exerciseSets = getExerciseHistorySets(data.exercises || [], exerciseName, muscleGroup);
-            if (exerciseSets.length === 0) continue;
-
-            const validSets = exerciseSets.filter(s => {
-                const weight = parseFloat(String(s.weight));
-                const reps = parseInt(String(s.reps), 10);
-                return Number.isFinite(weight) && weight >= 0 && Number.isFinite(reps) && reps > 0;
-            });
-            if (!validSets.length) continue;
-
-            const bestSet = findBestSet(validSets);
-            const best = { ...bestSet, e1rm: bestSet.estimated1RM };
-
-            sessions.push({
-                id: snap.id,
-                timestamp: data.timestamp,
-                workoutName: data.workoutName || 'Workout',
-                sets: validSets,
-                best,
-                totalVolume: validSets.reduce((sum: number, s) =>
-                    sum + (parseFloat(String(s.weight)) || 0) * (parseInt(String(s.reps), 10) || 0), 0),
-            });
-        }
-
-        return sessions;
-    } catch (error) {
-        console.error('Error fetching exercise history:', (error as Error).message);
-        throw error;
-    }
 };

@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Dimensions }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Circle, Text as SvgText, G } from 'react-native-svg';
-import { getExerciseHistory, calculate1RM, formatBestSet } from '../../handlers/WorkoutHandler';
+import { getExerciseHistory } from '../../services/exerciseHistoryService';
+import { calculate1RM, formatBestSet } from '../../utils/workoutMetrics';
 import { colors, spacing } from '../../../../shared/theme';
 import styles from './ExerciseHistoryScreenStyles';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
