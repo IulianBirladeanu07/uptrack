@@ -611,6 +611,65 @@ describe('FoodProvider initialization', () => {
 
         expect(clearPersistedMealCache).toHaveBeenCalledWith('user-1');
     });
+
+    test('does not clear data or reinitialize when the auth callback reports the same account', async () => {
+        const hook = await setup();
+        await act(async () => {
+            await hook.result.current.handleAddMeal('breakfast', [oats]);
+        });
+        (fetchLast30DaysMeals as jest.Mock).mockClear();
+
+        await signIn('user-1');
+
+        expect(hook.result.current.breakfastFoods.map(food => food.id)).toEqual(['oats']);
+        expect(hook.result.current.initialLoadComplete).toBe(true);
+        expect(fetchLast30DaysMeals).not.toHaveBeenCalled();
+    });
+
+    test('resets account-scoped state before loading data for a different account', async () => {
+        const hook = await setup();
+        await act(async () => {
+            await hook.result.current.handleAddMeal('breakfast', [oats]);
+            hook.result.current.updateDailySteps(8000, today);
+        });
+        (fetchLast30DaysMeals as jest.Mock).mockImplementation(
+            () => new Promise(() => undefined),
+        );
+
+        await signIn('user-2');
+
+        await waitFor(() => expect(fetchLast30DaysMeals).toHaveBeenCalledWith('user-2'));
+        expect(hook.result.current.breakfastFoods).toEqual([]);
+        expect(hook.result.current.dailySteps).toBe(0);
+        expect(hook.result.current.getMealCache().has(today)).toBe(false);
+        expect(hook.result.current.initialLoadComplete).toBe(false);
+        expect(hook.result.current.loading).toBe(true);
+        expect(hook.result.current.error).toBeNull();
+        expect(hook.result.current.initializationError).toBeNull();
+    });
+
+    test('clears account-scoped state and loading flags on sign-out', async () => {
+        const hook = await setup();
+        await act(async () => {
+            await hook.result.current.handleAddMeal('breakfast', [oats]);
+            hook.result.current.updateDailySteps(8000, today);
+        });
+        (writeMealType as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+        await act(async () => {
+            await expect(hook.result.current.handleAddMeal('lunch', [rice])).rejects.toThrow('offline');
+        });
+
+        await signIn(null);
+
+        expect(hook.result.current.breakfastFoods).toEqual([]);
+        expect(hook.result.current.dailySteps).toBe(0);
+        expect(hook.result.current.getMealCache().has(today)).toBe(false);
+        expect(hook.result.current.initialLoadComplete).toBe(false);
+        expect(hook.result.current.loading).toBe(false);
+        expect(hook.result.current.error).toBeNull();
+        expect(hook.result.current.initializationError).toBeNull();
+        expect(clearPersistedMealCache).toHaveBeenCalledWith('user-1');
+    });
 });
 
 describe('FoodProvider selected-date loading', () => {

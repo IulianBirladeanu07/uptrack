@@ -18,6 +18,7 @@ import {
     persistMealCache,
 } from './cache/mealCacheStorage';
 import { loadInitializationMeals } from './loadInitializationMeals';
+import { handleFoodAuthStateChange } from './foodAuthStateChange';
 import { AsyncOperationQueue } from './AsyncOperationQueue';
 import { buildCategoryData } from './categoryData';
 import { persistOptimisticMealWrite } from './optimisticMealWrite';
@@ -545,39 +546,37 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     }, [currentUser, freshMealsLoaded, userData, refreshUserData]);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (!mountedRef.current) return;
-            const previousUser = currentUserRef.current;
-            const userChanged = previousUser?.uid !== user?.uid;
-            if (userChanged) {
-                userGenerationRef.current++;
-                initializationRef.current = false;
-                stepsBonusCheckedRef.current = false;
-                weeklyEvalCheckedRef.current = false;
-                stepsFlusher.current.reset();
-                mealCache.current.clear();
-                setCategoryData({ recentMeals: [], frequentFoods: [], favoriteFoods: [] });
-                setMealState({ breakfast: [], lunch: [], dinner: [], snacks: [] });
-                setDailySteps(0);
-                setStepsVersion(0);
-                setStepsLoading(false);
-                setStepsError(null);
-                setStepsConnected(null);
-                setCacheVersion(0);
-                setError(null);
-                setInitialLoadComplete(false);
-                setInitializationError(null);
-                setFreshMealsLoaded(false);
-                setLoading(!!user);
-            }
-            currentUserRef.current = user;
-            setCurrentUser(user);
-            if (user) {
-                initializeAppData(user);
-            } else {
-                if (previousUser) clearPersistedMealCache(previousUser.uid);
-                setLoading(false);
-            }
+        const unsubscribe = onAuthStateChanged(auth, user => {
+            handleFoodAuthStateChange(user, {
+                isMounted: () => mountedRef.current,
+                getCurrentUser: () => currentUserRef.current,
+                resetAccountState: user => {
+                    userGenerationRef.current++;
+                    initializationRef.current = false;
+                    stepsBonusCheckedRef.current = false;
+                    weeklyEvalCheckedRef.current = false;
+                    stepsFlusher.current.reset();
+                    mealCache.current.clear();
+                    setCategoryData({ recentMeals: [], frequentFoods: [], favoriteFoods: [] });
+                    setMealState({ breakfast: [], lunch: [], dinner: [], snacks: [] });
+                    setDailySteps(0);
+                    setStepsVersion(0);
+                    setStepsLoading(false);
+                    setStepsError(null);
+                    setStepsConnected(null);
+                    setCacheVersion(0);
+                    setError(null);
+                    setInitialLoadComplete(false);
+                    setInitializationError(null);
+                    setFreshMealsLoaded(false);
+                    setLoading(!!user);
+                },
+                setCurrentUserRef: currentUser => { currentUserRef.current = currentUser; },
+                setCurrentUser,
+                initializeAppData: user => { void initializeAppData(user); },
+                clearPersistedMealCache: uid => { void clearPersistedMealCache(uid); },
+                setLoading,
+            });
         });
         return () => unsubscribe();
     }, [initializeAppData]);
