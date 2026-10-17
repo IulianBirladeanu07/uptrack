@@ -13,6 +13,7 @@ import {
     getExerciseHistoryLabelAnchor,
     type ExerciseHistoryTimestamp,
 } from './exerciseHistoryPresentation';
+import { buildExerciseHistoryChartModel } from './exerciseHistoryChart';
 
 type TimestampLike = ExerciseHistoryTimestamp;
 
@@ -59,41 +60,20 @@ const ProgressChart = ({ sessions }: ProgressChartProps) => {
     const drawTop = PAD_TOP;
     const drawBot = CHART_H - PAD_BOTTOM;
 
-    const points = useMemo(() => {
-        if (sessions.length < 2) return [];
-        const reversed = [...sessions].reverse();
-        const values = reversed.map(s => s.best.e1rm);
-        const min = Math.min(...values);
-        const max = Math.max(...values);
-        const pad = Math.max((max - min) * 0.3, 5);
-        const yMin = min - pad;
-        const yMax = max + pad;
-        const n = reversed.length - 1;
-        return reversed.map((s, i) => ({
-            x: n === 0 ? chartW / 2 : (i / n) * chartW,
-            y: drawTop + (1 - (s.best.e1rm - yMin) / (yMax - yMin || 1)) * (drawBot - drawTop),
-            label: formatExerciseHistoryDate(s.timestamp).label.split(',')[0],
-            i,
-            total: reversed.length,
-        }));
-    }, [sessions, chartW, drawTop, drawBot]);
+    const chartModel = useMemo(
+        () => buildExerciseHistoryChartModel(sessions, chartW, drawTop, drawBot),
+        [sessions, chartW, drawTop, drawBot],
+    );
 
-    if (points.length < 2) return null;
-
-    const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
-    const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${drawBot} L ${points[0].x.toFixed(1)} ${drawBot} Z`;
-
-    const showLabels = points.length <= 6
-        ? points
-        : points.filter((_, i) => i === 0 || i === points.length - 1 || i % Math.ceil(points.length / 4) === 0);
+    if (!chartModel) return null;
 
     return (
         <Svg width={chartW + PAD_SIDE * 2} height={CHART_H}>
             <G x={PAD_SIDE}>
-                <Path d={areaPath} fill={colors.accent.primary} fillOpacity={0.07} />
-                <Path d={linePath} stroke={colors.accent.primary} strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
-                {points.map((p, i) => <Circle key={i} cx={p.x} cy={p.y} r={3} fill={colors.accent.primary} />)}
-                {showLabels.map((p, i) => (
+                <Path d={chartModel.areaPath} fill={colors.accent.primary} fillOpacity={0.07} />
+                <Path d={chartModel.linePath} stroke={colors.accent.primary} strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
+                {chartModel.points.map((p, i) => <Circle key={i} cx={p.x} cy={p.y} r={3} fill={colors.accent.primary} />)}
+                {chartModel.showLabels.map((p, i) => (
                     <SvgText key={i} x={p.x} y={CHART_H - 8} fontSize={9} fontWeight="500" fill={colors.text.quaternary} textAnchor={getExerciseHistoryLabelAnchor(p.i, p.total)}>
                         {p.label}
                     </SvgText>
