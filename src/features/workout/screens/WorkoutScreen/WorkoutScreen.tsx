@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useContext, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useContext } from 'react';
 import {
     View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
@@ -9,25 +9,21 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
-import { fetchSplitsFromFirestore } from '../../services/workoutSplitService';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { getWeekSchedule } from '../../utils/splitSchedule';
-import type { SplitLike } from '../../utils/splitSchedule';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { colors, spacing } from '../../../../shared/theme';
 import type { AuthenticatedStackParamList } from '../../../../shared/navigation';
 import styles from './WorkoutScreenStyles';
 import { getWorkoutHistorySummary } from './workoutHistorySummary';
 import ComingUpCard from './ComingUpCard';
-import type { UpcomingWorkout, WorkoutPreview } from './ComingUpCard';
+import type { WorkoutPreview } from './ComingUpCard';
 import ThisWeekCard from './ThisWeekCard';
 import type { WorkoutWeekSchedule } from './thisWeekSchedule';
 import MainWorkoutCard from './MainWorkoutCard';
-import type { WorkoutDisplayData } from './MainWorkoutCard';
 import WorkoutPreviewModal from './WorkoutPreviewModal';
-import { buildWorkoutScheduleDisplay } from './workoutScheduleDisplay';
-import { selectActiveWorkoutSplit } from './activeWorkoutSplit';
 import { buildWorkoutHomeViewModel } from './workoutHomeViewModel';
+import { useWorkoutScreenSchedule } from './useWorkoutScreenSchedule';
 
 type AppNavigation = NativeStackNavigationProp<AuthenticatedStackParamList>;
 const WorkoutScreen = () => {
@@ -36,52 +32,21 @@ const WorkoutScreen = () => {
     const navInset = useBottomNavInset();
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [previewWorkout, setPreviewWorkout] = useState<WorkoutPreview | null>(null);
-    const [activeSplit, setActiveSplit] = useState<SplitLike>(null);
-    const [todayWorkout, setTodayWorkout] = useState<WorkoutDisplayData | null>(null);
-    const [upcomingWorkouts, setUpcomingWorkouts] = useState<UpcomingWorkout[]>([]);
-    const [loading, setLoading] = useState(true);
-    const hasLoadedOnceRef = useRef(false);
-
     const { activeWorkout, workoutHistory } = useContext(WorkoutContext)!;
     const { userData } = useContext(AuthContext)!;
+    const {
+        activeSplit,
+        todayWorkout,
+        upcomingWorkouts,
+        loading,
+        loadActiveSplit,
+    } = useWorkoutScreenSchedule(userData?.activeSplitId, userData?.rotationStartDate);
 
     const userStats = useMemo(
         () => getWorkoutHistorySummary(workoutHistory),
         [workoutHistory],
     );
     const todayCompletedStats = userStats.todayCompletedStats;
-
-    const loadActiveSplit = useCallback(async () => {
-        try {
-            if (!hasLoadedOnceRef.current) {
-                setLoading(true);
-            }
-            const splits = await fetchSplitsFromFirestore();
-            if (!splits.length) {
-                setActiveSplit(null);
-                setTodayWorkout(null);
-                setUpcomingWorkouts([]);
-                return;
-            }
-
-            const active = selectActiveWorkoutSplit(splits, userData?.activeSplitId);
-            if (!active) return;
-            setActiveSplit(active);
-
-            const scheduleDisplay = buildWorkoutScheduleDisplay(
-                active,
-                new Date(),
-                userData?.rotationStartDate,
-            );
-            setTodayWorkout(scheduleDisplay.todayWorkout);
-            setUpcomingWorkouts(scheduleDisplay.upcomingWorkouts);
-        } catch (e) {
-            console.error('Error loading split:', e);
-        } finally {
-            hasLoadedOnceRef.current = true;
-            setLoading(false);
-        }
-    }, [userData?.activeSplitId, userData?.rotationStartDate]);
 
     useFocusEffect(useCallback(() => { loadActiveSplit(); }, [loadActiveSplit]));
 
