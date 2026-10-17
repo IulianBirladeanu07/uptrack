@@ -182,4 +182,6 @@ Dates:
 
 ## Open work
 
+The current refactoring state, workflow and next candidates are in `docs/CLAUDE_SESSION_HANDOFF.md`. Read it before starting a batch and update it in the same commit.
+
 `audit/` holds the October 2026 audit: `FINDINGS.md` lists every finding and its status, and `PLAN.md` is the fix plan. The audit notes are temporary; deployable rules live in `firebase/` and `supabase/`.
