@@ -11,7 +11,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
 import { fetchSplitsFromFirestore } from '../../services/workoutSplitService';
-import { findBestSet, formatBestSet } from '../../utils/workoutMetrics';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { getScheduledDay, getWeekSchedule, getCycleLength } from '../../utils/splitSchedule';
 import type { SplitLike } from '../../utils/splitSchedule';
@@ -19,8 +18,10 @@ import { AuthContext } from '../../../auth/context/AuthContext';
 import { colors, spacing } from '../../../../shared/theme';
 import { ExercisePreviewList } from '../../components/WorkoutExercisePreview/WorkoutExercisePreview';
 import type { AuthenticatedStackParamList } from '../../../../shared/navigation';
-import type { PersistedWorkoutState, TemplateExercise, WorkoutSet } from '../../types';
+import type { PersistedWorkoutState, TemplateExercise } from '../../types';
 import styles from './WorkoutScreenStyles';
+import { getWorkoutHistorySummary } from './workoutHistorySummary';
+import type { WorkoutSummary } from './workoutHistorySummary';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 type AppNavigation = NativeStackNavigationProp<AuthenticatedStackParamList>;
@@ -36,31 +37,6 @@ type WorkoutScheduleDay = {
     templateName?: string;
     duration?: string | number;
     exercises?: TemplateExercise[];
-};
-type WorkoutSummaryExercise = {
-    name: string;
-    sets: number;
-    bestSet: string | null;
-};
-type WorkoutSummary = {
-    name: string;
-    duration: string;
-    totalSets: number;
-    exerciseCount: number;
-    exercises: WorkoutSummaryExercise[];
-};
-type WorkoutHistorySet = Pick<WorkoutSet, 'weight' | 'reps'>;
-type WorkoutHistoryExercise = {
-    exerciseName?: string;
-    name?: string;
-    sets?: WorkoutHistorySet[];
-};
-type WorkoutHistoryEntry = {
-    timestamp?: { toDate?: () => Date };
-    workoutName?: string;
-    templateName?: string;
-    duration?: string;
-    exercises?: WorkoutHistoryExercise[];
 };
 type ExerciseRowProps = {
     sets?: string | number | null | undefined;
@@ -479,34 +455,6 @@ const ComingUpCard = React.memo(({ upcomingWorkouts, onPreview, onViewAll }: Com
     );
 });
 
-const getFallbackWorkoutName = (entry: WorkoutHistoryEntry) => {
-    const hour = entry.timestamp?.toDate?.()?.getHours();
-    if (hour === undefined) return 'Workout';
-    if (hour >= 5 && hour < 12) return 'Morning Workout';
-    if (hour >= 12 && hour < 17) return 'Afternoon Workout';
-    if (hour >= 17 && hour < 21) return 'Evening Workout';
-    return 'Night Workout';
-};
-
-const summarizeWorkoutEntry = (entry: WorkoutHistoryEntry): WorkoutSummary => {
-    const exercises = entry.exercises ?? [];
-    return {
-        name: entry.workoutName || entry.templateName || getFallbackWorkoutName(entry),
-        duration: entry.duration ?? '0:00',
-        totalSets: exercises.reduce((acc, ex) => acc + (ex.sets?.length ?? 0), 0),
-        exerciseCount: exercises.length,
-        exercises: exercises.map(ex => {
-            const sets = ex.sets ?? [];
-            const bestSet = findBestSet(sets);
-            return {
-                name: ex.exerciseName ?? ex.name ?? '',
-                sets: sets.length,
-                bestSet: formatBestSet(bestSet),
-            };
-        }),
-    };
-};
-
 const WorkoutScreen = () => {
     const navigation = useNavigation<AppNavigation>();
     const insets = useSafeAreaInsets();
@@ -522,53 +470,11 @@ const WorkoutScreen = () => {
     const { activeWorkout, workoutHistory } = useContext(WorkoutContext)!;
     const { userData } = useContext(AuthContext)!;
 
-    const userStats = useMemo(() => {
-        const completedDaysThisWeek: number[] = [];
-        const now = new Date();
-        const weekStart = new Date(now);
-        const daysToMonday = now.getDay() === 0 ? 6 : now.getDay() - 1;
-        weekStart.setDate(now.getDate() - daysToMonday);
-        weekStart.setHours(0, 0, 0, 0);
-
-        let lastWorkoutStats = null;
-
-        if (workoutHistory.length > 0) {
-            const history = workoutHistory as WorkoutHistoryEntry[];
-            const sorted = [...history].sort((a, b) => {
-                const at = a.timestamp?.toDate?.()?.getTime() ?? 0;
-                const bt = b.timestamp?.toDate?.()?.getTime() ?? 0;
-                return bt - at;
-            });
-
-            const last = sorted[0];
-            if (last) {
-                lastWorkoutStats = summarizeWorkoutEntry(last);
-            }
-
-            sorted.forEach(w => {
-                const d = w.timestamp?.toDate?.();
-                if (!d || d < weekStart) return;
-                const day = d.getDay();
-                if (!completedDaysThisWeek.includes(day)) completedDaysThisWeek.push(day);
-            });
-        }
-
-        return { completedDaysThisWeek, lastWorkoutStats };
-    }, [workoutHistory]);
-
-    const todayCompletedStats = useMemo(() => {
-        if (!workoutHistory?.length) return null;
-        const todayStr = new Date().toDateString();
-        const history = workoutHistory as WorkoutHistoryEntry[];
-        const todaysEntries = history.filter(w => w.timestamp?.toDate?.()?.toDateString() === todayStr);
-        if (!todaysEntries.length) return null;
-        const sorted = [...todaysEntries].sort((a, b) => {
-            const at = a.timestamp?.toDate?.()?.getTime() ?? 0;
-            const bt = b.timestamp?.toDate?.()?.getTime() ?? 0;
-            return bt - at;
-        });
-        return sorted[0] ? summarizeWorkoutEntry(sorted[0]) : null;
-    }, [workoutHistory]);
+    const userStats = useMemo(
+        () => getWorkoutHistorySummary(workoutHistory),
+        [workoutHistory],
+    );
+    const todayCompletedStats = userStats.todayCompletedStats;
 
     const loadActiveSplit = useCallback(async () => {
         try {
