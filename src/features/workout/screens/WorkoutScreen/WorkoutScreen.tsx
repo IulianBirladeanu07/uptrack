@@ -26,6 +26,7 @@ import MainWorkoutCard from './MainWorkoutCard';
 import type { WorkoutDisplayData } from './MainWorkoutCard';
 import WorkoutPreviewModal from './WorkoutPreviewModal';
 import { buildWorkoutScheduleDisplay } from './workoutScheduleDisplay';
+import { selectActiveWorkoutSplit } from './activeWorkoutSplit';
 
 type AppNavigation = NativeStackNavigationProp<AuthenticatedStackParamList>;
 const WorkoutScreen = () => {
@@ -62,19 +63,8 @@ const WorkoutScreen = () => {
                 return;
             }
 
-            const raw = splits.find(s => s.id === userData?.activeSplitId) ?? splits[0];
-            if (!raw) return;
-            const splitData = typeof raw.data === 'object' && raw.data !== null
-                ? raw.data as Record<string, unknown>
-                : undefined;
-            const splitType = raw.type ?? (typeof splitData?.['type'] === 'string' ? splitData['type'] : undefined);
-            const active: NonNullable<SplitLike> = {
-                ...(splitType ? { type: splitType } : {}),
-                schedule: (raw.schedule ?? splitData?.['schedule'] ?? {}) as Exclude<
-                    NonNullable<SplitLike>['schedule'],
-                    null | undefined
-                >,
-            };
+            const active = selectActiveWorkoutSplit(splits, userData?.activeSplitId);
+            if (!active) return;
             setActiveSplit(active);
 
             const scheduleDisplay = buildWorkoutScheduleDisplay(
