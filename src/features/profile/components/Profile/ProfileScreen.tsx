@@ -1,4 +1,4 @@
-import { useState, useContext, useCallback, useEffect } from 'react';
+import { useState, useContext } from 'react';
 import type { ReactNode } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Switch } from 'react-native';
 import type { TextInputProps } from 'react-native';
@@ -12,21 +12,17 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { db } from '../../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../../auth/context/AuthContext';
-import { buildPlanUpdate, planView, changedFields } from '../../utils/planUpdate';
+import { buildPlanUpdate, planView } from '../../utils/planUpdate';
 import DeleteAccountModal from './DeleteAccountModal';
 import { OptionRow, NumberStepper } from '../../../../shared/components/FormControls/FormControls';
 import { ACTIVITY_OPTIONS, EXPERIENCE_OPTIONS, STRESS_OPTIONS } from '../../utils/profileOptions';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
-import { seedProfileForm, seedProfileIdentity, seedProfilePicture } from '../../utils/profileSeed';
-import type { ProfileFormSeed, ProfileIdentitySeed } from '../../utils/profileSeed';
+import { useProfileFormState } from './useProfileFormState';
+import type { ProfileIdentityErrors } from './useProfileFormState';
 import type { AuthenticatedStackParamList } from '../../../../shared/navigation';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-type IdentityErrors = { [K in keyof ProfileIdentitySeed]?: string | undefined };
-
-type StepKey = 'age' | 'height' | 'currentWeight' | 'targetWeight';
 
 type InputRowProps = TextInputProps & { label: string; error?: string | undefined };
 
@@ -52,53 +48,28 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
   const auth = getAuth();
   const isPasswordAccount = !!auth.currentUser?.providerData.some(p => p.providerId === 'password');
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<IdentityErrors>({});
-
-  const [form, setForm] = useState(() => seedProfileForm(userData));
-  const [original, setOriginal] = useState(() => seedProfileForm(userData));
-
-  const [identity, setIdentity] = useState(() =>
-    seedProfileIdentity(userData, auth.currentUser?.email),
-  );
-  const [savedIdentity, setSavedIdentity] = useState(() =>
-    seedProfileIdentity(userData, auth.currentUser?.email),
-  );
-  const [picture, setPicture] = useState(() => seedProfilePicture(userData));
-  const [pendingUri, setPendingUri] = useState<string | null>(null);
+  const {
+    form,
+    original,
+    setOriginal,
+    identity,
+    setIdentity,
+    savedIdentity,
+    setSavedIdentity,
+    picture,
+    setPicture,
+    pendingUri,
+    setPendingUri,
+    errors,
+    setErrors,
+    planCount,
+    changedCount,
+    hasChanges,
+    update,
+    updateIdentity,
+    stepValue,
+  } = useProfileFormState(userData, auth.currentUser?.email);
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const planCount = Object.keys(changedFields(form, original)).length;
-  const identityCount = (['username', 'email'] as const).filter(k => identity[k] !== savedIdentity[k]).length + (pendingUri ? 1 : 0);
-  const changedCount = planCount + identityCount;
-  const hasChanges = changedCount > 0;
-
-  useEffect(() => {
-    if (hasChanges) return;
-    const nextForm = seedProfileForm(userData);
-    const nextIdentity = seedProfileIdentity(userData, auth.currentUser?.email);
-    setForm(nextForm);
-    setOriginal(nextForm);
-    setIdentity(nextIdentity);
-    setSavedIdentity(nextIdentity);
-    setPicture(seedProfilePicture(userData));
-    setPendingUri(null);
-  }, [userData, hasChanges, auth.currentUser?.email]);
-
-  const update = useCallback((key: keyof ProfileFormSeed, value: string | number | boolean) => {
-    setForm(prev => ({ ...prev, [key]: value }));
-  }, []);
-
-  const updateIdentity = useCallback((key: keyof ProfileIdentitySeed, value: string) => {
-    setIdentity(prev => ({ ...prev, [key]: value }));
-    setErrors(prev => ({ ...prev, [key]: undefined }));
-  }, []);
-
-  const stepValue = useCallback((key: StepKey, delta: number, min: number, max: number, decimals = 0) => {
-    setForm(prev => {
-      const next = parseFloat((prev[key] + delta).toFixed(decimals));
-      return { ...prev, [key]: Math.min(max, Math.max(min, next)) };
-    });
-  }, []);
 
   const view = planView({ userData, form, original });
   const previewGoal = view.goal;
@@ -130,7 +101,7 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
   };
 
   const validate = () => {
-    const e: IdentityErrors = {};
+    const e: ProfileIdentityErrors = {};
     if (!identity.username.trim()) e.username = 'Required';
     if (!EMAIL_RE.test(identity.email.trim())) e.email = 'Valid email required';
     setErrors(e);

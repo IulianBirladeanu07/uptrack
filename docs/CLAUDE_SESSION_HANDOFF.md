@@ -6,7 +6,7 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Base commit for the current ProgressScreen batch: `713f3d0 refactor: extract dashboard workout summaries`. The ProgressScreen batch below is uncommitted at handoff update time; verify `git log --oneline -10` and `git status --short --branch` before continuing.
+- Base commit for the current Profile batch: `1573d67 refactor: extract progress screen model`. The Profile batch below is uncommitted at handoff update time; verify `git log --oneline -10` and `git status --short --branch` before continuing.
 - Three pre-existing untracked patch files were present at batch start and left untouched: `0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`. Preserve them and do not include them in this refactor batch.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
@@ -108,14 +108,22 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - A deliberate change to the unknown-range fallback made both tests fail; restoring the 12-week fallback made them pass.
 - The React Hooks lint emits the same single `rollingWeekStats` unnecessary-dependency warning from the extracted hook as it did from the original ProgressScreen. It is preserved, not introduced by the refactor.
 
+### Profile form state
+
+- Moved profile draft initialization, refresh synchronization, dirty counts, identity-error clearing, field updates and bounded numeric stepping into `src/features/profile/components/Profile/useProfileFormState.ts`. `ProfileScreen.tsx` still owns persistence, validation decisions, navigation and rendering.
+- Added six hook tests for seeded state, refreshing a pristine form, retaining unsaved form/identity/photo changes across refreshed user data, counting plan/identity/photo changes, clearing the edited identity error, and clamping/rounding steppers. Added Jest discovery for the Profile component folder.
+- A deliberate removal of the dirty-draft guard made the refreshed-user test fail (and reset form state/count tests); restoring it made all tests pass.
+- The hook does not reset validation errors during a pristine profile refresh, matching the original effect.
+
 The latest validation was:
 
-- `npx jest --runInBand --ci src/features/progress/screens/ProgressScreen/useProgressScreenModel.test.ts`: 2 tests passed after restoring the deliberate range-fallback mutation; the mutation made both tests fail as expected.
-- `npx jest --runInBand --ci`: 97 suites / 894 tests passed in `UTC`, `America/Los_Angeles` and `Europe/Bucharest`.
+- `npx jest --runInBand --ci src/features/profile/components/Profile/useProfileFormState.test.ts`: 6 tests passed; a deliberate removal of the dirty-draft guard made the draft preservation tests fail as expected.
+- `npx jest --runInBand --ci src/features/profile/components/Profile/useProfileFormState.test.ts src/features/profile/utils`: 8 suites / 161 tests passed.
+- `npx jest --runInBand --ci`: 98 suites / 900 tests passed in `UTC`, `America/Los_Angeles` and `Europe/Bucharest`.
 - `npx tsc --noEmit`: passed.
 - `git diff --check`: passed.
-- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-progress-model-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
-- Hooks lint of the new hook and the original ProgressScreen from `HEAD` both produced exactly one warning for the unchanged `rollingWeekStats` dependency and no errors. The full-source scratch lint was not clean: it reported 43 warnings and one pre-existing `@typescript-eslint/no-explicit-any` disable-directive error because the scratch config does not register that plugin. The hook's own warning was unchanged versus the old component.
+- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-profile-form-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
+- Hooks lint on `useProfileFormState.ts` and its test passed with no warnings or errors. Full-source lint was not run for this batch.
 
 ## Repository map
 
@@ -131,8 +139,8 @@ The latest validation was:
 
 This is a ranked starting point based on the current source inventory, not a mandate to refactor by line count. Inspect responsibilities and coupling first; skip or reorder when the code shows a better seam.
 
-1. **Profile screens:** inspect current screen/component boundaries for a discrete presentation or view-model extraction, with behavior tests where a pure seam exists.
-2. **FoodContext:** meal writes and step flushing are extracted and tested. Initialization, the auth listener and date-change handling remain; move them only with provider tests extended first. This area has account-scoped async state, caching, rollback, and date semantics; coordinate with the open Nutrition audit rather than duplicating it.
+1. **FoodContext:** meal writes and step flushing are extracted and tested. Initialization, the auth listener and date-change handling remain; move them only with provider tests extended first. This area has account-scoped async state, caching, rollback, and date semantics; coordinate with the open Nutrition audit rather than duplicating it.
+2. **Profile follow-ups:** inspect other profile screens only for a cohesive seam; the form-state lifecycle of `ProfileScreen.tsx` is now extracted and tested.
 3. **Workout optional follow-ups:** `ExerciseItem` swipe gesture/card header and `CreateTemplateScreen` undo/list updater logic remain possible targets, but inspect whether each is a meaningful seam before proceeding.
 4. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 
