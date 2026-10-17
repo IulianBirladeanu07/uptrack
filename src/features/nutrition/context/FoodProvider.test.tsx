@@ -41,13 +41,21 @@ jest.mock('../../auth/context/AuthContext', () => {
     return { AuthContext: createContext(undefined) };
 });
 
-const mockStepProps: { current: { onStepsHistory?: (entries: Record<string, number>) => void } } = { current: {} };
+const mockStepProps: {
+    current: {
+        onStepsHistory?: (entries: Record<string, number>) => void;
+        onConnectedChange?: (connected: boolean) => void;
+    };
+} = { current: {} };
 
 jest.mock('../../../shared/components/StepDisplay/StepDisplay', () => {
     const { forwardRef } = jest.requireActual('react');
     return {
         __esModule: true,
-        default: forwardRef((props: { onStepsHistory?: (entries: Record<string, number>) => void }) => {
+        default: forwardRef((props: {
+            onStepsHistory?: (entries: Record<string, number>) => void;
+            onConnectedChange?: (connected: boolean) => void;
+        }, _ref: React.ForwardedRef<unknown>) => {
             mockStepProps.current = props;
             return null;
         }),
@@ -82,6 +90,12 @@ jest.mock('../helpers/stepsSyncService', () => ({
 
 import { AuthContext } from '../../auth/context/AuthContext';
 import { fetchLast30DaysMeals, fetchRawMealsForDate, writeMealType } from '../services/mealService';
+import {
+    calculateLearningStats,
+    checkAndBackfillStepsBonus,
+    checkAndCompleteLearning,
+    checkAndRunWeeklyEval,
+} from '../helpers/learningCompletionService';
 import { clearPersistedMealCache, loadPersistedMealCache, persistMealCache } from './cache/mealCacheStorage';
 import { formatDate } from '../utils/dateUtils';
 import { FoodProvider, useFoodContext } from './FoodContext';
@@ -669,6 +683,134 @@ describe('FoodProvider initialization', () => {
         expect(hook.result.current.error).toBeNull();
         expect(hook.result.current.initializationError).toBeNull();
         expect(clearPersistedMealCache).toHaveBeenCalledWith('user-1');
+    });
+
+    test('runs weekly evaluation once for each account after fresh meals load', async () => {
+        mockUserData = { uid: 'user-1', dailySteps: {} };
+        const hook = await setup();
+
+        await waitFor(() => expect(checkAndRunWeeklyEval).toHaveBeenCalledTimes(1));
+        expect(checkAndRunWeeklyEval).toHaveBeenCalledWith(
+            'user-1',
+            mockUserData,
+            expect.anything(),
+        );
+
+        mockUserData = { uid: 'user-1', dailySteps: { [today]: 7000 } };
+        await act(async () => {
+            hook.rerender({});
+        });
+        expect(checkAndRunWeeklyEval).toHaveBeenCalledTimes(1);
+
+        mockUserData = null;
+        await act(async () => {
+            hook.rerender({});
+        });
+        await signIn('user-2');
+        mockUserData = { uid: 'user-2', dailySteps: {} };
+        await act(async () => {
+            hook.rerender({});
+        });
+        await waitFor(() => expect(checkAndRunWeeklyEval).toHaveBeenCalledTimes(2));
+        expect(checkAndRunWeeklyEval).toHaveBeenLastCalledWith(
+            'user-2',
+            mockUserData,
+            expect.anything(),
+        );
+    });
+
+    test('does not refresh the new account when an old weekly evaluation completes', async () => {
+        mockUserData = { uid: 'user-1', dailySteps: {} };
+        let resolveEvaluation: (result: { targetCalories: number }) => void = () => undefined;
+        (checkAndRunWeeklyEval as jest.Mock).mockImplementationOnce(
+            () => new Promise(resolve => { resolveEvaluation = resolve; }),
+        );
+        const hook = await setup();
+        await waitFor(() => expect(checkAndRunWeeklyEval).toHaveBeenCalledWith(
+            'user-1',
+            mockUserData,
+            expect.anything(),
+        ));
+
+        mockUserData = null;
+        await act(async () => {
+            hook.rerender({});
+        });
+        await signIn('user-2');
+        mockUserData = { uid: 'user-2', dailySteps: {} };
+        await act(async () => {
+            hook.rerender({});
+        });
+        await waitFor(() => expect(checkAndRunWeeklyEval).toHaveBeenCalledTimes(2));
+
+        await act(async () => {
+            resolveEvaluation({ targetCalories: 1800 });
+        });
+
+        expect(authValue.refreshUserData).not.toHaveBeenCalled();
+        expect(hook.result.current.error).toBeNull();
+    });
+
+    test('runs steps bonus backfill once per account after steps connect', async () => {
+        mockUserData = { uid: 'user-1', dailySteps: {} };
+        const hook = await setup();
+
+        await act(async () => {
+            mockStepProps.current.onConnectedChange?.(true);
+        });
+        await waitFor(() => expect(checkAndBackfillStepsBonus).toHaveBeenCalledTimes(1));
+        expect(checkAndBackfillStepsBonus).toHaveBeenCalledWith(
+            'user-1',
+            mockUserData,
+            expect.anything(),
+            expect.any(Date),
+        );
+
+        mockUserData = { uid: 'user-1', dailySteps: { [today]: 7000 } };
+        await act(async () => {
+            hook.rerender({});
+        });
+        expect(checkAndBackfillStepsBonus).toHaveBeenCalledTimes(1);
+
+        mockUserData = null;
+        await act(async () => {
+            hook.rerender({});
+        });
+        await signIn('user-2');
+        mockUserData = { uid: 'user-2', dailySteps: {} };
+        await act(async () => {
+            hook.rerender({});
+        });
+        await waitFor(() => expect(mockStepProps.current.onConnectedChange).toBeDefined());
+        await act(async () => {
+            mockStepProps.current.onConnectedChange?.(true);
+        });
+        await waitFor(() => expect(checkAndBackfillStepsBonus).toHaveBeenCalledTimes(2));
+        expect(checkAndBackfillStepsBonus).toHaveBeenLastCalledWith(
+            'user-2',
+            mockUserData,
+            expect.anything(),
+            expect.any(Date),
+        );
+    });
+
+    test('refreshes user data after learning completion writes new targets', async () => {
+        (calculateLearningStats as jest.Mock).mockReturnValue({
+            daysLogged: 7,
+            averages: { calories: 1800, protein: 100, carbs: 200, fat: 60 },
+            isComplete: true,
+        });
+        (checkAndCompleteLearning as jest.Mock).mockResolvedValueOnce({ targetCalories: 1800 });
+
+        await setup();
+
+        await waitFor(() => expect(checkAndCompleteLearning).toHaveBeenCalledWith(
+            'user-1',
+            expect.anything(),
+            expect.any(Date),
+            false,
+        ));
+        await waitFor(() => expect(authValue.refreshUserData).toHaveBeenCalledTimes(1));
     });
 });
 

@@ -10,7 +10,7 @@ import type { StepDisplayHandle } from '../../../shared/components/StepDisplay/S
 import {
     consolidateFoodData, buildAddUndo, applyAddUndo, fetchRawMealsForDate,
 } from '../services/mealService';
-import { checkAndCompleteLearning, calculateLearningStats, checkAndRunWeeklyEval, checkAndBackfillStepsBonus } from '../helpers/learningCompletionService';
+import { calculateLearningStats } from '../helpers/learningCompletionService';
 import useDailyNutrition from '../helpers/useDailyNutrition';
 import MealCache from './cache/MealCache';
 import {
@@ -30,6 +30,7 @@ import {
     type DayCalories,
 } from './nutritionSummaries';
 import { handleSelectedDateChange } from './selectedDateMealChange';
+import { useFoodBackgroundEvaluations } from './useFoodBackgroundEvaluations';
 import { formatDate } from '../utils/dateUtils';
 import { isCurrentUserRequest } from '../utils/userRequest';
 import { StepsFlusher } from './StepsFlusher';
@@ -114,8 +115,6 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     const operationQueue    = useRef(new AsyncOperationQueue());
     const selectedDateRef   = useRef(selectedDate);
     const stepsDisplayRef   = useRef<StepDisplayHandle | null>(null);
-    const stepsBonusCheckedRef = useRef(false);
-    const weeklyEvalCheckedRef = useRef(false);
     const currentUserRef    = useRef<User | null>(null);
     const userDataRef       = useRef<UserData | null>(null);
     const stepsFlusher      = useRef(new StepsFlusher({
@@ -186,6 +185,22 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         console.error(`Error in ${context}:`, error);
         if (mountedRef.current) setError(`Failed to ${context}. Please try again.`);
     }, []);
+
+    const resetBackgroundEvaluationFlags = useFoodBackgroundEvaluations({
+        currentUser,
+        learningData: enhancedLearningData,
+        hasTargets: nutritionHookData.hasTargets,
+        selectedDate,
+        mealCache: mealCache.current,
+        userData,
+        stepsConnected,
+        freshMealsLoaded,
+        isMounted: () => mountedRef.current,
+        getCurrentUserUid: () => currentUserRef.current?.uid,
+        getGeneration: () => userGenerationRef.current,
+        refreshUserData,
+        handleError,
+    });
 
     useEffect(() => {
         if (error) {
@@ -472,80 +487,6 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     }, [initializeAppData]);
 
     useEffect(() => {
-        const checkLearningCompletion = async () => {
-            if (currentUser && enhancedLearningData.isLearningComplete && !nutritionHookData.hasTargets) {
-                const request = { uid: currentUser.uid, generation: userGenerationRef.current };
-                try {
-                    const newTargets = await checkAndCompleteLearning(
-                        currentUser.uid, mealCache.current, selectedDate, nutritionHookData.hasTargets
-                    );
-                    if (
-                        newTargets &&
-                        mountedRef.current &&
-                        isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)
-                    ) await refreshUserData();
-                } catch (error) {
-                    console.error('Failed to complete learning phase:', error);
-                    if (isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)) {
-                        handleError(error, 'complete learning phase');
-                    }
-                }
-            }
-        };
-        checkLearningCompletion();
-    }, [currentUser, enhancedLearningData.isLearningComplete, nutritionHookData.hasTargets, selectedDate, handleError, refreshUserData]);
-
-    useEffect(() => {
-        if (!currentUser || !stepsConnected || !userData || stepsBonusCheckedRef.current) return;
-        stepsBonusCheckedRef.current = true;
-
-        const runStepsBonusBackfill = async () => {
-            const request = { uid: currentUser.uid, generation: userGenerationRef.current };
-            try {
-                const result = await checkAndBackfillStepsBonus(
-                    currentUser.uid, userData, mealCache.current, new Date()
-                );
-                if (
-                    result &&
-                    mountedRef.current &&
-                    isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)
-                ) {
-                    await refreshUserData();
-                }
-            } catch (error) {
-                if (isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)) {
-                    console.error('Failed to backfill steps bonus:', error);
-                }
-            }
-        };
-        runStepsBonusBackfill();
-    }, [currentUser, stepsConnected, userData, refreshUserData]);
-
-    useEffect(() => {
-        if (!currentUser || !freshMealsLoaded || !userData || weeklyEvalCheckedRef.current) return;
-        weeklyEvalCheckedRef.current = true;
-
-        const runWeeklyEval = async () => {
-            const request = { uid: currentUser.uid, generation: userGenerationRef.current };
-            try {
-                const adjustment = await checkAndRunWeeklyEval(currentUser.uid, userData, mealCache.current);
-                if (
-                    adjustment &&
-                    mountedRef.current &&
-                    isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)
-                ) {
-                    await refreshUserData();
-                }
-            } catch (error) {
-                if (isCurrentUserRequest(request, currentUserRef.current?.uid, userGenerationRef.current)) {
-                    console.error('Failed to run weekly evaluation:', error);
-                }
-            }
-        };
-        runWeeklyEval();
-    }, [currentUser, freshMealsLoaded, userData, refreshUserData]);
-
-    useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, user => {
             handleFoodAuthStateChange(user, {
                 isMounted: () => mountedRef.current,
@@ -553,8 +494,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                 resetAccountState: user => {
                     userGenerationRef.current++;
                     initializationRef.current = false;
-                    stepsBonusCheckedRef.current = false;
-                    weeklyEvalCheckedRef.current = false;
+                    resetBackgroundEvaluationFlags();
                     stepsFlusher.current.reset();
                     mealCache.current.clear();
                     setCategoryData({ recentMeals: [], frequentFoods: [], favoriteFoods: [] });
@@ -579,7 +519,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
             });
         });
         return () => unsubscribe();
-    }, [initializeAppData]);
+    }, [initializeAppData, resetBackgroundEvaluationFlags]);
 
     const contextValue = useMemo<FoodContextValue>(() => ({
         breakfastFoods:   mealState.breakfast,

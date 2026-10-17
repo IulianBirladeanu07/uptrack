@@ -6,7 +6,7 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Base commit for the current FoodProvider auth-transition batch: `1f4b88b refactor: extract selected date meal loading`. The auth-transition batch below is uncommitted at handoff update time; verify `git log --oneline -10` and `git status --short --branch` before continuing.
+- Base commit for the current FoodProvider background-evaluations batch: `2d3d43a refactor: extract food auth transition handling`. The background-evaluations batch below is uncommitted at handoff update time; verify `git log --oneline -10` and `git status --short --branch` before continuing.
 - Three patch files mentioned in an earlier handoff (`0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`) are not present in this checkout at the current base commit.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
@@ -112,6 +112,12 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Moved auth callback sequencing into `src/features/nutrition/context/foodAuthStateChange.ts`. `FoodContext.tsx` retains the reset operations, generation increments, refs and React state setters; callback order and same-UID behavior are preserved.
 - Not changed: weekly evaluation and learning effects.
 
+### FoodProvider background evaluations
+
+- Added provider tests for learning completion refreshing user data, weekly evaluation running once per account and ignoring stale results, and steps-bonus backfill running once per account after steps connect.
+- Moved the learning completion, steps-bonus backfill and weekly evaluation effects into `src/features/nutrition/context/useFoodBackgroundEvaluations.ts`. The hook owns the once-per-account refs and exposes a reset callback used during account changes; service calls, request-generation guards, error behavior and refresh conditions are preserved.
+- Not changed: evaluation service behavior or its timing/eligibility rules.
+
 ### Dashboard workout summaries
 
 - Moved the Dashboard's weekly workout count and latest workout completed today into `src/features/dashboard/screens/DashboardScreen/dashboardWorkoutSummary.ts`. `DashboardScreen.tsx` still owns the state and rendering; both calculations retain their original memoization and date-time behavior.
@@ -135,11 +141,11 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 
 The latest validation was:
 
-- `npx jest --runInBand --ci src/features/nutrition/context/FoodProvider.test.tsx`: 33 tests passed.
-- `npx jest --runInBand --ci`: 98 suites / 911 tests passed in each of `UTC`, `America/Los_Angeles` and `Europe/Bucharest`.
+- `npx jest --runInBand --ci src/features/nutrition/context/FoodProvider.test.tsx`: 37 tests passed.
+- `npx jest --runInBand --ci`: 98 suites / 915 tests passed in each of `UTC`, `America/Los_Angeles` and `Europe/Bucharest`.
 - `npx tsc --noEmit`: passed.
 - `git diff --check`: passed.
-- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-food-auth-export-20261017-1234`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
+- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-food-background-export-20261017-1243`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
 
 ## Repository map
 
@@ -155,7 +161,7 @@ The latest validation was:
 
 This is a ranked starting point based on the current source inventory, not a mandate to refactor by line count. Inspect responsibilities and coupling first; skip or reorder when the code shows a better seam.
 
-1. **FoodContext:** meal writes, step flushing, cache-then-fresh initialization loading, selected-date orchestration and auth callback sequencing are extracted and tested. The account reset operations remain owned by the provider; avoid broadening into the separate Nutrition audit.
+1. **FoodContext:** meal writes, step flushing, cache-then-fresh initialization loading, selected-date orchestration, auth callback sequencing and background evaluations are extracted and tested. Account reset operations remain owned by the provider; avoid broadening into the separate Nutrition audit.
 2. **Profile follow-ups:** inspect other profile screens only for a cohesive seam; the form-state lifecycle of `ProfileScreen.tsx` is now extracted and tested.
 3. **Workout optional follow-ups:** `ExerciseItem` swipe gesture/card header and `CreateTemplateScreen` undo/list updater logic remain possible targets, but inspect whether each is a meaningful seam before proceeding.
 4. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
