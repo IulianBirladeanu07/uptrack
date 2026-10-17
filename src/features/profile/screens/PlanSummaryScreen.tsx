@@ -1,22 +1,19 @@
-import { useState, useContext } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useContext } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { doc, setDoc } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { db } from '../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../auth/context/AuthContext';
 import { calculateWeightChangePlan, deriveFitnessGoal } from '../utils/nutritionPlanEngine';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../shared/theme';
 import { useRootNavigation, useRootRoute } from '../../../shared/navigation';
 import { createStyles } from '../../../shared/theme/createStyles';
+import { usePlanConfirmation } from './usePlanConfirmation';
 
 const PlanSummaryScreen = () => {
   const navigation = useRootNavigation();
   const route = useRootRoute<'PlanSummary'>();
   const insets = useSafeAreaInsets();
   const { setProfileSetupComplete, refreshUserData } = useContext(AuthContext)!;
-  const [saving, setSaving] = useState(false);
 
   const formData = route.params?.formData || {};
 
@@ -24,63 +21,13 @@ const PlanSummaryScreen = () => {
 
   const plan = calculateWeightChangePlan({ ...formData, fitnessGoals: derivedGoal });
   const isGaining = derivedGoal === 'muscle_gain';
-
-  const handleConfirm = async () => {
-    setSaving(true);
-    const user = getAuth().currentUser;
-
-    if (!user) {
-      Alert.alert('Error', 'No user is logged in.');
-      setSaving(false);
-      return;
-    }
-
-    const now = new Date().toISOString();
-
-    const userData = {
-      ...formData,
-      fitnessGoals:          derivedGoal,
-      profileSetupComplete:  true,
-      weightChangePlan:      plan,
-      targetCalories:        plan.goalCalories,
-      targetProtein:         plan.macros.protein,
-      targetCarbs:           plan.macros.carbs,
-      targetFats:            plan.macros.fats,
-      maintenanceCalories:   plan.tdee,
-      targetsSource:         'formula',
-      targetsInitializedAt:  now,
-      weeksSinceCutStart:    0,
-      startWeight:           formData.currentWeight,
-      goalSwitchDate:        now,
-      autoAdjustEnabled:     true,
-      planConfidence:        'estimated',
-    };
-
-    try {
-      await setDoc(doc(db, 'users', user.uid), userData, { merge: true });
-    } catch (error) {
-      console.error('PlanSummaryScreen save error:', error);
-      Alert.alert('Error', 'Failed to save your plan. Please try again.');
-      setSaving(false);
-      return;
-    }
-
-    try {
-      const data = await refreshUserData();
-      if (data === undefined) {
-        Alert.alert('Error', 'Your plan was saved, but we could not load your profile. Please try again.');
-        setSaving(false);
-        return;
-      }
-    } catch (error) {
-      console.error('PlanSummaryScreen refresh error:', error);
-      Alert.alert('Error', 'Your plan was saved, but we could not load your profile. Please try again.');
-      setSaving(false);
-      return;
-    }
-
-    setProfileSetupComplete(true);
-  };
+  const { saving, handleConfirm } = usePlanConfirmation({
+    formData,
+    derivedGoal,
+    plan,
+    refreshUserData,
+    setProfileSetupComplete,
+  });
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>

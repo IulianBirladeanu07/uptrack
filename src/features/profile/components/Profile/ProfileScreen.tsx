@@ -7,12 +7,9 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { doc, setDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getAuth, verifyBeforeUpdateEmail } from 'firebase/auth';
-import { db } from '../../../auth/services/firebaseConfigService';
+import { getAuth } from 'firebase/auth';
 import { AuthContext } from '../../../auth/context/AuthContext';
-import { buildPlanUpdate, planView } from '../../utils/planUpdate';
+import { planView } from '../../utils/planUpdate';
 import DeleteAccountModal from './DeleteAccountModal';
 import { OptionRow, NumberStepper } from '../../../../shared/components/FormControls/FormControls';
 import { ACTIVITY_OPTIONS, EXPERIENCE_OPTIONS, STRESS_OPTIONS } from '../../utils/profileOptions';
@@ -20,6 +17,7 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../../../share
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { useProfileFormState } from './useProfileFormState';
 import type { ProfileIdentityErrors } from './useProfileFormState';
+import { useProfileSave } from './useProfileSave';
 import type { AuthenticatedStackParamList } from '../../../../shared/navigation';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,7 +45,6 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
   const { userData, refreshUserData, logout } = useContext(AuthContext)!;
   const auth = getAuth();
   const isPasswordAccount = !!auth.currentUser?.providerData.some(p => p.providerId === 'password');
-  const [saving, setSaving] = useState(false);
   const {
     form,
     original,
@@ -78,6 +75,23 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
   const isGaining = previewGoal === 'muscle_gain';
   const calDiff = previewPlan.goalCalories - currentPlan.goalCalories;
   const planChanged = planCount > 0;
+  const { saving, persist } = useProfileSave({
+    auth,
+    isPasswordAccount,
+    userData,
+    form,
+    original,
+    identity,
+    savedIdentity,
+    pendingUri,
+    planChanged,
+    refreshUserData,
+    setOriginal,
+    setIdentity,
+    setSavedIdentity,
+    setPicture,
+    setPendingUri,
+  });
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -92,85 +106,12 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
     }
   };
 
-  const uploadPicture = async (uid: string, uri: string) => {
-    const blob = await (await fetch(uri)).blob();
-    const pictureRef = ref(getStorage(), `profilePictures/${uid}.jpg`);
-    await uploadBytes(pictureRef, blob, { contentType: blob.type || 'image/jpeg' });
-    const url = await getDownloadURL(pictureRef);
-    return `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`;
-  };
-
   const validate = () => {
     const e: ProfileIdentityErrors = {};
     if (!identity.username.trim()) e.username = 'Required';
     if (!EMAIL_RE.test(identity.email.trim())) e.email = 'Valid email required';
     setErrors(e);
     return Object.keys(e).length === 0;
-  };
-
-  const persist = async () => {
-    const user = auth.currentUser;
-    if (!user) {
-      Alert.alert('Error', 'User not authenticated');
-      return;
-    }
-    setSaving(true);
-    try {
-      const username = identity.username.trim();
-      const email = identity.email.trim();
-      const payload = planChanged
-        ? buildPlanUpdate({ userData, form, original, now: new Date().toISOString() })
-        : {};
-
-      let emailChangePending = false;
-      if (isPasswordAccount && email.toLowerCase() !== (user.email || '').toLowerCase()) {
-        try {
-          await verifyBeforeUpdateEmail(user, email);
-          emailChangePending = true;
-        } catch (err) {
-          if ((err as { code?: string }).code === 'auth/requires-recent-login') {
-            Alert.alert('Re-authentication required', 'Log out and back in, then change your email again.');
-            return;
-          }
-          throw err;
-        }
-      }
-
-      if (username !== savedIdentity.username) payload['username'] = username;
-      if (pendingUri) payload['profilePicture'] = await uploadPicture(user.uid, pendingUri);
-
-      await setDoc(doc(db, 'users', user.uid), payload, { merge: true });
-      const refreshedUserData = await refreshUserData();
-
-      setOriginal({ ...form });
-      const shownEmail = emailChangePending ? savedIdentity.email : email;
-      setIdentity({ username, email: shownEmail });
-      setSavedIdentity({ username, email: shownEmail });
-      if (payload['profilePicture']) setPicture(payload['profilePicture'] as string);
-      setPendingUri(null);
-      if (!refreshedUserData) {
-        Alert.alert(
-          'Saved, but not refreshed',
-          emailChangePending
-            ? `Your changes were saved, but the app could not reload your profile yet. Open the link we sent to ${email} to change your email.`
-            : 'Your changes were saved, but the app could not reload your profile yet. They will show after the next refresh.'
-        );
-        return;
-      }
-      if (emailChangePending) {
-        Alert.alert(
-          'Confirm Your New Email',
-          `Open the link we sent to ${email} to change your email. You will need to log in again afterwards.`
-        );
-      } else {
-        Alert.alert('Done', planChanged ? 'Your plan has been updated.' : 'Profile updated.');
-      }
-    } catch (err) {
-      console.error('Profile save error:', err);
-      Alert.alert('Error', 'Failed to save. Try again.');
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleSave = () => {

@@ -1,28 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
-
-type ScheduleDay = {
-  id?: string;
-  templateId?: string;
-  templateName?: string;
-  duration: string | number;
-  exercises: unknown[];
-};
-
-type Schedule = Record<string, ScheduleDay | null>;
+import {
+  filterSplitSchedule,
+  isWeeklyScheduleDay,
+  updateSplitSchedule,
+  type SplitSchedule,
+} from './splitScheduleEditor';
 
 type SplitFormData = {
   id?: string;
   name: string;
   description: string;
   type: string;
-  schedule: Schedule;
+  schedule: SplitSchedule;
   durationWeeks?: number;
   [key: string]: any;
 };
-
-const WEEK_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 const isDayNumber = (v: string | number): boolean => Number.isInteger(Number(v)) && Number(v) > 0;
 import { View, ActivityIndicator, Alert } from 'react-native';
@@ -116,28 +110,16 @@ const CreateSplitScreen = () => {
         setSelectedDay('monday');
       }
       setSplitData(prev => {
-        const cleanedSchedule: Schedule = {};
-        Object.keys(prev.schedule).forEach(key => {
-          if (WEEK_DAYS.includes(key)) {
-            cleanedSchedule[key] = prev.schedule[key];
-          }
-        });
         return {
           ...prev,
-          schedule: cleanedSchedule,
+          schedule: filterSplitSchedule(prev.schedule, 'weekly'),
         };
       });
     } else if (splitData.type === 'rotation') {
       setSplitData(prev => {
-        const cleanedSchedule: Schedule = {};
-        Object.keys(prev.schedule).forEach(key => {
-          if (isDayNumber(key)) {
-            cleanedSchedule[key] = prev.schedule[key];
-          }
-        });
         return {
           ...prev,
-          schedule: cleanedSchedule,
+          schedule: filterSplitSchedule(prev.schedule, 'rotation'),
         };
       });
 
@@ -158,36 +140,28 @@ const CreateSplitScreen = () => {
     }
   }, [splitData.type, isEditing, split?.type]);
 
-  const handleDayAssignment = useCallback((workout: any, dayId: string | number) => {
-    if (!dayId || (splitData.type === 'rotation' && !isDayNumber(dayId)) || (splitData.type === 'weekly' && !WEEK_DAYS.includes(String(dayId)))) {
+  const handleDayAssignment = useCallback((workout: {
+    id?: string;
+    templateName?: string;
+    duration?: string | number;
+    exercises?: unknown[];
+  } | null, dayId: string | number) => {
+    if (!dayId || (splitData.type === 'rotation' && !isDayNumber(dayId)) || (splitData.type === 'weekly' && !isWeeklyScheduleDay(dayId))) {
       console.error('Invalid dayId:', dayId);
       Alert.alert('Error', 'Invalid day selected for assignment.');
       return;
     }
     setSplitData(prev => ({
       ...prev,
-      schedule: {
-        ...prev.schedule,
-        [dayId]: workout
-          ? {
-              id: workout.id,
-              templateId: workout.id,
-              templateName: workout.templateName,
-              duration: workout.duration || 0,
-              exercises: workout.exercises || [],
-            }
-          : null,
-      },
+      schedule: updateSplitSchedule(prev.schedule, { type: 'assign', workout, dayId }),
     }));
   }, [splitData.type]);
 
   const handleRemoveFromDay = useCallback((dayId: string | number) => {
     setSplitData(prev => {
-      const newSchedule = { ...prev.schedule };
-      newSchedule[dayId] = null;
       return {
         ...prev,
-        schedule: newSchedule,
+        schedule: updateSplitSchedule(prev.schedule, { type: 'clear', dayId }),
       };
     });
   }, []);
@@ -199,10 +173,7 @@ const CreateSplitScreen = () => {
     }
     setSplitData(prev => ({
       ...prev,
-      schedule: {
-        ...prev.schedule,
-        [dayNumber]: null,
-      },
+      schedule: updateSplitSchedule(prev.schedule, { type: 'addRotationDay', dayNumber }),
     }));
   }, []);
 
@@ -213,11 +184,9 @@ const CreateSplitScreen = () => {
     }
 
     setSplitData(prev => {
-      const newSchedule = { ...prev.schedule };
-      delete newSchedule[dayNumber];
       return {
         ...prev,
-        schedule: newSchedule,
+        schedule: updateSplitSchedule(prev.schedule, { type: 'removeRotationDay', dayNumber }),
       };
     });
   }, []);

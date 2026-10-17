@@ -2,7 +2,6 @@ import React, { useCallback, useContext, useEffect, useState } from 'react';
 import type { ComponentProps, Dispatch, ReactNode, SetStateAction } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
@@ -10,7 +9,6 @@ import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
-import { fetchSplitsFromFirestore } from '../../../workout/services/workoutSplitService';
 import { colors, spacing } from '../../../../shared/theme';
 import { useAppNavigation } from '../../../../shared/navigation';
 import { PaceChart, BalanceChart, StrengthChart } from '../../components/ProgressCharts';
@@ -27,11 +25,10 @@ import {
     sg,
     kfmt,
 } from '../../utils/progressEngine';
-import { getWorkoutsPerWeek } from '../../../workout/utils/splitSchedule';
-import type { SplitLike } from '../../../workout/utils/splitSchedule';
 import type { EnergyModel, MonthRow as MonthData, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
 import { useProgressScreenModel } from './useProgressScreenModel';
 import { useMaintenanceSwitch } from './useMaintenanceSwitch';
+import { usePlannedWorkouts } from './usePlannedWorkouts';
 import styles from './ProgressScreenStyles';
 
 type TabKey = 'nutrition' | 'training';
@@ -512,32 +509,9 @@ const ProgressScreen = () => {
     const { getNutritionForDateRange, getStepsForDateRange, rollingWeekStats } = useFoodContext();
     const [tab, setTab] = useState<TabKey>('nutrition');
     const [rangeKey, setRangeKey] = useState<string | null>(null);
-    const [planned, setPlanned] = useState<number | null>(null);
     const [open, setOpen] = useState<Record<string, boolean>>({});
     const [all, setAll] = useState({ n: false, t: false });
-
-    useFocusEffect(
-        useCallback(() => {
-            let on = true;
-            (async () => {
-                try {
-                    const splits = await fetchSplitsFromFirestore();
-                    if (!on) return;
-                    if (!splits.length) {
-                        setPlanned(null);
-                        return;
-                    }
-                    const raw = splits.find(s => (s.id ?? (s.data as { id?: string } | undefined)?.id) === userData?.activeSplitId) ?? splits[0];
-                    setPlanned(getWorkoutsPerWeek(raw as SplitLike) || null);
-                } catch (e) {
-                    console.error('Progress split load error:', (e as Error).message);
-                }
-            })();
-            return () => {
-                on = false;
-            };
-        }, [userData?.activeSplitId]),
-    );
+    const planned = usePlannedWorkouts(userData?.activeSplitId);
 
     const {
         weeks,

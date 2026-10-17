@@ -7,16 +7,20 @@ import {
   setDoc,
   where,
 } from 'firebase/firestore';
-import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../auth/services/firebaseConfigService';
 import { customDocToExercise, mergeCustomExercises } from '../utils/exerciseCatalog';
+import {
+  clearExerciseImagePrefetchStatus,
+  EXERCISE_IMAGE_CACHE_KEY,
+  getPrefetchedExerciseImageCount,
+  prefetchExerciseImages,
+} from './exerciseImagePrefetch';
 import type { CacheStatus } from '../types';
 import type { CatalogExercise, ExerciseGroup } from '../../../shared/types';
 
 const CACHE_KEY = 'exercises_cache_v3';
 const CACHE_DURATION = 12 * 60 * 60 * 1000;
-const IMAGE_CACHE_KEY = 'exercise_images_cache';
 
 type MemoryCache = {
   data: ExerciseGroup[] | null;
@@ -32,7 +36,6 @@ let memoryCache: MemoryCache = {
   loadPromise: null,
 };
 
-const imagePrefetchStatus = new Map<string, boolean>();
 let customCache: { uid: string | null; data: CatalogExercise[] | null } = { uid: null, data: null };
 
 const fetchCustomExercises = async (uid: string, forceRefresh = false): Promise<CatalogExercise[]> => {
@@ -181,44 +184,6 @@ const fetchExercisesFromFirestore = async (): Promise<ExerciseGroup[]> => {
   }
 };
 
-const prefetchExerciseImages = async (
-  exercisesArray: ExerciseGroup[] | null | undefined,
-): Promise<void> => {
-  if (!exercisesArray || !Array.isArray(exercisesArray)) return;
-
-  const imageUrls: string[] = [];
-  exercisesArray.forEach(group => {
-    if (group.exercises && Array.isArray(group.exercises)) {
-      group.exercises.forEach(exercise => {
-        if (
-          exercise.imageURL &&
-          exercise.imageURL.startsWith('http') &&
-          !imagePrefetchStatus.has(exercise.imageURL)
-        ) {
-          imageUrls.push(exercise.imageURL);
-        }
-      });
-    }
-  });
-
-  const batchSize = 3;
-  for (let index = 0; index < imageUrls.length; index += batchSize) {
-    const batch = imageUrls.slice(index, index + batchSize);
-    setTimeout(() => {
-      batch.forEach(async url => {
-        try {
-          imagePrefetchStatus.set(url, true);
-          await Image.prefetch(url);
-          imagePrefetchStatus.set(url, true);
-        } catch {
-          imagePrefetchStatus.set(url, false);
-          console.warn('Failed to prefetch image:', url);
-        }
-      });
-    }, index * 100);
-  }
-};
-
 export const clearExercisesCache = async (clearImages = false): Promise<void> => {
   memoryCache.data = null;
   memoryCache.timestamp = 0;
@@ -228,8 +193,8 @@ export const clearExercisesCache = async (clearImages = false): Promise<void> =>
   try {
     await AsyncStorage.removeItem(CACHE_KEY);
     if (clearImages) {
-      imagePrefetchStatus.clear();
-      await AsyncStorage.removeItem(IMAGE_CACHE_KEY);
+      clearExerciseImagePrefetchStatus();
+      await AsyncStorage.removeItem(EXERCISE_IMAGE_CACHE_KEY);
     }
   } catch (error) {
     console.warn('Error clearing cache:', error);
@@ -268,7 +233,7 @@ export const getCacheStatus = (): CacheStatus => ({
   exerciseCount: memoryCache.data
     ? memoryCache.data.reduce((count, group) => count + group.exercises.length, 0)
     : 0,
-  imagesPrefetched: Array.from(imagePrefetchStatus.values()).filter(Boolean).length,
+  imagesPrefetched: getPrefetchedExerciseImageCount(),
 });
 
 export const createCustomExercise = async (

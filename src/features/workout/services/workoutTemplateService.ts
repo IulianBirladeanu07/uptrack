@@ -9,43 +9,16 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
-import type { DocumentData } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
 import type { TemplateInput, WorkoutTemplate } from '../types';
+import {
+  assertTemplateNameAvailable,
+  getTemplateNameKey,
+  getTemplateNameRegistry,
+  TemplateNameAlreadyExistsError,
+} from './templateNameRegistry';
 
-export class TemplateNameAlreadyExistsError extends Error {
-  constructor() {
-    super('A workout template with this name already exists.');
-    this.name = 'TemplateNameAlreadyExistsError';
-  }
-}
-
-const assertTemplateNameAvailable = (
-  templates: readonly { id: string; data: () => DocumentData }[],
-  templateName: string,
-  currentTemplateId?: string,
-): void => {
-  const normalizedName = templateName.trim().toLowerCase();
-  const duplicate = templates.some(template => {
-    if (template.id === currentTemplateId) return false;
-    const existingName = template.data()['templateName'];
-    return typeof existingName === 'string' &&
-      existingName.trim().toLowerCase() === normalizedName;
-  });
-
-  if (duplicate) throw new TemplateNameAlreadyExistsError();
-};
-
-const getTemplateNameKey = (templateName: string): string =>
-  encodeURIComponent(templateName.trim().toLowerCase());
-
-const getTemplateNameRegistry = (userData: DocumentData | undefined): Record<string, string> => {
-  const registry = userData?.['workoutTemplateNames'];
-  if (!registry || typeof registry !== 'object' || Array.isArray(registry)) return {};
-  return Object.fromEntries(
-    Object.entries(registry).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
-  );
-};
+export { TemplateNameAlreadyExistsError } from './templateNameRegistry';
 
 export const addTemplateToFirestore = async (
   templateData: TemplateInput,

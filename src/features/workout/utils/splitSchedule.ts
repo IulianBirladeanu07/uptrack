@@ -1,8 +1,8 @@
 type ScheduleDay = {
-  id?: string;
-  templateId?: string;
-  templateName?: string;
-  exercises?: unknown[];
+  id?: string | undefined;
+  templateId?: string | undefined;
+  templateName?: string | undefined;
+  exercises?: unknown[] | undefined;
 } & Record<string, unknown>;
 type Schedule = Record<string, ScheduleDay | null | undefined>;
 

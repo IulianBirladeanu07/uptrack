@@ -3,8 +3,6 @@ import { View, Text, SectionList, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WorkoutContext } from '../../context/WorkoutContext';
-import { findBestSet, formatBestSet } from '../../handlers/WorkoutHandler';
-import { durationToMinutes } from '../../utils/durationUtils';
 import { colors } from '../../../../shared/theme';
 import styles from './WorkoutHistoryStyles';
 import { useAppNavigation } from '../../../../shared/navigation';
@@ -13,23 +11,16 @@ import {
     groupWorkoutHistoryByMonth,
     type WorkoutHistoryTimestamp,
 } from './workoutHistorySections';
-import { toHistorySelectedWorkout } from './workoutHistorySelection';
 import {
-    formatWorkoutHistoryDate,
-    getWorkoutHistoryLabel,
-} from './workoutHistoryPresentation';
+    toHistorySelectedWorkout,
+    type WorkoutHistoryForSelection,
+} from './workoutHistorySelection';
+import { getWorkoutHistoryCardData, type WorkoutHistoryCardItem } from './workoutHistoryCardData';
 
-type HistoryWorkout = any;
-
-const getDurationInMinutes = (duration: unknown) => durationToMinutes(duration) ?? 0;
+type HistoryWorkout = WorkoutHistoryCardItem & WorkoutHistoryForSelection;
 
 const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; activeWorkout?: boolean; onPress: (item: HistoryWorkout) => void }) => {
-    const exercises = item.exercises || [];
-    const totalSets = exercises.reduce((total: number, ex: any) => total + ex.sets.length, 0);
-    const durationMinutes = getDurationInMinutes(item.duration);
-    const workoutTitle = getWorkoutHistoryLabel(item['timestamp'], item.workoutName);
-    const dateLabel = formatWorkoutHistoryDate(item['timestamp']);
-    const isToday = dateLabel === 'TODAY';
+    const cardData = getWorkoutHistoryCardData(item);
 
     return (
         <TouchableOpacity
@@ -39,16 +30,16 @@ const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; a
             disabled={!!activeWorkout}
         >
             <View style={styles.cardHeader}>
-                <Text style={styles.workoutTitle} numberOfLines={1}>{workoutTitle}</Text>
+                <Text style={styles.workoutTitle} numberOfLines={1}>{cardData.workoutTitle}</Text>
                 <View style={styles.headerRight}>
-                    {item.totalPRs > 0 && (
+                    {cardData.hasPRs && (
                         <View style={styles.prBadge}>
                             <Ionicons name="trophy" size={10} color="#FFD700" />
-                            <Text style={styles.prText}>{item.totalPRs}</Text>
+                            <Text style={styles.prText}>{cardData.totalPRs}</Text>
                         </View>
                     )}
-                    <View style={[styles.dateBadge, isToday && styles.dateBadgeToday]}>
-                        <Text style={[styles.dateText, isToday && styles.dateTextToday]}>{dateLabel}</Text>
+                    <View style={[styles.dateBadge, cardData.isToday && styles.dateBadgeToday]}>
+                        <Text style={[styles.dateText, cardData.isToday && styles.dateTextToday]}>{cardData.dateLabel}</Text>
                     </View>
                 </View>
             </View>
@@ -56,15 +47,15 @@ const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; a
             <View style={styles.statsMeta}>
                 <View style={styles.statsMetaItem}>
                     <Ionicons name="time-outline" size={12} color={colors.text.quaternary} />
-                    <Text style={styles.statsMetaText}>{durationMinutes}m</Text>
+                    <Text style={styles.statsMetaText}>{cardData.durationMinutes}m</Text>
                 </View>
                 <View style={styles.statsMetaItem}>
                     <Ionicons name="layers-outline" size={12} color={colors.text.quaternary} />
-                    <Text style={styles.statsMetaText}>{totalSets} sets</Text>
+                    <Text style={styles.statsMetaText}>{cardData.totalSets} sets</Text>
                 </View>
                 <View style={styles.statsMetaItem}>
                     <Ionicons name="barbell-outline" size={12} color={colors.text.quaternary} />
-                    <Text style={styles.statsMetaText}>{exercises.length} exercises</Text>
+                    <Text style={styles.statsMetaText}>{cardData.exercises.length} exercises</Text>
                 </View>
             </View>
 
@@ -74,18 +65,16 @@ const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; a
             </View>
 
             <View style={styles.exercisesList}>
-                {exercises.map((exercise: any, i: number) => {
-                    const bestSet = findBestSet(exercise.sets);
-                    const hasPR = exercise.sets.some((s: any) => s.isPR);
+                {cardData.exercises.map((exercise, i) => {
                     return (
-                        <View key={i} style={[styles.exerciseRow, i === exercises.length - 1 && styles.exerciseRowLast]}>
+                        <View key={i} style={[styles.exerciseRow, i === cardData.exercises.length - 1 && styles.exerciseRowLast]}>
                             <View style={styles.exerciseLeft}>
-                                <Text style={styles.exerciseSets}>{exercise.sets.length}x</Text>
+                                <Text style={styles.exerciseSets}>{exercise.setCount}x</Text>
                                 <Text style={styles.exerciseName} numberOfLines={1}>{exercise.exerciseName}</Text>
                             </View>
                             <View style={styles.bestSetContainer}>
-                                <Text style={[styles.bestSetValue, hasPR && styles.bestSetValuePR]}>
-                                    {formatBestSet(bestSet) || '-'}
+                                <Text style={[styles.bestSetValue, exercise.hasPR && styles.bestSetValuePR]}>
+                                    {exercise.bestSetLabel}
                                 </Text>
                             </View>
                         </View>
@@ -100,7 +89,7 @@ const WorkoutHistoryScreen = () => {
     const navigation = useAppNavigation();
     const { workoutHistory, activeWorkout } = useContext(WorkoutContext)!;
 
-    const handleStartWorkout = useCallback((workout: any) => {
+    const handleStartWorkout = useCallback((workout: HistoryWorkout) => {
         if (activeWorkout) return;
         navigation.navigate('StartWorkout', {
             selectedWorkout: toHistorySelectedWorkout(workout),

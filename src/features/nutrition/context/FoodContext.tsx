@@ -19,6 +19,7 @@ import {
 } from './cache/mealCacheStorage';
 import { loadInitializationMeals } from './loadInitializationMeals';
 import { handleFoodAuthStateChange } from './foodAuthStateChange';
+import { resetFoodAccountState } from './resetFoodAccountState';
 import { AsyncOperationQueue } from './AsyncOperationQueue';
 import { buildCategoryData } from './categoryData';
 import { persistOptimisticMealWrite } from './optimisticMealWrite';
@@ -491,26 +492,26 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
             handleFoodAuthStateChange(user, {
                 isMounted: () => mountedRef.current,
                 getCurrentUser: () => currentUserRef.current,
-                resetAccountState: user => {
-                    userGenerationRef.current++;
-                    initializationRef.current = false;
-                    resetBackgroundEvaluationFlags();
-                    stepsFlusher.current.reset();
-                    mealCache.current.clear();
-                    setCategoryData({ recentMeals: [], frequentFoods: [], favoriteFoods: [] });
-                    setMealState({ breakfast: [], lunch: [], dinner: [], snacks: [] });
-                    setDailySteps(0);
-                    setStepsVersion(0);
-                    setStepsLoading(false);
-                    setStepsError(null);
-                    setStepsConnected(null);
-                    setCacheVersion(0);
-                    setError(null);
-                    setInitialLoadComplete(false);
-                    setInitializationError(null);
-                    setFreshMealsLoaded(false);
-                    setLoading(!!user);
-                },
+                resetAccountState: user => resetFoodAccountState(user, {
+                    userGenerationRef,
+                    initializationRef,
+                    resetBackgroundEvaluationFlags,
+                    resetStepsFlusher: () => stepsFlusher.current.reset(),
+                    mealCache: mealCache.current,
+                    setCategoryData,
+                    setMealState,
+                    setDailySteps,
+                    setStepsVersion,
+                    setStepsLoading,
+                    setStepsError,
+                    setStepsConnected,
+                    setCacheVersion,
+                    setError,
+                    setInitialLoadComplete,
+                    setInitializationError,
+                    setFreshMealsLoaded,
+                    setLoading,
+                }),
                 setCurrentUserRef: currentUser => { currentUserRef.current = currentUser; },
                 setCurrentUser,
                 initializeAppData: user => { void initializeAppData(user); },

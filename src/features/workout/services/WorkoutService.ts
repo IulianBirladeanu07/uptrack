@@ -1,8 +1,20 @@
 import { useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSetsFromLastWorkout } from './workoutHistoryService';
-import { isSameExercise } from '../utils/exerciseIdentity';
-import { isValidWorkoutSetInput } from '../utils/workoutSetValidation';
+import { buildWorkoutFromTemplate } from './buildWorkoutFromTemplate';
+import {
+    addWorkoutExercises,
+    addWorkoutSet,
+    areAllWorkoutSetsValidated,
+    deleteWorkoutExercise,
+    deleteWorkoutSet,
+    moveWorkoutExercise,
+    replaceWorkoutExercise,
+    toggleWorkoutSetValidation,
+    updateWorkoutExerciseNote,
+    updateWorkoutReps,
+    updateWorkoutWeight,
+} from './workoutExerciseUpdates';
 import type { PersistedWorkoutState, WorkoutExercise, WorkoutListener, WorkoutSet } from '../types';
 
 const generateId = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -257,214 +269,81 @@ class WorkoutService {
             asyncStateGeneration !== this.asyncStateGeneration
         ) return [];
 
-        const exercisesWithHistory = validExercises.map((ex, idx) => {
-            const lastSets = allLastSets[idx];
-
-            if (ex.sets && ex.sets.length > 0 && ex.sets[0].weight !== undefined) {
-                return {
-                    ...ex,
-                    lastWorkoutSets: lastSets,
-                    sets: ex.sets.map(set => ({
-                        id: generateId(),
-                        weight: set.weight ?? '',
-                        reps: set.reps ?? '',
-                        isValidated: false,
-                        repsModified: false,
-                    })),
-                    repRange: ex.repRange || '',
-                };
-            }
-
-            const numSets = parseInt(String(ex.numSets), 10) || 1;
-            const repRangeMatch = ex.repRange?.match(/(\d+)-(\d+)/);
-            let defaultReps;
-
-            if (repRangeMatch) {
-                const minReps = parseInt(repRangeMatch[1], 10);
-                const maxReps = parseInt(repRangeMatch[2], 10);
-                defaultReps = Array.from({ length: numSets }, (_, i) =>
-                    i === 0 ? maxReps.toString() : minReps.toString()
-                );
-            } else {
-                defaultReps = Array(numSets).fill('');
-            }
-
-            const sets = Array.from({ length: numSets }, (_, i) => {
-                const previousSet = lastSets[i];
-                return {
-                    id: generateId(),
-                    weight: previousSet?.weight || '',
-                    reps: previousSet?.reps || defaultReps[i] || '',
-                    isValidated: false,
-                    repsModified: false,
-                };
-            });
-
-            return {
-                ...ex,
-                lastWorkoutSets: lastSets,
-                sets,
-                repRange: ex.repRange || '',
-            };
-        });
-
-        this.exerciseData = exercisesWithHistory;
+        this.exerciseData = buildWorkoutFromTemplate(validExercises, allLastSets, generateId);
         this.notifyListeners();
         return [...this.exerciseData];
     }
 
     updateWeight(exerciseIndex: number, setIndex: number, value: string): void {
-        if (!this.exerciseData[exerciseIndex]?.sets[setIndex]) return;
-        if (value !== '') {
-            if (!/^\d+\.?\d{0,2}$/.test(value)) return;
-            if (parseFloat(value) > 500) return;
-        }
-        const currentSet = this.exerciseData[exerciseIndex].sets[setIndex];
-        this.exerciseData = [...this.exerciseData];
-        this.exerciseData[exerciseIndex] = { ...this.exerciseData[exerciseIndex] };
-        this.exerciseData[exerciseIndex].sets = [...this.exerciseData[exerciseIndex].sets];
-        this.exerciseData[exerciseIndex].sets[setIndex] = {
-            ...currentSet,
-            weight: value,
-            weightModified: true,
-            isValidated: currentSet.weight === value ? currentSet.isValidated : false,
-        };
+        const updated = updateWorkoutWeight(this.exerciseData, exerciseIndex, setIndex, value);
+        if (!updated) return;
+        this.exerciseData = updated;
         this.notifyListenersThrottled();
     }
 
     updateReps(exerciseIndex: number, setIndex: number, value: string): void {
-        if (!this.exerciseData[exerciseIndex]?.sets[setIndex]) return;
-        if (value !== '' && (!/^\d+$/.test(value) || parseInt(value) < 1 || parseInt(value) > 100)) return;
-        const currentSet = this.exerciseData[exerciseIndex].sets[setIndex];
-        this.exerciseData = [...this.exerciseData];
-        this.exerciseData[exerciseIndex] = { ...this.exerciseData[exerciseIndex] };
-        this.exerciseData[exerciseIndex].sets = [...this.exerciseData[exerciseIndex].sets];
-        this.exerciseData[exerciseIndex].sets[setIndex] = {
-            ...currentSet,
-            reps: value,
-            repsModified: true,
-            isValidated: currentSet.reps === value ? currentSet.isValidated : false,
-        };
+        const updated = updateWorkoutReps(this.exerciseData, exerciseIndex, setIndex, value);
+        if (!updated) return;
+        this.exerciseData = updated;
         this.notifyListenersThrottled();
     }
 
     toggleValidation(exerciseIndex: number, setIndex: number): void {
-        if (!this.exerciseData[exerciseIndex]?.sets[setIndex]) return;
-
-        const currentSet = this.exerciseData[exerciseIndex].sets[setIndex];
-        const reps = String(currentSet.reps ?? '').trim();
-        const weight = String(currentSet.weight ?? '').trim();
-
-        if (currentSet.isValidated) {
-            this.exerciseData = this.exerciseData.map((exercise, eIdx) => {
-                if (eIdx !== exerciseIndex) return exercise;
-                return {
-                    ...exercise,
-                    sets: exercise.sets.map((set, sIdx) => {
-                        if (sIdx !== setIndex) return set;
-                        return { ...set, isValidated: false };
-                    }),
-                };
-            });
-            this.notifyListeners();
-            return;
-        }
-
-        if (!isValidWorkoutSetInput(weight, reps)) return;
-
-        this.exerciseData = this.exerciseData.map((exercise, eIdx) => {
-            if (eIdx !== exerciseIndex) return exercise;
-            return {
-                ...exercise,
-                sets: exercise.sets.map((set, sIdx) => {
-                    if (sIdx !== setIndex) return set;
-                    return { ...set, isValidated: true };
-                }),
-            };
-        });
+        const updated = toggleWorkoutSetValidation(this.exerciseData, exerciseIndex, setIndex);
+        if (!updated) return;
+        this.exerciseData = updated;
         this.notifyListeners();
     }
 
     setExerciseNote(exerciseIndex: number, note: string): void {
-        if (!this.exerciseData[exerciseIndex]) return;
-        this.exerciseData = this.exerciseData.map((ex, idx) => {
-            if (idx !== exerciseIndex) return ex;
-            return { ...ex, note };
-        });
+        const updated = updateWorkoutExerciseNote(this.exerciseData, exerciseIndex, note);
+        if (!updated) return;
+        this.exerciseData = updated;
         this.notifyListeners();
     }
 
     addSet(exerciseIndex: number): void {
-        if (!this.exerciseData[exerciseIndex]) return;
-        const exercise = this.exerciseData[exerciseIndex];
-        const lastSet = exercise.sets[exercise.sets.length - 1];
-        const newSet = {
-            ...createEmptySet(),
-            weight: lastSet?.weight ?? '',
-            reps: lastSet?.reps ?? '',
-        };
-        this.exerciseData = this.exerciseData.map((ex, idx) => {
-            if (idx !== exerciseIndex) return ex;
-            return { ...ex, sets: [...ex.sets, newSet] };
-        });
+        const updated = addWorkoutSet(this.exerciseData, exerciseIndex, createEmptySet);
+        if (!updated) return;
+        this.exerciseData = updated;
         this.notifyListeners();
     }
 
     deleteSet(exerciseIndex: number, setIndex: number): void {
-        if (!this.exerciseData[exerciseIndex]?.sets[setIndex]) return;
-        const exercise = this.exerciseData[exerciseIndex];
-        if (exercise.sets.length <= 1) {
-            this.exerciseData = this.exerciseData.filter((_, idx) => idx !== exerciseIndex);
-            this.notifyListeners();
-            return;
-        }
-        this.exerciseData = this.exerciseData.map((ex, idx) => {
-            if (idx !== exerciseIndex) return ex;
-            return { ...ex, sets: ex.sets.filter((_, sIdx) => sIdx !== setIndex) };
-        });
+        const updated = deleteWorkoutSet(this.exerciseData, exerciseIndex, setIndex);
+        if (!updated) return;
+        this.exerciseData = updated;
         this.notifyListeners();
     }
 
     deleteExercise(exerciseIndex: number): void {
-        this.exerciseData = this.exerciseData.filter((_, idx) => idx !== exerciseIndex);
+        this.exerciseData = deleteWorkoutExercise(this.exerciseData, exerciseIndex);
         this.notifyListeners();
     }
 
     moveExercise(exerciseIndex: number, direction: number): void {
-        const newIndex = exerciseIndex + direction;
-        if (!this.exerciseData[exerciseIndex] || newIndex < 0 || newIndex >= this.exerciseData.length) return;
-        const updated = [...this.exerciseData];
-        const [moved] = updated.splice(exerciseIndex, 1);
-        updated.splice(newIndex, 0, moved);
+        const updated = moveWorkoutExercise(this.exerciseData, exerciseIndex, direction);
+        if (!updated) return;
         this.exerciseData = updated;
         this.notifyListeners();
     }
 
     replaceExercise(exerciseIndex: number, newExercise: WorkoutExercise): void {
-        if (!this.exerciseData[exerciseIndex]) return;
-        this.exerciseData = this.exerciseData.map((ex, idx) => (idx === exerciseIndex ? newExercise : ex));
+        const updated = replaceWorkoutExercise(this.exerciseData, exerciseIndex, newExercise);
+        if (!updated) return;
+        this.exerciseData = updated;
         this.notifyListeners();
     }
 
     addExercises(exercises: WorkoutExercise[] | null | undefined): void {
-        if (!exercises || !Array.isArray(exercises)) return;
-        const filtered: WorkoutExercise[] = [];
-        for (const exercise of exercises) {
-            if (
-                !exercise?.exerciseName ||
-                [...this.exerciseData, ...filtered].some(existing => isSameExercise(existing, exercise))
-            ) continue;
-            filtered.push(exercise);
-        }
-        if (filtered.length > 0) {
-            this.exerciseData = [...this.exerciseData, ...filtered];
-            this.notifyListeners();
-        }
+        const updated = addWorkoutExercises(this.exerciseData, exercises);
+        if (!updated) return;
+        this.exerciseData = updated;
+        this.notifyListeners();
     }
 
     areAllSetsValidated(): boolean {
-        return this.exerciseData.length > 0 &&
-            this.exerciseData.every(exercise => exercise.sets.every(set => set.isValidated));
+        return areAllWorkoutSetsValidated(this.exerciseData);
     }
 
     reset(): void {

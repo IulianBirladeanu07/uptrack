@@ -7,6 +7,7 @@ module.exports = {
     '<rootDir>/src/features/profile/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/profile/services/**/*.test.{js,ts}',
     '<rootDir>/src/features/profile/components/Profile/**/*.test.{js,ts,tsx}',
+    '<rootDir>/src/features/profile/screens/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/dashboard/screens/DashboardScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/nutrition/helpers/**/*.test.{js,ts}',
     '<rootDir>/src/features/nutrition/utils/**/*.test.{js,ts}',

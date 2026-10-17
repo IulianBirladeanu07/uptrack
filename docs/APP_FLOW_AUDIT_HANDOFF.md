@@ -1,6 +1,6 @@
 # App flow audit handoff
 
-Updated 2026-10-16 for the next coding agent. Read `AGENTS.md` before making changes.
+Updated 2026-10-17 for the next coding agent. Read `AGENTS.md` before making changes.
 
 ## Current state
 
@@ -15,6 +15,35 @@ Updated 2026-10-16 for the next coding agent. Read `AGENTS.md` before making cha
 - Meal mutations for one user/date/meal are now serialized as complete optimistic-write/rollback transactions. The next mutation reads state only after the previous write either succeeds or rolls back, avoiding stale queued snapshots.
 - Nutrition memo comparisons now include the displayed food name/image/icon and the actual `carbohydrates` field, so recent meal cards do not retain stale presentation data.
 - The work in this section was committed in the five commits named above. It includes progress changes and tests; do not assume every change belongs only to the last workout follow-up.
+
+## Cross-feature audit pass (2026-10-17)
+
+This pass reviewed the current working tree, including uncommitted changes. The first-party inventory under `src/` contains 278 production TypeScript/JavaScript files (39,228 lines) and 126 test files. Generated native projects, build outputs, assets, and `node_modules` are not application source and were not line-reviewed. The review was broad and subsystem-based; it is not a guarantee that every source line was individually read or that the app is defect-free.
+
+Concrete code-level findings to address or explicitly accept:
+
+| Severity | Finding | Current evidence |
+|---|---|---|
+| Medium | A delayed active-workout restore may overwrite set edits made while the restore is pending. | `WorkoutService.ts` restore state/generation checks do not invalidate a restore when a local set edit occurs; the auth listener and screen can both initiate restore. |
+| Medium | An older workout-schedule fetch can replace the schedule for a newer active split. | `useWorkoutScreenSchedule.ts` applies results from the captured split id without a request-generation/stale-result guard. |
+| Medium (known residual) | Anonymous users can insert fabricated entries into the shared barcode catalog. | `supabase/rls.sql` intentionally permits bounded `anon` inserts; this can poison barcode lookup results for all users. The deployed policy state was not checked in this pass. This is a known owner-accepted tradeoff, not a newly discovered configuration state. |
+| Low | Dashboard workout and weekly overview date calculations can remain stale after the app stays open across local midnight. | `useDashboardScheduledWorkout.ts` and `WeeklyOverview.tsx` recalculate on focus/dependencies, not on a day-boundary event. |
+| Low | Progress adherence may continue using the previous split's weekly target after changing splits if the replacement fetch fails. | `usePlannedWorkouts.ts` retains the prior value; its test currently asserts that behavior. Confirm whether stale-while-revalidate is intentional or whether the UI should indicate that the current target is unavailable. |
+| Low | Custom-food unit control appears interactive but has no press handler. | `CustomFoodScreen.tsx` renders the unit control without wiring the `changeUnit` function exposed by `useCustomFood.ts`. |
+| Low (conditional) | Selecting same-named but distinct food records can toggle the wrong selected item. | `FoodSelectionScreen.tsx` uses `productName` as selection identity. Impact depends on whether duplicate names exist in the live catalog. |
+
+The reviewers reported no additional concrete findings in Auth/Profile or in the already tested Workout Details/Create Template helper boundaries. Findings above were code-path reviews; UI timing and live data cases were not reproduced on a device/backend. No code fixes were made as part of this audit request.
+
+### Verification and release boundary
+
+- Local Jest: 126 suites / 1,044 tests passed in UTC, America/Los_Angeles, and Europe/Bucharest.
+- TypeScript: `npx tsc --noEmit` passed. The project has strict TypeScript enabled, but Firestore converters still trust persisted records via casts and some route payloads remain `unknown`; this is a runtime-validation/type-model limitation, not a current compiler error.
+- Firebase: `npm run test:rules` passed all 8 local Firestore/Storage emulator tests.
+- Expo: `npx expo install --check` and Android JS bundle export passed; filtered config introspection showed the expected package IDs, backup setting, API permission declarations, and HealthKit usage descriptions.
+- Current Jest coverage: 49.88% lines, 41.63% branches, 43.73% functions, 49.80% statements. CI does not enforce a coverage threshold.
+- Production dependency audit: 28 advisories remain (22 high, 6 moderate), reported through transitive `braces`, `node-forge`, and `sprintf-js` paths. The offered fixes require breaking Expo/Jest/React Native upgrades; do not force-upgrade outside an aligned SDK update.
+- GitHub Actions for commit `e2fb3a2` on `master` passed. That run validates the committed base only, not this dirty working tree.
+- Not verified: a fresh signed Android AAB/native build, any iOS build, physical-device or Play internal-track behavior, HealthKit/Health Connect and camera permission journeys, screen reader/accessibility behavior, live Supabase RLS, deployed Firebase/Supabase console state, and Play Console declarations. Use the owner checklist below and `docs/PLAY_STORE_RELEASE_READINESS.md`.
 
 ## Main fixes and rationale
 

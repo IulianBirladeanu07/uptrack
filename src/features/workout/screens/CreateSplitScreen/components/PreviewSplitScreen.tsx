@@ -13,29 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppNavigation, useAppRoute } from '../../../../../shared/navigation';
 import type { WorkoutSplit } from '../../../types';
-
-type PreviewExercise = {
-  numSets?: number | string;
-  sets?: number | string;
-  exerciseName?: string;
-  muscleGroup?: string;
-  repRange?: string;
-  [key: string]: unknown;
-};
-
-type PreviewDayWorkout = {
-  id?: string;
-  name?: string;
-  templateName?: string;
-  duration?: number | string;
-  exercises?: PreviewExercise[];
-  [key: string]: unknown;
-};
-
-type PreviewSplit = WorkoutSplit & {
-  schedule?: Record<string, PreviewDayWorkout | null | undefined>;
-  type?: string;
-};
+import type { PreviewDayWorkout } from './previewSplitData';
 import { getAuth } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { colors, spacing } from '../../../../../shared/theme';
@@ -44,6 +22,7 @@ import { AuthContext } from '../../../../auth/context/AuthContext';
 import { WorkoutContext } from '../../../context/WorkoutContext';
 import { fetchSplitsFromFirestore } from '../../../services/workoutSplitService';
 import styles from './PreviewSplitScreenStyle';
+import { getPreviewSplitStats } from './previewSplitData';
 import DaySelector from './DaySelector';
 import MuscleCoverageCard from './MuscleCoverageCard';
 import WorkoutExercisePreview, { ExercisePreviewList } from '../../../components/WorkoutExercisePreview/WorkoutExercisePreview';
@@ -51,7 +30,11 @@ import { getCycleLength, getWorkoutsPerWeek, hasScheduledWorkout, isRotationSpli
 
 const asSplit = (s: PreviewSplit | null | undefined): SplitLike => s as SplitLike;
 
-const MAJOR_MUSCLE_GROUPS = ['Chest', 'Back', 'Biceps', 'Quads', 'Hamstring', 'Delts', 'Triceps'];
+type PreviewSplit = WorkoutSplit & {
+  schedule?: Record<string, PreviewDayWorkout | null | undefined>;
+  type?: string;
+};
+
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 const PreviewSplitScreen = () => {
@@ -112,59 +95,10 @@ const PreviewSplitScreen = () => {
     return hasScheduledWorkout(workout) ? workout : null;
   }, [selectedDay, split]);
 
-  const selectedDayStats = useMemo(() => {
-    if (!selectedDayWorkout) return null;
-    const totalSets = selectedDayWorkout.exercises?.reduce(
-      (acc, ex) => acc + (parseInt(String(ex.numSets ?? 0), 10) || parseInt(String(ex.sets ?? 0), 10) || 0),
-      0
-    ) || 0;
-    return {
-      duration: selectedDayWorkout.duration || 45,
-      exerciseCount: selectedDayWorkout.exercises?.length || 0,
-      totalSets,
-    };
-  }, [selectedDayWorkout]);
-
-  const compositionStats = useMemo(() => {
-    const schedule = split?.schedule || {};
-    const workouts = Object.values(schedule).filter((w): w is PreviewDayWorkout => hasScheduledWorkout(w));
-
-    let totalSets = 0;
-    let totalDuration = 0;
-    workouts.forEach(workout => {
-      totalDuration += Number(workout?.duration) || 0;
-      workout.exercises?.forEach(exercise => {
-        totalSets += Number(exercise.numSets) || Number(exercise.sets) || 0;
-      });
-    });
-
-    return { workoutDays: workouts.length, totalSets, totalDuration };
-  }, [split]);
-
-  const muscleGroupSets = useMemo(() => {
-    const schedule = split?.schedule || {};
-    const workouts = Object.values(schedule).filter((w): w is PreviewDayWorkout => hasScheduledWorkout(w));
-    const sets: Record<string, number> = {};
-
-    workouts.forEach(workout => {
-      workout.exercises?.forEach(exercise => {
-        const count = Number(exercise.numSets) || Number(exercise.sets) || 0;
-        if (exercise.muscleGroup) {
-          sets[exercise.muscleGroup] = (sets[exercise.muscleGroup] || 0) + count;
-        }
-      });
-    });
-
-    return Object.entries(sets)
-      .sort(([, a], [, b]) => (b as number) - (a as number))
-      .map(([muscle, count]) => ({ muscle, sets: count }));
-  }, [split]);
-
-  const uncoveredMuscles = useMemo(() => {
-    return MAJOR_MUSCLE_GROUPS.filter(
-      muscle => !muscleGroupSets.some(item => item.muscle === muscle)
-    );
-  }, [muscleGroupSets]);
+  const previewStats = useMemo(
+    () => getPreviewSplitStats(split?.schedule || {}, selectedDayWorkout),
+    [split?.schedule, selectedDayWorkout],
+  );
 
   const isViewingToday = split?.type === 'weekly' && selectedDay === todayKey;
   const canStartFromHere = isActiveSplit && isViewingToday;
@@ -314,16 +248,16 @@ const PreviewSplitScreen = () => {
             <View style={styles.metaRow}>
               <View style={styles.metaItem}>
                 <Ionicons name="calendar-outline" size={spacing.iconSm} color={colors.text.quaternary} />
-                <Text style={styles.metaText}>{compositionStats.workoutDays} workout days</Text>
+                <Text style={styles.metaText}>{previewStats.compositionStats.workoutDays} workout days</Text>
               </View>
               <View style={styles.metaItem}>
                 <Ionicons name="layers-outline" size={spacing.iconSm} color={colors.text.quaternary} />
-                <Text style={styles.metaText}>{compositionStats.totalSets} sets</Text>
+                <Text style={styles.metaText}>{previewStats.compositionStats.totalSets} sets</Text>
               </View>
               <View style={styles.metaItem}>
                 <Ionicons name="time-outline" size={spacing.iconSm} color={colors.text.quaternary} />
                 <Text style={styles.metaText}>
-                  {Math.round((compositionStats.totalDuration / 60) * 10) / 10}h per cycle
+                  {Math.round((previewStats.compositionStats.totalDuration / 60) * 10) / 10}h per cycle
                 </Text>
               </View>
             </View>
@@ -369,15 +303,15 @@ const PreviewSplitScreen = () => {
                 <View style={styles.workoutMetaRow}>
                   <View style={styles.workoutMetaItem}>
                     <Ionicons name="time-outline" size={spacing.iconSm} color={colors.text.quaternary} />
-                    <Text style={styles.workoutMetaText}>{selectedDayStats?.duration}m</Text>
+                    <Text style={styles.workoutMetaText}>{previewStats.selectedDayStats?.duration}m</Text>
                   </View>
                   <View style={styles.workoutMetaItem}>
                     <Ionicons name="barbell-outline" size={spacing.iconSm} color={colors.text.quaternary} />
-                    <Text style={styles.workoutMetaText}>{selectedDayStats?.exerciseCount} exercises</Text>
+                    <Text style={styles.workoutMetaText}>{previewStats.selectedDayStats?.exerciseCount} exercises</Text>
                   </View>
                   <View style={styles.workoutMetaItem}>
                     <Ionicons name="layers-outline" size={spacing.iconSm} color={colors.text.quaternary} />
-                    <Text style={styles.workoutMetaText}>{selectedDayStats?.totalSets} sets</Text>
+                    <Text style={styles.workoutMetaText}>{previewStats.selectedDayStats?.totalSets} sets</Text>
                   </View>
                 </View>
               </View>
@@ -401,8 +335,8 @@ const PreviewSplitScreen = () => {
           )}
 
           <MuscleCoverageCard
-            muscleGroupSets={muscleGroupSets}
-            uncoveredMuscles={uncoveredMuscles}
+            muscleGroupSets={previewStats.muscleGroupSets}
+            uncoveredMuscles={previewStats.uncoveredMuscles}
             subtitle="sets per muscle group this split"
           />
         </View>

@@ -4,13 +4,11 @@ import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, S
 import type { ListRenderItem, ListRenderItemInfo } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { useAppNavigation } from '../../../../shared/navigation';
 import { Ionicons } from '@expo/vector-icons';
-import { clearExercisesCache, fetchExercises } from '../../services/exerciseCatalogService';
 import { colors, spacing } from '../../../../shared/theme';
 import { styles } from './ExerciseSelectionScreenStyle';
-import type { ExerciseGroup } from '../../../../shared/types';
+import { useExerciseCatalog } from './useExerciseCatalog';
 import {
   buildExerciseCatalogData,
   filterAndGroupExercises,
@@ -366,49 +364,17 @@ const ExerciseSelectionScreen = () => {
   const navigation = useAppNavigation();
   const route = useAppRoute<'ExerciseSelection'>();
 
-  const [allGroupedExercises, setAllGroupedExercises] = useState<ExerciseGroup[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<Set<string>>(() => new Set());
   const [activeFilter, setActiveFilter] = useState('All');
 
+  const { exerciseGroups, loading, error, loadExercises, markCreatedExercise } = useExerciseCatalog();
   const [debouncedSearchTerm, isSearching] = useDebounce(searchTerm, 200);
   const { exerciseMap, muscleGroups, counts, flatExercises } = useMemo(
-    () => buildExerciseCatalogData(allGroupedExercises),
-    [allGroupedExercises],
+    () => buildExerciseCatalogData(exerciseGroups),
+    [exerciseGroups],
   );
   const doneButtonAnim = useRef(new Animated.Value(0)).current;
-
-  const loadExercises = useCallback(async (isRetry = false) => {
-    if (!isRetry && allGroupedExercises.length > 0) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const data = await fetchExercises(true);
-      setAllGroupedExercises(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load exercises');
-    } finally {
-      setLoading(false);
-    }
-  }, [allGroupedExercises.length]);
-
-  const hasClearedCacheRef = useRef(false);
-  const createdExerciseRef = useRef(false);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!hasClearedCacheRef.current) {
-        hasClearedCacheRef.current = true;
-        clearExercisesCache(true);
-      }
-      loadExercises(createdExerciseRef.current);
-      createdExerciseRef.current = false;
-    }, [loadExercises])
-  );
 
   const filteredAndGroupedExercises = useMemo(
     () => filterAndGroupExercises(flatExercises, debouncedSearchTerm, activeFilter),
@@ -471,9 +437,9 @@ const ExerciseSelectionScreen = () => {
   }, [navigation]);
 
   const handleCreateExercise = useCallback(() => {
-    createdExerciseRef.current = true;
+    markCreatedExercise();
     navigation.navigate('CreateExercise', {});
-  }, [navigation]);
+  }, [markCreatedExercise, navigation]);
 
   const renderFlatListItem: ListRenderItem<ExerciseListRow> = useCallback(({ item }: ListRenderItemInfo<ExerciseListRow>) => {
     if (item.type === 'header') {

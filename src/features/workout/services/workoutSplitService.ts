@@ -15,6 +15,11 @@ import { db } from '../../auth/services/firebaseConfigService';
 import type { WorkoutSplit } from '../types';
 import { clearSplitsCache } from './splitCache';
 import { fetchTemplatesFromFirestore } from './workoutTemplateService';
+import {
+  hydrateSplitSchedules,
+  sanitizeSplitDay,
+  sanitizeSplitSchedule,
+} from './workoutSplitData';
 
 export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
   try {
@@ -39,28 +44,7 @@ export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
       id: docSnap.id,
     }));
     const templates = await fetchTemplatesFromFirestore();
-    const templateMap = new Map(templates.map(template => [template.id, template]));
-
-    splits.forEach(split => {
-      const schedule = (split.schedule || {}) as Record<string, Record<string, unknown>>;
-      Object.keys(schedule).forEach(day => {
-        const dayData = schedule[day] || {};
-        const templateId = dayData['templateId'] as string | undefined;
-        const template = templateId ? templateMap.get(templateId) : undefined;
-        if (template) {
-          schedule[day] = {
-            ...dayData,
-            id: template.id ?? templateId,
-            templateName: template.templateName || dayData['templateName'],
-            exercises: template.exercises || dayData['exercises'],
-            duration: template.duration ?? dayData['duration'],
-          };
-        }
-      });
-      split.schedule = schedule;
-    });
-
-    return splits;
+    return hydrateSplitSchedules(splits, templates);
   } catch (error) {
     console.error('Error fetching user splits from Firestore:', (error as Error).message);
     throw error;
@@ -109,21 +93,9 @@ export const addSplitToFirestore = async (splitData: WorkoutSplit): Promise<stri
       throw new Error('User not authenticated.');
     }
 
-    const sanitizedSchedule: Record<string, Record<string, unknown>> = {};
-    const schedule = (splitData.schedule || {}) as Record<string, Record<string, unknown>>;
-    Object.keys(schedule).forEach(day => {
-      const dayData = schedule[day] || {};
-      sanitizedSchedule[day] = {
-        templateId: dayData['templateId'] || 'rest-day',
-        templateName: dayData['templateName'] || 'Rest Day',
-        exercises: dayData['exercises'] || [],
-        duration: dayData['duration'] || '0',
-      };
-    });
-
     const splitDataToSave = {
       ...splitData,
-      schedule: sanitizedSchedule,
+      schedule: sanitizeSplitSchedule(splitData.schedule),
       uid: user.uid,
       createdAt: serverTimestamp(),
     };
@@ -151,15 +123,8 @@ export const updateSplitDay = async (
     }
 
     const splitDocRef = doc(db, 'workoutSplits', splitId);
-    const sanitizedWorkoutData = {
-      templateId: workoutData['templateId'] || 'rest-day',
-      templateName: workoutData['templateName'] || 'Rest Day',
-      exercises: workoutData['exercises'] || [],
-      duration: workoutData['duration'] || '0',
-    };
-
     await updateDoc(splitDocRef, {
-      [`schedule.${day}`]: sanitizedWorkoutData,
+      [`schedule.${day}`]: sanitizeSplitDay(workoutData),
       lastModified: serverTimestamp(),
     });
 

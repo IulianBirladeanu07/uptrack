@@ -6,7 +6,7 @@ import { db } from '../../auth/services/firebaseConfigService';
 import type { AuthenticatedStackParamList } from '../../../shared/navigation';
 import type { WorkoutExercise } from '../types';
 import { isValidWorkoutSetInput } from '../utils/workoutSetValidation';
-import { calculate1RM, getPersonalRecordSetIndexes } from '../utils/workoutMetrics';
+import { buildWorkoutCompletionData } from './buildWorkoutCompletionData';
 
 type AppNav = NativeStackNavigationProp<AuthenticatedStackParamList>;
 type MessageFn = (message: string) => void;
@@ -97,38 +97,14 @@ async function finishWorkout(
 
     const uid = user.uid;
     const timestamp = new Date();
-    const exercisesWithPR = exerciseData.map(exercise => {
-      const prSetIndexes = new Set(
-        getPersonalRecordSetIndexes(exercise.sets, exercise.lastWorkoutSets || []),
-      );
-      return {
-        ...exercise,
-        sets: exercise.sets.map((set, index) => ({ ...set, isPR: prSetIndexes.has(index) })),
-      };
-    });
-
-    const workoutDataToSend = {
+    const { exercisesWithPR, workoutDataToSend } = buildWorkoutCompletionData({
+      exerciseData,
       uid,
       timestamp: serverTimestamp(),
       note: inputText,
       duration: formatTime(elapsedTime),
       workoutName: templateName || null,
-      exercises: exercisesWithPR.map(({ lastWorkoutSets, ...exercise }) => ({
-        ...exercise,
-        sets: exercise.sets.map(set => ({
-          weight: parseFloat(String(set.weight ?? 0)),
-          reps: parseInt(String(set.reps ?? 0), 10),
-          isValidated: set.isValidated,
-          isPR: set.isPR || false,
-          estimated1RM: Number(set.reps) > 0
-            ? calculate1RM(
-              parseFloat(String(set.weight)),
-              parseInt(String(set.reps), 10),
-            ).toFixed(2)
-            : 'N/A',
-        })),
-      })),
-    };
+    });
 
     const workoutDocRef = doc(collection(db, 'workoutHistory'));
     await setDoc(workoutDocRef, workoutDataToSend);

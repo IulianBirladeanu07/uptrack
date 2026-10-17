@@ -30,7 +30,7 @@ Do not combine the ongoing refactor with the separate app-flow/security audit. I
 
 ## Work completed in the recent modularity/refactoring sequence
 
-The work below is already committed. Use `git log --oneline` to inspect each change; do not redo it without a concrete reason.
+The work below records completed batches. Use `git status --short` and `git log --oneline` to distinguish the current uncommitted changes from committed work; do not redo a batch without a concrete reason.
 
 ### Nutrition and shared data logic
 
@@ -54,6 +54,47 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Moved catalog enrichment, identity-keyed lookup/count construction, filtering/grouping, and FlatList row generation into `src/features/workout/screens/ExerciseSelectionScreen/exerciseSelectionData.ts`.
 - Integrated those helpers into `ExerciseSelectionScreen.tsx`; added seven tests and Jest discovery for this screen directory.
 - Preserved filtering fields/order, identity keys, list IDs, and the existing count behavior for repeated group entries.
+- Moved focus-triggered catalog loading, first-focus cache clearing, retry/error state, and refresh-after-create behavior into `useExerciseCatalog.ts`.
+- Added four hook tests for initial loading, errors/retry, forced refresh after creating an exercise, and non-Error failures.
+
+### Workout template loading
+
+- Moved template-to-session exercise and set construction into `buildWorkoutFromTemplate.ts`; `WorkoutService` retains history fetching, async user/session guards, and state updates.
+- Added four tests for history fallbacks, rep-range defaults, fresh set IDs/validation state, invalid set counts, and source immutability.
+
+### Workout exercise updates
+
+- Extracted pure exercise/set updates from `WorkoutService` into `workoutExerciseUpdates.ts`; the service continues to own listener notifications and immediate versus throttled updates.
+- Added tests for validation and immutable updates, set/exercise add/delete, movement/replacement, duplicate identities, and all-sets-validated checks.
+
+### Workout completion payload
+
+- Moved PR annotation and Firestore history-record projection into `buildWorkoutCompletionData.ts`; `workoutSessionService.ts` retains authentication checks, Firestore writes, confirmation flow, and navigation.
+- Added tests for PR annotation, persisted set conversion, bodyweight/zero-rep handling, removal of session-only history data, and input immutability.
+
+### Exercise image prefetch
+
+- Moved remote-image batching and per-URL prefetch status tracking into `exerciseImagePrefetch.ts`; `exerciseCatalogService.ts` retains catalog and custom-exercise loading.
+- Added tests for remote URL filtering, three-image batches and stagger timing, successful URL reuse, failure logging/status retention, and explicit status clearing.
+- Preserved the existing behavior that a failed image is not retried until image prefetch status is cleared.
+
+### Workout split schedule data
+
+- Moved split schedule hydration and rest-day sanitization into `workoutSplitData.ts`; `workoutSplitService.ts` retains authentication, Firestore access, cache invalidation, and error handling.
+- Added tests for current-template enrichment, preserving schedule metadata, stale/missing template details, empty schedules, and rest-day fallback values.
+- Preserved the existing distinction between truthy fallbacks for template names/exercises and nullish fallback for duration.
+
+### Workout split preview and editing data
+
+- Moved the preview screen's selected-day, cycle composition, and muscle coverage calculations into `previewSplitData.ts`.
+- Moved split schedule transitions and type-specific key filtering into `splitScheduleEditor.ts`; the screen retains validation, alerts, and React state ownership.
+- Added tests for schedule assignment/clear/add/remove, weekly/rotation filtering, scheduled/rest-day aggregation, uncovered groups, numeric values, and selected-day fallbacks.
+- Kept preview calculations distinct from create/review statistics because their existing set-count parsing differs (`Number` for composition versus `parseInt` for selected-day stats).
+
+### Workout template-name policy
+
+- Moved duplicate-name validation, normalized registry keys, malformed-registry handling, and the existing duplicate-name error class into `templateNameRegistry.ts`. Firestore query/transaction behavior remains in `workoutTemplateService.ts`.
+- Added focused tests and re-exported the error class from the original service module to preserve callers.
 
 ### Exercise item
 
@@ -139,6 +180,22 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - A deliberate removal of the dirty-draft guard made the refreshed-user test fail (and reset form state/count tests); restoring it made all tests pass.
 - The hook does not reset validation errors during a pristine profile refresh, matching the original effect.
 
+### Profile save lifecycle
+
+- Moved the Profile screen's email-verification, optional profile-picture upload, Firestore write, refresh, state commit, alerts, and saving-state lifecycle into `useProfileSave.ts`. The screen retains validation, confirmation prompts, navigation, and rendering.
+- Added six hook tests covering successful save, missing authentication, recent-login email failure, pending email confirmation, photo upload, and persistence failure.
+
+### Onboarding plan confirmation
+
+- Moved plan persistence, profile refresh, completion-state update, and save/refresh error handling from `PlanSummaryScreen.tsx` into `usePlanConfirmation.ts`. The screen retains plan calculation and presentation.
+- Added five hook tests for successful completion, missing authentication, write failure, an unavailable refreshed profile, and refresh errors. Added Jest discovery for Profile screen tests.
+- Inspected the remaining Profile screens; `OnboardingFlow` and `OnboardingStepScreen` remain orchestration and presentation respectively, with no additional cohesive extraction identified.
+
+### Nutrition account reset
+
+- Moved the Nutrition provider's account-scoped reset transition into `resetFoodAccountState.ts`, keeping auth callback sequencing and account initialization in `FoodContext.tsx`.
+- Added tests for invalidating pending work, clearing the meal/step caches and account state, and selecting the correct loading state for account switches versus sign-out. Existing provider tests continue to cover account-change integration.
+
 ### CreateTemplate exercise updates
 
 - Extracted pure list updates to `src/features/workout/screens/CreateTemplateScreen/templateExerciseUpdates.ts`: restore a deleted row at its prior index, restore a replaced row by the replacement id, and replace a row while preserving its previous rest time (or the existing 180-second fallback).
@@ -156,6 +213,7 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Added three tests for month formatting, missing/zero timestamps and stable grouping order. Added `WorkoutHistoryScreen` test discovery to `jest.config.js`.
 - Extracted the existing history-to-StartWorkout route payload mapping to `src/features/workout/screens/WorkoutHistoryScreen/workoutHistorySelection.ts`; navigation and the active-workout guard remain in the screen. Two tests cover mapped metadata, set-value conversion and existing falsy-value defaults.
 - Extracted date badges and time-of-day workout labels to `workoutHistoryPresentation.ts`, preserving local-time boundaries and custom template-name precedence. Added tests for recent/today/yesterday/date labels and every time-of-day boundary.
+- Extracted the card's derived totals, duration, labels and exercise best-set/PR presentation into `workoutHistoryCardData.ts`; the screen retains row rendering and interaction. Tests cover summary fields, PR styling data, today's label, duration conversion and empty/missing-value defaults.
 
 ### CreateSplit review summary
 
@@ -224,21 +282,27 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Moved the maintenance-phase confirmation and save lifecycle into `useMaintenanceSwitch.ts`, preserving the confirmation text/buttons, profile/auth uid fallback, progress error logging and alert, refresh behavior, and busy-state guard.
 - Added hook tests for cancellation, successful writes, auth uid fallback, failure reporting, missing recap data, and duplicate confirmation prevention.
 
+### Progress planned workout count
+
+- Moved focus-scoped split loading, active-split selection, and workouts-per-week derivation into `usePlannedWorkouts.ts`; the screen continues to pass the result to its existing progress model.
+- Preserved empty, fallback, failure-logging, and stale-request cancellation behavior. Added tests for split resolution, null results, fetch failures, and cancellation.
+
 ### Dependency audit remediation
 
 - Updated Expo SDK 54 to `54.0.37` and the matching `jest-expo` preset to `54.0.18`.
-- Added compatible overrides for `@grpc/grpc-js`, `undici`, `postcss`, `decode-uri-component`, and the vulnerable `@xmldom/xmldom` nested under `react-native-health`.
-- The full audit decreased from 84 findings (55 high, 29 moderate) to 66 (48 high, 18 moderate), with zero critical findings. The production dependency graph reports 41 (23 high, 18 moderate), also with zero criticals.
-- Remaining upstream/tooling findings include `node-forge`, `braces`, `sprintf-js`, `uuid`, and `image-size`; some counts propagate through dependency paths (for example, `patch-package` -> `find-yarn-workspace-root` -> `micromatch` -> `braces`). There is no newer published `node-forge` than 1.4.0; its Expo usage is in Node-based code-signing/configuration that reads local project PEM files, not an app-runtime path found in this review. Metro 0.83.x requires `image-size` `^1.0.2`; the published 2.0.4 fix has a different CommonJS export shape and is not a drop-in override for Metro's callable API. Both are tooling-path findings with no demonstrated remote app-runtime input path; do not force framework or Metro/Jest changes solely to clear the audit. Recheck when compatible upstream fixes are available.
+- Added compatible overrides for `@grpc/grpc-js`, `undici`, `postcss`, `decode-uri-component`, the vulnerable `@xmldom/xmldom` nested under `react-native-health`, and `image-size@2.0.4`.
+- Scoped `uuid@11.1.1` under `xcode`; the Expo `xcode` consumer only calls `uuid.v4()`, which remains exported. This resolved the UUID bounds-check advisory without an Expo-wide upgrade.
+- Patched Metro 0.83.1 and Expo's nested Metro 0.83.3 to adapt `image-size@2` exports and pass image bytes to the parser. This resolves the image-size advisories without upgrading Metro; Android export validates the adapted asset pipeline.
+- The full audit decreased from 84 findings (55 high, 29 moderate) to 53 (47 high, 6 moderate), with zero critical findings. The production dependency graph reports 28 (22 high, 6 moderate), also with zero criticals.
+- Remaining distinct upstream/tooling findings are `node-forge`, `braces`, and `sprintf-js`; many audit rows are affected dependency paths, not separate vulnerabilities. The registry has no patched releases newer than `node-forge@1.4.0`, `braces@3.0.3`, or `sprintf-js@1.1.3`. Expo's node-forge use is in Node-based code-signing/configuration that reads local project PEM files, not an app-runtime path found in this review. The braces finding propagates through toolchain glob matching. Jest 30 contains fixes for some toolchain advisories, but `jest-expo@54.0.18` depends on Jest 29 internals and `jest-watch-typeahead@2.2.1` declares Jest 29 as its highest supported major; do not force an unaligned major upgrade. No safe compatible upstream fixes were available for the remaining findings at review time; recheck before release and when upstream updates land.
 
-The latest validation was:
+Latest validation for the Workout History card projection:
 
-- `npm test -- --ci --runInBand`: 112 suites / 977 tests passed.
+- `npx jest --runInBand --ci`: 126 suites / 1,044 tests passed.
+- `npx jest --runInBand --ci src/features/workout/screens/WorkoutHistoryScreen`: 4 suites / 9 tests passed.
 - `npx tsc --noEmit`: passed.
-- `npx expo install --check`: passed.
+- `npx expo export --platform android --output-dir <temporary directory>`: succeeded; this verifies bundling only, not device behavior.
 - `git diff --check`: passed.
-- `npx expo export --platform android --output-dir <temporary directory>`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
-- `npm audit`: 48 high / 18 moderate / 0 critical; `npm audit --omit=dev`: 23 high / 18 moderate / 0 critical.
 
 ## Repository map
 
@@ -254,11 +318,11 @@ The latest validation was:
 
 This is a ranked starting point based on the current source inventory, not a mandate to refactor by line count. Inspect responsibilities and coupling first; skip or reorder when the code shows a better seam.
 
-1. **FoodContext:** meal writes, step flushing, cache-then-fresh initialization loading, selected-date orchestration, auth callback sequencing and background evaluations are extracted and tested. Account reset operations remain owned by the provider; avoid broadening into the separate Nutrition audit.
-2. **Profile follow-ups:** inspect other profile screens only for a cohesive seam; the form-state lifecycle of `ProfileScreen.tsx` is now extracted and tested.
-3. **Dashboard follow-ups:** weekly overview, scheduled-workout loading, and notice dismissal state are isolated and tested. Review the remaining Dashboard view composition only for meaningful responsibility boundaries; do not split presentational fragments just to reduce file length.
-4. **Progress follow-ups:** screen model and maintenance-phase switch flow are isolated and tested. Consider remaining split-plan loading only if its account-change and failure semantics can be preserved and characterized.
-5. **Workout follow-ups:** `CreateTemplateScreen` list updates, `ExerciseItem` swipe intent, `WorkoutHistoryScreen` grouping/payload/presentation, `CreateSplitScreen` review summaries, WorkoutDetails card stats, WorkoutScreen preview summaries/scheduled-day mapping and deterministic WorkoutTemplateLibrary keys are covered by tests. Any further extraction should begin with inspection and characterization; do not refactor solely for file size.
+1. **FoodContext:** meal writes, step flushing, cache-then-fresh initialization loading, selected-date orchestration, auth callback sequencing, background evaluations, and account reset are extracted and tested. Avoid broadening into the separate Nutrition audit.
+2. **Profile follow-ups:** the Profile form/save and onboarding plan-confirmation lifecycles are isolated and tested. `OnboardingFlow` and `OnboardingStepScreen` were inspected; their current orchestration/presentation split has no additional cohesive seam.
+3. **Dashboard follow-ups:** weekly overview, scheduled-workout loading, and notice dismissal state are isolated and tested. The remaining Dashboard view composition was inspected; its active-workout, scheduled-workout, and nutrition cards are already distinct components. Avoid further splits unless a new responsibility emerges.
+4. **Progress follow-ups:** screen model, maintenance-phase switch, and focused planned-workout loading are isolated and tested. Remaining screen content is presentation and model wiring; avoid splitting presentational fragments without a cohesive state or behavior boundary.
+5. **Workout follow-ups:** `WorkoutService` template-to-session mapping and in-memory exercise updates, workout completion payload projection, template-name policy, exercise image prefetch, split schedule hydration/sanitization, `CreateSplitScreen` preview statistics and editing transitions, `ExerciseSelectionScreen` catalog modeling/loading, `CreateTemplateScreen` selection and list updates, `ExerciseItem` swipe intent, `WorkoutHistoryScreen` grouping/payload/date labels/card projection, `CreateSplitScreen` review summaries, WorkoutDetails card stats, WorkoutScreen preview summaries/scheduled-day mapping and deterministic WorkoutTemplateLibrary keys are covered by tests. Any further extraction should begin with inspection and characterization; do not refactor solely for file size.
 6. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 
 ## Separate app-flow audit: status and source of truth
