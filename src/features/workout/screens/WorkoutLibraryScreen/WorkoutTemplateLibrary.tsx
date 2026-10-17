@@ -4,6 +4,7 @@ import { normalize } from '../../../../shared/hooks/useResponsive';
 import TemplateItemJS from './components/TemplateItem';
 const TemplateItem = TemplateItemJS as any;
 import EmptyState from './components/EmptyState';
+import { getWorkoutTemplateKey } from './workoutTemplateKey';
 
 type TemplateItemData = {
   id?: string;
@@ -111,7 +112,10 @@ const WorkoutTemplateLibrary = ({ templates, navigation, refreshControl, hasActi
     />
   ), [expandedCards, toggleExpanded, handleEditTemplate, handleStartWorkout, handleDeletePress, formatDate, hasActiveWorkout]);
 
-  const keyExtractor = useCallback((item: any) => item.id || Math.random().toString(), []);
+  const keyExtractor = useCallback(
+    (item: TemplateItemData, index: number) => getWorkoutTemplateKey(item, index),
+    [],
+  );
 
   return (
     <FlatList
