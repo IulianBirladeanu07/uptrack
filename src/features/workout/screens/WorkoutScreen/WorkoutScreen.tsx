@@ -22,6 +22,8 @@ import type { PersistedWorkoutState, TemplateExercise } from '../../types';
 import styles from './WorkoutScreenStyles';
 import { getWorkoutHistorySummary } from './workoutHistorySummary';
 import type { WorkoutSummary } from './workoutHistorySummary';
+import ComingUpCard from './ComingUpCard';
+import type { UpcomingWorkout, WorkoutPreview } from './ComingUpCard';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 type AppNavigation = NativeStackNavigationProp<AuthenticatedStackParamList>;
@@ -31,7 +33,6 @@ type WorkoutDisplayData = {
     exercises: TemplateExercise[];
     day?: string | undefined;
 };
-type WorkoutPreview = WorkoutDisplayData;
 type WorkoutWeekSchedule = Record<string, WorkoutScheduleDay | null | undefined>;
 type WorkoutScheduleDay = {
     templateName?: string;
@@ -66,17 +67,6 @@ type ThisWeekCardProps = {
     completedDays: number[];
     schedule: WorkoutWeekSchedule | null;
     onDayPress: (workout: WorkoutPreview) => void;
-};
-type UpcomingWorkout = WorkoutPreview & { isRest: boolean };
-type UpcomingWorkoutRowProps = {
-    workout: UpcomingWorkout;
-    isLast: boolean;
-    onPreview: (workout: WorkoutPreview) => void;
-};
-type ComingUpCardProps = {
-    upcomingWorkouts: UpcomingWorkout[];
-    onPreview: (workout: WorkoutPreview) => void;
-    onViewAll: () => void;
 };
 
 const WEEK_DAYS = [
@@ -401,56 +391,6 @@ const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }: ThisWe
                     );
                 })}
             </View>
-        </View>
-    );
-});
-
-const UpcomingWorkoutRow = React.memo(({ workout, isLast, onPreview }: UpcomingWorkoutRowProps) => {
-    const muscleGroups = useMemo(() => {
-        return [...new Set((workout.exercises ?? []).map(e => e.muscleGroup).filter(Boolean))].join(' · ');
-    }, [workout]);
-
-    return (
-        <TouchableOpacity
-            style={[styles.upcomingRow, isLast && styles.upcomingRowLast]}
-            onPress={() => onPreview(workout)}
-            activeOpacity={0.7}
-        >
-            <View style={styles.upcomingDayChip}>
-                <Text style={styles.upcomingDayChipLabel}>{workout.day}</Text>
-            </View>
-            <View style={styles.upcomingInfo}>
-                <View style={styles.upcomingNameRow}>
-                    <Text style={styles.upcomingName} numberOfLines={1}>{workout.name}</Text>
-                    <Text style={styles.upcomingDuration}>{workout.duration}</Text>
-                </View>
-                {muscleGroups.length > 0 && (
-                    <Text style={styles.upcomingMuscles} numberOfLines={1}>{muscleGroups}</Text>
-                )}
-            </View>
-        </TouchableOpacity>
-    );
-});
-
-const ComingUpCard = React.memo(({ upcomingWorkouts, onPreview, onViewAll }: ComingUpCardProps) => {
-    if (!upcomingWorkouts.length) return null;
-
-    return (
-        <View style={styles.card}>
-            <View style={styles.cardRow}>
-                <Text style={styles.cardTitle}>Up Next</Text>
-                <TouchableOpacity onPress={onViewAll} activeOpacity={0.7}>
-                    <Text style={styles.cardTitleRight}>View all</Text>
-                </TouchableOpacity>
-            </View>
-            {upcomingWorkouts.map((workout, i) => (
-                <UpcomingWorkoutRow
-                    key={i}
-                    workout={workout}
-                    isLast={i === upcomingWorkouts.length - 1}
-                    onPreview={onPreview}
-                />
-            ))}
         </View>
     );
 });
