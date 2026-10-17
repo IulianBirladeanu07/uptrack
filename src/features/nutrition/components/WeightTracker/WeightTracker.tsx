@@ -23,23 +23,19 @@ import { isSuspiciousWeightEntry, getCurrentTrendWeight } from '../../../profile
 import { useFoodContext } from '../../context/FoodContext';
 import { formatDate as formatDateKey } from '../../utils/dateUtils';
 import { useAppNavigation } from '../../../../shared/navigation';
-import type { DayKey, Numeric, WeightInWeek } from '../../../../shared/types';
-
-type DayEntry = { key: DayKey; weight: number; date: Date };
-type WeekGroup = {
-    weekStart: string;
-    average: number | null;
-    days: DayEntry[];
-    trend: number | null;
-    daysLogged: number;
-};
+import type { Numeric, WeightInWeek } from '../../../../shared/types';
+import {
+    buildWeeklyGroups,
+    formatWeekLabel,
+    WEEK_DAYS,
+    type WeekGroup,
+} from './weightTrackerPresentation';
 
 type TrendBadgeProps = { value: number | null; isBulking: boolean };
 type WeekRowProps = { group: WeekGroup; isBulking: boolean; expanded: boolean; onToggle: () => void };
 type DatePillProps = { date: Date; label: string; isSelected: boolean; hasEntry: boolean; onPress: () => void };
 type KeypadProps = { onPress: (key: string) => void };
 
-const WEEK_DAYS: DayKey[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_LABELS         = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DATE_OPTIONS_COUNT = 7;
 
@@ -61,12 +57,6 @@ const formatDate = (d: Date) => {
     return val.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-const formatWeekLabel = (weekStartStr: string) => {
-    const [y, m, d] = weekStartStr.split('-').map(Number);
-    const date = new Date(y, m - 1, d);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
-
 const buildDateOptions = () =>
     Array.from({ length: DATE_OPTIONS_COUNT }, (_, i) => {
         const d = new Date();
@@ -74,44 +64,6 @@ const buildDateOptions = () =>
         d.setHours(0, 0, 0, 0);
         return d;
     });
-
-const buildWeeklyGroups = (weightIns: WeightInWeek[]): WeekGroup[] => {
-    if (!weightIns?.length) return [];
-    const dayKeyOrder: DayKey[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-
-    return [...weightIns]
-        .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
-        .map((week, idx, arr) => {
-            const days = dayKeyOrder
-                .map((key, i) => {
-                    const val = week.days?.[key];
-                    if (val == null) return null;
-                    const [y, m, d] = week.weekStart.split('-').map(Number);
-                    const date = new Date(y, m - 1, d + i);
-                    return {
-                        key,
-                        weight: parseFloat(String(val)),
-                        date,
-                    };
-                })
-                .filter((d): d is DayEntry => d != null);
-
-            const prevWeek = arr[idx + 1];
-            const weekAvgDisplay = week.average != null ? parseFloat(week.average.toFixed(1)) : null;
-            const prevAvgDisplay = prevWeek?.average != null ? parseFloat(prevWeek.average.toFixed(1)) : null;
-            const trend = (weekAvgDisplay != null && prevAvgDisplay != null)
-                ? parseFloat((weekAvgDisplay - prevAvgDisplay).toFixed(1))
-                : null;
-
-            return {
-                weekStart:  week.weekStart,
-                average:    week.average ?? null,
-                days,
-                trend,
-                daysLogged: days.length,
-            };
-        });
-};
 
 const serializeWeightIns = (weightIns: WeightInWeek[] | null | undefined) =>
     (weightIns || []).map(w => ({
