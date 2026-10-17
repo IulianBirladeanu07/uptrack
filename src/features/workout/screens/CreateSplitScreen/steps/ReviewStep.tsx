@@ -7,29 +7,20 @@ import DaySelector from '../components/DaySelector';
 import MuscleCoverageCard from '../components/MuscleCoverageCard';
 import { daysOfWeek } from '../constants/CreateSplitScreenConstants';
 import { hasScheduledWorkout } from '../../../utils/splitSchedule';
+import {
+  getSplitDayMuscleGroups,
+  getSplitDaySetCount,
+  getSplitReviewStats,
+  type SplitReviewWorkout,
+} from './splitReviewStats';
 
 const MAJOR_MUSCLE_GROUPS = ['Chest', 'Back', 'Biceps', 'Quads', 'Hamstring', 'Delts', 'Triceps'];
-
-type DayWorkout = {
-  id?: string;
-  name?: string;
-  templateName?: string;
-  duration?: number | string;
-  exercises?: Array<{
-    exerciseName?: string;
-    numSets?: number | string;
-    sets?: number | string;
-    muscleGroup?: string;
-    repRange?: string;
-  }>;
-  [key: string]: unknown;
-};
 
 type SplitReviewData = {
   name?: string;
   type?: string;
   durationWeeks?: number | string;
-  schedule?: Record<string, DayWorkout | null | undefined>;
+  schedule?: Record<string, SplitReviewWorkout | null | undefined>;
   [key: string]: unknown;
 };
 
@@ -72,37 +63,7 @@ const ReviewStep = ({ splitData, setCurrentStep }: ReviewStepProps) => {
   }, [scheduleDays, selectedDay]);
 
   const stats = useMemo(() => {
-    const schedule = splitData.schedule || {};
-    const workouts = Object.values(schedule).filter((w): w is DayWorkout => hasScheduledWorkout(w));
-    const workoutDays = workouts.length;
-
-    let totalDuration = 0;
-    let totalSets = 0;
-    let muscleGroupSets: Record<string, number> = {};
-
-    workouts.forEach(workout => {
-      totalDuration += Number(workout?.duration) || 0;
-
-      workout.exercises?.forEach((exercise: NonNullable<DayWorkout['exercises']>[number]) => {
-        const sets = parseInt(String(exercise.numSets ?? 0), 10) || parseInt(String(exercise.sets ?? 0), 10) || 0;
-        totalSets += sets;
-
-        if (exercise.muscleGroup) {
-          muscleGroupSets[exercise.muscleGroup] = (muscleGroupSets[exercise.muscleGroup] || 0) + sets;
-        }
-      });
-    });
-
-    const muscleGroupsArray = Object.entries(muscleGroupSets)
-      .sort(([, a], [, b]) => Number(b) - Number(a))
-      .map(([muscle, sets]) => ({ muscle, sets }));
-
-    return {
-      workoutDays,
-      totalDuration,
-      totalSets,
-      muscleGroupSets: muscleGroupsArray,
-    };
+    return getSplitReviewStats(splitData.schedule || {});
   }, [splitData]);
 
   const uncoveredMuscles = useMemo(() => {
@@ -152,10 +113,7 @@ const ReviewStep = ({ splitData, setCurrentStep }: ReviewStepProps) => {
     const selectedWorkoutCandidate = schedule[selectedDay ?? ''] ?? null;
     const selectedWorkout = hasScheduledWorkout(selectedWorkoutCandidate) ? selectedWorkoutCandidate : null;
     const isRestDay = !selectedWorkout;
-
-    const muscleGroups = selectedWorkout?.exercises
-      ? [...new Set(selectedWorkout.exercises.map(ex => ex.muscleGroup))]
-      : [];
+    const muscleGroups = getSplitDayMuscleGroups(selectedWorkout);
 
     return (
       <View style={styles.scheduleCard}>
@@ -214,7 +172,7 @@ const ReviewStep = ({ splitData, setCurrentStep }: ReviewStepProps) => {
               <View style={styles.workoutMetric}>
                 <Ionicons name="barbell" size={spacing.iconSm} color={colors.text.quaternary} />
                 <Text style={styles.workoutMetricText}>
-                  {selectedWorkout.exercises?.reduce((total: number, ex: { numSets?: number | string }) => total + (parseInt(String(ex.numSets ?? 0), 10) || 0), 0) || 0} sets
+                  {getSplitDaySetCount(selectedWorkout)} sets
                 </Text>
               </View>
             </View>
