@@ -28,7 +28,7 @@ import {
     getStepsForDateRange as summarizeStepsForDateRange,
     type DayCalories,
 } from './nutritionSummaries';
-import { loadSelectedDateMeals } from './selectedDateMealLoad';
+import { handleSelectedDateChange } from './selectedDateMealChange';
 import { formatDate } from '../utils/dateUtils';
 import { isCurrentUserRequest } from '../utils/userRequest';
 import { StepsFlusher } from './StepsFlusher';
@@ -396,26 +396,23 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const handleDateChange = useCallback((date: Date) => {
-        setSelectedDate(date);
-        updateCurrentDayMeals(date);
-        const uid     = currentUserRef.current?.uid;
-        const dateKey = formatDate(date);
-        if (!uid || mealCache.current.has(dateKey)) return;
-        void loadSelectedDateMeals(
-            () => ensureDayLoaded(dateKey, uid),
-            () =>
+        handleSelectedDateChange(date, {
+            selectDate: selectedDate => {
+                setSelectedDate(selectedDate);
+                updateCurrentDayMeals(selectedDate);
+            },
+            getCurrentUserUid: () => currentUserRef.current?.uid,
+            hasCachedMeals: dateKey => mealCache.current.has(dateKey),
+            ensureDayLoaded,
+            isCurrentRequest: (uid, dateKey) =>
                 mountedRef.current &&
                 currentUserRef.current?.uid === uid &&
                 formatDate(selectedDateRef.current) === dateKey,
-            () => {
-                updateCurrentDayMeals(date);
+            onLoaded: selectedDate => {
+                updateCurrentDayMeals(selectedDate);
                 setCacheVersion(v => v + 1);
             },
-            error => {
-                console.error('load day failed:', error);
-                Alert.alert('Unable to load meals', 'Could not load meals for this date. Check your connection and try again.');
-            },
-        );
+        });
     }, [updateCurrentDayMeals, ensureDayLoaded]);
 
     const initializeAppData = useCallback(async (user: User) => {

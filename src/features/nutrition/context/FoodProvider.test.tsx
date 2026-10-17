@@ -612,3 +612,133 @@ describe('FoodProvider initialization', () => {
         expect(clearPersistedMealCache).toHaveBeenCalledWith('user-1');
     });
 });
+
+describe('FoodProvider selected-date loading', () => {
+    let alertSpy: jest.SpyInstance;
+    let errorSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockAuthState.callback = null;
+        mockUserData = null;
+        mockStepProps.current = {};
+        (loadPersistedMealCache as jest.Mock).mockResolvedValue(null);
+        (fetchLast30DaysMeals as jest.Mock).mockResolvedValue([]);
+        (fetchRawMealsForDate as jest.Mock).mockResolvedValue({ ...emptyDay });
+        alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+        errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    });
+
+    afterEach(async () => {
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 5));
+        });
+        alertSpy.mockRestore();
+        errorSpy.mockRestore();
+    });
+
+    test('loads the newly selected day and updates its meal list', async () => {
+        const { result } = await setup();
+        const selectedDate = new Date(2026, 9, 10);
+        const dateKey = formatDate(selectedDate);
+        let resolveDay: (day: typeof emptyDay) => void = () => undefined;
+        (fetchRawMealsForDate as jest.Mock).mockImplementationOnce(
+            () => new Promise(resolve => { resolveDay = resolve; }),
+        );
+
+        await act(async () => {
+            result.current.setSelectedDate(selectedDate);
+        });
+        await waitFor(() => expect(result.current.selectedDate).toEqual(selectedDate));
+        await act(async () => {
+            resolveDay({ breakfast: [oats], lunch: [], dinner: [], snacks: [] });
+        });
+        await waitFor(() => expect(result.current.breakfastFoods.map(food => food.id)).toEqual(['oats']));
+
+        expect(result.current.selectedDate).toEqual(selectedDate);
+        expect(fetchRawMealsForDate).toHaveBeenCalledWith('user-1', dateKey);
+        expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    test('reports a failure for the currently selected day', async () => {
+        const { result } = await setup();
+        const selectedDate = new Date(2026, 9, 10);
+        let rejectDay: (error: Error) => void = () => undefined;
+        (fetchRawMealsForDate as jest.Mock).mockImplementationOnce(
+            () => new Promise((_, reject) => { rejectDay = reject; }),
+        );
+
+        await act(async () => {
+            result.current.setSelectedDate(selectedDate);
+        });
+        await waitFor(() => expect(result.current.selectedDate).toEqual(selectedDate));
+        await act(async () => {
+            rejectDay(new Error('offline'));
+        });
+        await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(
+            'Unable to load meals',
+            'Could not load meals for this date. Check your connection and try again.',
+        ));
+
+        expect(errorSpy).toHaveBeenCalledWith('load day failed:', expect.any(Error));
+        expect(result.current.selectedDate).toEqual(selectedDate);
+    });
+
+    test('ignores a failed load after the user selects another date', async () => {
+        const { result } = await setup();
+        const olderDate = new Date(2026, 9, 10);
+        const newerDate = new Date(2026, 9, 11);
+        let rejectOlderLoad: (error: Error) => void = () => undefined;
+        let resolveNewerLoad: (day: typeof emptyDay) => void = () => undefined;
+        (fetchRawMealsForDate as jest.Mock)
+            .mockImplementationOnce(() => new Promise((_, reject) => { rejectOlderLoad = reject; }))
+            .mockImplementationOnce(
+                () => new Promise(resolve => { resolveNewerLoad = resolve; }),
+            );
+
+        await act(async () => {
+            result.current.setSelectedDate(olderDate);
+        });
+        await waitFor(() => expect(result.current.selectedDate).toEqual(olderDate));
+        await act(async () => {
+            result.current.setSelectedDate(newerDate);
+        });
+        await waitFor(() => expect(result.current.selectedDate).toEqual(newerDate));
+        await act(async () => {
+            resolveNewerLoad({ breakfast: [rice], lunch: [], dinner: [], snacks: [] });
+        });
+        await waitFor(() => expect(result.current.breakfastFoods.map(food => food.id)).toEqual(['rice']));
+
+        await act(async () => {
+            rejectOlderLoad(new Error('offline'));
+        });
+
+        expect(result.current.selectedDate).toEqual(newerDate);
+        expect(result.current.breakfastFoods.map(food => food.id)).toEqual(['rice']);
+        expect(alertSpy).not.toHaveBeenCalled();
+        expect(errorSpy).not.toHaveBeenCalledWith('load day failed:', expect.any(Error));
+    });
+
+    test('ignores a selected-day response after the account changes', async () => {
+        const { result } = await setup();
+        const selectedDate = new Date(2026, 9, 10);
+        let resolvePreviousUserLoad: (day: typeof emptyDay) => void = () => undefined;
+        (fetchRawMealsForDate as jest.Mock).mockImplementationOnce(
+            () => new Promise(resolve => { resolvePreviousUserLoad = resolve; }),
+        );
+
+        await act(async () => {
+            result.current.setSelectedDate(selectedDate);
+        });
+        await waitFor(() => expect(result.current.selectedDate).toEqual(selectedDate));
+        await signIn('user-2');
+        await waitFor(() => expect(fetchLast30DaysMeals).toHaveBeenCalledWith('user-2'));
+
+        await act(async () => {
+            resolvePreviousUserLoad({ breakfast: [oats], lunch: [], dinner: [], snacks: [] });
+        });
+
+        expect(result.current.breakfastFoods).toEqual([]);
+        expect(alertSpy).not.toHaveBeenCalled();
+    });
+});
