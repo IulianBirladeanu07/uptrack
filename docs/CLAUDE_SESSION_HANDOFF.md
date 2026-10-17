@@ -6,7 +6,7 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Previously pushed Workout refactoring batches are included in `bf1015e refactor: extract scheduled workout preview mapping`. The current uncommitted batch replaces random template row keys with deterministic keys; verify `git log --oneline -10` and `git status --short --branch` before continuing.
+- Previously pushed Workout refactoring batches are included in `d116d57 fix: stabilize workout template row keys`. The current uncommitted batch extracts ExerciseHistory date and chart-label presentation; verify `git log --oneline -10` and `git status --short --branch` before continuing.
 - Three patch files mentioned in an earlier handoff (`0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`) are not present in this checkout at the current base commit.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
@@ -178,16 +178,19 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 
 - Replaced `Math.random()` fallback keys in `WorkoutTemplateLibrary` with the stable top-level id, nested data id, or a deterministic position-based fallback. Added tests for id precedence and repeated key generation, plus Jest discovery for `WorkoutLibraryScreen`.
 
+### ExerciseHistory presentation
+
+- Extracted the existing local-date labels (Recent/Today/Yesterday/date) and chart text anchors to `src/features/workout/components/ExerciseHistoryScreen/exerciseHistoryPresentation.ts`. The screen and chart still own layout and rendering.
+- Added tests with explicit local dates and chart-anchor positions; added Jest discovery for `ExerciseHistoryScreen`.
+
 The latest validation was:
 
+- `npx jest --runInBand --ci src/features/workout/components/ExerciseHistoryScreen/exerciseHistoryPresentation.test.ts src/features/workout/utils/workoutMetrics.test.ts`: 2 suites / 9 tests passed.
 - `npx jest --runInBand --ci src/features/workout/screens/WorkoutLibraryScreen/workoutTemplateKey.test.ts`: 1 suite / 2 tests passed.
-- `npx jest --runInBand --ci`: 106 suites / 944 tests passed.
+- `npx jest --runInBand --ci`: 107 suites / 946 tests passed.
 - `npx tsc --noEmit`: passed using the repository-local TypeScript compiler.
 - `git diff --check`: passed.
-- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-template-key-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
-- `npx jest --runInBand --ci src/features/workout/screens/WorkoutDetailsScreen/workoutCardSummary.test.ts src/features/workout/screens/WorkoutScreen/workoutPreviewSummary.test.ts`: 2 suites / 5 tests passed.
-- `npx jest --runInBand --ci src/features/workout/screens/CreateSplitScreen/steps/splitReviewStats.test.ts src/features/workout/utils/splitSchedule.test.ts`: 2 suites / 29 tests passed.
-- `npx jest --runInBand --ci src/features/workout/components/ExerciseItem/exerciseItemUtils.test.ts src/features/workout/screens/CreateTemplateScreen/templateSelectionPlan.test.ts src/features/workout/screens/CreateTemplateScreen/templateExerciseUpdates.test.ts`: 3 suites / 43 tests passed.
+- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-exercise-history-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
 - `npx jest --runInBand --ci src/features/workout/screens/WorkoutHistoryScreen`: 3 suites / 7 tests passed.
 - `npx jest --runInBand --ci`: 105 suites / 942 tests passed.
 - `npx tsc --noEmit`: passed using the repository-local TypeScript compiler.

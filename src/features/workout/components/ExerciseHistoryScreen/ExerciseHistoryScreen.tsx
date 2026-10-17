@@ -8,8 +8,13 @@ import { calculate1RM, formatBestSet } from '../../utils/workoutMetrics';
 import { colors, spacing } from '../../../../shared/theme';
 import styles from './ExerciseHistoryScreenStyles';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import {
+    formatExerciseHistoryDate,
+    getExerciseHistoryLabelAnchor,
+    type ExerciseHistoryTimestamp,
+} from './exerciseHistoryPresentation';
 
-type TimestampLike = { seconds?: number } | null | undefined;
+type TimestampLike = ExerciseHistoryTimestamp;
 
 type HistorySet = {
     weight?: number | string;
@@ -49,21 +54,6 @@ const PAD_TOP    = 8;
 const PAD_BOTTOM = 28;
 const PAD_SIDE   = 8;
 
-const formatDate = (timestamp: TimestampLike) => {
-    if (!timestamp?.seconds) return { label: 'Recent' };
-    const date = new Date(timestamp.seconds * 1000);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const monthsShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    if (date.toDateString() === today.toDateString()) return { label: 'Today' };
-    if (date.toDateString() === yesterday.toDateString()) return { label: 'Yesterday' };
-    return { label: `${monthsShort[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}` };
-};
-
-const labelAnchor = (i: number, total: number): 'start' | 'middle' | 'end' =>
-    i === 0 ? 'start' : i === total - 1 ? 'end' : 'middle';
-
 const ProgressChart = ({ sessions }: ProgressChartProps) => {
     const chartW = SCREEN_WIDTH - spacing[4] * 2 - PAD_SIDE * 2;
     const drawTop = PAD_TOP;
@@ -82,7 +72,7 @@ const ProgressChart = ({ sessions }: ProgressChartProps) => {
         return reversed.map((s, i) => ({
             x: n === 0 ? chartW / 2 : (i / n) * chartW,
             y: drawTop + (1 - (s.best.e1rm - yMin) / (yMax - yMin || 1)) * (drawBot - drawTop),
-            label: formatDate(s.timestamp).label.split(',')[0],
+            label: formatExerciseHistoryDate(s.timestamp).label.split(',')[0],
             i,
             total: reversed.length,
         }));
@@ -104,7 +94,7 @@ const ProgressChart = ({ sessions }: ProgressChartProps) => {
                 <Path d={linePath} stroke={colors.accent.primary} strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
                 {points.map((p, i) => <Circle key={i} cx={p.x} cy={p.y} r={3} fill={colors.accent.primary} />)}
                 {showLabels.map((p, i) => (
-                    <SvgText key={i} x={p.x} y={CHART_H - 8} fontSize={9} fontWeight="500" fill={colors.text.quaternary} textAnchor={labelAnchor(p.i, p.total)}>
+                    <SvgText key={i} x={p.x} y={CHART_H - 8} fontSize={9} fontWeight="500" fill={colors.text.quaternary} textAnchor={getExerciseHistoryLabelAnchor(p.i, p.total)}>
                         {p.label}
                     </SvgText>
                 ))}
@@ -115,7 +105,7 @@ const ProgressChart = ({ sessions }: ProgressChartProps) => {
 
 const SessionItem = ({ session, isLast }: SessionItemProps) => {
     const [expanded, setExpanded] = useState(false);
-    const { label } = formatDate(session.timestamp);
+    const { label } = formatExerciseHistoryDate(session.timestamp);
     const totalSets = session.sets.length;
 
     return (

@@ -29,6 +29,7 @@ module.exports = {
     '<rootDir>/src/features/workout/screens/CreateSplitScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/workout/screens/ExerciseSelectionScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/workout/components/ExerciseItem/**/*.test.{js,ts,tsx}',
+    '<rootDir>/src/features/workout/components/ExerciseHistoryScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/workout/screens/CreateExerciseScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/workout/screens/CreateTemplateScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/shared/firestore/**/*.test.{js,ts}',
