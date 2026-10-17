@@ -1,10 +1,9 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import type { ComponentProps, Dispatch, ReactNode, SetStateAction } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { getAuth } from 'firebase/auth';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
@@ -12,14 +11,12 @@ import { AuthContext } from '../../../auth/context/AuthContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { fetchSplitsFromFirestore } from '../../../workout/services/workoutSplitService';
-import { switchToMaintenance } from '../../../nutrition/helpers/phaseService';
 import { colors, spacing } from '../../../../shared/theme';
 import { useAppNavigation } from '../../../../shared/navigation';
 import { PaceChart, BalanceChart, StrengthChart } from '../../components/ProgressCharts';
 import {
     SETS_LOW,
     recapTip,
-    recapEntry,
     paceTip,
     energyTip,
     liftStats,
@@ -34,6 +31,7 @@ import { getWorkoutsPerWeek } from '../../../workout/utils/splitSchedule';
 import type { SplitLike } from '../../../workout/utils/splitSchedule';
 import type { EnergyModel, MonthRow as MonthData, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
 import { useProgressScreenModel } from './useProgressScreenModel';
+import { useMaintenanceSwitch } from './useMaintenanceSwitch';
 import styles from './ProgressScreenStyles';
 
 type TabKey = 'nutrition' | 'training';
@@ -517,7 +515,6 @@ const ProgressScreen = () => {
     const [planned, setPlanned] = useState<number | null>(null);
     const [open, setOpen] = useState<Record<string, boolean>>({});
     const [all, setAll] = useState({ n: false, t: false });
-    const [switching, setSwitching] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -572,36 +569,7 @@ const ProgressScreen = () => {
 
     const openProfile = useCallback(() => navigation.navigate('Profile'), [navigation]);
 
-    const onSwitch = useCallback(() => {
-        if (!recap || recap.maintenance == null || switching) return;
-        Alert.alert(
-            'Switch to maintenance',
-            `Your target becomes ${kfmt(recap.maintenance)} kcal and a new phase starts at ${fmt1(recap.endWeight)} kg.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Switch',
-                    onPress: async () => {
-                        setSwitching(true);
-                        try {
-                            const uid = userData?.uid || getAuth().currentUser?.uid;
-                            await switchToMaintenance(uid!, userData!, {
-                                weight: recap.endWeight,
-                                kcal: recap.maintenance as number,
-                                entry: recapEntry(recap),
-                            });
-                            await refreshUserData();
-                        } catch (e) {
-                            console.error('Progress switch error:', (e as Error).message);
-                            Alert.alert('Error', 'Failed to switch. Try again.');
-                        } finally {
-                            setSwitching(false);
-                        }
-                    },
-                },
-            ],
-        );
-    }, [recap, switching, userData, refreshUserData]);
+    const { switching, onSwitch } = useMaintenanceSwitch({ recap, userData, refreshUserData });
 
     const status = weeks.length ? `${info.label} · week ${info.phaseWeeks}` : 'Your trends over time';
 

@@ -219,10 +219,15 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Moved per-user persisted home-notice dismissal loading and optimistic writes into `useHomeNoticeDismissals.ts`. It preserves the existing AsyncStorage keys, validation, reset behavior, logging, and cancellation of stale account loads. The Dashboard screen is now 380 lines.
 - Added hook tests for signed-in/signed-out state, account changes during loading, malformed and failed reads, all supported dismissals, and failed writes.
 
+### Progress maintenance switch
+
+- Moved the maintenance-phase confirmation and save lifecycle into `useMaintenanceSwitch.ts`, preserving the confirmation text/buttons, profile/auth uid fallback, progress error logging and alert, refresh behavior, and busy-state guard.
+- Added hook tests for cancellation, successful writes, auth uid fallback, failure reporting, missing recap data, and duplicate confirmation prevention.
+
 The latest validation was:
 
-- `npx jest --runInBand --ci src/features/dashboard/screens/DashboardScreen`: 4 suites / 24 tests passed.
-- `npx jest --runInBand --ci`: 111 suites / 972 tests passed.
+- `npx jest --runInBand --ci src/features/progress/screens/ProgressScreen`: 2 suites / 7 tests passed.
+- `npx jest --runInBand --ci`: 112 suites / 977 tests passed.
 - `.\node_modules\.bin\tsc.cmd --noEmit`: passed.
 - `git diff --check`: passed.
 - `npx expo export --platform android --output-dir <temporary directory>`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
@@ -244,8 +249,9 @@ This is a ranked starting point based on the current source inventory, not a man
 1. **FoodContext:** meal writes, step flushing, cache-then-fresh initialization loading, selected-date orchestration, auth callback sequencing and background evaluations are extracted and tested. Account reset operations remain owned by the provider; avoid broadening into the separate Nutrition audit.
 2. **Profile follow-ups:** inspect other profile screens only for a cohesive seam; the form-state lifecycle of `ProfileScreen.tsx` is now extracted and tested.
 3. **Dashboard follow-ups:** weekly overview, scheduled-workout loading, and notice dismissal state are isolated and tested. Review the remaining Dashboard view composition only for meaningful responsibility boundaries; do not split presentational fragments just to reduce file length.
-4. **Workout follow-ups:** `CreateTemplateScreen` list updates, `ExerciseItem` swipe intent, `WorkoutHistoryScreen` grouping/payload/presentation, `CreateSplitScreen` review summaries, WorkoutDetails card stats, WorkoutScreen preview summaries/scheduled-day mapping and deterministic WorkoutTemplateLibrary keys are covered by tests. Any further extraction should begin with inspection and characterization; do not refactor solely for file size.
-5. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
+4. **Progress follow-ups:** screen model and maintenance-phase switch flow are isolated and tested. Consider remaining split-plan loading only if its account-change and failure semantics can be preserved and characterized.
+5. **Workout follow-ups:** `CreateTemplateScreen` list updates, `ExerciseItem` swipe intent, `WorkoutHistoryScreen` grouping/payload/presentation, `CreateSplitScreen` review summaries, WorkoutDetails card stats, WorkoutScreen preview summaries/scheduled-day mapping and deterministic WorkoutTemplateLibrary keys are covered by tests. Any further extraction should begin with inspection and characterization; do not refactor solely for file size.
+6. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 
 ## Separate app-flow audit: status and source of truth
 
