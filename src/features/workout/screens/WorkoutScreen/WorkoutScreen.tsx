@@ -27,6 +27,7 @@ import type { WorkoutDisplayData } from './MainWorkoutCard';
 import WorkoutPreviewModal from './WorkoutPreviewModal';
 import { buildWorkoutScheduleDisplay } from './workoutScheduleDisplay';
 import { selectActiveWorkoutSplit } from './activeWorkoutSplit';
+import { buildWorkoutHomeViewModel } from './workoutHomeViewModel';
 
 type AppNavigation = NativeStackNavigationProp<AuthenticatedStackParamList>;
 const WorkoutScreen = () => {
@@ -91,31 +92,9 @@ const WorkoutScreen = () => {
         [activeSplit, userData?.rotationStartDate],
     );
 
-    const isRestDay = useMemo(() => !todayWorkout?.exercises?.length, [todayWorkout]);
-
-    const primaryWorkout = useMemo(() => {
-        if (!isRestDay && todayWorkout) {
-            return { workout: todayWorkout, isRestDay: false, isToday: true };
-        }
-        const next = upcomingWorkouts.find(w => !w.isRest);
-        if (next) {
-            return {
-                workout: { name: next.name, duration: next.duration, exercises: next.exercises, day: next.day },
-                isRestDay: false,
-                isToday: false,
-            };
-        }
-        return { workout: null, isRestDay: true, isToday: false };
-    }, [isRestDay, todayWorkout, upcomingWorkouts]);
-
-    const allExercises = useMemo(
-        () => primaryWorkout?.workout?.exercises?.map(e => e.exerciseName ?? e.name ?? 'Exercise') ?? [],
-        [primaryWorkout]
-    );
-
-    const comingUpWorkouts = useMemo(
-        () => (primaryWorkout?.isToday ? upcomingWorkouts.slice(0, 3) : upcomingWorkouts.slice(1, 4)),
-        [primaryWorkout, upcomingWorkouts]
+    const { primaryWorkout, allExercises, comingUpWorkouts } = useMemo(
+        () => buildWorkoutHomeViewModel(todayWorkout, upcomingWorkouts),
+        [todayWorkout, upcomingWorkouts],
     );
 
     const handleStartWorkout = useCallback(() => {
@@ -166,7 +145,7 @@ const WorkoutScreen = () => {
     const handleLibraryPress = useCallback(() => navigation.navigate('WorkoutLibrary'), [navigation]);
     const handleHistoryPress = useCallback(() => navigation.navigate('WorkoutHistory'), [navigation]);
 
-    if (loading || !primaryWorkout) {
+    if (loading) {
         return (
             <ApplicationCustomScreen>
                 <View style={styles.loadingContainer}>
