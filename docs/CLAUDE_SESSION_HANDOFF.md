@@ -58,6 +58,7 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 
 - Moved the pure logic out of `ExerciseItem.tsx` into `src/features/workout/components/ExerciseItem/exerciseItemUtils.ts`: rest time formatting, the set, rep range and rest preset lists, custom rep range and rest time detection, the sets and reps label, and the custom rest modal's input cleaning, seconds limit and minutes/seconds conversion.
 - Added 15 tests in `exerciseItemUtils.test.ts` and Jest discovery for the folder. The moved functions were compared against the original inline code on thousands of inputs with no difference.
+- Moved `CustomButton`, `ModalWrapper` and `Chip` into `ExerciseItemControls.tsx`, and `RestTimeModal` and `RestTimeSelector` into `RestTimeControls.tsx`. `ExerciseItem.tsx` went from about 790 to about 380 lines. The moved blocks and the remaining component body were checked to be byte-identical to the original apart from `export` keywords and imports; `ExerciseItem` itself and its default export are unchanged.
 - `ReviewStep.tsx` has its own `formatRestTime` that disagrees with this one (90 seconds shows as "1m 30s" there and "1.5m" on the exercise card). Merging them would change a visible string, so it is left for the owner to decide.
 
 The latest validation was:
@@ -66,7 +67,7 @@ The latest validation was:
 - `npx tsc --noEmit`: passed.
 - `git diff --check`: passed.
 - `npx expo export --platform android`: succeeded. This checks bundling only; no screen was run on a device.
-- The hooks lint was not run; no hook dependencies changed.
+- Hooks lint (scratch setup from `AGENTS.md`) on the `ExerciseItem` folder: 0 errors and one warning, the same one the original file had (`saveRepModal` lists `modalState.customRep.value` while the callback reads `modalState.customRep`).
 
 ## Repository map
 
@@ -82,7 +83,7 @@ The latest validation was:
 
 This is a ranked starting point based on the current source inventory, not a mandate to refactor by line count. Inspect responsibilities and coupling first; skip or reorder when the code shows a better seam.
 
-1. **Workout component layer:** `ExerciseItem.tsx` (about 790 lines) is partly done: the pure helpers are extracted. Next candidate: move `RestTimeSelector` and `RestTimeModal` (about 250 lines of animation and modal UI) into their own component file, sharing `CustomButton` and `Chip` through a small controls file. This is a UI-only move with no test harness, so verify with `tsc`, the Android export, and a read of the moved code against the original. After that, inspect the swipe gesture and card header in the main component.
+1. **Workout component layer:** `ExerciseItem.tsx` is done for now: the pure helpers and the rest time UI are extracted and the file is about 380 lines. Optionally look at the swipe gesture and card header later. UI-only moves have no test harness, so verify with `tsc`, the Android export, the hooks lint, and a script comparing the moved code to the original.
 2. **Workout authoring flows:** inspect `CreateExerciseScreen` (about 595 lines) and `CreateTemplateScreen` (about 485 lines). Keep validation, persistence, and navigation behavior unchanged; first look for existing shared form helpers and tests.
 3. **Nutrition UI/data boundaries:** inspect `FoodSearchResults.tsx` (about 594 lines), then `FoodContext.tsx` (about 624 lines). This area has account-scoped async state, caching, rollback, and date semantics; avoid moving logic without tracing its callers and failure paths. Coordinate with the open Nutrition audit rather than duplicating it.
 4. **Other large screens:** review `DashboardScreen` (about 658 lines), `ProgressScreen` (about 669 lines), and Profile screens for discrete view-model/presentation responsibilities. Prefer the smallest seam with strong behavior tests.
