@@ -18,18 +18,7 @@ import type { WorkoutExercise } from '../../types';
 import { useWorkoutSessionInitialization } from './useWorkoutSessionInitialization';
 import { useWorkoutExerciseSelection } from './useWorkoutExerciseSelection';
 import { useWorkoutSessionActions } from './useWorkoutSessionActions';
-
-type FocusedInputData = {
-    type: 'weight' | 'reps';
-    exerciseIndex: number;
-    index: number;
-};
-
-type KeyboardInputData = {
-    type?: string;
-    exerciseIndex?: number;
-    index?: number;
-} | null;
+import { useWorkoutKeyboardNavigation } from './useWorkoutKeyboardNavigation';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;
@@ -53,15 +42,27 @@ const StartWorkout = () => {
     const [exerciseData, setExerciseData] = useState<WorkoutExercise[]>([]);
     const [inputText, setInputText] = useState('');
     const [animatedMessage, setAnimatedMessage] = useState('');
-    const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-    const [focusedInputData, setFocusedInputData] = useState<FocusedInputData | null>(null);
     const [isCommandCenterVisible, setIsCommandCenterVisible] = useState(false);
     const [activeExerciseMenu, setActiveExerciseMenu] = useState<{ exercise: WorkoutExercise; exerciseIndex: number } | null>(null);
 
     const flatListRef = useRef<FlatListType<WorkoutExercise>>(null);
     const { refreshAllData, setActiveWorkout } = useContext(WorkoutContext)!;
     const insets = useSafeAreaInsets();
-    const isKeyboardVisibleRef = useRef(false);
+    const scrollToExercise = useCallback((exerciseIndex: number) => {
+        flatListRef.current?.scrollToIndex({
+            index: exerciseIndex,
+            animated: true,
+            viewPosition: 0.2,
+        });
+    }, []);
+    const {
+        isKeyboardVisible,
+        focusedInputData,
+        isKeyboardVisibleRef,
+        handleKeyboardChange,
+        handleNext,
+        dismissKeyboard: handleDismissKeyboard,
+    } = useWorkoutKeyboardNavigation({ exerciseData, scrollToExercise });
     const {
         isInitializing,
         isFinishingWorkout,
@@ -106,12 +107,10 @@ const StartWorkout = () => {
 
     const handleMenuPress = useCallback((exercise: WorkoutExercise, exerciseIndex: number) => {
         if (isKeyboardVisibleRef.current) {
-            setIsKeyboardVisible(false);
-            setFocusedInputData(null);
-            isKeyboardVisibleRef.current = false;
+            handleDismissKeyboard();
         }
         setActiveExerciseMenu({ exercise, exerciseIndex });
-    }, []);
+    }, [handleDismissKeyboard, isKeyboardVisibleRef]);
 
     const handleMenuClose = useCallback(() => {
         setActiveExerciseMenu(null);
@@ -169,75 +168,6 @@ const StartWorkout = () => {
         const trigger = noteRegistryRef.current[activeExerciseMenu.exerciseIndex];
         if (trigger) trigger();
     }, [activeExerciseMenu]);
-
-    const handleKeyboardChange = useCallback((isVisible: boolean, inputData: KeyboardInputData) => {
-        isKeyboardVisibleRef.current = isVisible;
-        if (
-            isVisible &&
-            inputData &&
-            (inputData.type === 'weight' || inputData.type === 'reps') &&
-            typeof inputData.exerciseIndex === 'number' &&
-            typeof inputData.index === 'number'
-        ) {
-            const exerciseIndex = inputData.exerciseIndex;
-            setFocusedInputData({
-                type: inputData.type,
-                exerciseIndex,
-                index: inputData.index,
-            });
-            setIsKeyboardVisible(true);
-            setTimeout(() => {
-                flatListRef.current?.scrollToIndex({
-                    index: exerciseIndex,
-                    animated: true,
-                    viewPosition: 0.2,
-                });
-            }, 100);
-        } else {
-            setFocusedInputData(null);
-            setIsKeyboardVisible(false);
-        }
-    }, []);
-
-    const handleNext = useCallback(() => {
-        if (!focusedInputData) return;
-        const { type, exerciseIndex, index: setIndex } = focusedInputData;
-        let nextFocus: FocusedInputData | null = null;
-        let shouldScrollToExercise = false;
-
-        if (type === 'weight') {
-            nextFocus = { type: 'reps', exerciseIndex, index: setIndex };
-        } else if (type === 'reps') {
-            const nextSetIndex = setIndex + 1;
-            if (nextSetIndex < (exerciseData[exerciseIndex]?.sets.length || 0)) {
-                nextFocus = { type: 'weight', exerciseIndex, index: nextSetIndex };
-            } else {
-                const nextExerciseIndex = exerciseIndex + 1;
-                if (nextExerciseIndex < exerciseData.length) {
-                    nextFocus = { type: 'weight', exerciseIndex: nextExerciseIndex, index: 0 };
-                    shouldScrollToExercise = true;
-                } else {
-                    setIsKeyboardVisible(false);
-                    setFocusedInputData(null);
-                    isKeyboardVisibleRef.current = false;
-                    return;
-                }
-            }
-        }
-
-        if (nextFocus) {
-            setFocusedInputData(nextFocus);
-            if (shouldScrollToExercise) {
-                setTimeout(() => {
-                    flatListRef.current?.scrollToIndex({
-                        index: nextFocus.exerciseIndex,
-                        animated: true,
-                        viewPosition: 0.2,
-                    });
-                }, 100);
-            }
-        }
-    }, [focusedInputData, exerciseData]);
 
     useFocusEffect(
         useCallback(() => {
@@ -365,12 +295,6 @@ const StartWorkout = () => {
         [exerciseData]
     );
 
-    const handleDismissKeyboard = useCallback(() => {
-        setIsKeyboardVisible(false);
-        setFocusedInputData(null);
-        isKeyboardVisibleRef.current = false;
-    }, []);
-
     const hasNavigatedBackRef = useRef(false);
 
     const handleBackPress = useCallback(() => {
@@ -380,9 +304,7 @@ const StartWorkout = () => {
             return true;
         }
         if (isKeyboardVisibleRef.current) {
-            setIsKeyboardVisible(false);
-            setFocusedInputData(null);
-            isKeyboardVisibleRef.current = false;
+            handleDismissKeyboard();
             return true;
         }
         if (hasNavigatedBackRef.current || !navigation.canGoBack()) {
@@ -392,7 +314,7 @@ const StartWorkout = () => {
         refreshAllData();
         navigation.goBack();
         return true;
-    }, [navigation, activeExerciseMenu, refreshAllData]);
+    }, [navigation, activeExerciseMenu, refreshAllData, handleDismissKeyboard, isKeyboardVisibleRef]);
 
     useFocusEffect(
         useCallback(() => {
