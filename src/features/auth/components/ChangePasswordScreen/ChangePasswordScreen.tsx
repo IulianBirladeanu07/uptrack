@@ -5,6 +5,7 @@ import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePasswor
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { passwordChangeError } from '../../utils/passwordChangeError';
+import { isStrongPassword } from '../../utils/credentials';
 import { useAppNavigation } from '../../../../shared/navigation';
 
 const ChangePasswordScreen = () => {
@@ -33,15 +34,6 @@ const ChangePasswordScreen = () => {
     } catch (error) {
       throw error;
     }
-  };
-
-  const isStrongPassword = (password: string) => {
-    const minLength = 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumber = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    return password.length >= minLength && hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar;
   };
 
   const handleChangePassword = async () => {

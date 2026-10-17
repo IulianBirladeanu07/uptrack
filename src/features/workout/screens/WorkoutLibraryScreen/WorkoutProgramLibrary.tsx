@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, memo, type ReactElement } from 'react';
 import { FlatList, Alert } from 'react-native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
-import { deleteSplitFromFirestore } from '../../handlers/WorkoutHandler';
+import { deleteSplitFromFirestore } from '../../services/workoutSplitService';
 import ProgramItemJS from './components/ProgramItem';
 const ProgramItem = ProgramItemJS as any;
 import EmptyState from './components/EmptyState';

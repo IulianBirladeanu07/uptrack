@@ -5,6 +5,7 @@ import firebaseAuthService from '../../services/firebaseAuthService';
 import { Ionicons } from '@expo/vector-icons';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import { getPasswordStrength, isStrongPassword, isValidEmail } from '../../utils/credentials';
 
 const RegistrationScreen = () => {
   const [email, setEmail] = useState('');
@@ -60,34 +61,6 @@ const RegistrationScreen = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const isValidEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const isStrongPassword = (password: string) => {
-    const minLength = 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumber = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-    return (
-      password.length >= minLength &&
-      hasUpperCase &&
-      hasLowerCase &&
-      hasNumber &&
-      hasSpecialChar
-    );
-  };
-
-  const getPasswordStrength = (password: string): '' | 'Weak' | 'Good' | 'Strong' => {
-    if (password.length === 0) return '';
-    if (isStrongPassword(password)) return 'Strong';
-    if (password.length >= 6) return 'Good';
-    return 'Weak';
   };
 
   const getPasswordStrengthColor = (strength: '' | 'Weak' | 'Good' | 'Strong') => {

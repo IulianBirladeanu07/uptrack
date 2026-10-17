@@ -7,7 +7,7 @@ import { auth, db } from '../services/firebaseConfigService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { deriveStartWeight } from '../../nutrition/helpers/learningCompletionService';
 import { RECENT_SEARCHES_KEY } from '../../nutrition/helpers/useRecentSearches';
-import { SPLITS_CACHE_KEY } from '../../workout/handlers/WorkoutHandler';
+import { SPLITS_CACHE_KEY } from '../../workout/services/splitCache';
 import { SEARCH } from '../../../shared/theme/constants';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import type { UserData } from '../../../shared/types';

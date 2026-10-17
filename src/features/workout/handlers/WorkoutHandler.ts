@@ -4,7 +4,6 @@ import {
   setDoc,
   getDocs,
   runTransaction,
-  deleteDoc,
   doc,
   query,
   where,
@@ -35,6 +34,14 @@ import { isValidWorkoutSetInput } from '../utils/workoutSetValidation';
 import { getExerciseHistorySets, getPreviousWorkoutExerciseSets } from '../utils/exerciseHistory';
 import { calculate1RM, findBestSet, getPersonalRecordSetIndexes } from '../utils/workoutMetrics';
 import { countWorkoutEntriesThisWeek } from '../utils/workoutHistory';
+export { clearSplitsCache, SPLITS_CACHE_KEY } from '../services/splitCache';
+export {
+  addSplitToFirestore,
+  deleteSplitFromFirestore,
+  updateSplitDay,
+  updateSplitInFirestore,
+  updateSplitProgress,
+} from '../services/workoutSplitService';
 export { calculate1RM, findBestSet, formatBestSet } from '../utils/workoutMetrics';
 
 type AppNav = NativeStackNavigationProp<AuthenticatedStackParamList>;
@@ -73,14 +80,6 @@ const getTemplateNameRegistry = (userData: DocumentData | undefined): Record<str
   return Object.fromEntries(
     Object.entries(registry).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
   );
-};
-
-export const SPLITS_CACHE_KEY = 'cached_splits';
-
-export const clearSplitsCache = async (): Promise<void> => {
-    try {
-        await AsyncStorage.removeItem(SPLITS_CACHE_KEY);
-    } catch {}
 };
 
 export const sendWorkoutDataToFirestore = async (
@@ -912,38 +911,6 @@ export const updateTemplateInFirestore = async (templateId: string, templateData
   }
 };
 
-export const updateSplitInFirestore = async (splitId: string, splitData: Partial<WorkoutSplit>): Promise<string> => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    if (!splitId) {
-      throw new Error('Split ID is required for update');
-    }
-
-    
-    const splitRef = doc(db, 'workoutSplits', splitId);
-    
-    const updateData: Record<string, unknown> = { updatedAt: serverTimestamp() };
-    if (splitData.name !== undefined) updateData['name'] = splitData.name;
-    if (splitData.description !== undefined) updateData['description'] = splitData.description;
-    if (splitData.type !== undefined) updateData['type'] = splitData.type;
-    if (splitData.schedule !== undefined) updateData['schedule'] = splitData.schedule;
-    if (splitData.durationWeeks !== undefined) updateData['durationWeeks'] = splitData.durationWeeks;
-
-    await updateDoc(splitRef, updateData);
-    await clearSplitsCache();
-    return splitId;
-  } catch (error) {
-    console.error('Error updating split:', error);
-    throw error;
-  }
-};
-
 export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
   try {
     const auth = getAuth();
@@ -994,122 +961,6 @@ export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
     return splits;
   } catch (error) {
     console.error('Error fetching user splits from Firestore:', (error as Error).message);
-    throw error;
-  }
-};
-
-export const addSplitToFirestore = async (splitData: WorkoutSplit): Promise<string> => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-
-    
-    const uid = user.uid;
-
-    const sanitizedSchedule: Record<string, Record<string, unknown>> = {};
-    const schedule = (splitData.schedule || {}) as Record<string, Record<string, unknown>>;
-    Object.keys(schedule).forEach(day => {
-      const dayData = schedule[day] || {};
-      sanitizedSchedule[day] = {
-        templateId: dayData['templateId'] || 'rest-day',
-        templateName: dayData['templateName'] || 'Rest Day',
-        exercises: dayData['exercises'] || [],
-        duration: dayData['duration'] || '0'
-      };
-    });
-
-    const splitDataToSave = {
-      ...splitData,
-      schedule: sanitizedSchedule,
-      uid,
-      createdAt: serverTimestamp(),
-    };
-
-    const splitsCollectionRef = collection(db, 'workoutSplits');
-    const splitDocRef = doc(splitsCollectionRef);
-
-    await setDoc(splitDocRef, splitDataToSave);
-    await clearSplitsCache();
-    return splitDocRef.id;
-  } catch (error) {
-    console.error('Error saving split to Firestore:', (error as Error).message);
-    throw error;
-  }
-};
-
-export const updateSplitDay = async (splitId: string, day: string, workoutData: Record<string, unknown>): Promise<boolean> => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-
-    
-    const splitDocRef = doc(db, 'workoutSplits', splitId);
-    
-    const sanitizedWorkoutData = {
-      templateId: workoutData['templateId'] || 'rest-day',
-      templateName: workoutData['templateName'] || 'Rest Day',
-      exercises: workoutData['exercises'] || [],
-      duration: workoutData['duration'] || '0'
-    };
-    
-    await updateDoc(splitDocRef, {
-      [`schedule.${day}`]: sanitizedWorkoutData,
-      lastModified: serverTimestamp()
-    });
-    
-    await clearSplitsCache();
-    return true;
-  } catch (error) {
-    console.error('Error updating split day:', (error as Error).message);
-    throw error;
-  }
-};
-
-export const deleteSplitFromFirestore = async (splitId: string): Promise<boolean> => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-
-    
-    const splitDocRef = doc(db, 'workoutSplits', splitId);
-    
-    await deleteDoc(splitDocRef);
-    await clearSplitsCache();
-    return true;
-  } catch (error) {
-    console.error('Error deleting split from Firestore:', (error as Error).message);
-    throw error;
-  }
-};
-
-export const updateSplitProgress = async (splitId: string, currentWeek: number): Promise<boolean> => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-
-    
-    const splitDocRef = doc(db, 'workoutSplits', splitId);
-    
-    await updateDoc(splitDocRef, {
-      currentWeek: currentWeek,
-      lastUpdated: serverTimestamp()
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('Error updating split progress:', (error as Error).message);
     throw error;
   }
 };
