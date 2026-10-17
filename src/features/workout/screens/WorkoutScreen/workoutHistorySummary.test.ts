@@ -83,4 +83,20 @@ describe('getWorkoutHistorySummary', () => {
         ];
         expect(getWorkoutHistorySummary(history, sunday).completedDaysThisWeek).toEqual([1]);
     });
+
+    it('ignores future-dated entries when finding completed days and the latest workout', () => {
+        const future = workout('2026-10-18T10:00:00', { workoutName: 'Future Workout' });
+        const completed = workout('2026-10-17T10:00:00', { workoutName: 'Completed Workout' });
+
+        expect(getWorkoutHistorySummary([future, completed], now)).toEqual({
+            completedDaysThisWeek: [6],
+            lastWorkoutStats: expect.objectContaining({ name: 'Completed Workout' }),
+            todayCompletedStats: expect.objectContaining({ name: 'Completed Workout' }),
+        });
+        expect(getWorkoutHistorySummary([future], now)).toEqual({
+            completedDaysThisWeek: [],
+            lastWorkoutStats: null,
+            todayCompletedStats: null,
+        });
+    });
 });

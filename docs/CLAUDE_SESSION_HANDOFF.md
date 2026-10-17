@@ -6,7 +6,7 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Previously pushed Workout refactoring batches are included in `8273765 refactor: extract exercise history chart model`. Current uncommitted work adds regression coverage for rotation-split previews and extracts no production behavior; verify `git log --oneline -10` and `git status --short --branch` before continuing.
+- Previously pushed Workout refactoring batches are included in `f8d875f test: cover rotation workout schedule previews`. The current uncommitted behavior fix excludes future-dated history from completed-workout summaries; verify `git log --oneline -10` and `git status --short --branch` before continuing.
 - Three patch files mentioned in an earlier handoff (`0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`) are not present in this checkout at the current base commit.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
@@ -198,14 +198,21 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 
 - Added a regression test in `workoutScheduleDisplay.test.ts` for the current day and upcoming workouts across a rotation rest day and cycle wrap. Production scheduling code was not changed.
 
+### Excluding future-dated completed workouts
+
+- Updated the Dashboard weekly count/today summary and Workout-screen weekly/latest/today summaries to ignore history timestamps after the injected/current `now`.
+- Added regression tests for future-only records and mixed past/future entries. This intentionally changes the prior behavior that counted future-dated entries as completed workouts.
+
 The latest validation was:
 
+- `npx jest --runInBand --ci src/features/dashboard/screens/DashboardScreen/dashboardWorkoutSummary.test.ts src/features/workout/screens/WorkoutScreen/workoutHistorySummary.test.ts`: 2 suites / 12 tests passed.
 - `npx jest --runInBand --ci src/features/workout/components/ExerciseHistoryScreen/exerciseHistoryChart.test.ts src/features/workout/components/ExerciseHistoryScreen/exerciseHistoryPresentation.test.ts`: 2 suites / 5 tests passed.
 - `npx jest --runInBand --ci src/features/workout/utils/exerciseHistory.test.ts src/features/workout/utils/workoutMetrics.test.ts`: 2 suites / 15 tests passed.
 - `npx jest --runInBand --ci src/features/workout/screens/WorkoutScreen/workoutScheduleDisplay.test.ts src/features/workout/utils/splitSchedule.test.ts`: 2 suites / 30 tests passed.
-- `npx jest --runInBand --ci`: 108 suites / 952 tests passed.
+- `npx jest --runInBand --ci`: 108 suites / 954 tests passed.
 - `npx tsc --noEmit`: passed using the repository-local TypeScript compiler.
 - `git diff --check`: passed.
+- Android Expo export succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
 - `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-exercise-chart-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
 
 ## Repository map

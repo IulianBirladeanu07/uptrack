@@ -28,7 +28,7 @@ export const countWeeklyWorkouts = (
     const weekStart = getMonday(now);
     return workoutHistory.filter(workout => {
         const date = workout.timestamp?.toDate?.();
-        return date && date >= weekStart;
+        return date && date >= weekStart && date <= now;
     }).length;
 };
 
@@ -38,9 +38,10 @@ export const getCompletedToday = (
 ): CompletedToday | null => {
     if (!workoutHistory?.length) return null;
     const todayString = now.toDateString();
-    const entries = workoutHistory.filter(
-        workout => workout.timestamp?.toDate?.()?.toDateString() === todayString,
-    );
+    const entries = workoutHistory.filter(workout => {
+        const date = workout.timestamp?.toDate?.();
+        return date?.toDateString() === todayString && date <= now;
+    });
     if (!entries.length) return null;
     const latest = entries.reduce((first, second) =>
         second.timestamp!.toDate!() > first.timestamp!.toDate!() ? second : first,
