@@ -110,7 +110,7 @@ Route names are plain strings with no typed param list. Check that a route is re
 
 ## Data
 
-Firestore. Every user-data query filters on a `uid` field or uses a uid-based document ID.
+Firestore. Every user-data query filters on a `uid` field or uses a uid-based document ID. `docs/backend-structure.md` has the full structure of Firebase and Supabase: document shapes, rules, indexes, tables and policies.
 
 | Collection | Document ID | Contents |
 |---|---|---|
@@ -167,10 +167,10 @@ Dates:
 
 ## Testing
 
-- Jest only runs tests in the folders listed in `testMatch` in `jest.config.js`: `profile/utils`, `nutrition/helpers`, `nutrition/handlers`, `nutrition/services`, `progress/utils` and `workout/utils`. A test anywhere else never runs. Add its folder to `testMatch`.
+- Jest only runs tests in the folders listed in `testMatch` in `jest.config.js`. A test anywhere else never runs. Add its folder, and `tsx` to the pattern for component tests.
 - Tests run in Node and mock `firebase/*`, `firebaseConfigService`, AsyncStorage and the Supabase client with `jest.mock`.
-- There is no component or navigation test setup. Screen changes are checked by reading the code, `tsc`, the hooks lint and the Android bundle build. Say so when reporting.
-- For date logic, also run Jest in another time zone. CI runs in UTC. In PowerShell: `$env:TZ = 'America/Los_Angeles'; npx jest`.
+- Component tests use `@testing-library/react-native` in a JS renderer. They do not cover native permissions, navigation gestures, keyboard behavior or layout on a device. Screens without a component test are checked by reading the code, `tsc`, the hooks lint and the Android bundle build. Say which applies when reporting.
+- For date logic, also run Jest in another time zone. CI runs three time zones (see `.github/workflows/tests.yml`). In PowerShell: `$env:TZ = 'America/Los_Angeles'; npx jest`.
 
 ## Gotchas
 
