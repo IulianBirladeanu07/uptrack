@@ -52,3 +52,12 @@ export const formatWeekLabel = (weekStart: string): string => {
     const [y, m, d] = weekStart.split('-').map(Number);
     return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
+
+export const formatWeightDate = (date: Date): string => {
+    const value = date instanceof Date && !isNaN(date.getTime()) ? date : new Date();
+    if (value.toDateString() === new Date().toDateString()) return 'Today';
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (value.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return value.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+};

@@ -1,4 +1,4 @@
-import { buildWeeklyGroups, formatWeekLabel } from './weightTrackerPresentation';
+import { buildWeeklyGroups, formatWeekLabel, formatWeightDate } from './weightTrackerPresentation';
 import type { WeightInWeek } from '../../../../shared/types';
 
 describe('buildWeeklyGroups', () => {
@@ -42,6 +42,19 @@ describe('formatWeekLabel', () => {
     it('formats a week start as a localized month and day', () => {
         expect(formatWeekLabel('2026-10-12')).toBe(
             new Date(2026, 9, 12).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        );
+    });
+});
+
+describe('formatWeightDate', () => {
+    it('falls back to today for invalid dates', () => {
+        expect(formatWeightDate(new Date(Number.NaN))).toBe('Today');
+    });
+
+    it('formats dates that are neither today nor yesterday', () => {
+        const date = new Date(2026, 9, 12);
+        expect(formatWeightDate(date)).toBe(
+            date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
         );
     });
 });
