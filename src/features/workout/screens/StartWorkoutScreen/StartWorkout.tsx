@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useContext, memo } from 'react';
-import { getAuth } from 'firebase/auth';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import { View, Text, TouchableOpacity, FlatList, BackHandler, Alert, ActivityIndicator } from 'react-native';
 import type { FlatList as FlatListType, ListRenderItemInfo, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
@@ -8,10 +7,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import AnimatedMessage from '../../../../shared/components/AnimatedMessage/AnimatedMessage';
 import ExerciseInput from '../../components/ExerciseInput/ExerciseInput';
 import ExerciseOptionsModal from '../../components/ExerciseOptionsModal/ExerciseOptionsModal';
-import { sendWorkoutDataToFirestore } from '../../services/workoutSessionService';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { workoutService } from '../../services/WorkoutService';
-import { workoutTimer, useWorkoutTimer } from '../../services/WorkoutTimerService';
+import { useWorkoutTimer } from '../../services/WorkoutTimerService';
 import styles from './StartWorkoutStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { normalize } from '../../../../shared/hooks/useResponsive';
@@ -19,7 +17,7 @@ import CustomNumericKeyboard from '../../components/CustomNumericKeyboard/Custom
 import type { WorkoutExercise } from '../../types';
 import { useWorkoutSessionInitialization } from './useWorkoutSessionInitialization';
 import { useWorkoutExerciseSelection } from './useWorkoutExerciseSelection';
-import { isCurrentWorkoutUser } from './workoutUserGuard';
+import { useWorkoutSessionActions } from './useWorkoutSessionActions';
 
 type FocusedInputData = {
     type: 'weight' | 'reps';
@@ -94,6 +92,16 @@ const StartWorkout = () => {
         setSelectedExercise,
         setExerciseData,
         openAnimatedMessage,
+    });
+    const { handleExit, handleFinishWorkout } = useWorkoutSessionActions({
+        inputText,
+        navigation,
+        refreshAllData,
+        setActiveWorkout,
+        setInputText,
+        openAnimatedMessage,
+        initializationGeneration,
+        isFinishingWorkout,
     });
 
     const handleMenuPress = useCallback((exercise: WorkoutExercise, exerciseIndex: number) => {
@@ -254,82 +262,6 @@ const StartWorkout = () => {
             navigation,
         ])
     );
-
-    const confirmExit = useCallback(async (uid: string) => {
-        if (!isCurrentWorkoutUser(uid) || workoutService.uid !== uid) return;
-        initializationGeneration.current++;
-        workoutTimer.stop();
-        await workoutService.clearWorkout();
-        if (!isCurrentWorkoutUser(uid) || workoutService.uid !== uid) return;
-        setActiveWorkout(null);
-        setInputText('');
-        await refreshAllData(true);
-        if (!isCurrentWorkoutUser(uid) || workoutService.uid !== uid) return;
-        navigation.goBack();
-    }, [navigation, refreshAllData, setActiveWorkout]);
-
-    const handleExit = useCallback(() => {
-        if (isFinishingWorkout.current) return;
-        const uid = getAuth().currentUser?.uid;
-        if (!uid || workoutService.uid !== uid) return;
-        Alert.alert("Exit Workout", "Are you sure you want to exit the workout?", [
-            { text: "Cancel", style: "cancel" },
-            { text: "YES", onPress: () => confirmExit(uid) },
-        ]);
-    }, [confirmExit]);
-
-    const handleFinishWorkout = useCallback(async () => {
-        if (isFinishingWorkout.current) return;
-        const uid = getAuth().currentUser?.uid;
-        if (!uid || workoutService.uid !== uid) {
-            openAnimatedMessage('Unable to finish this workout because the signed-in account changed.');
-            return;
-        }
-        const currentExerciseData = workoutService.getExerciseData().map(exercise => ({
-            ...exercise,
-            sets: exercise.sets.map(set => ({ ...set })),
-            ...(exercise.lastWorkoutSets
-                ? { lastWorkoutSets: exercise.lastWorkoutSets.map(set => ({ ...set })) }
-                : {}),
-        }));
-        if (currentExerciseData.length === 0) {
-            openAnimatedMessage('Add exercises to finish workout');
-            return;
-        }
-        try {
-            isFinishingWorkout.current = true;
-            const result = await sendWorkoutDataToFirestore(
-                currentExerciseData,
-                inputText,
-                workoutService.areAllSetsValidated(),
-                navigation,
-                openAnimatedMessage,
-                () => workoutTimer.getFormattedTime(),
-                workoutTimer.getElapsed(),
-                uid,
-                workoutService.getWorkoutTemplateName() || 'Workout'
-            );
-            if (result === false) {
-                isFinishingWorkout.current = false;
-                return;
-            }
-            if (getAuth().currentUser?.uid !== uid || workoutService.uid !== uid) {
-                isFinishingWorkout.current = false;
-                return;
-            }
-            initializationGeneration.current++;
-            workoutTimer.stop();
-            await workoutService.clearWorkout();
-            setActiveWorkout(null);
-            setInputText('');
-            await refreshAllData(true);
-            isFinishingWorkout.current = false;
-        } catch (error) {
-            console.error('Error finishing workout:', error instanceof Error ? error.message : String(error));
-            Alert.alert('Error', 'An error occurred while finishing the workout.', [{ text: "OK" }]);
-            isFinishingWorkout.current = false;
-        }
-    }, [inputText, navigation, openAnimatedMessage, refreshAllData, setActiveWorkout]);
 
     const handleAddExercisePress = useCallback(async () => {
         if (!navigation) return;
