@@ -6,8 +6,8 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Base commit for the current Profile batch: `1573d67 refactor: extract progress screen model`. The Profile batch below is uncommitted at handoff update time; verify `git log --oneline -10` and `git status --short --branch` before continuing.
-- Three pre-existing untracked patch files were present at batch start and left untouched: `0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`. Preserve them and do not include them in this refactor batch.
+- Base commit for the current FoodProvider initialization batch: `ab4a2e0 continued refactoring profile module`. The FoodProvider batch below is uncommitted at handoff update time; verify `git log --oneline -10` and `git status --short --branch` before continuing.
+- Three patch files mentioned in an earlier handoff (`0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`) are not present in this checkout at the current base commit.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
 ## How to continue
@@ -94,6 +94,12 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Added 9 unit tests in `StepsFlusher.test.ts`, including a write that fails after the account changed (no restore, no log), which the provider tests do not reach. Deliberately removing the `reset` call, the current-user check on failure, or the in-flight guard each made a test fail.
 - Not changed: how `retryStepsConnection`, the user-data effect and `handleStepsHistory` trigger a flush.
 
+### FoodProvider initialization
+
+- Added four provider tests for cached meals displaying before fresh history, retry after initialization failure, ignoring a previous account's pending load, and clearing the previous account's persisted cache on sign-out.
+- Extracted the cache-then-fresh meal loading sequence to `src/features/nutrition/context/loadInitializationMeals.ts`. `FoodContext.tsx` retains ownership of account-generation guards, provider state updates, error handling, retry state, and cache persistence. Existing cached-first display and stale-account behavior are preserved.
+- Not changed: auth listener/reset logic, selected-date loading, or learning and weekly-evaluation effects.
+
 ### Dashboard workout summaries
 
 - Moved the Dashboard's weekly workout count and latest workout completed today into `src/features/dashboard/screens/DashboardScreen/dashboardWorkoutSummary.ts`. `DashboardScreen.tsx` still owns the state and rendering; both calculations retain their original memoization and date-time behavior.
@@ -117,13 +123,11 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 
 The latest validation was:
 
-- `npx jest --runInBand --ci src/features/profile/components/Profile/useProfileFormState.test.ts`: 6 tests passed; a deliberate removal of the dirty-draft guard made the draft preservation tests fail as expected.
-- `npx jest --runInBand --ci src/features/profile/components/Profile/useProfileFormState.test.ts src/features/profile/utils`: 8 suites / 161 tests passed.
-- `npx jest --runInBand --ci`: 98 suites / 900 tests passed in `UTC`, `America/Los_Angeles` and `Europe/Bucharest`.
+- `npx jest --runInBand --ci src/features/nutrition/context/FoodProvider.test.tsx`: 26 tests passed.
+- `npx jest --runInBand --ci`: 98 suites / 904 tests passed in each of `UTC`, `America/Los_Angeles` and `Europe/Bucharest`.
 - `npx tsc --noEmit`: passed.
 - `git diff --check`: passed.
-- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-profile-form-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
-- Hooks lint on `useProfileFormState.ts` and its test passed with no warnings or errors. Full-source lint was not run for this batch.
+- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-food-init-export-20261017-1212`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
 
 ## Repository map
 
@@ -139,7 +143,7 @@ The latest validation was:
 
 This is a ranked starting point based on the current source inventory, not a mandate to refactor by line count. Inspect responsibilities and coupling first; skip or reorder when the code shows a better seam.
 
-1. **FoodContext:** meal writes and step flushing are extracted and tested. Initialization, the auth listener and date-change handling remain; move them only with provider tests extended first. This area has account-scoped async state, caching, rollback, and date semantics; coordinate with the open Nutrition audit rather than duplicating it.
+1. **FoodContext:** meal writes, step flushing and cache-then-fresh initialization loading are extracted and tested. The auth listener/reset logic and date-change handling remain; extend the provider characterization tests before moving either. This area has account-scoped async state, caching, rollback, and date semantics; keep refactors separate from the open Nutrition audit.
 2. **Profile follow-ups:** inspect other profile screens only for a cohesive seam; the form-state lifecycle of `ProfileScreen.tsx` is now extracted and tested.
 3. **Workout optional follow-ups:** `ExerciseItem` swipe gesture/card header and `CreateTemplateScreen` undo/list updater logic remain possible targets, but inspect whether each is a meaningful seam before proceeding.
 4. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.

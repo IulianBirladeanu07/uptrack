@@ -8,16 +8,16 @@ import StepDisplay from '../../../shared/components/StepDisplay/StepDisplay';
 import type { StepDisplayHandle } from '../../../shared/components/StepDisplay/StepDisplay';
 
 import {
-    consolidateFoodData, buildAddUndo, applyAddUndo, fetchLast30DaysMeals, fetchRawMealsForDate,
+    consolidateFoodData, buildAddUndo, applyAddUndo, fetchRawMealsForDate,
 } from '../services/mealService';
 import { checkAndCompleteLearning, calculateLearningStats, checkAndRunWeeklyEval, checkAndBackfillStepsBonus } from '../helpers/learningCompletionService';
 import useDailyNutrition from '../helpers/useDailyNutrition';
 import MealCache from './cache/MealCache';
 import {
     clearPersistedMealCache,
-    loadPersistedMealCache,
     persistMealCache,
 } from './cache/mealCacheStorage';
+import { loadInitializationMeals } from './loadInitializationMeals';
 import { AsyncOperationQueue } from './AsyncOperationQueue';
 import { buildCategoryData } from './categoryData';
 import { persistOptimisticMealWrite } from './optimisticMealWrite';
@@ -436,29 +436,26 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         setInitializationError(null);
 
         try {
-            const cachedMeals = await loadPersistedMealCache(user.uid);
+            await loadInitializationMeals({
+                uid: user.uid,
+                isCurrentRequest,
+                onCachedMeals: cachedMeals => {
+                    mealCache.current.buildFromMeals(cachedMeals);
+                    updateCurrentDayMeals(new Date());
+                    setCacheVersion(v => v + 1);
+                    setInitialLoadComplete(true);
+                },
+                onFreshMeals: (freshMeals, hadCachedMeals) => {
+                    mealCache.current.buildFromMeals(freshMeals);
+                    setFreshMealsLoaded(true);
+                    updateCurrentDayMeals(new Date());
+                    setCacheVersion(v => v + 1);
+                    if (!hadCachedMeals) setInitialLoadComplete(true);
 
-            if (!isCurrentRequest()) return;
-
-            if (cachedMeals) {
-                mealCache.current.buildFromMeals(cachedMeals);
-                updateCurrentDayMeals(new Date());
-                setCacheVersion(v => v + 1);
-                setInitialLoadComplete(true);
-            }
-
-            const last30DaysMeals = await fetchLast30DaysMeals(user.uid);
-
-            if (isCurrentRequest()) {
-                mealCache.current.buildFromMeals(last30DaysMeals);
-                setFreshMealsLoaded(true);
-                updateCurrentDayMeals(new Date());
-                setCacheVersion(v => v + 1);
-                if (!cachedMeals) setInitialLoadComplete(true);
-
-                persistMealCache(user.uid, last30DaysMeals);
-                setInitializationError(null);
-            }
+                    persistMealCache(user.uid, freshMeals);
+                    setInitializationError(null);
+                },
+            });
         } catch (err) {
             console.error('[FoodContext] init failed:', err);
             if (isCurrentRequest()) {

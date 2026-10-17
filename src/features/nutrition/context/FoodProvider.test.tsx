@@ -82,7 +82,7 @@ jest.mock('../helpers/stepsSyncService', () => ({
 
 import { AuthContext } from '../../auth/context/AuthContext';
 import { fetchLast30DaysMeals, fetchRawMealsForDate, writeMealType } from '../services/mealService';
-import { loadPersistedMealCache, persistMealCache } from './cache/mealCacheStorage';
+import { clearPersistedMealCache, loadPersistedMealCache, persistMealCache } from './cache/mealCacheStorage';
 import { formatDate } from '../utils/dateUtils';
 import { FoodProvider, useFoodContext } from './FoodContext';
 import { persistDailySteps } from '../helpers/stepsSyncService';
@@ -111,9 +111,9 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
     </AuthContext.Provider>
 );
 
-const signIn = async (uid = 'user-1') => {
+const signIn = async (uid: string | null = 'user-1') => {
     await act(async () => {
-        mockAuthState.callback?.({ uid });
+        mockAuthState.callback?.(uid ? { uid } : null);
     });
 };
 
@@ -508,5 +508,107 @@ describe('FoodProvider step history writes', () => {
 
         await sendHistory({ '2026-10-10': 5000 });
         expect(persistDailySteps).toHaveBeenCalledWith('user-2', { '2026-10-10': 5000 });
+    });
+});
+
+describe('FoodProvider initialization', () => {
+    let errorSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockAuthState.callback = null;
+        mockUserData = null;
+        mockStepProps.current = {};
+        (loadPersistedMealCache as jest.Mock).mockResolvedValue(null);
+        (fetchLast30DaysMeals as jest.Mock).mockResolvedValue([]);
+        errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+        errorSpy.mockRestore();
+    });
+
+    test('shows cached meals while loading, then replaces them with the fresh meal history', async () => {
+        const cachedMeal = { date: today, mealType: 'breakfast' as const, foods: [oats] };
+        const freshMeal = { date: today, mealType: 'breakfast' as const, foods: [rice] };
+        let resolveFresh: (meals: typeof freshMeal[]) => void = () => undefined;
+        (loadPersistedMealCache as jest.Mock).mockResolvedValueOnce([cachedMeal]);
+        (fetchLast30DaysMeals as jest.Mock).mockImplementationOnce(
+            () => new Promise(resolve => { resolveFresh = resolve; }),
+        );
+        const hook = renderHook(() => useFoodContext(), { wrapper });
+
+        await signIn();
+        await waitFor(() => expect(hook.result.current.breakfastFoods.map(food => food.id)).toEqual(['oats']));
+
+        expect(hook.result.current.initialLoadComplete).toBe(true);
+        expect(hook.result.current.loading).toBe(true);
+
+        await act(async () => {
+            resolveFresh([freshMeal]);
+        });
+        await waitFor(() => expect(hook.result.current.breakfastFoods.map(food => food.id)).toEqual(['rice']));
+
+        expect(hook.result.current.loading).toBe(false);
+        expect(fetchLast30DaysMeals).toHaveBeenCalledWith('user-1');
+        expect(persistMealCache).toHaveBeenCalledWith('user-1', [freshMeal]);
+    });
+
+    test('sets an initialization error and retries the fresh meal load', async () => {
+        (fetchLast30DaysMeals as jest.Mock)
+            .mockRejectedValueOnce(new Error('offline'))
+            .mockResolvedValueOnce([{ date: today, mealType: 'breakfast', foods: [oats] }]);
+        const hook = renderHook(() => useFoodContext(), { wrapper });
+
+        await signIn();
+        await waitFor(() => expect(hook.result.current.initializationError).toBe(
+            'Unable to load nutrition data. Check your connection and try again.',
+        ));
+
+        expect(hook.result.current.initialLoadComplete).toBe(false);
+        expect(hook.result.current.loading).toBe(false);
+
+        await act(async () => {
+            hook.result.current.retryInitialization();
+        });
+        await waitFor(() => expect(hook.result.current.breakfastFoods.map(food => food.id)).toEqual(['oats']));
+
+        expect(hook.result.current.initialLoadComplete).toBe(true);
+        expect(hook.result.current.initializationError).toBeNull();
+        expect(fetchLast30DaysMeals).toHaveBeenCalledTimes(2);
+    });
+
+    test('ignores a previous account initialization when a different account signs in', async () => {
+        const pendingLoads = new Map<string, (meals: { date: string; mealType: 'breakfast'; foods: LoggedFood[] }[]) => void>();
+        (fetchLast30DaysMeals as jest.Mock).mockImplementation(
+            (uid: string) => new Promise<{ date: string; mealType: 'breakfast'; foods: LoggedFood[] }[]>(resolve => {
+                pendingLoads.set(uid, resolve);
+            }),
+        );
+        const hook = renderHook(() => useFoodContext(), { wrapper });
+
+        await signIn('user-1');
+        await waitFor(() => expect(fetchLast30DaysMeals).toHaveBeenCalledWith('user-1'));
+        await signIn('user-2');
+        await waitFor(() => expect(fetchLast30DaysMeals).toHaveBeenCalledWith('user-2'));
+
+        await act(async () => {
+            pendingLoads.get('user-1')?.([{ date: today, mealType: 'breakfast', foods: [oats] }]);
+        });
+        expect(hook.result.current.breakfastFoods).toEqual([]);
+        expect(hook.result.current.loading).toBe(true);
+
+        await act(async () => {
+            pendingLoads.get('user-2')?.([{ date: today, mealType: 'breakfast', foods: [rice] }]);
+        });
+        await waitFor(() => expect(hook.result.current.breakfastFoods.map(food => food.id)).toEqual(['rice']));
+        expect(hook.result.current.loading).toBe(false);
+    });
+
+    test('clears persisted meals for the previous account after sign-out', async () => {
+        await setup();
+        await signIn(null);
+
+        expect(clearPersistedMealCache).toHaveBeenCalledWith('user-1');
     });
 });
