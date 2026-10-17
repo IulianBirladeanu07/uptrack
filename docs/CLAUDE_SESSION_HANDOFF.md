@@ -6,7 +6,7 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Last code batch recorded here: `4df4086 refactor: extract create exercise picker`; the create template batch below follows it. A handoff update cannot name its own commit, so run `git log --oneline -10` and `git status --short --branch` for the real current state.
+- Last code batch recorded here: `f81ee93 refactor: extract create template selection plan`; the food search results batch below follows it. A handoff update cannot name its own commit, so run `git log --oneline -10` and `git status --short --branch` for the real current state.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
 ## How to continue
@@ -19,7 +19,7 @@ Before each batch:
 2. Read `AGENTS.md`, then inspect the target and its callers/tests. Read `docs/APP_FLOW_AUDIT_HANDOFF.md` and the relevant `audit/` notes if the work concerns correctness or user flows.
 3. Make a focused change, preserve user-visible behavior, add tests for extracted logic or confirmed defects, and update directly related docs.
 4. Run focused tests, `npx tsc --noEmit`, and `git diff --check`. Run the full Jest suite for a coherent batch. Use Android Expo export for screen/import changes when appropriate; test date logic in `America/Los_Angeles`; run `npm run test:rules` for Firestore rules/access changes.
-5. Report what was actually verified. Jest does not provide component/navigation or device-level coverage; do not describe a bundle export or helper test as an end-to-end UI test.
+5. Report what was actually verified. Jest has React Native Testing Library component tests only for `FoodSearchResults` and `NutritionScreen`; there is no navigation or device-level coverage, so do not describe a bundle export or helper test as an end-to-end UI test.
 
 6. Update this file in the same commit as the batch. Add the batch under "Work completed", replace the "latest validation" block with the numbers you actually ran, refresh the roadmap, and name the next candidate. Keep entries short and factual. Never record a check that was not run.
 
@@ -67,19 +67,25 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Added 17 tests in `createExerciseForm.test.ts` and Jest discovery for the folder. The validation, progress, option data and filter were compared against the original inline code, taken verbatim, on 96 cases with no difference.
 - Moved `OptionItem` and `ModalPicker` (picker UI, modal animation and search box) into `src/features/workout/screens/CreateExerciseScreen/ExerciseModalPicker.tsx`, which exports `ModalPicker` and the `ModalPickerHandle` type. `CreateExerciseScreen.tsx` went from 581 to 309 lines. A script confirmed the moved block is identical to the original apart from the two `export` keywords, and that the screen component and its default export are identical to the original. No new tests: the moved code is UI only and there is no component test harness.
 
-### Create template (in progress)
+### Create template
 
 - Moved the decision logic of the route-driven add/replace handling out of `CreateTemplateScreen.tsx` into `src/features/workout/screens/CreateTemplateScreen/templateSelectionPlan.ts` as the pure `planTemplateSelection`. It returns one of `none`, `replace-failed`, `replace-duplicate`, `replace`, `add` or `add-single`. The screen effect still owns ids, state updates, the undo state and every notification string; a single added exercise still goes through `addExerciseWithAnimation`, so its duplicate check is unchanged. `ExerciseRow` now lives in the new file.
 - Added 19 tests in `templateSelectionPlan.test.ts` and Jest discovery for the folder. Before the tests were added, the original inline effect (taken from `HEAD`) and the new effect were run side by side with stubbed state setters on 294 combinations of template rows, selections and replace ids. The recorded state updates, undo state and notifications were identical, and the same harness failed when the planner was deliberately broken. That harness was temporary and is not in the repo.
 - Not moved: the undo/redo state handling, the per-field list updaters and the step navigation are still in the screen. The exhaustive-deps warning about a missing `navigation` dependency on the selection effect existed before and was left alone.
 
+### Food search results
+
+- Added 20 component tests to `src/features/nutrition/components/NutritionItem/FoodSearchResults.test.tsx` (React Native Testing Library, already in the repo) covering the filter pills and their counts, each filter's results and best match, the result count wording, the Add to Log button, results without a query, and the loading, error and retry, no-results and create, empty prompt and recent searches states. They were written first and passed against the unchanged component, and a deliberate threshold change made them fail.
+- Moved the two result filters into `foodSearchFilters.ts` (`applyFoodFilter`, `LOW_CALORIE_LIMIT`, `HIGH_PROTEIN_MIN`) so the pill counts and the filtered list share one definition instead of repeating the 200 calorie and 10 g protein rules. Added 6 unit tests. `FoodSearchResults.tsx` changes by about 10 lines; its JSX, the inline styles and its props are unchanged.
+- Not covered by the new tests: removing a single recent search (the close icon has no label or test id) and the visual layout.
+
 The latest validation was:
 
-- `npx jest --runInBand --ci`: 92 suites / 830 tests passed, in the default time zone and in `America/Los_Angeles`.
+- `npx jest --runInBand --ci`: 93 suites / 856 tests passed, in the default time zone and in `America/Los_Angeles`.
 - `npx tsc --noEmit`: passed.
 - `git diff --check`: passed.
 - `npx expo export --platform android`: succeeded. This checks bundling only; no screen was run on a device.
-- Hooks lint (scratch setup from `AGENTS.md`): `CreateTemplateScreen.tsx` and `templateSelectionPlan.ts` report 0 errors and one warning (missing `navigation` dependency on the selection effect), the same single warning the original file had.
+- Hooks lint (scratch setup from `AGENTS.md`): `FoodSearchResults.tsx` and `foodSearchFilters.ts` report no errors and no warnings; the original `FoodSearchResults.tsx` was also clean.
 
 ## Repository map
 
@@ -95,9 +101,9 @@ The latest validation was:
 
 This is a ranked starting point based on the current source inventory, not a mandate to refactor by line count. Inspect responsibilities and coupling first; skip or reorder when the code shows a better seam.
 
-1. **Workout component layer:** `ExerciseItem.tsx` is done for now: the pure helpers and the rest time UI are extracted and the file is about 380 lines. Optionally look at the swipe gesture and card header later. UI-only moves have no test harness, so verify with `tsc`, the Android export, the hooks lint, and a script comparing the moved code to the original.
+1. **Workout component layer:** `ExerciseItem.tsx` is done for now: the pure helpers and the rest time UI are extracted and the file is about 380 lines. Optionally look at the swipe gesture and card header later. Most components have no tests. A React Native Testing Library setup exists (see `FoodSearchResults.test.tsx`), so write characterization tests against the unchanged component before a UI move when the component is simple enough to render; otherwise verify with `tsc`, the Android export, the hooks lint, and a script comparing the moved code to the original.
 2. **Workout authoring flows:** `CreateExerciseScreen` is done for now. `CreateTemplateScreen` has its selection handling extracted; the undo state and list updaters could follow but are small, so it is reasonable to move on. Keep validation, persistence, and navigation behavior unchanged; first look for existing shared form helpers and tests.
-3. **Nutrition UI/data boundaries (suggested next):** inspect `FoodSearchResults.tsx` (about 594 lines), then `FoodContext.tsx` (about 624 lines). This area has account-scoped async state, caching, rollback, and date semantics; avoid moving logic without tracing its callers and failure paths. Coordinate with the open Nutrition audit rather than duplicating it.
+3. **Nutrition UI/data boundaries:** `FoodSearchResults.tsx` is done for now (tests added, filters extracted; the rest is JSX and inline styles that follow the nutrition components' convention). Suggested next: `FoodContext.tsx` (about 624 lines). This area has account-scoped async state, caching, rollback, and date semantics; avoid moving logic without tracing its callers and failure paths. Coordinate with the open Nutrition audit rather than duplicating it.
 4. **Other large screens:** review `DashboardScreen` (about 658 lines), `ProgressScreen` (about 669 lines), and Profile screens for discrete view-model/presentation responsibilities. Prefer the smallest seam with strong behavior tests.
 5. **Maintenance pass:** once a feature batch is complete, reconcile directly related docs and test discovery. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 

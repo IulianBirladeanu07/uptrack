@@ -2,6 +2,7 @@ import React, { memo, useCallback, useMemo } from 'react';
 import { Text, View, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import FoodItem from './FoodItem';
+import { applyFoodFilter } from './foodSearchFilters';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import type { FoodItemData } from './FoodItem';
@@ -53,17 +54,14 @@ const FoodSearchResults = memo(({
 
   const filters = useMemo<Filter[]>(() => [
     { key: 'all', label: 'All', count: searchResults.length, icon: 'grid-outline' },
-    { key: 'under200', label: 'Low Cal', count: searchResults.filter(item => item.calories < 200).length, icon: 'flame-outline' },
-    { key: 'high-protein', label: 'Protein', count: searchResults.filter(item => item.protein >= 10).length, icon: 'fitness-outline' },
+    { key: 'under200', label: 'Low Cal', count: applyFoodFilter(searchResults, 'under200').length, icon: 'flame-outline' },
+    { key: 'high-protein', label: 'Protein', count: applyFoodFilter(searchResults, 'high-protein').length, icon: 'fitness-outline' },
   ], [searchResults]);
 
-  const filteredResults = useMemo(() => {
-    switch (selectedFilter) {
-      case 'under200': return searchResults.filter(item => item.calories < 200);
-      case 'high-protein': return searchResults.filter(item => item.protein >= 10);
-      default: return searchResults;
-    }
-  }, [searchResults, selectedFilter]);
+  const filteredResults = useMemo(
+    () => applyFoodFilter(searchResults, selectedFilter),
+    [searchResults, selectedFilter]
+  );
 
   const bestMatch = filteredResults[0];
   const otherResults = filteredResults.slice(1);
