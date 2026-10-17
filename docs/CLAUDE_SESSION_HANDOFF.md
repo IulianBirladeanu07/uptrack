@@ -6,7 +6,7 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Base commit for the current FoodProvider background-evaluations batch: `2d3d43a refactor: extract food auth transition handling`. The background-evaluations batch below is uncommitted at handoff update time; verify `git log --oneline -10` and `git status --short --branch` before continuing.
+- Base commit for the current uncommitted Workout refactoring batches: `a3a7ba9 refactor: extract food background evaluations`. Verify `git log --oneline -10` and `git status --short --branch` before continuing.
 - Three patch files mentioned in an earlier handoff (`0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`) are not present in this checkout at the current base commit.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
@@ -139,13 +139,32 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - A deliberate removal of the dirty-draft guard made the refreshed-user test fail (and reset form state/count tests); restoring it made all tests pass.
 - The hook does not reset validation errors during a pristine profile refresh, matching the original effect.
 
+### CreateTemplate exercise updates
+
+- Extracted pure list updates to `src/features/workout/screens/CreateTemplateScreen/templateExerciseUpdates.ts`: restore a deleted row at its prior index, restore a replaced row by the replacement id, and replace a row while preserving its previous rest time (or the existing 180-second fallback).
+- Added seven tests for restoration order, append behavior, missing replacement rows, immutable updates, id assignment, and rest-time preservation/fallback. Existing `templateSelectionPlan.test.ts` continues to cover selection planning and duplicate handling.
+- The screen retains undo-state timing, notification text/actions, generated ids and selection flow. The existing screen has no redo operation; none was introduced.
+
+### ExerciseItem swipe intent
+
+- Extracted the existing horizontal swipe threshold/direction decision to `src/features/workout/components/ExerciseItem/exerciseItemUtils.ts` as `getExerciseSwipeAction`. `ExerciseItem.tsx` continues to own gesture setup, animation timing, haptics and callbacks.
+- Added tests for exact threshold boundaries and both action directions.
+
+### WorkoutHistory section grouping
+
+- Extracted month/year headings and section grouping to `src/features/workout/screens/WorkoutHistoryScreen/workoutHistorySections.ts`. The screen still owns memoization and rendering; grouping preserves the original first-seen month and row order, and timestamps without seconds remain in `Recent`.
+- Added three tests for month formatting, missing/zero timestamps and stable grouping order. Added `WorkoutHistoryScreen` test discovery to `jest.config.js`.
+- Extracted the existing history-to-StartWorkout route payload mapping to `src/features/workout/screens/WorkoutHistoryScreen/workoutHistorySelection.ts`; navigation and the active-workout guard remain in the screen. Two tests cover mapped metadata, set-value conversion and existing falsy-value defaults.
+- Extracted date badges and time-of-day workout labels to `workoutHistoryPresentation.ts`, preserving local-time boundaries and custom template-name precedence. Added tests for recent/today/yesterday/date labels and every time-of-day boundary.
+
 The latest validation was:
 
-- `npx jest --runInBand --ci src/features/nutrition/context/FoodProvider.test.tsx`: 37 tests passed.
-- `npx jest --runInBand --ci`: 98 suites / 915 tests passed in each of `UTC`, `America/Los_Angeles` and `Europe/Bucharest`.
-- `npx tsc --noEmit`: passed.
+- `npx jest --runInBand --ci src/features/workout/components/ExerciseItem/exerciseItemUtils.test.ts src/features/workout/screens/CreateTemplateScreen/templateSelectionPlan.test.ts src/features/workout/screens/CreateTemplateScreen/templateExerciseUpdates.test.ts`: 3 suites / 43 tests passed.
+- `npx jest --runInBand --ci src/features/workout/screens/WorkoutHistoryScreen`: 3 suites / 7 tests passed.
+- `npx jest --runInBand --ci`: 102 suites / 931 tests passed in each of `UTC`, `America/Los_Angeles` and `Europe/Bucharest`.
+- `npx tsc --noEmit`: passed using the repository-local TypeScript compiler.
 - `git diff --check`: passed.
-- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-food-background-export-20261017-1243`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
+- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-workout-presentation-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
 
 ## Repository map
 
@@ -163,7 +182,7 @@ This is a ranked starting point based on the current source inventory, not a man
 
 1. **FoodContext:** meal writes, step flushing, cache-then-fresh initialization loading, selected-date orchestration, auth callback sequencing and background evaluations are extracted and tested. Account reset operations remain owned by the provider; avoid broadening into the separate Nutrition audit.
 2. **Profile follow-ups:** inspect other profile screens only for a cohesive seam; the form-state lifecycle of `ProfileScreen.tsx` is now extracted and tested.
-3. **Workout optional follow-ups:** `ExerciseItem` swipe gesture/card header and `CreateTemplateScreen` undo/list updater logic remain possible targets, but inspect whether each is a meaningful seam before proceeding.
+3. **Workout follow-ups:** `CreateTemplateScreen` list updates, `ExerciseItem` swipe intent and `WorkoutHistoryScreen` grouping, payload mapping and presentation labels are extracted and tested. Any further extraction should begin with inspection and characterization; do not refactor solely for file size.
 4. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 
 ## Separate app-flow audit: status and source of truth

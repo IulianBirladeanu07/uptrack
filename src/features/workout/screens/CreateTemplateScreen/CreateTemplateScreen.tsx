@@ -36,6 +36,11 @@ import {
 import type { TemplateExercise } from '../../types';
 import { isSameExercise } from '../../utils/exerciseIdentity';
 import { planTemplateSelection, type ExerciseRow } from './templateSelectionPlan';
+import {
+  insertDeletedExercise,
+  replaceTemplateExercise,
+  restoreReplacedExercise,
+} from './templateExerciseUpdates';
 
 type UndoState = {
   type: 'delete' | 'replace' | null;
@@ -185,11 +190,7 @@ const CreateTemplate = () => {
       if (!currentUndoState.isActive || currentUndoState.type !== 'delete') return currentUndoState;
       const { exercise, index } = currentUndoState;
       if (exercise && index !== null) {
-        setExercises((prev) => {
-          const newExercises = [...prev];
-          newExercises.splice(index, 0, exercise);
-          return newExercises;
-        });
+        setExercises(prev => insertDeletedExercise(prev, exercise, index));
         showNotification('Exercise restored successfully!');
       }
       return {
@@ -207,13 +208,7 @@ const CreateTemplate = () => {
       if (!currentUndoState.isActive || currentUndoState.type !== 'replace') return currentUndoState;
       const { exercise, replacedWithId } = currentUndoState;
       if (exercise && replacedWithId) {
-        setExercises((prev) => {
-          const currentIdx = prev.findIndex((ex) => ex.id === replacedWithId);
-          if (currentIdx === -1) return prev;
-          const next = [...prev];
-          next[currentIdx] = exercise;
-          return next;
-        });
+        setExercises(prev => restoreReplacedExercise(prev, exercise, replacedWithId));
         showNotification('Exercise restored successfully!');
       }
       return {
@@ -265,10 +260,7 @@ const CreateTemplate = () => {
           index: currentIndex,
           isActive: true,
         });
-        setExercises((prev) => prev.map((ex) => ex.id === replaceExerciseId
-          ? { ...exerciseToReplace, id: newId, restTime: ex.restTime || 180 }
-          : ex
-        ));
+        setExercises(prev => replaceTemplateExercise(prev, originalExercise.id, exerciseToReplace, newId));
         const originalExerciseName = originalExercise?.exerciseName || originalExercise?.name || 'Exercise';
         const newExerciseName = exerciseToReplace.exerciseName || exerciseToReplace.name || 'Exercise';
         showNotification(

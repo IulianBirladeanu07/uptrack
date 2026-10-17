@@ -8,39 +8,18 @@ import { durationToMinutes } from '../../utils/durationUtils';
 import { colors } from '../../../../shared/theme';
 import styles from './WorkoutHistoryStyles';
 import { useAppNavigation } from '../../../../shared/navigation';
-
-type TimestampLike = { seconds?: number } | null | undefined;
+import {
+    getWorkoutMonthYear,
+    groupWorkoutHistoryByMonth,
+    type WorkoutHistoryTimestamp,
+} from './workoutHistorySections';
+import { toHistorySelectedWorkout } from './workoutHistorySelection';
+import {
+    formatWorkoutHistoryDate,
+    getWorkoutHistoryLabel,
+} from './workoutHistoryPresentation';
 
 type HistoryWorkout = any;
-
-const formatDate = (timestamp: TimestampLike) => {
-    if (!timestamp?.seconds) return 'RECENT';
-    const date = new Date(timestamp.seconds * 1000);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (date.toDateString() === today.toDateString()) return 'TODAY';
-    if (date.toDateString() === yesterday.toDateString()) return 'YESTERDAY';
-    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-    return `${months[date.getMonth()]} ${date.getDate()}`;
-};
-
-const getMonthYear = (timestamp: TimestampLike) => {
-    if (!timestamp?.seconds) return 'Recent';
-    const date = new Date(timestamp.seconds * 1000);
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    return `${months[date.getMonth()]} ${date.getFullYear()}`;
-};
-
-const getWorkoutLabel = (timestamp: TimestampLike, templateName?: string | null) => {
-    if (templateName && templateName !== 'Workout') return templateName;
-    if (!timestamp?.seconds) return 'Recent Workout';
-    const hour = new Date(timestamp.seconds * 1000).getHours();
-    if (hour >= 5 && hour < 12) return 'Morning Workout';
-    if (hour >= 12 && hour < 17) return 'Afternoon Workout';
-    if (hour >= 17 && hour < 21) return 'Evening Workout';
-    return 'Night Workout';
-};
 
 const getDurationInMinutes = (duration: unknown) => durationToMinutes(duration) ?? 0;
 
@@ -48,8 +27,8 @@ const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; a
     const exercises = item.exercises || [];
     const totalSets = exercises.reduce((total: number, ex: any) => total + ex.sets.length, 0);
     const durationMinutes = getDurationInMinutes(item.duration);
-    const workoutTitle = getWorkoutLabel(item['timestamp'], item.workoutName);
-    const dateLabel = formatDate(item['timestamp']);
+    const workoutTitle = getWorkoutHistoryLabel(item['timestamp'], item.workoutName);
+    const dateLabel = formatWorkoutHistoryDate(item['timestamp']);
     const isToday = dateLabel === 'TODAY';
 
     return (
@@ -124,38 +103,15 @@ const WorkoutHistoryScreen = () => {
     const handleStartWorkout = useCallback((workout: any) => {
         if (activeWorkout) return;
         navigation.navigate('StartWorkout', {
-            selectedWorkout: {
-                note: workout.note || '',
-                templateName: workout.workoutName || '',
-                exercises: workout.exercises.map((ex: any) => ({
-                    exerciseName: ex.exerciseName,
-                    imageURL: ex.imageURL || '',
-                    muscleGroup: ex.muscleGroup || '',
-                    category: ex.category || '',
-                    numSets: ex.numSets || ex.sets.length.toString(),
-                    repRange: ex.repRange || '',
-                    note: ex.note || '',
-                    restBetweenSets: ex.restBetweenSets || '',
-                    lastWorkoutSets: ex.lastWorkoutSets || [],
-                    sets: ex.sets.map((s: any) => ({
-                        weight: String(s.weight ?? ''),
-                        reps: String(s.reps || ''),
-                        isValidated: false,
-                        repsModified: false,
-                    })),
-                })),
-            },
+            selectedWorkout: toHistorySelectedWorkout(workout),
         });
     }, [activeWorkout, navigation]);
 
     const sections = useMemo(() => {
-        const grouped = workoutHistory.reduce((groups, workout) => {
-            const key = getMonthYear(workout['timestamp'] as TimestampLike);
-            if (!groups[key]) groups[key] = [];
-            (groups as any)[key].push(workout);
-            return groups;
-        }, {});
-        return Object.keys(grouped).map(title => ({ title, data: grouped[title] }));
+        return groupWorkoutHistoryByMonth(
+            workoutHistory,
+            workout => workout['timestamp'] as WorkoutHistoryTimestamp,
+        );
     }, [workoutHistory]);
 
     return (
@@ -172,7 +128,7 @@ const WorkoutHistoryScreen = () => {
                 renderSectionHeader={({ section: { title } }) => (
                     <Text style={styles.monthDivider}>{title}</Text>
                 )}
-                keyExtractor={(item, index) => `${getMonthYear(item['timestamp'] as TimestampLike)}_${index}`}
+                keyExtractor={(item, index) => `${getWorkoutMonthYear(item['timestamp'] as WorkoutHistoryTimestamp)}_${index}`}
                 ListHeaderComponent={
                     <View style={styles.header}>
                         <Text style={styles.heading}>History</Text>

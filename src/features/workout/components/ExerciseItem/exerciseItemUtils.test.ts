@@ -6,6 +6,7 @@ import {
   getRestInputs,
   getSetsRepsLabel,
   getTotalRestSeconds,
+  getExerciseSwipeAction,
   isCustomRepRange,
   isCustomRestTime,
   isValidSecondsInput,
@@ -77,6 +78,19 @@ describe('getSetsRepsLabel', () => {
     expect(getSetsRepsLabel(undefined, undefined)).toBe('');
     expect(getSetsRepsLabel('', '')).toBe('');
     expect(getSetsRepsLabel(0, '5-8')).toBe('5-8 reps');
+  });
+});
+
+describe('getExerciseSwipeAction', () => {
+  it('requires movement beyond the existing 60-pixel threshold', () => {
+    expect(getExerciseSwipeAction(-60)).toBeNull();
+    expect(getExerciseSwipeAction(0)).toBeNull();
+    expect(getExerciseSwipeAction(60)).toBeNull();
+  });
+
+  it('maps a right swipe to replacement and a left swipe to deletion', () => {
+    expect(getExerciseSwipeAction(61)).toBe('replace');
+    expect(getExerciseSwipeAction(-61)).toBe('delete');
   });
 });
 

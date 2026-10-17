@@ -29,10 +29,9 @@ import {
   REP_RANGE_OPTIONS,
   isCustomRepRange as hasCustomRepRange,
   getSetsRepsLabel,
+  getExerciseSwipeAction,
 } from './exerciseItemUtils';
 import type { TemplateExercise } from '../../types';
-
-const SWIPE_THRESHOLD = 60;
 
 const areEqual = (prevProps: ExerciseItemProps, nextProps: ExerciseItemProps) => {
   return (
@@ -97,32 +96,31 @@ const ExerciseItem = memo(
         swipeProgress.value = event.translationX > 0 ? 1 : event.translationX < 0 ? -1 : 0;
       })
       .onEnd((event) => {
-        if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
-          if (event.translationX > 0) {
-            swipeTranslateX.value = withTiming(200, { duration: 200 }, (finished) => {
-              if (finished) {
-                swipeTranslateX.value = 0;
-                swipeProgress.value = 0;
-                if (onReplace) {
-                  runOnJS(onReplace)(exercise.id);
-                }
-                runOnJS(Vibration.vibrate)(20);
+        const swipeAction = getExerciseSwipeAction(event.translationX);
+        if (swipeAction === 'replace') {
+          swipeTranslateX.value = withTiming(200, { duration: 200 }, (finished) => {
+            if (finished) {
+              swipeTranslateX.value = 0;
+              swipeProgress.value = 0;
+              if (onReplace) {
+                runOnJS(onReplace)(exercise.id);
               }
-            });
-            swipeProgress.value = withTiming(1, { duration: 200 });
-          } else {
-            swipeTranslateX.value = withTiming(-200, { duration: 200 });
-            swipeProgress.value = withTiming(-1, { duration: 200 });
-            swipeOpacity.value = withDelay(
-              200,
-              withTiming(0, { duration: 200 }, (finished) => {
-                if (finished) {
-                  runOnJS(onDelete)(exercise.id);
-                  runOnJS(Vibration.vibrate)(40);
-                }
-              })
-            );
-          }
+              runOnJS(Vibration.vibrate)(20);
+            }
+          });
+          swipeProgress.value = withTiming(1, { duration: 200 });
+        } else if (swipeAction === 'delete') {
+          swipeTranslateX.value = withTiming(-200, { duration: 200 });
+          swipeProgress.value = withTiming(-1, { duration: 200 });
+          swipeOpacity.value = withDelay(
+            200,
+            withTiming(0, { duration: 200 }, (finished) => {
+              if (finished) {
+                runOnJS(onDelete)(exercise.id);
+                runOnJS(Vibration.vibrate)(40);
+              }
+            })
+          );
         } else {
           swipeTranslateX.value = withTiming(0, { duration: 200 });
           swipeProgress.value = withTiming(0, { duration: 200 });

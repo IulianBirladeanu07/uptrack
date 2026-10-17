@@ -23,6 +23,7 @@ module.exports = {
     '<rootDir>/src/features/workout/handlers/**/*.test.{js,ts}',
     '<rootDir>/src/features/workout/screens/StartWorkoutScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/workout/screens/WorkoutScreen/**/*.test.{js,ts,tsx}',
+    '<rootDir>/src/features/workout/screens/WorkoutHistoryScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/workout/screens/ExerciseSelectionScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/workout/components/ExerciseItem/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/workout/screens/CreateExerciseScreen/**/*.test.{js,ts,tsx}',

@@ -13,6 +13,15 @@ export const REST_TIME_OPTIONS = [
   { label: '5m', value: 300 },
 ];
 
+export const getExerciseSwipeAction = (
+  translationX: number,
+): 'replace' | 'delete' | null => {
+  if (Math.abs(translationX) > 60) {
+    return translationX > 0 ? 'replace' : 'delete';
+  }
+  return null;
+};
+
 export const formatRestTime = (seconds?: number) => {
   if (!seconds) return '3m';
 
