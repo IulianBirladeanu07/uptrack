@@ -19,6 +19,7 @@ module.exports = {
     '<rootDir>/src/features/workout/handlers/**/*.test.{js,ts}',
     '<rootDir>/src/features/workout/screens/StartWorkoutScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/workout/screens/WorkoutScreen/**/*.test.{js,ts,tsx}',
+    '<rootDir>/src/features/workout/screens/ExerciseSelectionScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/shared/firestore/**/*.test.{js,ts}',
     '<rootDir>/src/shared/services/**/*.test.{js,ts}',
     '<rootDir>/src/shared/utils/**/*.test.{js,ts}',

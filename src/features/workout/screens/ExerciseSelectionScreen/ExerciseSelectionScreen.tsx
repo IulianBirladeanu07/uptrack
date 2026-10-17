@@ -10,15 +10,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { clearExercisesCache, fetchExercises } from '../../services/exerciseCatalogService';
 import { colors, spacing } from '../../../../shared/theme';
 import { styles } from './ExerciseSelectionScreenStyle';
-import type { CatalogExercise, ExerciseGroup } from '../../../../shared/types';
-import { exerciseIdentityKey } from '../../utils/exerciseIdentity';
-
-type ExerciseItemData = CatalogExercise & { id: string };
-type ExerciseCounts = { total: number; [muscleGroup: string]: number };
-type ExerciseSection = { title: string; data: ExerciseItemData[] };
-type ExerciseListRow =
-  | { type: 'header'; title: string; id: string }
-  | (ExerciseItemData & { type: 'item'; listId: string });
+import type { ExerciseGroup } from '../../../../shared/types';
+import {
+  buildExerciseCatalogData,
+  filterAndGroupExercises,
+  flattenExerciseSections,
+  type ExerciseCounts,
+  type ExerciseItemData,
+  type ExerciseListRow,
+} from './exerciseSelectionData';
 type ExerciseSelectionProps = {
   exercise: ExerciseItemData;
   isSelected: boolean;
@@ -59,46 +59,6 @@ const useDebounce = <T,>(value: T, delay: number): [T, boolean] => {
   }, [value, delay]);
 
   return [debouncedValue, isDebouncing];
-};
-
-const useExerciseData = (allGroupedExercises: ExerciseGroup[]) => {
-  return useMemo(() => {
-    const exerciseMap = new Map<string, ExerciseItemData>();
-    const muscleGroups = new Set<string>();
-    const counts: ExerciseCounts = { total: 0 };
-    const flatExercises: ExerciseItemData[] = [];
-
-    if (!Array.isArray(allGroupedExercises)) {
-      return { exerciseMap, muscleGroups: [], counts, flatExercises };
-    }
-
-    allGroupedExercises.forEach((group) => {
-      if (!group?.muscleGroup || !Array.isArray(group.exercises)) return;
-
-      muscleGroups.add(group.muscleGroup);
-      const exerciseCount = group.exercises.length;
-      counts[group.muscleGroup] = exerciseCount;
-      counts.total += exerciseCount;
-
-      group.exercises.forEach((exercise) => {
-        if (!exercise?.name) return;
-        const enrichedExercise = {
-          ...exercise,
-          muscleGroup: group.muscleGroup,
-          id: exerciseIdentityKey(exercise.name, group.muscleGroup),
-        };
-        exerciseMap.set(enrichedExercise.id, enrichedExercise);
-        flatExercises.push(enrichedExercise);
-      });
-    });
-
-    return {
-      exerciseMap,
-      muscleGroups: [...muscleGroups].sort(),
-      counts,
-      flatExercises,
-    };
-  }, [allGroupedExercises]);
 };
 
 const ExerciseItem = memo(({ exercise, isSelected, onToggle }: ExerciseSelectionProps) => {
@@ -414,7 +374,10 @@ const ExerciseSelectionScreen = () => {
   const [activeFilter, setActiveFilter] = useState('All');
 
   const [debouncedSearchTerm, isSearching] = useDebounce(searchTerm, 200);
-  const { exerciseMap, muscleGroups, counts, flatExercises } = useExerciseData(allGroupedExercises);
+  const { exerciseMap, muscleGroups, counts, flatExercises } = useMemo(
+    () => buildExerciseCatalogData(allGroupedExercises),
+    [allGroupedExercises],
+  );
   const doneButtonAnim = useRef(new Animated.Value(0)).current;
 
   const loadExercises = useCallback(async (isRetry = false) => {
@@ -447,61 +410,15 @@ const ExerciseSelectionScreen = () => {
     }, [loadExercises])
   );
 
-  const filteredAndGroupedExercises = useMemo(() => {
-    if (!flatExercises.length) return [];
+  const filteredAndGroupedExercises = useMemo(
+    () => filterAndGroupExercises(flatExercises, debouncedSearchTerm, activeFilter),
+    [flatExercises, debouncedSearchTerm, activeFilter],
+  );
 
-    let filtered = flatExercises;
-
-    if (activeFilter !== 'All') {
-      filtered = filtered.filter(exercise => exercise.muscleGroup === activeFilter);
-    }
-
-    const searchLower = debouncedSearchTerm.toLowerCase().trim();
-    if (searchLower) {
-      filtered = filtered.filter(exercise =>
-        exercise?.name?.toLowerCase().includes(searchLower) ||
-        exercise?.equipment?.toLowerCase().includes(searchLower) ||
-        exercise?.category?.toLowerCase().includes(searchLower) ||
-        exercise?.muscleGroup?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    const grouped: ExerciseSection[] = [];
-    const groups: Record<string, ExerciseSection> = {};
-
-    filtered.forEach(exercise => {
-      const group = exercise.muscleGroup;
-      if (!groups[group]) {
-        groups[group] = {
-          title: group,
-          data: []
-        };
-        grouped.push(groups[group]);
-      }
-      groups[group].data.push(exercise);
-    });
-
-    return grouped;
-  }, [flatExercises, debouncedSearchTerm, activeFilter]);
-
-  const flatListData = useMemo(() => {
-    const result: ExerciseListRow[] = [];
-    filteredAndGroupedExercises.forEach((section, sectionIndex) => {
-      result.push({
-        type: 'header',
-        title: section.title,
-        id: `header-${section.title}-${sectionIndex}`
-      });
-      section.data.forEach((item, itemIndex) =>
-        result.push({
-          type: 'item',
-          ...item,
-          listId: `${item.id}-${sectionIndex}-${itemIndex}`
-        })
-      );
-    });
-    return result;
-  }, [filteredAndGroupedExercises]);
+  const flatListData = useMemo(
+    () => flattenExerciseSections(filteredAndGroupedExercises),
+    [filteredAndGroupedExercises],
+  );
 
   useEffect(() => {
     Animated.timing(doneButtonAnim, {
