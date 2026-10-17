@@ -106,6 +106,62 @@ test("user-owned workout, measurement, split, template, and custom exercise reco
   await assertFails(alice.collection("measurements").get());
 });
 
+test("reading a missing document is denied where the rule reads resource data and allowed elsewhere", async () => {
+  const alice = testEnv.authenticatedContext("alice").firestore();
+  const missingOwned = [
+    "workoutHistory/missing",
+    "measurements/missing",
+    "workoutTemplates/missing_alice",
+    "workoutSplits/missing",
+    "customExercises/missing",
+  ];
+
+  for (const documentPath of missingOwned) {
+    await assertFails(alice.doc(documentPath).get());
+  }
+
+  await assertSucceeds(alice.doc("users/alice").get());
+  await assertSucceeds(alice.doc("meals/alice_2026-10-16").get());
+  await assertFails(alice.doc("meals/bob_2026-10-16").get());
+  await assertSucceeds(alice.doc("exercises/chest").get());
+});
+
+test("template create, rename and delete transactions match the access the app performs", async () => {
+  const alice = testEnv.authenticatedContext("alice").firestore();
+  const bob = testEnv.authenticatedContext("bob").firestore();
+  const userRef = alice.doc("users/alice");
+  const templateRef = alice.doc("workoutTemplates/push_alice");
+  const registry = (name) => ({ workoutTemplateNames: { [name]: "push_alice" } });
+
+  await assertSucceeds(alice.runTransaction(async (tx) => {
+    await tx.get(userRef);
+    tx.set(userRef, registry("push"), { mergeFields: ["workoutTemplateNames"] });
+    tx.set(templateRef, { uid: "alice", templateName: "Push" });
+  }));
+
+  await assertFails(alice.runTransaction(async (tx) => {
+    await tx.get(alice.doc("workoutTemplates/pull_alice"));
+  }));
+
+  await assertSucceeds(alice.runTransaction(async (tx) => {
+    await tx.get(userRef);
+    await tx.get(templateRef);
+    tx.set(userRef, registry("pull"), { mergeFields: ["workoutTemplateNames"] });
+    tx.update(templateRef, { templateName: "Pull" });
+  }));
+
+  await assertFails(bob.runTransaction(async (tx) => {
+    await tx.get(bob.doc("users/alice"));
+  }));
+
+  await assertSucceeds(alice.runTransaction(async (tx) => {
+    await tx.get(userRef);
+    await tx.get(templateRef);
+    tx.set(userRef, { workoutTemplateNames: {} }, { mergeFields: ["workoutTemplateNames"] });
+    tx.delete(templateRef);
+  }));
+});
+
 test("shared exercises are readable by signed-in users and never writable from clients", async () => {
   const alice = testEnv.authenticatedContext("alice").firestore();
   const signedOut = testEnv.unauthenticatedContext().firestore();
