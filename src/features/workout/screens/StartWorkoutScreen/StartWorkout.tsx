@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AnimatedMessage from '../../../../shared/components/AnimatedMessage/AnimatedMessage';
 import ExerciseInput from '../../components/ExerciseInput/ExerciseInput';
 import ExerciseOptionsModal from '../../components/ExerciseOptionsModal/ExerciseOptionsModal';
-import { sendWorkoutDataToFirestore } from '../../handlers/WorkoutHandler';
+import { sendWorkoutDataToFirestore } from '../../services/workoutSessionService';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { workoutService, createEmptySet } from '../../services/WorkoutService';
 import { isSameExercise } from '../../utils/exerciseIdentity';

@@ -42,7 +42,7 @@ import { colors, spacing } from '../../../../../shared/theme';
 import { db } from '../../../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../../../auth/context/AuthContext';
 import { WorkoutContext } from '../../../context/WorkoutContext';
-import { fetchSplitsFromFirestore } from '../../../handlers/WorkoutHandler';
+import { fetchSplitsFromFirestore } from '../../../services/workoutSplitService';
 import styles from './PreviewSplitScreenStyle';
 import DaySelector from './DaySelector';
 import MuscleCoverageCard from './MuscleCoverageCard';

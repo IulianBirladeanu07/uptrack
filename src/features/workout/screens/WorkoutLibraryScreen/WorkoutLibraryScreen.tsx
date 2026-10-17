@@ -14,7 +14,7 @@ import type { WorkoutSplit, WorkoutTemplate } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import styles from './WorkoutLibraryScreenStyle';
-import { fetchSplitsFromFirestore } from '../../handlers/WorkoutHandler';
+import { fetchSplitsFromFirestore } from '../../services/workoutSplitService';
 import { deleteTemplateFromFirestore, fetchTemplatesFromFirestore } from '../../services/workoutTemplateService';
 import { getAuth } from 'firebase/auth';
 import { doc, setDoc, deleteField } from 'firebase/firestore';

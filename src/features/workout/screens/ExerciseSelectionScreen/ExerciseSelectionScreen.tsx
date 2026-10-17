@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppNavigation } from '../../../../shared/navigation';
 import { Ionicons } from '@expo/vector-icons';
-import { fetchExercises, clearExercisesCache } from '../../handlers/WorkoutHandler';
+import { clearExercisesCache, fetchExercises } from '../../services/exerciseCatalogService';
 import { colors, spacing } from '../../../../shared/theme';
 import { styles } from './ExerciseSelectionScreenStyle';
 import type { CatalogExercise, ExerciseGroup } from '../../../../shared/types';

@@ -20,7 +20,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import styles, { COLORS } from './CreateExerciseScreenStyle';
-import { createCustomExercise } from '../../handlers/WorkoutHandler';
+import { createCustomExercise } from '../../services/exerciseCatalogService';
 
 type ExerciseFormData = {
   name: string;

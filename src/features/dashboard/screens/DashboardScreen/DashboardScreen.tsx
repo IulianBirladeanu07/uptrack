@@ -17,7 +17,7 @@ import { colors, spacing } from '../../../../shared/theme';
 import { useAppNavigation } from '../../../../shared/navigation';
 import type { HomeNotice } from '../../../../shared/types';
 import type { PersistedWorkoutState, WorkoutSplit } from '../../../workout/types';
-import { fetchSplitsFromFirestore } from '../../../workout/handlers/WorkoutHandler';
+import { fetchSplitsFromFirestore } from '../../../workout/services/workoutSplitService';
 import { SPLITS_CACHE_KEY } from '../../../workout/services/splitCache';
 import { getHomeNotices } from '../../../profile/utils/homeSurfaceEngine';
 import { parseDismissedAdjustmentTimestamps } from '../../../profile/utils/homeDismissalStorage';

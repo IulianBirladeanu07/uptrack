@@ -3,13 +3,69 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
+  orderBy,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
 import type { WorkoutSplit } from '../types';
 import { clearSplitsCache } from './splitCache';
+import { fetchTemplatesFromFirestore } from './workoutTemplateService';
+
+export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
+  try {
+    const user = getAuth().currentUser;
+    if (!user) {
+      throw new Error('User not authenticated.');
+    }
+
+    const splitsQuery = query(
+      collection(db, 'workoutSplits'),
+      where('uid', '==', user.uid),
+      orderBy('createdAt', 'desc'),
+    );
+    const querySnapshot = await getDocs(splitsQuery);
+    if (querySnapshot.empty) {
+      console.log('No splits found');
+      return [];
+    }
+
+    const splits: WorkoutSplit[] = querySnapshot.docs.map(docSnap => ({
+      ...(docSnap.data() as WorkoutSplit),
+      id: docSnap.id,
+    }));
+    const templates = await fetchTemplatesFromFirestore();
+    const templateMap = new Map(templates.map(template => [template.id, template]));
+
+    splits.forEach(split => {
+      const schedule = (split.schedule || {}) as Record<string, Record<string, unknown>>;
+      Object.keys(schedule).forEach(day => {
+        const dayData = schedule[day] || {};
+        const templateId = dayData['templateId'] as string | undefined;
+        const template = templateId ? templateMap.get(templateId) : undefined;
+        if (template) {
+          schedule[day] = {
+            ...dayData,
+            id: template.id ?? templateId,
+            templateName: template.templateName || dayData['templateName'],
+            exercises: template.exercises || dayData['exercises'],
+            duration: template.duration ?? dayData['duration'],
+          };
+        }
+      });
+      split.schedule = schedule;
+    });
+
+    return splits;
+  } catch (error) {
+    console.error('Error fetching user splits from Firestore:', (error as Error).message);
+    throw error;
+  }
+};
 
 export const updateSplitInFirestore = async (
   splitId: string,

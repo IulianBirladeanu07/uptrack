@@ -10,7 +10,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
-import { fetchSplitsFromFirestore, findBestSet, formatBestSet } from '../../handlers/WorkoutHandler';
+import { fetchSplitsFromFirestore } from '../../services/workoutSplitService';
+import { findBestSet, formatBestSet } from '../../utils/workoutMetrics';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { getScheduledDay, getWeekSchedule, getCycleLength } from '../../utils/splitSchedule';
 import type { SplitLike } from '../../utils/splitSchedule';
