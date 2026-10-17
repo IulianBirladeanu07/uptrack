@@ -22,10 +22,15 @@ import { SPLITS_CACHE_KEY } from '../../../workout/services/splitCache';
 import { getHomeNotices } from '../../../profile/utils/homeSurfaceEngine';
 import { parseDismissedAdjustmentTimestamps } from '../../../profile/utils/homeDismissalStorage';
 import { dirOf } from '../../../progress/utils/progressEngine';
-import { durationLabel } from '../../../workout/utils/durationUtils';
 import { getScheduledDay } from '../../../workout/utils/splitSchedule';
 import type { SplitLike } from '../../../workout/utils/splitSchedule';
 import { styles } from './DashboardScreenStyles';
+import {
+    countWeeklyWorkouts,
+    getCompletedToday,
+    type CompletedToday,
+    type DashboardWorkoutHistoryEntry,
+} from './dashboardWorkoutSummary';
 
 const SPLITS_CACHE_TTL = 15 * 60 * 1000;
 const MIN_DELTA_DAYS = 3;
@@ -37,22 +42,11 @@ type ScheduledWorkout = {
     exercises: unknown[];
 };
 
-type CompletedToday = {
-    durationLabel: string | null;
-    exerciseCount: number;
-};
-
 type WeightDelta = {
     text: string;
     icon: ComponentProps<typeof Ionicons>['name'];
     bg: string;
     fg: string;
-};
-
-type HistoryEntry = {
-    timestamp?: { toDate?: () => Date };
-    duration?: unknown;
-    exercises?: unknown[];
 };
 
 const toLocalDateKey = (date: Date): string => {
@@ -581,26 +575,15 @@ const DashboardScreen = () => {
         }, [userData?.activeSplitId, userData?.rotationStartDate])
     );
 
-    const weeklyWorkoutsCount = useMemo(() => {
-        if (!workoutHistory?.length) return 0;
-        const weekStart = getMonday(new Date());
-        return (workoutHistory as HistoryEntry[]).filter(w => {
-            const d = w.timestamp?.toDate?.();
-            return d && d >= weekStart;
-        }).length;
-    }, [workoutHistory]);
+    const weeklyWorkoutsCount = useMemo(
+        () => countWeeklyWorkouts(workoutHistory as DashboardWorkoutHistoryEntry[]),
+        [workoutHistory],
+    );
 
-    const completedToday = useMemo(() => {
-        if (!workoutHistory?.length) return null;
-        const todayStr = new Date().toDateString();
-        const entries = (workoutHistory as HistoryEntry[]).filter(w => w.timestamp?.toDate?.()?.toDateString() === todayStr);
-        if (!entries.length) return null;
-        const latest = entries.reduce((a, b) => (b.timestamp!.toDate!() > a.timestamp!.toDate!() ? b : a));
-        return {
-            durationLabel: durationLabel(latest.duration),
-            exerciseCount: (latest.exercises ?? []).length,
-        };
-    }, [workoutHistory]);
+    const completedToday = useMemo(
+        () => getCompletedToday(workoutHistory as DashboardWorkoutHistoryEntry[]),
+        [workoutHistory],
+    );
 
     const handleWorkoutPress = useCallback(() => {
         if (activeWorkout) {

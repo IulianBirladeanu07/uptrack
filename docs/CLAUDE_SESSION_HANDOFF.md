@@ -6,7 +6,8 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Last code batch recorded here: `f81ee93 refactor: extract create template selection plan`; the food search results batch below follows it. A handoff update cannot name its own commit, so run `git log --oneline -10` and `git status --short --branch` for the real current state.
+- Base commit for the current Dashboard batch: `3b3ac72 Move step flushing out of FoodProvider into a tested class`. The Dashboard batch below is uncommitted at handoff update time; verify `git log --oneline -10` and `git status --short --branch` before continuing.
+- Three pre-existing untracked patch files were present at batch start and left untouched: `0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`. Preserve them and do not include them in this refactor batch.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
 ## How to continue
@@ -93,14 +94,21 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Added 9 unit tests in `StepsFlusher.test.ts`, including a write that fails after the account changed (no restore, no log), which the provider tests do not reach. Deliberately removing the `reset` call, the current-user check on failure, or the in-flight guard each made a test fail.
 - Not changed: how `retryStepsConnection`, the user-data effect and `handleStepsHistory` trigger a flush.
 
+### Dashboard workout summaries
+
+- Moved the Dashboard's weekly workout count and latest workout completed today into `src/features/dashboard/screens/DashboardScreen/dashboardWorkoutSummary.ts`. `DashboardScreen.tsx` still owns the state and rendering; both calculations retain their original memoization and date-time behavior.
+- Added five tests for the inclusive local Monday boundary, empty history, selecting the latest same-day workout, absent details, and the displayed duration/exercise count. Added Jest discovery for `DashboardScreen`.
+- A deliberate change from `date >= weekStart` to `date > weekStart` made the Monday-boundary test fail before restoring the original comparison.
+- Not changed: the weekly count includes a history entry with a future timestamp if it falls after Monday of the current week. This matches the old implementation; decide separately whether future-dated records should be excluded.
 
 The latest validation was:
 
-- `npx jest --runInBand --ci`: 95 suites / 887 tests passed in `UTC` (the default here), `America/Los_Angeles` and `Europe/Bucharest`.
+- `npx jest --runInBand --ci src/features/dashboard/screens/DashboardScreen/dashboardWorkoutSummary.test.ts`: 5 tests passed. A deliberate boundary mutation made one test fail as expected; it passed again after restoring the original comparison.
+- `npx jest --runInBand --ci`: 96 suites / 892 tests passed in `UTC`, `America/Los_Angeles` and `Europe/Bucharest`.
 - `npx tsc --noEmit`: passed.
 - `git diff --check`: passed.
-- `npx expo export --platform android`: succeeded. This checks bundling only; no screen was run on a device.
-- Hooks lint (scratch setup from `AGENTS.md`): `FoodContext.tsx` reports the same three `exhaustive-deps` warnings as before the batch (`mealState`, `cacheVersion` and `stepsVersion`, and `updateMealState` listed as unnecessary dependencies), no errors; `StepsFlusher.ts` reports nothing.
+- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-dashboard-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
+- Hooks lint was not rerun for this batch; the change did not add or move React hooks.
 
 ## Repository map
 
@@ -116,11 +124,11 @@ The latest validation was:
 
 This is a ranked starting point based on the current source inventory, not a mandate to refactor by line count. Inspect responsibilities and coupling first; skip or reorder when the code shows a better seam.
 
-1. **Workout component layer:** `ExerciseItem.tsx` is done for now: the pure helpers and the rest time UI are extracted and the file is about 380 lines. Optionally look at the swipe gesture and card header later. Most components have no tests. A React Native Testing Library setup exists (see `FoodSearchResults.test.tsx`), so write characterization tests against the unchanged component before a UI move when the component is simple enough to render; otherwise verify with `tsc`, the Android export, the hooks lint, and a script comparing the moved code to the original.
-2. **Workout authoring flows:** `CreateExerciseScreen` is done for now. `CreateTemplateScreen` has its selection handling extracted; the undo state and list updaters could follow but are small, so it is reasonable to move on. Keep validation, persistence, and navigation behavior unchanged; first look for existing shared form helpers and tests.
-3. **Nutrition UI/data boundaries:** `FoodSearchResults.tsx` is done for now (tests added, filters extracted; the rest is JSX and inline styles that follow the nutrition components' convention). `FoodContext.tsx` has provider tests for the meal writes and shares the write wiring; step flushing now lives in `StepsFlusher.ts`; initialization, the auth listener and date change handling are still in the file. Suggested next: the other large screens below, or the initialization and auth-change handling if more of this file should move. This area has account-scoped async state, caching, rollback, and date semantics; avoid moving logic without tracing its callers and failure paths. Coordinate with the open Nutrition audit rather than duplicating it.
-4. **Other large screens:** review `DashboardScreen` (about 658 lines), `ProgressScreen` (about 669 lines), and Profile screens for discrete view-model/presentation responsibilities. Prefer the smallest seam with strong behavior tests.
-5. **Maintenance pass:** once a feature batch is complete, reconcile directly related docs and test discovery. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
+1. **Progress screen:** inspect `ProgressScreen.tsx` alongside `src/features/progress/utils/progressEngine.ts` and its tests. Much of the calculation logic is already extracted, so move on if there is no small remaining view/data seam.
+2. **Profile screens:** inspect current screen/component boundaries for a discrete presentation or view-model extraction, with behavior tests where a pure seam exists.
+3. **FoodContext:** meal writes and step flushing are extracted and tested. Initialization, the auth listener and date-change handling remain; move them only with provider tests extended first. This area has account-scoped async state, caching, rollback, and date semantics; coordinate with the open Nutrition audit rather than duplicating it.
+4. **Workout optional follow-ups:** `ExerciseItem` swipe gesture/card header and `CreateTemplateScreen` undo/list updater logic remain possible targets, but inspect whether each is a meaningful seam before proceeding.
+5. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 
 ## Separate app-flow audit: status and source of truth
 
