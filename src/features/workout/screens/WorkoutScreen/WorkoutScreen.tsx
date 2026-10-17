@@ -24,6 +24,8 @@ import { getWorkoutHistorySummary } from './workoutHistorySummary';
 import type { WorkoutSummary } from './workoutHistorySummary';
 import ComingUpCard from './ComingUpCard';
 import type { UpcomingWorkout, WorkoutPreview } from './ComingUpCard';
+import ThisWeekCard from './ThisWeekCard';
+import type { ThisWeekScheduleDay, WorkoutWeekSchedule } from './thisWeekSchedule';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 type AppNavigation = NativeStackNavigationProp<AuthenticatedStackParamList>;
@@ -32,12 +34,6 @@ type WorkoutDisplayData = {
     duration: string;
     exercises: TemplateExercise[];
     day?: string | undefined;
-};
-type WorkoutWeekSchedule = Record<string, WorkoutScheduleDay | null | undefined>;
-type WorkoutScheduleDay = {
-    templateName?: string;
-    duration?: string | number;
-    exercises?: TemplateExercise[];
 };
 type ExerciseRowProps = {
     sets?: string | number | null | undefined;
@@ -63,19 +59,6 @@ type MainWorkoutCardProps = {
     lastWorkoutStats: WorkoutSummary | null;
     todayCompletedStats: WorkoutSummary | null;
 };
-type ThisWeekCardProps = {
-    completedDays: number[];
-    schedule: WorkoutWeekSchedule | null;
-    onDayPress: (workout: WorkoutPreview) => void;
-};
-
-const WEEK_DAYS = [
-    { key: 'monday', jsDay: 1 }, { key: 'tuesday', jsDay: 2 },
-    { key: 'wednesday', jsDay: 3 }, { key: 'thursday', jsDay: 4 },
-    { key: 'friday', jsDay: 5 }, { key: 'saturday', jsDay: 6 },
-    { key: 'sunday', jsDay: 0 },
-];
-
 const LiveTimer = ({ startTime }: { startTime: number }) => {
     const [elapsed, setElapsed] = useState(0);
 
@@ -329,72 +312,6 @@ const MainWorkoutCard = React.memo(({
     );
 });
 
-const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }: ThisWeekCardProps) => {
-    const today = new Date().getDay();
-
-    const days = WEEK_DAYS.map(d => ({
-        ...d,
-        short: DAY_LABELS[d.jsDay],
-        hasWorkout: (schedule?.[d.key]?.exercises?.length ?? 0) > 0,
-        workoutData: schedule?.[d.key] ?? null,
-        done: completedDays.includes(d.jsDay),
-        isToday: d.jsDay === today,
-    }));
-
-    const doneCount = days.filter(d => d.done && d.hasWorkout).length;
-    const totalCount = days.filter(d => d.hasWorkout).length;
-
-    return (
-        <View style={styles.card}>
-            <View style={styles.cardRow}>
-                <Text style={styles.cardTitle}>This Week</Text>
-                <Text style={styles.cardTitleRight}>{doneCount} / {totalCount}</Text>
-            </View>
-            <View style={styles.weekRow}>
-                {days.map((d, i) => {
-                    const circleStyle = d.done
-                        ? styles.dayCircleDone
-                        : d.isToday && d.hasWorkout
-                        ? styles.dayCircleToday
-                        : styles.dayCircleRest;
-
-                    return (
-                        <TouchableOpacity
-                            key={i}
-                            style={styles.weekCol}
-                            activeOpacity={d.hasWorkout ? 0.7 : 1}
-                            onPress={() => {
-                                if (!d.hasWorkout || !d.workoutData) return;
-                                onDayPress({
-                                    name: d.workoutData.templateName ?? 'Workout',
-                                    duration: d.workoutData.duration ? `${d.workoutData.duration} min` : '45 min',
-                                    exercises: d.workoutData.exercises ?? [],
-                                    day: d.short,
-                                });
-                            }}
-                        >
-                            <View style={[styles.dayCircle, circleStyle]}>
-                                {d.done ? (
-                                    <Ionicons name="checkmark" size={14} color={colors.accent.buttonText} />
-                                ) : d.isToday && d.hasWorkout ? (
-                                    <Ionicons name="play" size={9} color={colors.accent.primary} />
-                                ) : (
-                                    <Text style={[styles.dayCircleText, !d.hasWorkout && styles.dayCircleTextRest]}>
-                                        {d.short[0]}
-                                    </Text>
-                                )}
-                            </View>
-                            <Text style={[styles.weekDayLabel, d.isToday && styles.weekDayLabelToday]}>
-                                {d.short}
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </View>
-        </View>
-    );
-});
-
 const WorkoutScreen = () => {
     const navigation = useNavigation<AppNavigation>();
     const insets = useSafeAreaInsets();
@@ -446,7 +363,7 @@ const WorkoutScreen = () => {
 
             const now = new Date();
             const startDate = userData?.rotationStartDate;
-            const todayData = getScheduledDay(active, now, startDate) as WorkoutScheduleDay | null;
+            const todayData = getScheduledDay(active, now, startDate) as ThisWeekScheduleDay | null;
 
             const todayExercises = todayData?.exercises ?? [];
             setTodayWorkout(todayData && todayExercises.length > 0 ? {
@@ -455,11 +372,11 @@ const WorkoutScreen = () => {
                 exercises: todayExercises,
             } : null);
 
-            const upcoming = [];
+            const upcoming: UpcomingWorkout[] = [];
             const horizon = Math.max(13, getCycleLength(active));
             for (let i = 1; i <= horizon && upcoming.length < 4; i++) {
                 const futureDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-                const w = getScheduledDay(active, futureDate, startDate) as WorkoutScheduleDay | null;
+                const w = getScheduledDay(active, futureDate, startDate) as ThisWeekScheduleDay | null;
                 if (!w) continue;
                 const exercises = w.exercises ?? [];
 
