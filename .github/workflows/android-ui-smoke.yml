@@ -41,12 +41,18 @@ jobs:
       - name: Verify inputs and EAS token
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_BUILD_ID_INPUT: ${{ inputs.eas_build_id }}
         shell: bash
         run: |
-          if [[ ! "$EAS_BUILD_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
-            echo "::error title=Invalid build ID::Provide the UUID of a completed EAS Android preview build."
+          raw_value="$EAS_BUILD_ID_INPUT"
+          if [[ "$raw_value" =~ https?://[^[:space:]]+/builds/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}) ]]; then
+            raw_value="${BASH_REMATCH[1]}"
+          fi
+          if [[ ! "$raw_value" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+            echo "::error title=Invalid build ID::Provide the UUID or Expo build URL of a completed EAS Android preview build."
             exit 1
           fi
+          echo "EAS_BUILD_ID=$raw_value" >> "$GITHUB_ENV"
           if [[ -z "$EXPO_TOKEN" ]]; then
             echo "::error title=Missing secret::Set EXPO_TOKEN in the eas-preview GitHub environment."
             exit 1
