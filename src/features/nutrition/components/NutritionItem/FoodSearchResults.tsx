@@ -75,16 +75,12 @@ const FoodSearchResults = memo(({
   }), []);
 
   const handleItemPress = useCallback((item: FoodItemData) => {
-    const originalItem = searchResults.find(result =>
-      result.id === item.id || result.productName === item.productName
-    );
+    const originalItem = searchResults.find(result => result.id === item.id);
     onItemPress?.(originalItem || item);
   }, [searchResults, onItemPress]);
 
   const handlePlusPress = useCallback((item: FoodItemData) => {
-    const originalItem = searchResults.find(result =>
-      result.id === item.id || result.productName === item.productName
-    );
+    const originalItem = searchResults.find(result => result.id === item.id);
     onPlusPress?.(originalItem || item);
   }, [searchResults, onPlusPress]);
 
