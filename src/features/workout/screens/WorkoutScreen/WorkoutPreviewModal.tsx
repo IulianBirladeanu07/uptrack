@@ -6,6 +6,7 @@ import { colors } from '../../../../shared/theme';
 import { ExercisePreviewList } from '../../components/WorkoutExercisePreview/WorkoutExercisePreview';
 import type { WorkoutPreview } from './ComingUpCard';
 import styles from './WorkoutScreenStyles';
+import { getWorkoutPreviewStats } from './workoutPreviewSummary';
 
 type WorkoutPreviewModalProps = {
     visible: boolean;
@@ -23,8 +24,10 @@ const WorkoutPreviewModal = ({
     isWorkoutActive,
     onClose,
     onStart,
-}: WorkoutPreviewModalProps) => (
-    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+}: WorkoutPreviewModalProps) => {
+    const stats = getWorkoutPreviewStats(workout);
+    return (
+      <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
         <Pressable style={styles.modalOverlay} onPress={onClose}>
             <View style={[styles.modalContent, { paddingBottom: bottomPadding }]}>
                 <View style={styles.modalHandle} />
@@ -44,21 +47,20 @@ const WorkoutPreviewModal = ({
                 <View style={styles.modalStatsRow}>
                     <View style={styles.modalStatItem}>
                         <Text style={styles.modalStatValue}>
-                            {workout?.duration.replace(' min', 'm') ?? '0m'}
+                            {stats.durationLabel}
                         </Text>
                         <Text style={styles.modalStatLabel}>Time</Text>
                     </View>
                     <View style={styles.modalStatDivider} />
                     <View style={styles.modalStatItem}>
                         <Text style={styles.modalStatValue}>
-                            {workout?.exercises?.reduce((total, exercise) =>
-                                total + (parseInt(String(exercise.numSets ?? 0), 10) || 0), 0) ?? 0}
+                            {stats.totalSets}
                         </Text>
                         <Text style={styles.modalStatLabel}>Sets</Text>
                     </View>
                     <View style={styles.modalStatDivider} />
                     <View style={styles.modalStatItem}>
-                        <Text style={styles.modalStatValue}>{workout?.exercises?.length ?? 0}</Text>
+                        <Text style={styles.modalStatValue}>{stats.exerciseCount}</Text>
                         <Text style={styles.modalStatLabel}>Exercises</Text>
                     </View>
                 </View>
@@ -79,7 +81,8 @@ const WorkoutPreviewModal = ({
                 </TouchableOpacity>
             </View>
         </Pressable>
-    </Modal>
-);
+      </Modal>
+    );
+};
 
 export default WorkoutPreviewModal;

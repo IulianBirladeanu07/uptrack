@@ -14,6 +14,7 @@ import styles from './WorkoutDetailsStyle';
 import { colors, spacing } from '../../../../shared/theme';
 import { findBestSet, formatBestSet } from '../../handlers/WorkoutHandler';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import { getWorkoutCardSummary } from './workoutCardSummary';
 
 const WorkoutDetails = () => {
     const navigation = useAppNavigation();
@@ -57,8 +58,10 @@ const WorkoutDetails = () => {
         return parseInt(parts[0]);
     }, [duration]);
 
-    const totalSets = useMemo(() => exercises.reduce((acc, ex) => acc + ex.sets.length, 0), [exercises]);
-    const totalPRs = useMemo(() => exercises.reduce((acc, ex) => acc + ex.sets.filter((s: any) => s.isPR).length, 0), [exercises]);
+    const { totalSets, totalPRs } = useMemo(
+        () => getWorkoutCardSummary(exercises),
+        [exercises],
+    );
 
     const panGesture = Gesture.Pan()
         .enabled(!!selfieUri)

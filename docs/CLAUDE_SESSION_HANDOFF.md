@@ -6,7 +6,7 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Previously pushed Workout refactoring batches are included in `4c93f95 refactor: extract workout history and template logic`. The current uncommitted batch is the CreateSplit review summary extraction; verify `git log --oneline -10` and `git status --short --branch` before continuing.
+- Previously pushed Workout refactoring batches are included in `905c436 refactor: extract split review stats`. Current uncommitted batches cover WorkoutDetails and WorkoutScreen summary calculations; verify `git log --oneline -10` and `git status --short --branch` before continuing.
 - Three patch files mentioned in an earlier handoff (`0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`) are not present in this checkout at the current base commit.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
@@ -163,15 +163,26 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Preserved the separate historical set-count behavior: aggregate stats fall back from `numSets` to `sets`, while the selected-day card counts only parsed `numSets`. Tests explicitly cover the distinction, rest-day exclusion, ordering and defaults.
 - Added Jest discovery for the CreateSplitScreen test directory.
 
+### WorkoutDetails card summary
+
+- Extracted total set and personal-record counts to `src/features/workout/screens/WorkoutDetailsScreen/workoutCardSummary.ts`; `WorkoutDetails.tsx` retains memoization and rendering.
+- Added tests for set/PR aggregation and empty workouts. Added Jest discovery for the WorkoutDetailsScreen test directory.
+
+### Workout screen preview summaries
+
+- Extracted preview duration/set/exercise counts and upcoming-workout muscle-group labels to `src/features/workout/screens/WorkoutScreen/workoutPreviewSummary.ts`; `WorkoutPreviewModal.tsx` and `ComingUpCard.tsx` retain their component/UI behavior.
+- Added tests for existing duration formatting, declared-set counting, empty selection defaults and unique muscle-group order. `WorkoutScreen` tests are already discovered by Jest.
+
 The latest validation was:
 
+- `npx jest --runInBand --ci src/features/workout/screens/WorkoutDetailsScreen/workoutCardSummary.test.ts src/features/workout/screens/WorkoutScreen/workoutPreviewSummary.test.ts`: 2 suites / 5 tests passed.
 - `npx jest --runInBand --ci src/features/workout/screens/CreateSplitScreen/steps/splitReviewStats.test.ts src/features/workout/utils/splitSchedule.test.ts`: 2 suites / 29 tests passed.
 - `npx jest --runInBand --ci src/features/workout/components/ExerciseItem/exerciseItemUtils.test.ts src/features/workout/screens/CreateTemplateScreen/templateSelectionPlan.test.ts src/features/workout/screens/CreateTemplateScreen/templateExerciseUpdates.test.ts`: 3 suites / 43 tests passed.
 - `npx jest --runInBand --ci src/features/workout/screens/WorkoutHistoryScreen`: 3 suites / 7 tests passed.
-- `npx jest --runInBand --ci`: 103 suites / 934 tests passed.
+- `npx jest --runInBand --ci`: 105 suites / 939 tests passed.
 - `npx tsc --noEmit`: passed using the repository-local TypeScript compiler.
 - `git diff --check`: passed.
-- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-split-review-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
+- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-workout-summary-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
 
 ## Repository map
 
@@ -189,7 +200,7 @@ This is a ranked starting point based on the current source inventory, not a man
 
 1. **FoodContext:** meal writes, step flushing, cache-then-fresh initialization loading, selected-date orchestration, auth callback sequencing and background evaluations are extracted and tested. Account reset operations remain owned by the provider; avoid broadening into the separate Nutrition audit.
 2. **Profile follow-ups:** inspect other profile screens only for a cohesive seam; the form-state lifecycle of `ProfileScreen.tsx` is now extracted and tested.
-3. **Workout follow-ups:** `CreateTemplateScreen` list updates, `ExerciseItem` swipe intent, `WorkoutHistoryScreen` grouping/payload/presentation and `CreateSplitScreen` review summaries are extracted and tested. Any further extraction should begin with inspection and characterization; do not refactor solely for file size.
+3. **Workout follow-ups:** `CreateTemplateScreen` list updates, `ExerciseItem` swipe intent, `WorkoutHistoryScreen` grouping/payload/presentation, `CreateSplitScreen` review summaries, WorkoutDetails card stats and WorkoutScreen preview summaries are extracted and tested. Any further extraction should begin with inspection and characterization; do not refactor solely for file size.
 4. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 
 ## Separate app-flow audit: status and source of truth

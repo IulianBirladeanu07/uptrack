@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import type { TemplateExercise } from '../../types';
 import styles from './WorkoutScreenStyles';
+import { getWorkoutMuscleGroupLabel } from './workoutPreviewSummary';
 
 export type WorkoutPreview = {
     name: string;
@@ -25,9 +26,10 @@ type ComingUpCardProps = {
 };
 
 const UpcomingWorkoutRow = React.memo(({ workout, isLast, onPreview }: UpcomingWorkoutRowProps) => {
-    const muscleGroups = useMemo(() =>
-        [...new Set((workout.exercises ?? []).map(exercise => exercise.muscleGroup).filter(Boolean))].join(' · '),
-    [workout]);
+    const muscleGroups = useMemo(
+        () => getWorkoutMuscleGroupLabel(workout.exercises ?? []),
+        [workout],
+    );
 
     return (
         <TouchableOpacity
