@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useContext, memo } from 'react';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
-import { View, Text, TouchableOpacity, FlatList, BackHandler, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, BackHandler, ActivityIndicator } from 'react-native';
 import type { FlatList as FlatListType, ListRenderItemInfo, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -19,6 +19,7 @@ import { useWorkoutSessionInitialization } from './useWorkoutSessionInitializati
 import { useWorkoutExerciseSelection } from './useWorkoutExerciseSelection';
 import { useWorkoutSessionActions } from './useWorkoutSessionActions';
 import { useWorkoutKeyboardNavigation } from './useWorkoutKeyboardNavigation';
+import { useWorkoutExerciseMenu } from './useWorkoutExerciseMenu';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;
@@ -43,7 +44,6 @@ const StartWorkout = () => {
     const [inputText, setInputText] = useState('');
     const [animatedMessage, setAnimatedMessage] = useState('');
     const [isCommandCenterVisible, setIsCommandCenterVisible] = useState(false);
-    const [activeExerciseMenu, setActiveExerciseMenu] = useState<{ exercise: WorkoutExercise; exerciseIndex: number } | null>(null);
 
     const flatListRef = useRef<FlatListType<WorkoutExercise>>(null);
     const { refreshAllData, setActiveWorkout } = useContext(WorkoutContext)!;
@@ -82,18 +82,15 @@ const StartWorkout = () => {
         setTimeout(() => setAnimatedMessage(''), 2000);
     }, []);
 
-    const {
-        markExerciseForReplacement,
-        takePendingReplacement,
-        addNewExercisesFromRoute,
-        replaceExerciseFromRoute,
-    } = useWorkoutExerciseSelection({
+    const exerciseSelection = useWorkoutExerciseSelection({
         initializationGeneration,
         selectedExercise,
         setSelectedExercise,
         setExerciseData,
         openAnimatedMessage,
     });
+    const { markExerciseForReplacement, takePendingReplacement, addNewExercisesFromRoute, replaceExerciseFromRoute } =
+        exerciseSelection;
     const { handleExit, handleFinishWorkout } = useWorkoutSessionActions({
         inputText,
         navigation,
@@ -105,69 +102,25 @@ const StartWorkout = () => {
         isFinishingWorkout,
     });
 
-    const handleMenuPress = useCallback((exercise: WorkoutExercise, exerciseIndex: number) => {
-        if (isKeyboardVisibleRef.current) {
-            handleDismissKeyboard();
-        }
-        setActiveExerciseMenu({ exercise, exerciseIndex });
-    }, [handleDismissKeyboard, isKeyboardVisibleRef]);
-
-    const handleMenuClose = useCallback(() => {
-        setActiveExerciseMenu(null);
-    }, []);
-
-    const handleMenuReplace = useCallback(() => {
-        if (!activeExerciseMenu) return;
-        markExerciseForReplacement(activeExerciseMenu.exerciseIndex);
-        navigation.navigate('ExerciseSelection', {
-            previousScreen: 'StartWorkout',
-            replaceIndex: String(activeExerciseMenu.exerciseIndex),
-        });
-    }, [activeExerciseMenu, markExerciseForReplacement, navigation]);
-
-    const handleMenuDelete = useCallback(() => {
-        if (!activeExerciseMenu) return;
-        const { exerciseIndex } = activeExerciseMenu;
-        const target = workoutService.getExerciseData()[exerciseIndex];
-        const remove = () => workoutService.deleteExercise(exerciseIndex);
-        if (!target?.sets.some(s => s.isValidated)) {
-            remove();
-            return;
-        }
-        Alert.alert('Delete Exercise', `Delete ${target.exerciseName} and its logged sets?`, [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Delete', style: 'destructive', onPress: remove },
-        ]);
-    }, [activeExerciseMenu]);
-
-    const handleMenuMoveUp = useCallback(() => {
-        if (!activeExerciseMenu) return;
-        workoutService.moveExercise(activeExerciseMenu.exerciseIndex, -1);
-        setActiveExerciseMenu(prev => (prev ? { ...prev, exerciseIndex: prev.exerciseIndex - 1 } : prev));
-    }, [activeExerciseMenu]);
-
-    const handleMenuMoveDown = useCallback(() => {
-        if (!activeExerciseMenu) return;
-        workoutService.moveExercise(activeExerciseMenu.exerciseIndex, 1);
-        setActiveExerciseMenu(prev => (prev ? { ...prev, exerciseIndex: prev.exerciseIndex + 1 } : prev));
-    }, [activeExerciseMenu]);
-
-    const canMoveActiveExerciseUp = !!activeExerciseMenu && activeExerciseMenu.exerciseIndex > 0;
-    const canMoveActiveExerciseDown = !!activeExerciseMenu && activeExerciseMenu.exerciseIndex < exerciseData.length - 1;
-
-    const noteRegistryRef = useRef<Record<number, () => void>>({});
-
-    const onAddNote = useMemo(() => ({
-        register: (exerciseIndex: number, fn: () => void) => {
-            noteRegistryRef.current[exerciseIndex] = fn;
-        },
-    }), []);
-
-    const handleMenuAddNote = useCallback(() => {
-        if (!activeExerciseMenu) return;
-        const trigger = noteRegistryRef.current[activeExerciseMenu.exerciseIndex];
-        if (trigger) trigger();
-    }, [activeExerciseMenu]);
+    const {
+        activeExerciseMenu,
+        canMoveActiveExerciseUp,
+        canMoveActiveExerciseDown,
+        onAddNote,
+        handleMenuPress,
+        handleMenuClose,
+        handleMenuReplace,
+        handleMenuDelete,
+        handleMenuMoveUp,
+        handleMenuMoveDown,
+        handleMenuAddNote,
+    } = useWorkoutExerciseMenu({
+        exerciseCount: exerciseData.length,
+        isKeyboardVisibleRef,
+        dismissKeyboard: handleDismissKeyboard,
+        navigation,
+        markExerciseForReplacement,
+    });
 
     useFocusEffect(
         useCallback(() => {
@@ -300,7 +253,7 @@ const StartWorkout = () => {
     const handleBackPress = useCallback(() => {
         if (isFinishingWorkout.current) return true;
         if (activeExerciseMenu) {
-            setActiveExerciseMenu(null);
+            handleMenuClose();
             return true;
         }
         if (isKeyboardVisibleRef.current) {
@@ -314,7 +267,7 @@ const StartWorkout = () => {
         refreshAllData();
         navigation.goBack();
         return true;
-    }, [navigation, activeExerciseMenu, refreshAllData, handleDismissKeyboard, isKeyboardVisibleRef]);
+    }, [navigation, activeExerciseMenu, handleMenuClose, refreshAllData, handleDismissKeyboard, isKeyboardVisibleRef]);
 
     useFocusEffect(
         useCallback(() => {
