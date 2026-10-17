@@ -224,13 +224,21 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Moved the maintenance-phase confirmation and save lifecycle into `useMaintenanceSwitch.ts`, preserving the confirmation text/buttons, profile/auth uid fallback, progress error logging and alert, refresh behavior, and busy-state guard.
 - Added hook tests for cancellation, successful writes, auth uid fallback, failure reporting, missing recap data, and duplicate confirmation prevention.
 
+### Dependency audit remediation
+
+- Updated Expo SDK 54 to `54.0.37` and the matching `jest-expo` preset to `54.0.18`.
+- Added compatible overrides for `@grpc/grpc-js`, `undici`, `postcss`, `decode-uri-component`, and the vulnerable `@xmldom/xmldom` nested under `react-native-health`.
+- The full audit decreased from 84 findings (55 high, 29 moderate) to 66 (48 high, 18 moderate), with zero critical findings. The production dependency graph reports 41 (23 high, 18 moderate), also with zero criticals.
+- Remaining upstream/tooling findings include `node-forge`, `braces`, `sprintf-js`, `uuid`, and `image-size`; some counts propagate through dependency paths (for example, `patch-package` -> `find-yarn-workspace-root` -> `micromatch` -> `braces`). Their available fixes are absent or require major upgrades. Do not force framework or Metro/Jest changes solely to clear the audit; recheck when compatible upstream fixes are available.
+
 The latest validation was:
 
-- `npx jest --runInBand --ci src/features/progress/screens/ProgressScreen`: 2 suites / 7 tests passed.
-- `npx jest --runInBand --ci`: 112 suites / 977 tests passed.
-- `.\node_modules\.bin\tsc.cmd --noEmit`: passed.
+- `npm test -- --ci --runInBand`: 112 suites / 977 tests passed.
+- `npx tsc --noEmit`: passed.
+- `npx expo install --check`: passed.
 - `git diff --check`: passed.
 - `npx expo export --platform android --output-dir <temporary directory>`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
+- `npm audit`: 48 high / 18 moderate / 0 critical; `npm audit --omit=dev`: 23 high / 18 moderate / 0 critical.
 
 ## Repository map
 
