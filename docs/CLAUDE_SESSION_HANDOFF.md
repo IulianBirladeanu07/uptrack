@@ -6,7 +6,7 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Base commit for the current Dashboard batch: `3b3ac72 Move step flushing out of FoodProvider into a tested class`. The Dashboard batch below is uncommitted at handoff update time; verify `git log --oneline -10` and `git status --short --branch` before continuing.
+- Base commit for the current ProgressScreen batch: `713f3d0 refactor: extract dashboard workout summaries`. The ProgressScreen batch below is uncommitted at handoff update time; verify `git log --oneline -10` and `git status --short --branch` before continuing.
 - Three pre-existing untracked patch files were present at batch start and left untouched: `0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`. Preserve them and do not include them in this refactor batch.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
@@ -101,14 +101,21 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - A deliberate change from `date >= weekStart` to `date > weekStart` made the Monday-boundary test fail before restoring the original comparison.
 - Not changed: the weekly count includes a history entry with a future timestamp if it falls after Monday of the current week. This matches the old implementation; decide separately whether future-dated records should be excluded.
 
+### Progress screen model
+
+- Moved the existing ProgressScreen derived-data pipeline into `src/features/progress/screens/ProgressScreen/useProgressScreenModel.ts`. The hook retains each original `useMemo` boundary and dependency list, including the existing `rollingWeekStats` dependency; screen state, navigation, effects and rendering remain in `ProgressScreen.tsx`.
+- Added two hook tests that compare every derived model against the existing `progressEngine` functions and verify the default 12-week range, range changes and unknown-key fallback. Added Jest discovery for `ProgressScreen`.
+- A deliberate change to the unknown-range fallback made both tests fail; restoring the 12-week fallback made them pass.
+- The React Hooks lint emits the same single `rollingWeekStats` unnecessary-dependency warning from the extracted hook as it did from the original ProgressScreen. It is preserved, not introduced by the refactor.
+
 The latest validation was:
 
-- `npx jest --runInBand --ci src/features/dashboard/screens/DashboardScreen/dashboardWorkoutSummary.test.ts`: 5 tests passed. A deliberate boundary mutation made one test fail as expected; it passed again after restoring the original comparison.
-- `npx jest --runInBand --ci`: 96 suites / 892 tests passed in `UTC`, `America/Los_Angeles` and `Europe/Bucharest`.
+- `npx jest --runInBand --ci src/features/progress/screens/ProgressScreen/useProgressScreenModel.test.ts`: 2 tests passed after restoring the deliberate range-fallback mutation; the mutation made both tests fail as expected.
+- `npx jest --runInBand --ci`: 97 suites / 894 tests passed in `UTC`, `America/Los_Angeles` and `Europe/Bucharest`.
 - `npx tsc --noEmit`: passed.
 - `git diff --check`: passed.
-- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-dashboard-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
-- Hooks lint was not rerun for this batch; the change did not add or move React hooks.
+- `npx expo export --platform android --output-dir C:\Users\iulia\AppData\Local\Temp\uptrack-progress-model-export-20261017`: succeeded; temporary output was removed. This checks bundling only; no screen was run on a device.
+- Hooks lint of the new hook and the original ProgressScreen from `HEAD` both produced exactly one warning for the unchanged `rollingWeekStats` dependency and no errors. The full-source scratch lint was not clean: it reported 43 warnings and one pre-existing `@typescript-eslint/no-explicit-any` disable-directive error because the scratch config does not register that plugin. The hook's own warning was unchanged versus the old component.
 
 ## Repository map
 
@@ -124,11 +131,10 @@ The latest validation was:
 
 This is a ranked starting point based on the current source inventory, not a mandate to refactor by line count. Inspect responsibilities and coupling first; skip or reorder when the code shows a better seam.
 
-1. **Progress screen:** inspect `ProgressScreen.tsx` alongside `src/features/progress/utils/progressEngine.ts` and its tests. Much of the calculation logic is already extracted, so move on if there is no small remaining view/data seam.
-2. **Profile screens:** inspect current screen/component boundaries for a discrete presentation or view-model extraction, with behavior tests where a pure seam exists.
-3. **FoodContext:** meal writes and step flushing are extracted and tested. Initialization, the auth listener and date-change handling remain; move them only with provider tests extended first. This area has account-scoped async state, caching, rollback, and date semantics; coordinate with the open Nutrition audit rather than duplicating it.
-4. **Workout optional follow-ups:** `ExerciseItem` swipe gesture/card header and `CreateTemplateScreen` undo/list updater logic remain possible targets, but inspect whether each is a meaningful seam before proceeding.
-5. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
+1. **Profile screens:** inspect current screen/component boundaries for a discrete presentation or view-model extraction, with behavior tests where a pure seam exists.
+2. **FoodContext:** meal writes and step flushing are extracted and tested. Initialization, the auth listener and date-change handling remain; move them only with provider tests extended first. This area has account-scoped async state, caching, rollback, and date semantics; coordinate with the open Nutrition audit rather than duplicating it.
+3. **Workout optional follow-ups:** `ExerciseItem` swipe gesture/card header and `CreateTemplateScreen` undo/list updater logic remain possible targets, but inspect whether each is a meaningful seam before proceeding.
+4. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 
 ## Separate app-flow audit: status and source of truth
 

@@ -16,6 +16,7 @@ module.exports = {
     '<rootDir>/src/features/nutrition/components/WeightTracker/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/nutrition/screens/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/progress/utils/**/*.test.{js,ts}',
+    '<rootDir>/src/features/progress/screens/ProgressScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/workout/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/workout/services/**/*.test.{js,ts}',
     '<rootDir>/src/features/workout/handlers/**/*.test.{js,ts}',
