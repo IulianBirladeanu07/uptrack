@@ -35,8 +35,7 @@ import {
 } from '../../services/workoutTemplateService';
 import type { TemplateExercise } from '../../types';
 import { isSameExercise } from '../../utils/exerciseIdentity';
-
-type ExerciseRow = TemplateExercise & { id: string };
+import { planTemplateSelection, type ExerciseRow } from './templateSelectionPlan';
 
 type UndoState = {
   type: 'delete' | 'replace' | null;
@@ -251,85 +250,42 @@ const CreateTemplate = () => {
       const newExercises = createExerciseFromSelection(route.params.selectedExercises as any);
       const replaceExerciseId = route.params?.replaceIndex;
       navigation.setParams({ selectedExercises: null, replaceIndex: null });
-      if (replaceExerciseId) {
-        const exerciseToReplace = Array.isArray(newExercises) ? newExercises[0] : newExercises;
-        if (
-          exerciseToReplace &&
-          typeof exerciseToReplace === 'object' &&
-          (exerciseToReplace.exerciseName || exerciseToReplace.name)
-        ) {
-          const currentIndex = exercises.findIndex((ex) => ex.id === replaceExerciseId);
-          if (currentIndex === -1) {
-            showNotification('Failed to replace exercise. Please try again.', true);
-            return;
-          }
-          const isDuplicate = exercises.some(
-            (existingExercise) =>
-              existingExercise.id !== replaceExerciseId &&
-              isSameExercise(existingExercise, exerciseToReplace)
-          );
-          if (isDuplicate) {
-            showNotification('This exercise is already added.', true);
-            return;
-          }
-          const originalExercise = exercises[currentIndex];
-          const newId = generateExerciseId();
-          setUndoState({
-            type: 'replace',
-            exercise: originalExercise,
-            replacedWithId: newId,
-            index: currentIndex,
-            isActive: true,
-          });
-          setExercises((prev) => prev.map((ex) => ex.id === replaceExerciseId
-            ? { ...exerciseToReplace, id: newId, restTime: ex.restTime || 180 }
-            : ex
-          ));
-          const originalExerciseName = originalExercise?.exerciseName || originalExercise?.name || 'Exercise';
-          const newExerciseName = exerciseToReplace.exerciseName || exerciseToReplace.name || 'Exercise';
-          showNotification(
-            `Replaced "${originalExerciseName}" with "${newExerciseName}".`,
-            false,
-            { text: 'Undo', onPress: undoReplaceExercise }
-          );
-        } else {
-          showNotification('Failed to replace exercise. Please try again.', true);
+      const plan = planTemplateSelection(newExercises, replaceExerciseId, exercises);
+      if (plan.type === 'replace-failed') {
+        showNotification('Failed to replace exercise. Please try again.', true);
+      } else if (plan.type === 'replace-duplicate') {
+        showNotification('This exercise is already added.', true);
+      } else if (plan.type === 'replace') {
+        const { index: currentIndex, original: originalExercise, replacement: exerciseToReplace } = plan;
+        const newId = generateExerciseId();
+        setUndoState({
+          type: 'replace',
+          exercise: originalExercise,
+          replacedWithId: newId,
+          index: currentIndex,
+          isActive: true,
+        });
+        setExercises((prev) => prev.map((ex) => ex.id === replaceExerciseId
+          ? { ...exerciseToReplace, id: newId, restTime: ex.restTime || 180 }
+          : ex
+        ));
+        const originalExerciseName = originalExercise?.exerciseName || originalExercise?.name || 'Exercise';
+        const newExerciseName = exerciseToReplace.exerciseName || exerciseToReplace.name || 'Exercise';
+        showNotification(
+          `Replaced "${originalExerciseName}" with "${newExerciseName}".`,
+          false,
+          { text: 'Undo', onPress: undoReplaceExercise }
+        );
+      } else if (plan.type === 'add') {
+        if (plan.exercises.length > 0) {
+          setExercises(prev => [...prev, ...plan.exercises.map(exercise => ({
+            ...exercise,
+            id: generateExerciseId(),
+          }))]);
         }
-      } else {
-        if (Array.isArray(newExercises)) {
-          const exercisesToAdd: TemplateExercise[] = [];
-          let hasDuplicate = false;
-          newExercises.forEach((exercise: any) => {
-            if (
-              exercise &&
-              typeof exercise === 'object' &&
-              (exercise.exerciseName || exercise.name)
-            ) {
-              const normalizedExercise = { ...exercise, restTime: 180 };
-              if (
-                exercises.some(existing => isSameExercise(existing, normalizedExercise)) ||
-                exercisesToAdd.some(existing => isSameExercise(existing, normalizedExercise))
-              ) {
-                hasDuplicate = true;
-              } else {
-                exercisesToAdd.push(normalizedExercise);
-              }
-            }
-          });
-          if (exercisesToAdd.length > 0) {
-            setExercises(prev => [...prev, ...exercisesToAdd.map(exercise => ({
-              ...exercise,
-              id: generateExerciseId(),
-            }))]);
-          }
-          if (hasDuplicate) showNotification('This exercise is already added.', true);
-        } else if (
-          newExercises &&
-          typeof newExercises === 'object' &&
-          (newExercises.exerciseName || newExercises.name)
-        ) {
-          addExerciseWithAnimation({ ...newExercises, restTime: 180 });
-        }
+        if (plan.hasDuplicate) showNotification('This exercise is already added.', true);
+      } else if (plan.type === 'add-single') {
+        addExerciseWithAnimation(plan.exercise);
       }
     }
   }, [

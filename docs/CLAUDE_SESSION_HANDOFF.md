@@ -6,7 +6,7 @@ Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changi
 
 - Repository: `IulianBirladeanu07/uptrack`
 - Branch: `master`
-- Last code batch recorded here: `656a501 refactor: extract create exercise form logic`; the picker move below follows it. A handoff update cannot name its own commit, so run `git log --oneline -10` and `git status --short --branch` for the real current state.
+- Last code batch recorded here: `4df4086 refactor: extract create exercise picker`; the create template batch below follows it. A handoff update cannot name its own commit, so run `git log --oneline -10` and `git status --short --branch` for the real current state.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
 ## How to continue
@@ -67,13 +67,19 @@ The work below is already committed. Use `git log --oneline` to inspect each cha
 - Added 17 tests in `createExerciseForm.test.ts` and Jest discovery for the folder. The validation, progress, option data and filter were compared against the original inline code, taken verbatim, on 96 cases with no difference.
 - Moved `OptionItem` and `ModalPicker` (picker UI, modal animation and search box) into `src/features/workout/screens/CreateExerciseScreen/ExerciseModalPicker.tsx`, which exports `ModalPicker` and the `ModalPickerHandle` type. `CreateExerciseScreen.tsx` went from 581 to 309 lines. A script confirmed the moved block is identical to the original apart from the two `export` keywords, and that the screen component and its default export are identical to the original. No new tests: the moved code is UI only and there is no component test harness.
 
+### Create template (in progress)
+
+- Moved the decision logic of the route-driven add/replace handling out of `CreateTemplateScreen.tsx` into `src/features/workout/screens/CreateTemplateScreen/templateSelectionPlan.ts` as the pure `planTemplateSelection`. It returns one of `none`, `replace-failed`, `replace-duplicate`, `replace`, `add` or `add-single`. The screen effect still owns ids, state updates, the undo state and every notification string; a single added exercise still goes through `addExerciseWithAnimation`, so its duplicate check is unchanged. `ExerciseRow` now lives in the new file.
+- Added 19 tests in `templateSelectionPlan.test.ts` and Jest discovery for the folder. Before the tests were added, the original inline effect (taken from `HEAD`) and the new effect were run side by side with stubbed state setters on 294 combinations of template rows, selections and replace ids. The recorded state updates, undo state and notifications were identical, and the same harness failed when the planner was deliberately broken. That harness was temporary and is not in the repo.
+- Not moved: the undo/redo state handling, the per-field list updaters and the step navigation are still in the screen. The exhaustive-deps warning about a missing `navigation` dependency on the selection effect existed before and was left alone.
+
 The latest validation was:
 
-- `npx jest --runInBand --ci`: 91 suites / 811 tests passed, in the default time zone and in `America/Los_Angeles`. No tests were added in this batch.
+- `npx jest --runInBand --ci`: 92 suites / 830 tests passed, in the default time zone and in `America/Los_Angeles`.
 - `npx tsc --noEmit`: passed.
 - `git diff --check`: passed.
 - `npx expo export --platform android`: succeeded. This checks bundling only; no screen was run on a device.
-- Hooks lint (scratch setup from `AGENTS.md`): `CreateExerciseScreen.tsx`, `ExerciseModalPicker.tsx` and `createExerciseForm.ts` report no errors and no warnings; the original `CreateExerciseScreen.tsx` was also clean.
+- Hooks lint (scratch setup from `AGENTS.md`): `CreateTemplateScreen.tsx` and `templateSelectionPlan.ts` report 0 errors and one warning (missing `navigation` dependency on the selection effect), the same single warning the original file had.
 
 ## Repository map
 
@@ -90,8 +96,8 @@ The latest validation was:
 This is a ranked starting point based on the current source inventory, not a mandate to refactor by line count. Inspect responsibilities and coupling first; skip or reorder when the code shows a better seam.
 
 1. **Workout component layer:** `ExerciseItem.tsx` is done for now: the pure helpers and the rest time UI are extracted and the file is about 380 lines. Optionally look at the swipe gesture and card header later. UI-only moves have no test harness, so verify with `tsc`, the Android export, the hooks lint, and a script comparing the moved code to the original.
-2. **Workout authoring flows:** `CreateExerciseScreen` is done for now (form logic and picker extracted). Next inspect `CreateTemplateScreen` (about 485 lines). Keep validation, persistence, and navigation behavior unchanged; first look for existing shared form helpers and tests.
-3. **Nutrition UI/data boundaries:** inspect `FoodSearchResults.tsx` (about 594 lines), then `FoodContext.tsx` (about 624 lines). This area has account-scoped async state, caching, rollback, and date semantics; avoid moving logic without tracing its callers and failure paths. Coordinate with the open Nutrition audit rather than duplicating it.
+2. **Workout authoring flows:** `CreateExerciseScreen` is done for now. `CreateTemplateScreen` has its selection handling extracted; the undo state and list updaters could follow but are small, so it is reasonable to move on. Keep validation, persistence, and navigation behavior unchanged; first look for existing shared form helpers and tests.
+3. **Nutrition UI/data boundaries (suggested next):** inspect `FoodSearchResults.tsx` (about 594 lines), then `FoodContext.tsx` (about 624 lines). This area has account-scoped async state, caching, rollback, and date semantics; avoid moving logic without tracing its callers and failure paths. Coordinate with the open Nutrition audit rather than duplicating it.
 4. **Other large screens:** review `DashboardScreen` (about 658 lines), `ProgressScreen` (about 669 lines), and Profile screens for discrete view-model/presentation responsibilities. Prefer the smallest seam with strong behavior tests.
 5. **Maintenance pass:** once a feature batch is complete, reconcile directly related docs and test discovery. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 
