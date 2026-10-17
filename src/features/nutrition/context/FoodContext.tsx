@@ -31,7 +31,7 @@ import {
 import { loadSelectedDateMeals } from './selectedDateMealLoad';
 import { formatDate } from '../utils/dateUtils';
 import { isCurrentUserRequest } from '../utils/userRequest';
-import { diffSteps, persistDailySteps, restorePendingSteps } from '../helpers/stepsSyncService';
+import { StepsFlusher } from './StepsFlusher';
 import type { User } from 'firebase/auth';
 import type {
     DailySteps, DateInput, EnhancedLearningData, FoodCategories, FoodDetailFood, LoggedFood,
@@ -116,10 +116,12 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     const stepsBonusCheckedRef = useRef(false);
     const weeklyEvalCheckedRef = useRef(false);
     const currentUserRef    = useRef<User | null>(null);
-    const pendingStepsRef   = useRef<DailySteps>({});
-    const writtenStepsRef   = useRef<DailySteps>({});
-    const flushingStepsRef  = useRef<number | null>(null);
     const userDataRef       = useRef<UserData | null>(null);
+    const stepsFlusher      = useRef(new StepsFlusher({
+        getUid:        () => currentUserRef.current?.uid,
+        getUserData:   () => userDataRef.current,
+        getGeneration: () => userGenerationRef.current,
+    }));
 
     const { userData, refreshUserData } = useContext(AuthContext)!;
 
@@ -213,35 +215,10 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         setStepsVersion(v => v + 1);
     }, []);
 
-    const flushSteps = useCallback(async () => {
-        const uid = currentUserRef.current?.uid;
-        const ud  = userDataRef.current;
-        const generation = userGenerationRef.current;
-        if (!uid || !ud || (ud.uid && ud.uid !== uid) || flushingStepsRef.current === generation) return;
-        const incoming = pendingStepsRef.current;
-        if (!Object.keys(incoming).length) return;
-        const stored  = { ...(ud.dailySteps || {}), ...writtenStepsRef.current };
-        const toWrite = diffSteps(stored, incoming, formatDate(new Date()));
-        pendingStepsRef.current = {};
-        if (!Object.keys(toWrite).length) return;
-        flushingStepsRef.current = generation;
-        try {
-            await persistDailySteps(uid, toWrite);
-            if (isCurrentUserRequest({ uid, generation }, currentUserRef.current?.uid, userGenerationRef.current)) {
-                writtenStepsRef.current = { ...writtenStepsRef.current, ...toWrite };
-            }
-        } catch (e) {
-            if (isCurrentUserRequest({ uid, generation }, currentUserRef.current?.uid, userGenerationRef.current)) {
-                pendingStepsRef.current = restorePendingSteps(toWrite, pendingStepsRef.current);
-                console.error('persistDailySteps error:', e);
-            }
-        } finally {
-            if (flushingStepsRef.current === generation) flushingStepsRef.current = null;
-        }
-    }, []);
+    const flushSteps = useCallback(() => stepsFlusher.current.flush(), []);
 
     const handleStepsHistory = useCallback((entries: DailySteps) => {
-        pendingStepsRef.current = { ...pendingStepsRef.current, ...entries };
+        stepsFlusher.current.queue(entries);
         flushSteps();
     }, [flushSteps]);
 
@@ -583,8 +560,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                 initializationRef.current = false;
                 stepsBonusCheckedRef.current = false;
                 weeklyEvalCheckedRef.current = false;
-                pendingStepsRef.current = {};
-                writtenStepsRef.current = {};
+                stepsFlusher.current.reset();
                 mealCache.current.clear();
                 setCategoryData({ recentMeals: [], frequentFoods: [], favoriteFoods: [] });
                 setMealState({ breakfast: [], lunch: [], dinner: [], snacks: [] });

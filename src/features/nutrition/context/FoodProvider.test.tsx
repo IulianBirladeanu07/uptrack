@@ -41,9 +41,17 @@ jest.mock('../../auth/context/AuthContext', () => {
     return { AuthContext: createContext(undefined) };
 });
 
+const mockStepProps: { current: { onStepsHistory?: (entries: Record<string, number>) => void } } = { current: {} };
+
 jest.mock('../../../shared/components/StepDisplay/StepDisplay', () => {
     const { forwardRef } = jest.requireActual('react');
-    return { __esModule: true, default: forwardRef(() => null) };
+    return {
+        __esModule: true,
+        default: forwardRef((props: { onStepsHistory?: (entries: Record<string, number>) => void }) => {
+            mockStepProps.current = props;
+            return null;
+        }),
+    };
 });
 
 jest.mock('../services/mealService', () => ({
@@ -77,17 +85,19 @@ import { fetchLast30DaysMeals, fetchRawMealsForDate, writeMealType } from '../se
 import { loadPersistedMealCache, persistMealCache } from './cache/mealCacheStorage';
 import { formatDate } from '../utils/dateUtils';
 import { FoodProvider, useFoodContext } from './FoodContext';
-import type { LoggedFood } from '../../../shared/types';
+import { persistDailySteps } from '../helpers/stepsSyncService';
+import type { LoggedFood, UserData } from '../../../shared/types';
 
 const emptyDay = { breakfast: [], lunch: [], dinner: [], snacks: [] };
 const today = formatDate(new Date());
 const oats: LoggedFood = { id: 'oats', productName: 'Oats', calories: 100, protein: 5, carbohydrates: 20, fats: 2, quantity: 1 };
 const rice: LoggedFood = { id: 'rice', productName: 'Rice', calories: 200, protein: 4, carbohydrates: 44, fats: 1, quantity: 1 };
 
+let mockUserData: UserData | null = null;
+
 const authValue = {
     authenticated: true,
     loading: false,
-    userData: null,
     setAuthenticated: jest.fn(),
     profileSetupComplete: true,
     setProfileSetupComplete: jest.fn(),
@@ -96,7 +106,7 @@ const authValue = {
 };
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <AuthContext.Provider value={authValue}>
+    <AuthContext.Provider value={{ ...authValue, userData: mockUserData }}>
         <FoodProvider>{children}</FoodProvider>
     </AuthContext.Provider>
 );
@@ -126,6 +136,8 @@ describe('FoodProvider meal writes', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockAuthState.callback = null;
+        mockUserData = null;
+        mockStepProps.current = {};
         (loadPersistedMealCache as jest.Mock).mockResolvedValue(null);
         (fetchLast30DaysMeals as jest.Mock).mockResolvedValue([]);
         (fetchRawMealsForDate as jest.Mock).mockResolvedValue({ ...emptyDay });
@@ -368,5 +380,133 @@ describe('FoodProvider meal writes', () => {
         });
 
         expect(writeMealType).not.toHaveBeenCalled();
+    });
+});
+
+describe('FoodProvider step history writes', () => {
+    let errorSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockAuthState.callback = null;
+        mockUserData = { uid: 'user-1', dailySteps: {} };
+        mockStepProps.current = {};
+        (loadPersistedMealCache as jest.Mock).mockResolvedValue(null);
+        (fetchLast30DaysMeals as jest.Mock).mockResolvedValue([]);
+        (persistDailySteps as jest.Mock).mockResolvedValue(undefined);
+        errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    });
+
+    afterEach(async () => {
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 5));
+        });
+        errorSpy.mockRestore();
+    });
+
+    const sendHistory = async (entries: Record<string, number>) => {
+        await act(async () => {
+            mockStepProps.current.onStepsHistory?.(entries);
+        });
+    };
+
+    test('writes past days that are new or higher and skips today', async () => {
+        mockUserData = { uid: 'user-1', dailySteps: { '2026-10-09': 4000, '2026-10-08': 9000 } };
+        await setup();
+
+        await sendHistory({ '2026-10-10': 5000, '2026-10-09': 6000, '2026-10-08': 8000, '2026-10-07': 3, [today]: 7000 });
+
+        expect(persistDailySteps).toHaveBeenCalledTimes(1);
+        expect(persistDailySteps).toHaveBeenCalledWith('user-1', { '2026-10-10': 5000, '2026-10-09': 6000 });
+    });
+
+    test('does not write the same entries twice', async () => {
+        await setup();
+
+        await sendHistory({ '2026-10-10': 5000 });
+        await sendHistory({ '2026-10-10': 5000 });
+
+        expect(persistDailySteps).toHaveBeenCalledTimes(1);
+    });
+
+    test('a failed write is retried with the same entries on the next flush', async () => {
+        const { result } = await setup();
+        (persistDailySteps as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+
+        await sendHistory({ '2026-10-10': 5000 });
+        expect(persistDailySteps).toHaveBeenCalledTimes(1);
+        expect(errorSpy).toHaveBeenCalledWith('persistDailySteps error:', expect.any(Error));
+
+        await act(async () => {
+            result.current.retryStepsConnection();
+        });
+
+        expect(persistDailySteps).toHaveBeenCalledTimes(2);
+        expect(persistDailySteps).toHaveBeenLastCalledWith('user-1', { '2026-10-10': 5000 });
+    });
+
+    test('entries received before the user data loads are written once it arrives', async () => {
+        mockUserData = null;
+        const hook = await setup();
+
+        await sendHistory({ '2026-10-10': 5000 });
+        expect(persistDailySteps).not.toHaveBeenCalled();
+
+        mockUserData = { uid: 'user-1', dailySteps: {} };
+        await act(async () => {
+            hook.rerender({});
+        });
+
+        expect(persistDailySteps).toHaveBeenCalledWith('user-1', { '2026-10-10': 5000 });
+    });
+
+    test('user data that belongs to another uid is never written to', async () => {
+        mockUserData = { uid: 'someone-else', dailySteps: {} };
+        await setup();
+
+        await sendHistory({ '2026-10-10': 5000 });
+
+        expect(persistDailySteps).not.toHaveBeenCalled();
+    });
+
+    test('a second batch during a write waits for the next flush', async () => {
+        const { result } = await setup();
+        let finishWrite: () => void = () => undefined;
+        (persistDailySteps as jest.Mock).mockImplementationOnce(() => new Promise<void>(resolve => { finishWrite = resolve; }));
+
+        await sendHistory({ '2026-10-10': 5000 });
+        await sendHistory({ '2026-10-11': 6000 });
+        expect(persistDailySteps).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            finishWrite();
+        });
+        await act(async () => {
+            result.current.retryStepsConnection();
+        });
+
+        expect(persistDailySteps).toHaveBeenCalledTimes(2);
+        expect(persistDailySteps).toHaveBeenLastCalledWith('user-1', { '2026-10-11': 6000 });
+    });
+
+    test('pending and written steps are dropped when the account changes', async () => {
+        const hook = await setup();
+        await sendHistory({ '2026-10-10': 5000 });
+        mockUserData = null;
+        await act(async () => {
+            hook.rerender({});
+        });
+        await sendHistory({ '2026-10-11': 6000 });
+        (persistDailySteps as jest.Mock).mockClear();
+
+        await signIn('user-2');
+        mockUserData = { uid: 'user-2', dailySteps: {} };
+        await act(async () => {
+            hook.rerender({});
+        });
+        expect(persistDailySteps).not.toHaveBeenCalled();
+
+        await sendHistory({ '2026-10-10': 5000 });
+        expect(persistDailySteps).toHaveBeenCalledWith('user-2', { '2026-10-10': 5000 });
     });
 });
