@@ -115,6 +115,14 @@ const LoginScreen = () => {
         </TouchableOpacity>
       </View>
 
+      <TouchableOpacity
+        testID="forgot-password-link"
+        style={styles.forgotLink}
+        onPress={() => navigation.navigate('ForgotPassword')}
+      >
+        <Text style={styles.forgotText}>Forgot Password?</Text>
+      </TouchableOpacity>
+
       {error && (
         <View style={styles.errorBanner}>
           <Ionicons name="alert-circle-outline" size={spacing[5]} color={colors.accent.error} />
@@ -132,6 +140,12 @@ const LoginScreen = () => {
         {loading ? <ActivityIndicator color={colors.accent.buttonText} /> : <Text style={styles.buttonText}>Login</Text>}
       </TouchableOpacity>
 
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>or</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
       <TouchableOpacity
         style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
         onPress={handleGoogleSignIn}
@@ -147,18 +161,16 @@ const LoginScreen = () => {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity
-        testID="forgot-password-link"
-        onPress={() => navigation.navigate('ForgotPassword')}
-      >
-        <Text style={styles.linkText}>Forgot Password?</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        testID="register-link"
-        onPress={() => navigation.navigate('Registration')}
-      >
-        <Text style={styles.linkText}>Register</Text>
-      </TouchableOpacity>
+      <View style={styles.registerRow}>
+        <Text style={styles.registerPrompt}>New to Uptrack?</Text>
+        <TouchableOpacity
+          testID="register-link"
+          onPress={() => navigation.navigate('Registration')}
+          hitSlop={styles.registerHitSlop}
+        >
+          <Text style={styles.registerText}>Register</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -249,18 +261,14 @@ const styles = createStyles(() => ({
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4285F4',
+    backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
-    paddingVertical: spacing[5],
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    paddingVertical: spacing[4],
     paddingHorizontal: spacing[4],
     justifyContent: 'center',
-    marginTop: spacing[5],
     width: '100%',
-    shadowColor: '#3367D6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   googleButtonText: {
     color: colors.text.primary,
@@ -279,6 +287,55 @@ const styles = createStyles(() => ({
     fontWeight: fontWeight.semibold,
     textAlign: 'center',
     marginTop: spacing[5],
+  },
+  forgotLink: {
+    alignSelf: 'flex-end',
+    marginBottom: spacing[2],
+  },
+  forgotText: {
+    color: colors.text.secondary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.medium,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing[5],
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border.default,
+  },
+  dividerText: {
+    fontSize: fontSize[12],
+    color: colors.text.tertiary,
+    fontWeight: fontWeight.semibold,
+    marginHorizontal: spacing[3],
+    textTransform: 'uppercase',
+  },
+  registerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginTop: spacing[6],
+  },
+  registerPrompt: {
+    color: colors.text.secondary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.medium,
+  },
+  registerText: {
+    color: colors.accent.primary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.bold,
+  },
+  registerHitSlop: {
+    top: spacing[3],
+    bottom: spacing[3],
+    left: spacing[3],
+    right: spacing[3],
   },
 }));
 
