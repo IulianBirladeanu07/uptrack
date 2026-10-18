@@ -62,6 +62,8 @@ describe('RegistrationScreen', () => {
         { cancelable: false },
       );
     });
+    expect(Alert.alert.mock.calls[0][1]).toContain('noreply@activerecovery-3a400.firebaseapp.com');
+    expect(Alert.alert.mock.calls[0][1]).toContain('not an Uptrack-branded address');
     expect(Alert.alert.mock.calls[0][1]).toContain('spam/junk folder');
     expect(Alert.alert.mock.calls[0][1]).toContain("You don't need to register again.");
   });

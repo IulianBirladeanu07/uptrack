@@ -9,6 +9,10 @@ import firebaseAuthService from '../../services/firebaseAuthService';
 import { useRootNavigation } from '../../../../shared/navigation';
 import type { FirebaseError } from 'firebase/app';
 import { getAuthErrorMessage } from '../../utils/authErrorMessage';
+import {
+  loginVerificationNotice,
+  resentVerificationMessage,
+} from '../../utils/verificationEmailCopy';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -63,7 +67,7 @@ const LoginScreen = () => {
       const sent = await firebaseAuthService.resendVerificationEmail(email, password);
       if (sent) {
         setCooldown(RESEND_COOLDOWN_SECONDS);
-        Alert.alert('Verification Email Sent', 'Open the link in the email, then log in.');
+        Alert.alert('Verification Email Sent', resentVerificationMessage);
       }
     } catch (e) {
       setError(getAuthErrorMessage(e, 'verification'));
@@ -150,7 +154,7 @@ const LoginScreen = () => {
             <Text style={styles.noticeTitle}>Verify your email</Text>
           </View>
           <Text style={styles.noticeText}>
-            Open the link we sent to {email.trim()}, then log in. Check your spam folder too.
+            {loginVerificationNotice(email.trim())}
           </Text>
           <TouchableOpacity
             testID="resend-verification-button"

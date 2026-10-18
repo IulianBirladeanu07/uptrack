@@ -104,6 +104,8 @@ describe('LoginScreen', () => {
 
             expect(screen.getByText('Verify your email')).toBeTruthy();
             expect(screen.getByText(/person@example\.com/)).toBeTruthy();
+            expect(screen.getByText(/noreply@activerecovery-3a400\.firebaseapp\.com/)).toBeTruthy();
+            expect(screen.getByText(/not an Uptrack-branded address/)).toBeTruthy();
             expect(screen.queryByText(/Email not verified/)).toBeNull();
             expect(screen.getByText('Resend email')).toBeTruthy();
         });
@@ -117,6 +119,10 @@ describe('LoginScreen', () => {
             });
 
             expect(authService.resendVerificationEmail).toHaveBeenCalledTimes(1);
+            expect(Alert.alert).toHaveBeenCalledWith(
+                'Verification Email Sent',
+                expect.stringContaining('noreply@activerecovery-3a400.firebaseapp.com'),
+            );
             expect(screen.getByText('Resend in 60s')).toBeTruthy();
 
             fireEvent.press(screen.getByTestId('resend-verification-button'));

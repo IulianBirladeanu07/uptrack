@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { getPasswordStrength, isStrongPassword, isValidEmail } from '../../utils/credentials';
+import { registrationVerificationMessage } from '../../utils/verificationEmailCopy';
 
 const RegistrationScreen = () => {
   const [email, setEmail] = useState('');
@@ -44,7 +45,7 @@ const RegistrationScreen = () => {
       setError(null);
       Alert.alert(
         'Registration Successful',
-        `We've requested a verification email for ${email.trim()}. Delivery can take a few minutes, so check your inbox and spam/junk folder. If it hasn't arrived after a while, return to Login, enter your details, and use the resend option. You don't need to register again.`,
+        registrationVerificationMessage(email.trim()),
         [
           {
             text: 'OK',
