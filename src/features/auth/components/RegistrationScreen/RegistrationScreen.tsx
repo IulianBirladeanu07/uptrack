@@ -44,7 +44,7 @@ const RegistrationScreen = () => {
       setError(null);
       Alert.alert(
         'Registration Successful',
-        'A verification email has been sent. Please verify your email to continue.',
+        `We've requested a verification email for ${email.trim()}. Delivery can take a few minutes, so check your inbox and spam/junk folder. If it hasn't arrived after a while, return to Login, enter your details, and use the resend option. You don't need to register again.`,
         [
           {
             text: 'OK',
