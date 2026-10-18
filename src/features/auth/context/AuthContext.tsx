@@ -61,6 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const authRequestGeneration = useRef(0);
   const previousAuthUid = useRef<string | null | undefined>(undefined);
+  const previousWasUnverified = useRef(false);
 
   const refreshUserData = useCallback(async (): Promise<UserData | undefined> => {
     const user = auth.currentUser;
@@ -88,6 +89,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const nextUid = user?.uid ?? null;
       const preserveCurrentState = isSameAuthIdentity(previousAuthUid.current, nextUid);
       previousAuthUid.current = nextUid;
+      const unverified = needsEmailVerification(user);
+      const keepScreen = unverified || (user === null && previousWasUnverified.current);
+      previousWasUnverified.current = unverified;
       const request = {
         uid: nextUid,
         generation: authRequestGeneration.current + 1,
@@ -96,7 +100,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const isCurrent = () =>
         isCurrentAuthRequest(request, auth.currentUser?.uid ?? null, authRequestGeneration.current);
       if (!preserveCurrentState) {
-        setLoading(true);
+        if (!keepScreen) setLoading(true);
         setAuthenticated(false);
         setProfileSetupComplete(false);
         setUserData(null);

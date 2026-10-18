@@ -3,6 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: [
     '<rootDir>/src/features/auth/utils/**/*.test.{js,ts}',
+    '<rootDir>/src/features/auth/context/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/auth/services/**/*.test.{js,ts}',
     '<rootDir>/src/features/auth/components/LoginScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/auth/components/RegistrationScreen/**/*.test.{js,ts,tsx}',
