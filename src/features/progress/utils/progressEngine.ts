@@ -79,6 +79,7 @@ export type PaceModel = {
   diff: number | null;
   rate: number | null;
   rate4: number | null;
+  recentWeeks: number;
   total: number;
   spanWeeks: number;
   lastRate: number;
@@ -105,6 +106,7 @@ export type EnergyModel = {
   gapToTarget: number | null;
   statsWeeks: number;
   margin: number | null;
+  maintenanceWindow: { start: string; end: string } | null;
 };
 
 export type StrengthModel = {
@@ -132,7 +134,9 @@ export type PhaseRecap = {
   weightPct: number | null;
   perKg: number | null;
   maintenance: number | null;
-  maintenanceSource: 'recent' | 'stored' | null;
+  maintenanceSource: 'recent' | 'stored' | 'legacy' | null;
+  maintenanceMargin: number | null;
+  maintenanceWindow: { start: string; end: string } | null;
   avgKcalWeeks: number;
   avgKcalDays: number;
 };
@@ -242,6 +246,8 @@ const median = (a: Maybe[]): number | null => {
 };
 
 export const fmt1 = (v: Maybe): string => (v == null ? '--' : v.toFixed(1));
+
+export const isToGoalReached = (remaining: number | null): boolean => remaining != null && remaining <= 0;
 
 export const sg = (v: number, d = 1): string => {
   const a = Math.abs(v).toFixed(d);
@@ -499,7 +505,9 @@ export const phaseInfo = (userData: UserData | null | undefined, weeks: WeekRow[
   const gs = userData?.goalSwitchDate ? new Date(userData.goalSwitchDate) : null;
   const hasSwitch = gs && !Number.isNaN(gs.getTime()) && gs < now;
   const phaseStart = hasSwitch ? gs : null;
-  const phaseWeeks = gs && hasSwitch ? Math.max(1, Math.ceil((now.getTime() - gs.getTime()) / WEEK_MS)) : Math.max(1, weeks.length);
+  const phaseWeeks = gs && hasSwitch
+    ? Math.max(1, Math.round((mondayOf(now).getTime() - mondayOf(gs).getTime()) / WEEK_MS) + 1)
+    : Math.max(1, weeks.length);
   const planRate = plan?.ratePerWeek != null && plan.ratePerWeek !== 0 ? Math.abs(plan.ratePerWeek) : null;
   const latest = lastWeight(weeks);
   let remaining: number | null = null;
@@ -527,7 +535,10 @@ export const rangeOptions = (info: PhaseInfo): { key: string; label: string; n: 
     { key: '8W', label: '8W', n: 8 },
     { key: '12W', label: '12W', n: 12 },
   ];
-  if (info.phaseWeeks >= RECAP_MIN_WEEKS) out.unshift({ key: 'PHASE', label: info.tab, n: Math.min(info.phaseWeeks, MAX_WEEKS) });
+  if (info.phaseWeeks >= RECAP_MIN_WEEKS) {
+    const phaseWeeks = Math.min(info.phaseWeeks, MAX_WEEKS);
+    out.unshift({ key: 'PHASE', label: `Phase · ${phaseWeeks}W`, n: phaseWeeks });
+  }
   return out;
 };
 
@@ -547,7 +558,7 @@ export const paceModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, now: D
   const restMean = mean(rest) ?? 0;
   const spike = win.length >= 4 && lastRate >= 1.8 * restMean && lastRate - restMean >= 0.3;
 
-  const rateNum = rate ?? 0;
+  const rateNum = rate4 ?? rate ?? 0;
   const done = info.dir !== 0 && info.reached;
   const plan = info.dir === 0 || done ? null : info.planRate;
   const diff = plan != null ? rateNum - plan : null;
@@ -579,6 +590,7 @@ export const paceModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, now: D
     diff,
     rate,
     rate4,
+    recentWeeks,
     total,
     lastRate,
     spanWeeks,
@@ -595,23 +607,23 @@ export const paceTip = (m: PaceModel, info: PhaseInfo): string => {
   const word = info.dir > 0 ? 'bulk' : 'cut';
   if (info.dir === 0) {
     return m.status === 'steady'
-      ? `Weight is holding steady, drifting ${fmt1(m.rate)} kg a week on average.`
-      : `Weight is drifting ${fmt1(m.rate)} kg a week while the goal is to hold. Check calories against maintenance.`;
+      ? `Weight is holding steady, drifting ${fmt1(m.rate4 ?? m.rate)} kg a week on average over the last ${m.recentWeeks} weeks.`
+      : `Weight is drifting ${fmt1(m.rate4 ?? m.rate)} kg a week over the last ${m.recentWeeks} weeks while the goal is to hold. Check calories against maintenance.`;
   }
   if (m.spike) {
     const s = info.dir < 0 ? '-' : '+';
-    return `Last week's ${s}${fmt1(m.lastRate)} kg looks like water. Judge the ${word} by the ${fmt1(m.rate)} kg/wk average, not the spike.`;
+    return `Last week's ${s}${fmt1(m.lastRate)} kg looks like water. Judge the ${word} by the ${fmt1(m.rate4 ?? m.rate)} kg/wk average over the last ${m.recentWeeks} weeks, not the spike.`;
   }
   if (m.status === 'behind') {
-    const tail = m.eta ? ` At this pace the goal lands around ${shortDate(m.eta)}.` : '';
-    return `Averaging ${fmt1(m.rate)} kg/wk against a ${fmt1(m.plan)} plan.${tail}`;
+    const tail = m.eta ? ` The longer-term trend puts the goal around ${shortDate(m.eta)}.` : '';
+    return `Averaging ${fmt1(m.rate4 ?? m.rate)} kg/wk over the last ${m.recentWeeks} weeks against a ${fmt1(m.plan)} plan.${tail}`;
   }
   if (m.status === 'ahead') {
     return info.dir < 0
       ? 'Faster than plan. Check the strength card to make sure it is fat coming off, not muscle.'
       : 'Faster than plan. More of the extra gain is likely fat.';
   }
-  return `Right on plan over ${m.spanWeeks} weeks.`;
+  return `Right on plan over the last ${m.recentWeeks} weeks.`;
 };
 
 type FullWeek = RatedWeek & { kcal: number; dw: number };
@@ -688,6 +700,7 @@ export const energyModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, weig
     gapToTarget: target != null ? target - eatNum : null,
     statsWeeks: reg ? reg.weeksUsed : win.length,
     margin: reg ? reg.margin : null,
+    maintenanceWindow: reg ? { start: reg.windowStart, end: reg.windowEnd } : null,
   };
 };
 
@@ -849,9 +862,18 @@ export const phaseRecap = (
   const hasStrength = sNow != null && wNow != null;
   const perKg = sNow != null && wNow != null ? ((1 + sNow / 100) / (1 + wNow / 100) - 1) * 100 : null;
 
-  const recentMaintenance = energy?.maintNow ?? null;
+  const recentMaintenance = energy?.maintenanceWindow != null ? energy.maintNow : null;
+  const legacyMaintenance = energy?.maintenanceWindow == null ? energy?.maintNow ?? null : null;
   const storedMaintenance = userData?.maintenanceCalories ?? userData?.weightChangePlan?.tdee ?? null;
-  const maintenance = recentMaintenance ?? storedMaintenance;
+  const maintenance = recentMaintenance ?? legacyMaintenance ?? storedMaintenance;
+  const maintenanceSource = recentMaintenance != null
+    ? 'recent'
+    : legacyMaintenance != null
+      ? 'legacy'
+      : storedMaintenance != null
+        ? 'stored'
+        : null;
+  const maintenanceWindow = maintenanceSource === 'recent' ? energy?.maintenanceWindow ?? null : null;
 
   return {
     type: info.type,
@@ -868,7 +890,9 @@ export const phaseRecap = (
     weightPct: hasStrength ? wNow : null,
     perKg,
     maintenance: maintenance != null ? Math.round(maintenance) : null,
-    maintenanceSource: recentMaintenance != null ? 'recent' : maintenance != null ? 'stored' : null,
+    maintenanceSource,
+    maintenanceMargin: maintenanceSource === 'recent' ? energy?.margin ?? null : null,
+    maintenanceWindow,
     avgKcalWeeks: nutritionWeeks.length,
     avgKcalDays,
   };
@@ -880,7 +904,31 @@ export const recapTip = (r: PhaseRecap): string => {
       ? `Your saved estimate is ${kfmt(r.maintenance)} kcal, but there is not enough recent data to recommend switching yet.`
       : 'Log weight and nutrition consistently to estimate maintenance before starting the next phase.';
   }
-  return `Your recent maintenance estimate is about ${kfmt(r.maintenance)} kcal. It is based on recent weight and food trends, so treat it as a starting point and adjust from your progress.`;
+  const note = maintenanceEstimateNote(r);
+  return note
+    ? `Estimate ${note.margin} kcal · ${note.window}\nTreat it as a starting point.`
+    : 'Your recent maintenance estimate is missing its uncertainty range or date window. Treat it as provisional.';
+};
+
+const dateFromKey = (key: string): Date => {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+export const maintenanceEstimateSummary = (r: PhaseRecap): string | null => {
+  const note = maintenanceEstimateNote(r);
+  return r.maintenance != null && note
+    ? `about ${kfmt(r.maintenance)} kcal (${note.margin}), based on ${note.window}`
+    : null;
+};
+
+export const maintenanceEstimateNote = (r: PhaseRecap): { margin: string; window: string } | null => {
+  if (r.maintenanceSource !== 'recent' || r.maintenanceMargin == null || r.maintenanceWindow == null) return null;
+
+  const margin = Math.round(r.maintenanceMargin / 10) * 10;
+  const start = shortDate(dateFromKey(r.maintenanceWindow.start));
+  const end = shortDate(dateFromKey(r.maintenanceWindow.end));
+  return { margin: `±${kfmt(margin)}`, window: `weeks ${start} to ${end}` };
 };
 
 export const recapEntry = (r: PhaseRecap, now: Date = new Date()) => ({

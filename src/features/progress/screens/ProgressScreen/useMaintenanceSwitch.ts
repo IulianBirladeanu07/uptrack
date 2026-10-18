@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { getAuth } from 'firebase/auth';
 import type { UserData } from '../../../../shared/types';
 import { switchToMaintenance } from '../../../nutrition/helpers/phaseService';
-import { fmt1, kfmt, recapEntry } from '../../utils/progressEngine';
+import { fmt1, kfmt, maintenanceEstimateSummary, recapEntry } from '../../utils/progressEngine';
 import type { PhaseRecap } from '../../utils/progressEngine';
 
 type UseMaintenanceSwitchParams = {
@@ -20,10 +20,19 @@ export const useMaintenanceSwitch = ({
     const [switching, setSwitching] = useState(false);
 
     const onSwitch = useCallback(() => {
-        if (!recap || recap.maintenance == null || switching) return;
+        const maintenance = recap?.maintenance;
+        if (!recap || maintenance == null || switching) return;
+        const estimate = recap.maintenanceSource === 'recent' ? maintenanceEstimateSummary(recap) : null;
+        if (recap.maintenanceSource === 'recent' && estimate == null) {
+            Alert.alert('Estimate details unavailable', 'Cannot verify the recent estimate uncertainty and date window. Please try again later.');
+            return;
+        }
+        const message = estimate != null
+            ? `Your target becomes ${estimate}, and a new phase starts at ${fmt1(recap.endWeight)} kg.`
+            : `Your target becomes about ${kfmt(maintenance)} kcal based on recent trends, and a new phase starts at ${fmt1(recap.endWeight)} kg.`;
         Alert.alert(
             'Switch to maintenance',
-            `Your target becomes about ${kfmt(recap.maintenance)} kcal based on recent trends, and a new phase starts at ${fmt1(recap.endWeight)} kg.`,
+            message,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -34,7 +43,7 @@ export const useMaintenanceSwitch = ({
                             const uid = userData?.uid || getAuth().currentUser?.uid;
                             await switchToMaintenance(uid!, userData!, {
                                 weight: recap.endWeight,
-                                kcal: recap.maintenance as number,
+                                kcal: maintenance,
                                 entry: recapEntry(recap),
                             });
                             await refreshUserData();

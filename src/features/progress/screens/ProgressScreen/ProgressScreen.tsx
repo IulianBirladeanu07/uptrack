@@ -1,11 +1,10 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import type { ComponentProps, Dispatch, ReactNode, SetStateAction } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
-import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
+import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
@@ -18,6 +17,7 @@ import {
     recapTip,
     paceTip,
     energyTip,
+    maintenanceEstimateNote,
     liftStats,
     strengthTip,
     setsTip,
@@ -116,6 +116,18 @@ const Tip = ({ text }: { text: string | null | undefined }) =>
         </View>
     ) : null;
 
+const MaintenanceNote = ({ recap }: { recap: PhaseRecap }) => {
+    const note = maintenanceEstimateNote(recap);
+    if (!note) return <Tip text={recapTip(recap)} />;
+
+    return (
+        <View style={styles.maintenanceNote}>
+            <Text style={[styles.tipText, styles.maintenanceNoteText]}>{`Estimate ${note.margin} kcal · ${note.window}`}</Text>
+            <Text style={styles.maintenanceNoteAdvice}>Treat it as a starting point.</Text>
+        </View>
+    );
+};
+
 const ChartBox = ({ children }: { children: (w: number) => ReactNode }) => {
     const [w, setW] = useState(0);
     return (
@@ -134,13 +146,14 @@ const EmptyCard = ({ cap, text }: { cap: string; text: string }) => (
 
 const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: boolean; onSwitch: () => void; onProfile: () => void }) => {
     const third = r.dir < 0
-        ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Str / kg', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
+        ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Rel. strength', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
         : { value: r.strengthPct != null ? sg(r.strengthPct, 0) : '--', unit: r.strengthPct != null ? '%' : undefined, label: 'Strength', color: r.strengthPct != null && r.strengthPct > 0 ? colors.accent.success : undefined };
+    const phaseLabel = r.dir < 0 ? 'Cutting' : 'Bulking';
 
     return (
         <View style={styles.card}>
             <View style={styles.rowBetween}>
-                <Text style={styles.cap}>Phase recap</Text>
+                <Text style={styles.cap}>{phaseLabel} phase recap</Text>
             </View>
             <Hero value={sg(r.change, 1)} unit="kg">
                 <Delta tone="good" icon="checkmark" text="goal reached" />
@@ -148,22 +161,25 @@ const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: bool
             <Stats
                 items={[
                     {
-                        value: kfmt(r.avgKcal),
-                        unit: r.avgKcal != null ? 'kcal/day' : undefined,
-                        label: 'Avg intake',
+                        value: fmt1(r.rate),
+                        unit: 'kg/wk',
+                        label: r.dir < 0 ? 'Avg loss' : 'Avg gain',
                     },
                     { value: String(r.weeks), unit: 'wk', label: 'Duration' },
                     third,
                 ]}
             />
-            {r.maintenanceSource !== 'recent' && <Tip text={recapTip(r)} />}
+            {r.maintenanceSource === 'recent'
+                ? <MaintenanceNote recap={r} />
+                : <Tip text={recapTip(r)} />}
             {r.maintenanceSource === 'recent' && r.maintenance != null && (
                 <TouchableOpacity
                     style={[styles.cta, busy && styles.ctaBusy]}
                     onPress={onSwitch}
                     disabled={busy}
-                    activeOpacity={0.9}
+                    activeOpacity={0.8}
                 >
+                    <Ionicons name="swap-horizontal" size={spacing.iconSm} color={colors.accent.buttonText} />
                     <Text style={styles.ctaText}>
                         {busy ? 'Switching...' : `Switch to maintenance · ~${kfmt(r.maintenance)} kcal`}
                     </Text>
@@ -206,14 +222,17 @@ const PaceCard = ({ m, info, n }: { m: PaceModel | null; info: PhaseInfo; n: num
         : m.eta
             ? `${shortDate(m.eta)}${m.eta.getFullYear() !== new Date().getFullYear() ? ` ${m.eta.getFullYear()}` : ''}`
             : '--';
+    const goalStat = m.reached
+        ? { value: fmt1(info.remaining ?? 0), unit: 'kg', label: 'To goal' }
+        : { value: eta, label: 'Goal ETA' };
+    const latestIsPartial = [...m.slots].reverse().find(slot => slot.v != null)?.cur ?? false;
 
     const note = picked
         ? pickedText
-        : m.status === 'reached'
-            ? `${n}-week avg`
-            : info.remaining != null && !info.reached
-                ? `${info.remaining.toFixed(1)} kg to go`
-                : null;
+        : info.remaining != null && !info.reached
+            ? `${info.remaining.toFixed(1)} kg to go`
+            : null;
+    const recent = m.rate4 ?? m.rate;
 
     return (
         <View style={styles.card}>
@@ -221,17 +240,18 @@ const PaceCard = ({ m, info, n }: { m: PaceModel | null; info: PhaseInfo; n: num
                 <Text style={styles.cap}>{title}</Text>
                 {note != null && <Text style={styles.capRight}>{note}</Text>}
             </View>
-            <Hero value={fmt1(picked ? picked.v : m.rate)} unit="kg/wk">
+            <Hero value={fmt1(picked ? picked.v : recent)} unit="kg/wk">
                 {!picked && pill ? <Delta {...pill} /> : null}
             </Hero>
+            {!picked && <Text style={styles.heroNote}>{`last ${m.recentWeeks}-week average`}</Text>}
             <ChartBox>
                 {w => <PaceChart slots={m.slots} plan={m.plan} width={w} sel={sel} onSelect={setSel} />}
             </ChartBox>
             <Stats
                 items={[
-                    { value: fmt1(m.lastRate), unit: 'kg/wk', label: 'Latest week' },
-                    { value: fmt1(m.rate4), unit: 'kg/wk', label: 'Recent avg' },
-                    { value: eta, label: 'Goal ETA' },
+                    { value: fmt1(m.lastRate), unit: 'kg/wk', label: latestIsPartial ? 'This week · partial' : 'Latest week' },
+                    { value: fmt1(m.rate), unit: 'kg/wk', label: 'Range avg' },
+                    goalStat,
                 ]}
             />
             <Tip text={paceTip(m, info)} />
@@ -506,7 +526,7 @@ const MonthsCard = ({ months, kind, info, open, setOpen, all, setAll }: MonthsCa
 };
 
 const ProgressScreen = () => {
-    const insets = useSafeAreaInsets();
+    const navInset = useBottomNavInset();
     const navigation = useAppNavigation();
     const { userData, refreshUserData } = useContext(AuthContext)!;
     const {
@@ -626,20 +646,18 @@ const ProgressScreen = () => {
     const openProfile = useCallback(() => navigation.navigate('Profile'), [navigation]);
 
     const { switching, onSwitch } = useMaintenanceSwitch({ recap, userData, refreshUserData });
-    const status = weeks.length ? `${info.label} · week ${info.phaseWeeks}` : 'Your trends over time';
-
     return (
         <ApplicationCustomScreen>
             <ScrollView
                 style={styles.container}
                 contentContainerStyle={{
-                    paddingBottom: 70 + insets.bottom,
+                    paddingBottom: navInset + spacing[4],
                     paddingHorizontal: spacing[4],
                     paddingTop: spacing[3],
                 }}
                 showsVerticalScrollIndicator={false}
             >
-                <View style={styles.titleRow}>
+                <View style={styles.headerRow}>
                     <View style={styles.viewRow}>
                         {TABS.map(t => {
                             const on = tab === t.key;
@@ -657,13 +675,15 @@ const ProgressScreen = () => {
                         })}
                     </View>
                     {weeks.length >= 2 && (
-                        <View style={styles.rangeRow}>
+                        <View style={styles.rangeSelector}>
                             {ranges.map(r => (
                                 <TouchableOpacity
                                     key={r.key}
+                                    style={styles.rangeOption}
                                     onPress={() => setRangeKey(r.key)}
                                     activeOpacity={0.7}
-                                    hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                                    accessibilityRole="button"
+                                    accessibilityState={{ selected: range.key === r.key }}
                                 >
                                     <Text style={[styles.rangeText, range.key === r.key && styles.rangeTextActive]}>
                                         {r.label}
@@ -673,7 +693,6 @@ const ProgressScreen = () => {
                         </View>
                     )}
                 </View>
-                <Text style={styles.status} numberOfLines={1}>{status}</Text>
                 {workoutHistoryLoadMoreError && hasMoreWorkoutHistory && (
                     <TouchableOpacity onPress={() => void loadMoreWorkoutHistory()}>
                         <Text style={styles.emptySub}>

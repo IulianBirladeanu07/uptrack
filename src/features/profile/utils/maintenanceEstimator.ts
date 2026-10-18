@@ -34,6 +34,12 @@ const isUsable = (w: MaybeWeek): w is WeekStats => !!(w && w.weekStart && w.days
 
 const toKey = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+const shiftDateKey = (key: string, days: number): string => {
+  const date = parseKey(key);
+  date.setDate(date.getDate() + days);
+  return toKey(date);
+};
+
 const isComplete = (weekStart: string, now: Date): boolean => shiftWeekStart(weekStart, 1) <= toKey(now);
 
 const contiguousRun = (weeks: MaybeWeek[], now: Date): WeekStats[] => {
@@ -74,7 +80,8 @@ const fitLine = (pts: Pt[]): Fit | null => {
 const fitWindow = (entries: WeightEntry[], run: WeekStats[], n: number): MaintenanceEstimate | null => {
   const weeks = run.slice(-n);
   const start = parseKey(weeks[0].weekStart);
-  const end = parseKey(shiftWeekStart(weeks[n - 1].weekStart, 1));
+  const lastWeekEnd = shiftWeekStart(weeks[n - 1].weekStart, 1);
+  const end = parseKey(lastWeekEnd);
   const pts: Pt[] = entries
     .filter(e => e.date >= start && e.date < end)
     .map(e => ({ x: Math.round((e.date.getTime() - start.getTime()) / DAY_MS), y: e.weight }));
@@ -92,6 +99,8 @@ const fitWindow = (entries: WeightEntry[], run: WeekStats[], n: number): Mainten
     se: Math.round(se),
     margin: Math.round(t * se),
     weeksUsed: n,
+    windowStart: weeks[0].weekStart,
+    windowEnd: shiftDateKey(lastWeekEnd, -1),
     avgCalories: Math.round(intake),
     rateKgPerWeek: parseFloat((fit.slope * 7).toFixed(3)),
     weighIns: pts.length,

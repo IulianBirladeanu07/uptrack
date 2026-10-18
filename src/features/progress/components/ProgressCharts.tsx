@@ -75,16 +75,16 @@ type PaceChartProps = {
 
 export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChartProps) => {
   const n = slots.length;
-  const H = 176;
-  const top = 18;
-  const bot = 24;
+  const H = 160;
+  const top = 12;
+  const bot = 22;
   const gut = 52;
   const pw = width - gut - LP;
   const gap = n > 12 ? 3 : 5;
   const bw = (pw - gap * (n - 1)) / n;
   const base = H - bot;
   const vals = slots.map(s => s.v).filter((v): v is number => v != null);
-  const mx = Math.max(...vals, plan || 0, 0.1) * 1.08;
+  const mx = Math.max(...vals, plan || 0, 0.1) * 1.1;
   const y = (v: number) => top + (base - top) * (1 - v / mx);
   const step = n <= 8 ? 2 : n <= 12 ? 3 : 4;
   const li = lastIdx(slots.map(s => s.v));
@@ -95,6 +95,14 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
   const ticks: number[] = [];
   for (let t = ts; t < mx; t += ts) ticks.push(Math.round(t * 100) / 100);
   const shown = ticks.filter(t => py == null || Math.abs(y(t) - py) >= 26);
+  const activeValue = active >= 0 ? slots[active]?.v : null;
+  const activeLabel = activeValue != null
+    ? {
+        x: active * (bw + gap) + bw / 2,
+        y: Math.max(y(activeValue) - 8, top + 10),
+        text: activeValue.toFixed(1),
+      }
+    : null;
 
   const onPress = (e: GestureResponderEvent) => {
     if (!onSelect) return;
@@ -132,20 +140,8 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
                       height={Math.max(base - y(s.v), 2)}
                       rx={3}
                       fill={EAT}
-                      fillOpacity={hot ? 1 : 0.5}
+                      fillOpacity={hot ? 1 : s.cur ? 0.24 : 0.5}
                     />
-                    {hot && (
-                      <SvgText
-                        x={x + bw / 2}
-                        y={y(s.v) - 5}
-                        fontSize={10}
-                        fontWeight="600"
-                        fill={hot ? EAT : AX}
-                        textAnchor="middle"
-                      >
-                        {s.v.toFixed(1)}
-                      </SvgText>
-                    )}
                   </>
                 )}
                 {showLabel && (
@@ -166,6 +162,11 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
             <Path d={trend.map((p, k) => `${k ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')} stroke={PLAN} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" fill="none" />
           )}
           {trend.length > 1 && <Circle cx={trend[trend.length - 1][0]} cy={trend[trend.length - 1][1]} r={3.5} fill={PLAN} stroke={BG} strokeWidth={1.5} />}
+          {activeLabel && (
+            <SvgText x={activeLabel.x} y={activeLabel.y} fontSize={10} fontWeight="600" fill={EAT} textAnchor="middle">
+              {activeLabel.text}
+            </SvgText>
+          )}
           {plan != null && py != null && (
             <>
               <Line x1={-LP} x2={pw} y1={py} y2={py} stroke={PLAN} strokeOpacity={0.75} strokeWidth={1.5} strokeDasharray="4 4" />

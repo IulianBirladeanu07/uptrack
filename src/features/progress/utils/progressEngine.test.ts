@@ -11,6 +11,8 @@ import {
   energyModel,
   balanceNote,
   energyTip,
+  maintenanceEstimateNote,
+  maintenanceEstimateSummary,
   liftStats,
   strengthModel,
   setsModel,
@@ -24,16 +26,31 @@ import {
   mondayOf,
   addDays,
   sg,
+  kfmt,
+  shortDate,
+  isToGoalReached,
 } from './progressEngine';
 
 const NOW = new Date(2026, 8, 20, 14, 0, 0);
 const CUR = mondayOf(NOW);
+const dateFromKey = (key: string) => {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
 const calc1RM = (w, r) => w / (1.0278 - 0.0278 * Math.min(Math.max(r, 1), 12));
 
 const LOSS = [0.8, 0.7, 0.7, 0.6, 0.6, 0.5, 0.6, 0.4, 0.6, 0.5, 0.5, 0.5, 0.4, 0.5, 0.4, 0.5, 0.4, 0.4, 0.4, 1.1];
 const KCAL = [3180, 3150, 3120, 3140, 3090, 3110, 3060, 3080, 3040, 3070, 3030, 3050, 3010, 3040, 3000, 3020, 2990, 3000, 3010, 3026];
 
 const weekKey = i => toKey(addDays(CUR, -(20 - i) * 7));
+
+describe('isToGoalReached', () => {
+  it('treats zero or less remaining as reached but does not treat positive or missing goals as reached', () => {
+    expect(isToGoalReached(-0.01)).toBe(true);
+    expect(isToGoalReached(0.01)).toBe(false);
+    expect(isToGoalReached(null)).toBe(false);
+  });
+});
 
 const buildSrc = (over = {}) => {
   const W = [92.5];
@@ -262,10 +279,27 @@ describe('paceModel', () => {
   test('12W pace is on plan and last week is flagged as a spike', () => {
     const m = paceModel(rated, 12, info, NOW);
     expect(m.rate).toBeCloseTo(0.5167, 3);
-    expect(m.status).toBe('on');
+    expect(m.status).toBe('slightly-ahead');
     expect(m.spike).toBe(true);
     expect(m.total).toBeCloseTo(6.2, 5);
     expect(paceTip(m, info)).toMatch(/looks like water/);
+  });
+
+  test('status follows recent pace while the range average remains available', () => {
+    const changes = [0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.2, 0.2, 0.2, 0.2];
+    const weights = [90];
+    changes.forEach(change => weights.push(weights[weights.length - 1] - change));
+    const source = weeks.slice(-weights.length).map((week, i) => ({ ...week, w: weights[i] }));
+    const slow = withRates(source, -1);
+    const model = paceModel(slow, 12, { ...info, planRate: 0.5, reached: false }, NOW);
+
+    expect(model.rate).toBeCloseTo(0.667, 3);
+    expect(model.rate4).toBeCloseTo(0.2, 5);
+    expect(model.recentWeeks).toBe(4);
+    expect(model.status).toBe('behind');
+    expect(paceTip({ ...model, spike: false }, { ...info, planRate: 0.5 })).toMatch(
+      /over the last 4 weeks against a 0.5 plan/,
+    );
   });
 
   test('eta uses the 12 week rate and remaining distance', () => {
@@ -355,12 +389,32 @@ describe('phaseInfo and ranges', () => {
   });
 
   test('uses goalSwitchDate for phase weeks and adds a phase range when long', () => {
-    const gs = addDays(NOW, -19 * 7).toISOString();
+    const gs = addDays(CUR, -18 * 7).toISOString();
     const info = phaseInfo({ ...userData, goalSwitchDate: gs }, rated, NOW);
     expect(info.phaseWeeks).toBe(19);
     const opts = rangeOptions(info);
     expect(opts.map(o => o.key)).toEqual(['PHASE', '8W', '12W']);
+    expect(opts[0].label).toBe('Phase · 19W');
     expect(opts[0].n).toBe(19);
+  });
+
+  test('phase week changes on Monday rather than at the time of day the goal was set', () => {
+    const start = new Date(2026, 5, 8, 18, 0, 0);
+    const user = { ...userData, goalSwitchDate: start.toISOString() };
+    const weekOf = now => phaseInfo(user, rated, now).phaseWeeks;
+
+    expect(weekOf(new Date(2026, 5, 8, 19, 0, 0))).toBe(1);
+    expect(weekOf(new Date(2026, 5, 14, 23, 0, 0))).toBe(1);
+    expect(weekOf(new Date(2026, 5, 15, 8, 0, 0))).toBe(2);
+    expect(weekOf(new Date(2026, 9, 11, 23, 0, 0))).toBe(18);
+    expect(weekOf(new Date(2026, 9, 12, 8, 0, 0))).toBe(19);
+    expect(weekOf(new Date(2026, 9, 18, 16, 0, 0))).toBe(19);
+  });
+
+  test('a goal set mid-week counts that calendar week as week one', () => {
+    const user = { ...userData, goalSwitchDate: new Date(2026, 5, 10, 9, 0, 0).toISOString() };
+    expect(phaseInfo(user, rated, new Date(2026, 5, 14, 20, 0, 0)).phaseWeeks).toBe(1);
+    expect(phaseInfo(user, rated, new Date(2026, 5, 15, 8, 0, 0)).phaseWeeks).toBe(2);
   });
 
   test('reached only once the weekly average is at or past the target', () => {
@@ -395,6 +449,7 @@ describe('phaseInfo and ranges', () => {
   test('caps phase range at 26 weeks', () => {
     const info = { phaseWeeks: 60, tab: 'Cut' };
     expect(rangeOptions(info)[0].n).toBe(26);
+    expect(rangeOptions(info)[0].label).toBe('Phase · 26W');
   });
 });
 
@@ -756,10 +811,10 @@ describe('phaseRecap', () => {
   const { weeks, lifts } = buildWeeks(buildSrc(), NOW);
   const rated = withRates(weeks, -1);
   const latest = phaseInfo(userData, rated, NOW).latest;
-  const gs = addDays(NOW, -19 * 7).toISOString();
+  const gs = addDays(CUR, -18 * 7).toISOString();
   const reachedUser = { ...userData, goalSwitchDate: gs, targetWeight: latest + 0.3, maintenanceCalories: 3700 };
   const info = phaseInfo(reachedUser, rated, NOW);
-  const energy = energyModel(rated, 12, info);
+  const energy = energyModel(rated, 12, info, buildSrc().weightIns, NOW);
   const strength = strengthModel(rated, lifts, 19);
 
   test('summarises a finished cut', () => {
@@ -778,6 +833,19 @@ describe('phaseRecap', () => {
     expect(r.perKg).toBeGreaterThan(r.strengthPct);
     expect(r.maintenance).toBe(Math.round(energy.maintNow));
     expect(r.maintenanceSource).toBe('recent');
+    expect(r.maintenanceMargin).toBe(energy.margin);
+    expect(r.maintenanceWindow).toEqual({
+      start: energy.maintenanceWindow.start,
+      end: energy.maintenanceWindow.end,
+    });
+    if (energy.margin == null || !energy.maintenanceWindow || r.maintenance == null) {
+      throw new Error('Expected recent maintenance metadata');
+    }
+    const margin = `±${kfmt(Math.round(energy.margin / 10) * 10)}`;
+    const window = `weeks ${shortDate(dateFromKey(energy.maintenanceWindow.start))} to ${shortDate(dateFromKey(energy.maintenanceWindow.end))}`;
+    expect(maintenanceEstimateNote(r)).toEqual({ margin, window });
+    expect(maintenanceEstimateSummary(r)).toBe(`about ${kfmt(r.maintenance)} kcal (${margin}), based on ${window}`);
+    expect(recapTip(r)).toBe(`Estimate ${margin} kcal · ${window}\nTreat it as a starting point.`);
     expect(r.avgKcalWeeks).toBeGreaterThan(0);
     expect(r.avgKcalDays).toBeGreaterThanOrEqual(r.avgKcalWeeks * 4);
   });
@@ -800,8 +868,20 @@ describe('phaseRecap', () => {
     const r = phaseRecap(reachedUser, rated, info, null, null);
     expect(r.maintenance).toBe(3700);
     expect(r.maintenanceSource).toBe('stored');
+    expect(r.maintenanceMargin).toBeNull();
+    expect(r.maintenanceWindow).toBeNull();
+    expect(recapTip(r)).toBe('Your saved estimate is 3,700 kcal, but there is not enough recent data to recommend switching yet.');
     expect(r.perKg).toBeNull();
     expect(r.strengthPct).toBeNull();
+  });
+
+  test('does not expose regression uncertainty for a legacy energy estimate', () => {
+    const legacyEnergy = energy && { ...energy, margin: null, maintenanceWindow: null };
+    const r = phaseRecap(reachedUser, rated, info, legacyEnergy, strength);
+
+    expect(r.maintenanceSource).toBe('legacy');
+    expect(r.maintenanceMargin).toBeNull();
+    expect(r.maintenanceWindow).toBeNull();
   });
 
   test('has no maintenance when nothing is known', () => {

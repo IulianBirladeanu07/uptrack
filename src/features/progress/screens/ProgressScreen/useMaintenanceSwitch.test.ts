@@ -36,6 +36,8 @@ const recap: PhaseRecap = {
     perKg: 15,
     maintenance: 2400,
     maintenanceSource: 'recent',
+    maintenanceMargin: 186,
+    maintenanceWindow: { start: '2026-09-14', end: '2026-10-11' },
     avgKcalWeeks: 12,
     avgKcalDays: 84,
 };
@@ -59,12 +61,33 @@ describe('useMaintenanceSwitch', () => {
 
         expect(alert).toHaveBeenCalledWith(
             'Switch to maintenance',
-            expect.stringContaining('2,400 kcal'),
+            'Your target becomes about 2,400 kcal (±190), based on weeks Sep 14 to Oct 11, and a new phase starts at 80.4 kg.',
             expect.any(Array),
         );
         const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
         expect(buttons.map(button => button.text)).toEqual(['Cancel', 'Switch']);
         expect(switchPhase).not.toHaveBeenCalled();
+    });
+
+    it('keeps the existing confirmation wording for a stored estimate', () => {
+        const { result } = renderHook(() => useMaintenanceSwitch({
+            recap: {
+                ...recap,
+                maintenanceSource: 'stored',
+                maintenanceMargin: null,
+                maintenanceWindow: null,
+            },
+            userData,
+            refreshUserData: jest.fn(),
+        }));
+
+        act(() => result.current.onSwitch());
+
+        expect(alert).toHaveBeenCalledWith(
+            'Switch to maintenance',
+            'Your target becomes about 2,400 kcal based on recent trends, and a new phase starts at 80.4 kg.',
+            expect.any(Array),
+        );
     });
 
     it('switches using the profile uid, refreshes user data, and clears busy state', async () => {

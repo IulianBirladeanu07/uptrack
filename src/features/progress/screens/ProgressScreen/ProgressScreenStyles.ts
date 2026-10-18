@@ -6,14 +6,16 @@ const styles = createStyles(() => ({
         flex: 1,
         backgroundColor: colors.background.primary,
     },
-    titleRow: {
+    headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        marginBottom: spacing[3],
     },
     viewRow: {
         flexDirection: 'row',
         gap: spacing[5],
+        flexShrink: 0,
     },
     viewTab: {
         paddingTop: spacing[1],
@@ -32,21 +34,23 @@ const styles = createStyles(() => ({
     viewTextActive: {
         color: colors.text.primary,
     },
-    status: {
-        marginTop: spacing[1],
-        marginBottom: spacing[3],
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.medium,
-        color: colors.text.tertiary,
-    },
-    rangeRow: {
+    rangeSelector: {
         flexDirection: 'row',
-        gap: spacing[4],
+        alignItems: 'center',
+        flexShrink: 1,
+    },
+    rangeOption: {
+        minHeight: spacing[12],
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: spacing[3],
+        borderRadius: radius[2],
     },
     rangeText: {
-        fontSize: fontSize[14],
+        fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
         color: colors.text.quaternary,
+        textAlign: 'center',
     },
     rangeTextActive: {
         color: colors.text.primary,
@@ -230,23 +234,48 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.medium,
         color: colors.text.secondary,
     },
+    maintenanceNote: {
+        marginTop: spacing[3],
+        padding: spacing[3],
+        borderRadius: radius[3],
+        backgroundColor: colors.faded.surface,
+        alignItems: 'center',
+    },
+    maintenanceNoteText: {
+        textAlign: 'center',
+    },
+    maintenanceNoteAdvice: {
+        marginTop: spacing[1],
+        fontSize: fontSize[12],
+        lineHeight: 18,
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+        textAlign: 'center',
+    },
 
     cta: {
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: spacing[10],
+        gap: spacing[2],
         marginTop: spacing[3],
-        paddingHorizontal: spacing[4],
+        paddingVertical: spacing[4],
         borderRadius: radius[3],
         backgroundColor: colors.accent.primary,
+        shadowColor: colors.accent.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 6,
     },
     ctaBusy: {
         opacity: 0.6,
     },
     ctaText: {
-        fontSize: fontSize[14],
-        fontWeight: fontWeight.semibold,
+        fontSize: fontSize[16],
+        fontWeight: fontWeight.bold,
         color: colors.accent.buttonText,
+        letterSpacing: 0.3,
     },
     link: {
         alignSelf: 'center',
@@ -256,7 +285,8 @@ const styles = createStyles(() => ({
     linkText: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
-        color: colors.text.secondary,
+        color: colors.accent.primary,
+        textDecorationLine: 'underline',
     },
 
     alert: {

@@ -27,6 +27,8 @@ export type MaintenanceEstimate = {
   se: number;
   margin: number;
   weeksUsed: number;
+  windowStart: string;
+  windowEnd: string;
   avgCalories: number;
   rateKgPerWeek: number;
   weighIns: number;

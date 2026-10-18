@@ -193,13 +193,22 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
               <Ionicons name="camera" size={spacing.iconSm} color={colors.accent.buttonText} />
             </View>
           </TouchableOpacity>
-          <Text style={styles.avatarName}>{identity.username || 'Your Name'}</Text>
+          <View style={styles.avatarIdentity}>
+            <Text style={styles.avatarName}>{identity.username || 'Your Name'}</Text>
+            <Text style={styles.avatarEmail} numberOfLines={1}>{identity.email || 'Add an email address'}</Text>
+          </View>
         </View>
 
         <View style={[styles.hero, planChanged && styles.heroActive]}>
           <View style={styles.heroHeader}>
-            <View style={[styles.goalTag, { backgroundColor: isGaining ? colors.faded.success : colors.faded.primary }]}>
-              <Text style={[styles.goalTagText, { color: isGaining ? colors.accent.success : colors.accent.primary }]}>
+            <View style={[
+              styles.goalTag,
+              { backgroundColor: isGaining ? colors.faded.success : previewGoal === 'maintenance' ? colors.faded.cyan : colors.faded.primary },
+            ]}>
+              <Text style={[
+                styles.goalTagText,
+                { color: isGaining ? colors.accent.success : previewGoal === 'maintenance' ? colors.accent.cyan : colors.accent.primary },
+              ]}>
                 {isGaining ? 'Muscle Gain' : previewGoal === 'maintenance' ? 'Maintenance' : 'Cut'}
               </Text>
             </View>
@@ -210,44 +219,41 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
             )}
           </View>
 
-          <View style={styles.heroKcalRow}>
-            <View style={styles.heroKcalCol}>
-              <Text style={styles.heroColLabel}>NOW</Text>
-              <Text style={styles.heroKcalOld}>{currentPlan.goalCalories}</Text>
+          <View style={styles.heroTargetRow}>
+            <View>
+              <Text style={styles.heroColLabel}>DAILY CALORIE TARGET</Text>
+              <View style={styles.heroTargetValueRow}>
+                <Text style={styles.heroKcalNew}>{previewPlan.goalCalories}</Text>
+                <Text style={styles.heroKcalUnit}>kcal</Text>
+              </View>
             </View>
-
-            <View style={styles.heroArrow}>
-              {planChanged && calDiff !== 0 ? (
-                <View style={[styles.heroDiffBadge, { backgroundColor: calDiff > 0 ? colors.faded.success : colors.faded.error }]}>
-                  <Text style={[styles.heroDiffText, { color: calDiff > 0 ? colors.accent.success : colors.accent.error }]}>
+            {planChanged && calDiff !== 0 && (
+              <View style={styles.heroTargetChange}>
+                <View style={[
+                  styles.heroDiffBadge,
+                  { backgroundColor: calDiff > 0 ? colors.faded.success : colors.faded.error },
+                ]}>
+                  <Text style={[
+                    styles.heroDiffText,
+                    { color: calDiff > 0 ? colors.accent.success : colors.accent.error },
+                  ]}>
                     {calDiff > 0 ? '+' : ''}{calDiff}
                   </Text>
                 </View>
-              ) : (
-                <Ionicons name="arrow-forward" size={18} color={colors.text.quaternary} />
-              )}
-            </View>
-
-            <View style={styles.heroKcalCol}>
-              <Text style={[styles.heroColLabel, planChanged && { color: colors.accent.primary }]}>NEW</Text>
-              <Text style={[styles.heroKcalNew, planChanged && { color: colors.text.primary }]}>
-                {previewPlan.goalCalories}
-              </Text>
-            </View>
+                <Text style={styles.heroCompare}>from {currentPlan.goalCalories} kcal</Text>
+              </View>
+            )}
           </View>
-
-          <Text style={styles.heroKcalUnit}>kcal / day</Text>
 
           <View style={styles.heroMacros}>
             {[
-              { label: 'P', old: currentPlan.macros.protein, next: previewPlan.macros.protein, color: colors.accent.purple  },
-              { label: 'C', old: currentPlan.macros.carbs,   next: previewPlan.macros.carbs,   color: colors.accent.success },
-              { label: 'F', old: currentPlan.macros.fats,    next: previewPlan.macros.fats,    color: colors.accent.cyan    },
+              { label: 'Protein', old: currentPlan.macros.protein, next: previewPlan.macros.protein },
+              { label: 'Carbs', old: currentPlan.macros.carbs, next: previewPlan.macros.carbs },
+              { label: 'Fat', old: currentPlan.macros.fats, next: previewPlan.macros.fats },
             ].map((m, i, arr) => {
               const diff = m.next - m.old;
               return (
                 <View key={m.label} style={[styles.heroMacroItem, i < arr.length - 1 && styles.heroMacroBorder]}>
-                  <View style={[styles.heroMacroDot, { backgroundColor: m.color }]} />
                   <Text style={styles.heroMacroLabel}>{m.label}</Text>
                   <Text style={[styles.heroMacroVal, planChanged && { color: colors.text.primary }]}>{m.next}g</Text>
                   {planChanged && diff !== 0 && (
@@ -278,27 +284,50 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
           </View>
         </View>
 
-        <SectionTitle>Account</SectionTitle>
+        <SectionTitle>Goal Phase</SectionTitle>
         <View style={styles.card}>
-          <InputRow
-            label="Username"
-            value={identity.username}
-            onChangeText={v => updateIdentity('username', v)}
-            placeholder="Username"
-            autoCapitalize="none"
-            error={errors.username}
+          {[
+            { label: 'Weight loss', value: 'weight_loss', desc: 'Set a calorie deficit and track progress toward losing weight.' },
+            { label: 'Muscle gain', value: 'muscle_gain', desc: 'Set a calorie surplus to support gradual muscle gain.' },
+            { label: 'Maintenance', value: 'maintenance', desc: 'Maintain your current weight and nutrition targets.' },
+          ].map((option, index, options) => (
+            <View key={option.value}>
+              <OptionRow
+                option={option}
+                selected={form.fitnessGoals === option.value}
+                onPress={value => update('fitnessGoals', value)}
+              />
+              {index < options.length - 1 && <View style={styles.divider} />}
+            </View>
+          ))}
+        </View>
+
+        <SectionTitle>Weight</SectionTitle>
+        <View style={styles.card}>
+          <NumberStepper label="Current" value={form.currentWeight} unit="kg" onDecrement={() => stepValue('currentWeight', -0.1, 30, 300, 1)} onIncrement={() => stepValue('currentWeight', 0.1, 30, 300, 1)} />
+          <View style={styles.divider} />
+          <NumberStepper label="Target"  value={form.targetWeight}  unit="kg" onDecrement={() => stepValue('targetWeight',  -0.1, 30, 300, 1)} onIncrement={() => stepValue('targetWeight',  0.1, 30, 300, 1)} />
+        </View>
+
+        <SectionTitle>Nutrition Targets</SectionTitle>
+        <View style={styles.card}>
+          <NumberStepper
+            label="Calories"
+            value={form.targetCalories}
+            unit="kcal"
+            onDecrement={() => stepNutritionValue('targetCalories', -25)}
+            onIncrement={() => stepNutritionValue('targetCalories', 25)}
           />
           <View style={styles.divider} />
-          <InputRow
-            label="Email"
-            value={identity.email}
-            onChangeText={v => updateIdentity('email', v)}
-            placeholder="Email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            editable={isPasswordAccount}
-            error={errors.email}
-          />
+          <NumberStepper label="Protein" value={form.targetProtein} unit="g" onDecrement={() => stepNutritionValue('targetProtein', -5)} onIncrement={() => stepNutritionValue('targetProtein', 5)} />
+          <View style={styles.divider} />
+          <NumberStepper label="Carbs" value={form.targetCarbs} unit="g" onDecrement={() => stepNutritionValue('targetCarbs', -5)} onIncrement={() => stepNutritionValue('targetCarbs', 5)} />
+          <View style={styles.divider} />
+          <NumberStepper label="Fat" value={form.targetFats} unit="g" onDecrement={() => stepNutritionValue('targetFats', -5)} onIncrement={() => stepNutritionValue('targetFats', 5)} />
+          {nutritionError ? <Text style={styles.errorText}>{nutritionError}</Text> : null}
+          <Text style={styles.nutritionHint}>
+            Changing calories redistributes macros proportionally. Changing a macro balances the other two within your calorie target.
+          </Text>
         </View>
 
         <SectionTitle>Personal</SectionTitle>
@@ -326,68 +355,27 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
           </View>
         </View>
 
-        <SectionTitle>Weight</SectionTitle>
+        <SectionTitle>Account</SectionTitle>
         <View style={styles.card}>
-          <NumberStepper label="Current" value={form.currentWeight} unit="kg" onDecrement={() => stepValue('currentWeight', -0.1, 30, 300, 1)} onIncrement={() => stepValue('currentWeight', 0.1, 30, 300, 1)} />
-          <View style={styles.divider} />
-          <NumberStepper label="Target"  value={form.targetWeight}  unit="kg" onDecrement={() => stepValue('targetWeight',  -0.1, 30, 300, 1)} onIncrement={() => stepValue('targetWeight',  0.1, 30, 300, 1)} />
-        </View>
-
-        <SectionTitle>Goal Phase</SectionTitle>
-        <View style={styles.card}>
-          {[
-            { label: 'Weight loss', value: 'weight_loss', desc: 'Set a calorie deficit and track progress toward losing weight.' },
-            { label: 'Muscle gain', value: 'muscle_gain', desc: 'Set a calorie surplus to support gradual muscle gain.' },
-            { label: 'Maintenance', value: 'maintenance', desc: 'Maintain your current weight and nutrition targets.' },
-          ].map((option, index, options) => (
-            <View key={option.value}>
-              <OptionRow
-                option={option}
-                selected={form.fitnessGoals === option.value}
-                onPress={value => update('fitnessGoals', value)}
-              />
-              {index < options.length - 1 && <View style={styles.divider} />}
-            </View>
-          ))}
-        </View>
-
-        <SectionTitle>Nutrition Targets</SectionTitle>
-        <View style={styles.card}>
-          <NumberStepper
-            label="Calories"
-            value={form.targetCalories}
-            unit="kcal"
-            onDecrement={() => stepNutritionValue('targetCalories', -25)}
-            onIncrement={() => stepNutritionValue('targetCalories', 25)}
+          <InputRow
+            label="Username"
+            value={identity.username}
+            onChangeText={v => updateIdentity('username', v)}
+            placeholder="Username"
+            autoCapitalize="none"
+            error={errors.username}
           />
           <View style={styles.divider} />
-          <NumberStepper
-            label="Protein"
-            value={form.targetProtein}
-            unit="g"
-            onDecrement={() => stepNutritionValue('targetProtein', -5)}
-            onIncrement={() => stepNutritionValue('targetProtein', 5)}
+          <InputRow
+            label="Email"
+            value={identity.email}
+            onChangeText={v => updateIdentity('email', v)}
+            placeholder="Email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            editable={isPasswordAccount}
+            error={errors.email}
           />
-          <View style={styles.divider} />
-          <NumberStepper
-            label="Carbs"
-            value={form.targetCarbs}
-            unit="g"
-            onDecrement={() => stepNutritionValue('targetCarbs', -5)}
-            onIncrement={() => stepNutritionValue('targetCarbs', 5)}
-          />
-          <View style={styles.divider} />
-          <NumberStepper
-            label="Fat"
-            value={form.targetFats}
-            unit="g"
-            onDecrement={() => stepNutritionValue('targetFats', -5)}
-            onIncrement={() => stepNutritionValue('targetFats', 5)}
-          />
-          {nutritionError ? <Text style={styles.errorText}>{nutritionError}</Text> : null}
-          <Text style={styles.nutritionHint}>
-            Changing calories redistributes macros proportionally. Changing a macro balances the other two within your calorie target.
-          </Text>
         </View>
 
         <SectionTitle>Activity Level</SectionTitle>
@@ -493,41 +481,42 @@ const styles = createStyles(() => ({
   topBarRight:         { width: spacing[10] },
   scroll:              { flex: 1 },
   scrollContent:       { paddingHorizontal: spacing[4], paddingTop: spacing[2] },
-  avatarSection:       { alignItems: 'center', marginBottom: spacing[5] },
-  avatarWrapper:       { position: 'relative', marginBottom: spacing[3] },
-  avatar:              { width: spacing[18], height: spacing[18], borderRadius: spacing[9], borderWidth: 2, borderColor: colors.border.primary },
+  avatarSection:       { flexDirection: 'row', alignItems: 'center', gap: spacing[4], marginBottom: spacing[4] },
+  avatarWrapper:       { position: 'relative' },
+  avatar:              { width: spacing[14], height: spacing[14], borderRadius: spacing[7], borderWidth: 2, borderColor: colors.border.primary },
   avatarFallback:      { backgroundColor: colors.background.secondary, alignItems: 'center', justifyContent: 'center' },
   avatarEditBadge:     { position: 'absolute', bottom: 0, right: 0, width: spacing[6], height: spacing[6], borderRadius: spacing[3], backgroundColor: colors.accent.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background.primary },
-  avatarName:          { fontSize: fontSize[18], fontWeight: fontWeight.bold, color: colors.text.primary },
-  hero:                { backgroundColor: colors.background.secondary, borderRadius: radius[4], padding: spacing[5], marginBottom: spacing[5], borderWidth: 1, borderColor: colors.border.default },
+  avatarIdentity:      { flex: 1, gap: spacing[1] },
+  avatarName:          { fontSize: fontSize[20], fontWeight: fontWeight.bold, color: colors.text.primary },
+  avatarEmail:         { fontSize: fontSize[14], fontWeight: fontWeight.medium, color: colors.text.tertiary },
+  hero:                { backgroundColor: colors.background.secondary, borderRadius: radius[4], padding: spacing[4], marginBottom: spacing[4], borderWidth: 1, borderColor: colors.border.default },
   heroActive:          { borderColor: colors.border.primary },
-  heroHeader:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[5] },
+  heroHeader:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[3] },
   goalTag:             { paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius[2] },
   goalTagText:         { fontSize: fontSize[12], fontWeight: fontWeight.bold },
   heroChangedHint:     { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.tertiary },
-  heroKcalRow:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[5], marginBottom: spacing[1] },
-  heroKcalCol:         { alignItems: 'center', flex: 1 },
-  heroColLabel:        { fontSize: fontSize[10], fontWeight: fontWeight.bold, color: colors.text.quaternary, letterSpacing: 1.5, marginBottom: spacing[2] },
-  heroKcalOld:         { fontSize: fontSize[36], fontWeight: fontWeight.extrabold, color: colors.text.quaternary },
-  heroKcalNew:         { fontSize: fontSize[36], fontWeight: fontWeight.extrabold, color: colors.text.quaternary },
-  heroArrow:           { alignItems: 'center', justifyContent: 'center', width: spacing[12] },
+  heroTargetRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroColLabel:        { fontSize: fontSize[10], fontWeight: fontWeight.bold, color: colors.text.tertiary, letterSpacing: 1.2, marginBottom: spacing[1] },
+  heroTargetValueRow:  { flexDirection: 'row', alignItems: 'baseline', gap: spacing[1] },
+  heroKcalNew:         { fontSize: fontSize[32], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.5 },
+  heroKcalUnit:        { fontSize: fontSize[14], fontWeight: fontWeight.medium, color: colors.text.tertiary },
+  heroTargetChange:    { alignItems: 'flex-end', gap: spacing[1] },
+  heroCompare:         { fontSize: fontSize[10], fontWeight: fontWeight.medium, color: colors.text.quaternary },
   heroDiffBadge:       { paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius[2] },
   heroDiffText:        { fontSize: fontSize[14], fontWeight: fontWeight.extrabold },
-  heroKcalUnit:        { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.quaternary, textAlign: 'center', marginBottom: spacing[5] },
-  heroMacros:          { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border.default, paddingTop: spacing[4], marginBottom: spacing[4] },
+  heroMacros:          { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border.default, paddingTop: spacing[3], marginTop: spacing[3], marginBottom: spacing[3] },
   heroMacroItem:       { flex: 1, alignItems: 'center', gap: spacing[1] },
   heroMacroBorder:     { borderRightWidth: 1, borderRightColor: colors.border.default },
-  heroMacroDot:        { width: spacing[2], height: spacing[2], borderRadius: radius[1] },
-  heroMacroLabel:      { fontSize: fontSize[10], fontWeight: fontWeight.bold, color: colors.text.quaternary, letterSpacing: 1 },
-  heroMacroVal:        { fontSize: fontSize[18], fontWeight: fontWeight.extrabold, color: colors.text.quaternary },
+  heroMacroLabel:      { fontSize: fontSize[10], fontWeight: fontWeight.semibold, color: colors.text.tertiary },
+  heroMacroVal:        { fontSize: fontSize[16], fontWeight: fontWeight.extrabold, color: colors.text.primary },
   heroMacroDiff:       { fontSize: fontSize[10], fontWeight: fontWeight.bold },
-  heroFooter:          { borderTopWidth: 1, borderTopColor: colors.border.default, paddingTop: spacing[3] },
-  heroRate:            { fontSize: fontSize[12], color: colors.text.secondary, textAlign: 'center', fontWeight: fontWeight.medium },
-  sectionTitle:        { fontSize: fontSize[20], fontWeight: fontWeight.bold, color: colors.text.primary, marginBottom: spacing[3], marginTop: spacing[2] },
-  card:                { backgroundColor: colors.background.secondary, borderRadius: radius[4], borderWidth: 1, borderColor: colors.border.default, overflow: 'hidden', marginBottom: spacing[4] },
+  heroFooter:          { borderTopWidth: 1, borderTopColor: colors.border.default, paddingTop: spacing[2] },
+  heroRate:            { fontSize: fontSize[12], color: colors.text.secondary, textAlign: 'left', fontWeight: fontWeight.medium },
+  sectionTitle:        { fontSize: fontSize[16], fontWeight: fontWeight.bold, color: colors.text.primary, marginBottom: spacing[2], marginTop: spacing[3] },
+  card:                { backgroundColor: colors.background.secondary, borderRadius: radius[4], borderWidth: 1, borderColor: colors.border.default, overflow: 'hidden', marginBottom: spacing[3] },
   divider:             { height: 1, backgroundColor: colors.border.default, marginHorizontal: spacing[4] },
-  stepperRow:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing[4], paddingVertical: spacing[4] },
-  stepperLabel:        { fontSize: fontSize[16], fontWeight: fontWeight.semibold, color: colors.text.primary },
+  stepperRow:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing[4], paddingVertical: spacing[3] },
+  stepperLabel:        { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.text.primary },
   input:               { flex: 1, marginLeft: spacing[4], padding: 0, textAlign: 'right', fontSize: fontSize[16], fontWeight: fontWeight.medium, color: colors.text.primary },
   inputError:          { color: colors.accent.error },
   errorText:           { fontSize: fontSize[12], color: colors.accent.error, paddingHorizontal: spacing[4], paddingBottom: spacing[3], textAlign: 'right' },
@@ -537,7 +526,7 @@ const styles = createStyles(() => ({
   genderBtnText:       { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.text.tertiary },
   genderBtnTextSelected: { color: colors.accent.buttonText, fontWeight: fontWeight.bold },
   optionDesc:          { fontSize: fontSize[12], color: colors.text.quaternary, fontWeight: fontWeight.medium, marginTop: spacing[1] },
-  nutritionHint:       { fontSize: fontSize[12], color: colors.text.tertiary, lineHeight: fontSize[18], paddingHorizontal: spacing[4], paddingBottom: spacing[4] },
+  nutritionHint:       { fontSize: fontSize[12], color: colors.text.tertiary, lineHeight: fontSize[18], paddingHorizontal: spacing[4], paddingBottom: spacing[3] },
   automationTextCol:   { flex: 1, paddingRight: spacing[4] },
   logoutButton:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2], backgroundColor: colors.faded.errorAlt, borderRadius: radius[4], height: spacing.buttonHeight, borderWidth: 1, borderColor: colors.border.error, marginTop: spacing[2] },
   logoutText:          { color: colors.accent.error, fontWeight: fontWeight.semibold, fontSize: fontSize[16] },

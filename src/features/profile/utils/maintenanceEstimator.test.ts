@@ -13,9 +13,9 @@ const TRUE_MAINT = 3000;
 const INTAKE = 2500;
 const DAILY_RATE = ((INTAKE - TRUE_MAINT) / 7700);
 
-const weeksFrom = (count, extra = () => ({})) =>
+const weeksFrom = (count, extra = () => ({}), start = START) =>
   Array.from({ length: count }, (_, i) => ({
-    weekStart: shiftWeekStart(START, i),
+    weekStart: shiftWeekStart(start, i),
     daysLogged: 7,
     avgCalories: INTAKE,
     avgSteps: 10000,
@@ -25,6 +25,17 @@ const weeksFrom = (count, extra = () => ({})) =>
 
 const weightsFor = (count, noise = REALISTIC_DAILY_NOISE) =>
   buildWeightIns(START, buildDailyWeights(90, DAILY_RATE, count * 7, noise));
+
+const estimateForWindow = (start: string) => {
+  const weeks = weeksFrom(4, () => ({}), start);
+  const weightIns = buildWeightIns(start, buildDailyWeights(90, DAILY_RATE, 28, [0]));
+  const nextWeek = shiftWeekStart(start, 4).split('-').map(Number);
+  return estimateMaintenanceRegression(
+    weightIns,
+    weeks,
+    new Date(nextWeek[0], nextWeek[1] - 1, nextWeek[2]),
+  );
+};
 
 describe('estimateMaintenanceRegression', () => {
   test('recovers the true maintenance from noisy daily weights', () => {
@@ -39,6 +50,22 @@ describe('estimateMaintenanceRegression', () => {
     const r = estimateMaintenanceRegression(weightsFor(10), weeksFrom(10), NOW);
     expect(r.se).toBeGreaterThan(0);
     expect(r.margin).toBeGreaterThan(r.se);
+  });
+
+  test('returns the inclusive local window dates across month and year boundaries', () => {
+    const r = estimateForWindow('2025-12-15');
+    expect(r).toMatchObject({
+      windowStart: '2025-12-15',
+      windowEnd: '2026-01-11',
+    });
+  });
+
+  test('returns inclusive local window dates across daylight-saving transitions', () => {
+    const r = estimateForWindow('2026-03-02');
+    expect(r).toMatchObject({
+      windowStart: '2026-03-02',
+      windowEnd: '2026-03-29',
+    });
   });
 
   test('always uses exactly the newest four weeks', () => {
