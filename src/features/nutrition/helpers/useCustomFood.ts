@@ -14,6 +14,9 @@ export type FieldHandle = {
     measure: View['measure'];
 };
 
+const BARCODE_EXISTS_MESSAGE = 'A product with this barcode already exists in the database.';
+const UNIQUE_VIOLATION = '23505';
+
 type Field = keyof FoodFormData;
 type FieldValue = FoodFormData[Field];
 
@@ -140,7 +143,7 @@ export const useCustomFood = (
                 }
                 
                 if (existingProduct) {
-                    Alert.alert('Product Exists', 'A product with this barcode already exists in the database.');
+                    Alert.alert('Product Exists', BARCODE_EXISTS_MESSAGE);
                     return;
                 }
                 
@@ -154,6 +157,10 @@ export const useCustomFood = (
                     .insert([{ ...foodItem, barcode_id: barcodeId }]);
         
                 if (error) {
+                    if (error.code === UNIQUE_VIOLATION) {
+                        Alert.alert('Product Exists', BARCODE_EXISTS_MESSAGE);
+                        return;
+                    }
                     Alert.alert('Database Error', 'Failed to save food data to the database.');
                     return;
                 }

@@ -91,7 +91,7 @@ Source: `supabase/rls.sql`, applied by the owner. Both tables have RLS on. Read 
 
 - Text search: `nutrition/handlers/NutritionHandler.ts` queries `non_barcoded_products`, quoting search terms before they enter PostgREST `or()` filters (keep it that way), and calls the `search_products_similarity` RPC (`search_term`, `similarity_threshold`, `limit_count`).
 - Barcode lookup: `nutrition/helpers/useBarcodeScanner.ts` reads `barcoded_products` by `barcode_id`.
-- Custom food with a barcode: `nutrition/helpers/useCustomFood.ts` checks that the barcode is not present, then inserts. If two inserts race, the second fails on the primary key and the user sees a generic save error.
+- Custom food with a barcode: `nutrition/helpers/useCustomFood.ts` checks that the barcode is not present, then inserts. If two inserts race, the second fails on the primary key (error code `23505`) and the user sees the same "Product Exists" message as when the check finds the barcode. The save button ignores a second tap while a save is running.
 - `scripts/verify-rls.js` checks the policies with the public key (`SUPABASE_URL` and `SUPABASE_ANON_KEY` in the environment). With `--insert` it leaves a probe row (barcode `99999999999999`, name `__rls_probe__`) to delete in the SQL editor.
 
 ## Adding or changing data

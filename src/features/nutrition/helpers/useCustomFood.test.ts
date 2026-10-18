@@ -197,4 +197,22 @@ describe('useCustomFood', () => {
     expect(ok.insert).toHaveBeenCalledTimes(2);
     expect(navigation.navigate).toHaveBeenCalledTimes(2);
   });
+
+  it('reports an existing product when the insert loses a race on the barcode key', async () => {
+    const navigation = { navigate: jest.fn() } as never;
+    const { result } = renderHook(() =>
+      useCustomFood('foodWithBarcode', navigation, 1000, '12345678', 'dinner', '2026-10-17'),
+    );
+    fillRequiredFields(result);
+    setupBarcodeTable(
+      { data: null, error: { code: 'PGRST116' } },
+      { error: Object.assign(new Error('duplicate key value'), { code: '23505' }) },
+    );
+
+    await act(async () => result.current.handleSubmit());
+
+    expect(Alert.alert).toHaveBeenCalledWith('Product Exists', 'A product with this barcode already exists in the database.');
+    expect(Alert.alert).not.toHaveBeenCalledWith('Database Error', expect.any(String));
+    expect(navigation.navigate).not.toHaveBeenCalled();
+  });
 });
