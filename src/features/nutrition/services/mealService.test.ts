@@ -9,7 +9,7 @@ jest.mock('firebase/firestore', () => ({
 }));
 jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 
-import { getDoc, getDocs } from 'firebase/firestore';
+import { getDoc, getDocs, where } from 'firebase/firestore';
 import {
   consolidateFoodData,
   buildAddUndo,
@@ -17,6 +17,7 @@ import {
   normalizeLoggedFoods,
   fetchRawMealsForDate,
   fetchLast30DaysMeals,
+  fetchNutritionForDateRange,
 } from './mealService';
 
 const validFood = { id: 'food-1', productName: 'Oats', calories: 100 };
@@ -63,6 +64,28 @@ describe('meal reads', () => {
       { date: '2026-10-15', mealType: 'breakfast', foods: [validFood] },
       { date: '2026-10-15', mealType: 'snacks', foods: [{ id: 'food-2', calories: 25 }] },
     ]);
+  });
+
+  test('fetchNutritionForDateRange sums all logged meals by day for the requested history window', async () => {
+    getDocs.mockResolvedValue({
+      docs: [
+        {
+          data: () => ({
+            date: '2026-06-08',
+            breakfast: [{ id: 'food-1', calories: '300', protein: '10' }],
+            lunch: [{ id: 'food-2', calories: 700, protein: 30 }],
+            dinner: [],
+            snacks: [],
+          }),
+        },
+      ],
+    });
+
+    await expect(fetchNutritionForDateRange('user-1', '2026-06-08', '2026-10-18')).resolves.toEqual([
+      { date: '2026-06-08', calories: 1000, protein: 40 },
+    ]);
+    expect(where).toHaveBeenCalledWith('date', '>=', '2026-06-08');
+    expect(where).toHaveBeenCalledWith('date', '<=', '2026-10-18');
   });
 });
 

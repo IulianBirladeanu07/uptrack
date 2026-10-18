@@ -1,4 +1,4 @@
-import { signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, signOut, GoogleAuthProvider, signInWithCredential, sendPasswordResetEmail as firebaseSendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, signOut, GoogleAuthProvider, OAuthProvider, signInWithCredential, sendPasswordResetEmail as firebaseSendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../auth/services/firebaseConfigService';
 import Constants from 'expo-constants';
@@ -123,6 +123,56 @@ const signInWithGoogle = async (
   setProfileSetupComplete(userData.profileSetupComplete || false);
 };
 
+type AppleFullName = {
+  givenName: string | null;
+  middleName: string | null;
+  familyName: string | null;
+};
+
+const signInWithApple = async (
+  identityToken: string,
+  rawNonce: string,
+  appleProfile: { email: string | null; fullName: AppleFullName | null },
+  setAuthenticated: SetFlag,
+  setProfileSetupComplete: SetFlag,
+): Promise<void> => {
+  const provider = new OAuthProvider('apple.com');
+  const credential = provider.credential({ idToken: identityToken, rawNonce });
+  const userCredential = await signInWithCredential(auth, credential);
+  const user = userCredential.user;
+  const appleName = appleProfile.fullName
+    ? [appleProfile.fullName.givenName, appleProfile.fullName.middleName, appleProfile.fullName.familyName]
+      .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+      .join(' ')
+    : '';
+  const displayName = user.displayName || appleName || undefined;
+  const userDocRef = doc(db, 'users', user.uid);
+  const userDoc = await getDoc(userDocRef);
+
+  if (userDoc.exists()) {
+    const existing = userDoc.data() as UserData;
+    const update: Record<string, unknown> = { lastLogin: serverTimestamp() };
+    if (!existing.displayName && displayName) update['displayName'] = displayName;
+    if (!existing.email && (user.email || appleProfile.email)) {
+      update['email'] = user.email || appleProfile.email;
+    }
+    await updateDoc(userDocRef, update);
+  } else {
+    const newUser: Record<string, unknown> = {
+      profileSetupComplete: false,
+      createdAt: serverTimestamp(),
+    };
+    const email = user.email || appleProfile.email;
+    if (email) newUser['email'] = email;
+    if (displayName) newUser['displayName'] = displayName;
+    await setDoc(userDocRef, newUser);
+  }
+
+  const userData = (await getDoc(userDocRef)).data() as UserData;
+  setAuthenticated(true);
+  setProfileSetupComplete(userData.profileSetupComplete || false);
+};
+
 export const sendPasswordResetEmail = async (email: string): Promise<void> => {
   try {
     await firebaseSendPasswordResetEmail(auth, email);
@@ -160,6 +210,7 @@ export default {
   signUpWithEmailAndPassword,
   resendVerificationEmail,
   signInWithGoogle,
+  signInWithApple,
   sendPasswordResetEmail,
   getGoogleAndroidClientId,
   getGoogleWebClientId,

@@ -24,6 +24,7 @@ type ProgressScreenModelParams = {
     workoutHistory: BuildSource['workouts'];
     getNutrition: NonNullable<BuildSource['getNutrition']>;
     getSteps: NonNullable<BuildSource['getSteps']>;
+    nutritionHistoryStart?: BuildSource['nutritionHistoryStart'];
     rollingWeekStats: unknown;
     rangeKey: string | null;
     planned: number | null;
@@ -34,6 +35,7 @@ export const useProgressScreenModel = ({
     workoutHistory,
     getNutrition,
     getSteps,
+    nutritionHistoryStart,
     rollingWeekStats,
     rangeKey,
     planned,
@@ -48,9 +50,10 @@ export const useProgressScreenModel = ({
             workouts: workoutHistory,
             getNutrition,
             getSteps,
+            ...(nutritionHistoryStart !== undefined ? { nutritionHistoryStart } : {}),
             calc1RM: calculate1RM,
         }),
-        [userData?.weightIns, userData?.weeklyNutrition, userData?.dailySteps, workoutHistory, getNutrition, getSteps, rollingWeekStats],
+        [userData?.weightIns, userData?.weeklyNutrition, userData?.dailySteps, workoutHistory, getNutrition, getSteps, nutritionHistoryStart, rollingWeekStats],
     );
 
     const weeks = useMemo(() => withRates(built.weeks, dir), [built, dir]);

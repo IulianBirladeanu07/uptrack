@@ -127,7 +127,7 @@ const WeeklyOverview = ({
                                     <Text style={styles.weeklyStatValue}>{stat.value}</Text>
                                     {stat.delta && (
                                         <View style={[styles.weeklyBadge, { backgroundColor: stat.delta.bg }]}>
-                                            <Ionicons name={stat.delta.icon} size={spacing[2] + 2} color={stat.delta.fg} />
+                                            <Ionicons name={stat.delta.icon} size={spacing[2] + 1} color={stat.delta.fg} />
                                             <Text style={[styles.weeklyBadgeText, { color: stat.delta.fg }]}>{stat.delta.text}</Text>
                                         </View>
                                     )}

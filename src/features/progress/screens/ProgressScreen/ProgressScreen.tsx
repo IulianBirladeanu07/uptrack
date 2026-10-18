@@ -9,6 +9,7 @@ import BottomNav from '../../../../shared/components/BottomNav/BottomNav';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
+import { formatDate } from '../../../nutrition/utils/dateUtils';
 import { colors, spacing } from '../../../../shared/theme';
 import { useAppNavigation } from '../../../../shared/navigation';
 import { PaceChart, BalanceChart, StrengthChart } from '../../components/ProgressCharts';
@@ -25,7 +26,7 @@ import {
     sg,
     kfmt,
 } from '../../utils/progressEngine';
-import type { EnergyModel, MonthRow as MonthData, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
+import type { EnergyModel, MonthRow as MonthData, NutritionDay, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
 import { useProgressScreenModel } from './useProgressScreenModel';
 import { useMaintenanceSwitch } from './useMaintenanceSwitch';
 import { usePlannedWorkouts } from './usePlannedWorkouts';
@@ -83,7 +84,7 @@ const Hero = ({ value, unit, children }: { value: string; unit?: string | undefi
     </View>
 );
 
-type StatItem = { value: string; unit?: string | undefined; label: string; color?: string | undefined; dot?: string; dash?: boolean };
+type StatItem = { value: string; unit?: string | undefined; label: string; detail?: string; color?: string | undefined; dot?: string; dash?: boolean };
 
 const Stats = ({ items }: { items: StatItem[] }) => (
     <View style={styles.stats}>
@@ -100,6 +101,7 @@ const Stats = ({ items }: { items: StatItem[] }) => (
                         {it.dash && <View style={styles.statDash} />}
                         <Text style={styles.statLabel}>{it.label}</Text>
                     </View>
+                    {it.detail ? <Text style={styles.statDetail}>{it.detail}</Text> : null}
                 </View>
             </React.Fragment>
         ))}
@@ -145,13 +147,17 @@ const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: bool
             </Hero>
             <Stats
                 items={[
-                    { value: kfmt(r.avgKcal), label: 'Avg kcal' },
+                    {
+                        value: kfmt(r.avgKcal),
+                        unit: r.avgKcal != null ? 'kcal/day' : undefined,
+                        label: 'Avg intake',
+                    },
                     { value: String(r.weeks), unit: 'wk', label: 'Duration' },
                     third,
                 ]}
             />
-            {r.maintenance == null && <Tip text={recapTip(r)} />}
-            {r.maintenance != null && (
+            {r.maintenanceSource !== 'recent' && <Tip text={recapTip(r)} />}
+            {r.maintenanceSource === 'recent' && r.maintenance != null && (
                 <TouchableOpacity
                     style={[styles.cta, busy && styles.ctaBusy]}
                     onPress={onSwitch}
@@ -159,12 +165,12 @@ const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: bool
                     activeOpacity={0.9}
                 >
                     <Text style={styles.ctaText}>
-                        {busy ? 'Switching...' : `Switch to maintenance · ${kfmt(r.maintenance)} kcal`}
+                        {busy ? 'Switching...' : `Switch to maintenance · ~${kfmt(r.maintenance)} kcal`}
                     </Text>
                 </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.link} onPress={onProfile} activeOpacity={0.7}>
-                <Text style={styles.linkText}>Set a different goal</Text>
+                <Text style={styles.linkText}>Choose another goal in Profile</Text>
             </TouchableOpacity>
         </View>
     );
@@ -176,7 +182,7 @@ const PaceCard = ({ m, info, n }: { m: PaceModel | null; info: PhaseInfo; n: num
         setSel(null);
     }, [n]);
 
-    const title = info.dir < 0 ? 'Weight loss pace' : info.dir > 0 ? 'Weight gain pace' : 'Weight drift';
+    const title = info.dir < 0 ? 'Rate of loss' : info.dir > 0 ? 'Rate of gain' : 'Weight drift';
     if (!m) return <EmptyCard cap={title} text="Log your weight for two weeks to see your pace." />;
 
     const pills: Record<PaceStatus, DeltaProps | null> = {
@@ -204,7 +210,7 @@ const PaceCard = ({ m, info, n }: { m: PaceModel | null; info: PhaseInfo; n: num
     const note = picked
         ? pickedText
         : m.status === 'reached'
-            ? `${m.count}-week avg`
+            ? `${n}-week avg`
             : info.remaining != null && !info.reached
                 ? `${info.remaining.toFixed(1)} kg to go`
                 : null;
@@ -221,15 +227,13 @@ const PaceCard = ({ m, info, n }: { m: PaceModel | null; info: PhaseInfo; n: num
             <ChartBox>
                 {w => <PaceChart slots={m.slots} plan={m.plan} width={w} sel={sel} onSelect={setSel} />}
             </ChartBox>
-            {m.status !== 'reached' && (
-                <Stats
-                    items={[
-                        { value: fmt1(m.rate4), unit: 'kg/wk', label: '4W rate' },
-                        { value: fmt1(m.total), unit: 'kg', label: info.dir < 0 ? 'Lost' : info.dir > 0 ? 'Gained' : 'Moved' },
-                        { value: eta, label: 'Goal ETA' },
-                    ]}
-                />
-            )}
+            <Stats
+                items={[
+                    { value: fmt1(m.lastRate), unit: 'kg/wk', label: 'Latest week' },
+                    { value: fmt1(m.rate4), unit: 'kg/wk', label: 'Recent avg' },
+                    { value: eta, label: 'Goal ETA' },
+                ]}
+            />
             <Tip text={paceTip(m, info)} />
         </View>
     );
@@ -263,7 +267,7 @@ const EnergyCard = ({ m, info, n }: { m: EnergyModel | null; info: PhaseInfo; n:
             </ChartBox>
             <Stats
                 items={[
-                    { value: kfmt(m.maintNow), unit: m.margin != null ? `\u00b1${kfmt(m.margin)}` : undefined, label: 'Maintenance' },
+                    { value: `~${kfmt(m.maintNow)}`, unit: m.margin != null ? `\u00b1${kfmt(m.margin)}` : undefined, label: 'Est. maintenance' },
                     { value: kfmt(m.eatNow), label: 'Eating' },
                     { value: m.target != null ? kfmt(m.target) : '--', label: 'Eat target' },
                 ]}
@@ -512,12 +516,52 @@ const ProgressScreen = () => {
         workoutHistoryLoadMoreError,
         loadMoreWorkoutHistory,
     } = useContext(WorkoutContext)!;
-    const { getNutritionForDateRange, getStepsForDateRange, rollingWeekStats } = useFoodContext();
+    const { currentUserId, getNutritionForDateRange, fetchNutritionForDateRange, getStepsForDateRange, rollingWeekStats } = useFoodContext();
     const [tab, setTab] = useState<TabKey>('nutrition');
     const [rangeKey, setRangeKey] = useState<string | null>(null);
     const [open, setOpen] = useState<Record<string, boolean>>({});
     const [all, setAll] = useState({ n: false, t: false });
+    const [phaseNutritionHistory, setPhaseNutritionHistory] = useState<NutritionDay[] | null>(null);
+    const [phaseNutritionHistoryLoading, setPhaseNutritionHistoryLoading] = useState(false);
+    const [phaseNutritionHistoryError, setPhaseNutritionHistoryError] = useState(false);
     const planned = usePlannedWorkouts(userData?.activeSplitId);
+    const phaseStartDate = userData?.goalSwitchDate ?? null;
+    const phaseNutritionStart = phaseStartDate ? new Date(phaseStartDate) : null;
+
+    useEffect(() => {
+        const start = phaseStartDate ? new Date(phaseStartDate) : null;
+        if (!currentUserId || !start || Number.isNaN(start.getTime()) || start.getTime() >= Date.now()) {
+            setPhaseNutritionHistory(null);
+            setPhaseNutritionHistoryLoading(false);
+            setPhaseNutritionHistoryError(false);
+            return;
+        }
+
+        let active = true;
+        setPhaseNutritionHistory(null);
+        setPhaseNutritionHistoryLoading(true);
+        setPhaseNutritionHistoryError(false);
+        fetchNutritionForDateRange(start, new Date())
+            .then(days => {
+                if (active) setPhaseNutritionHistory(days);
+            })
+            .catch(error => {
+                console.error('[ProgressScreen] historical nutrition load failed:', error);
+                if (active) setPhaseNutritionHistoryError(true);
+            })
+            .finally(() => {
+                if (active) setPhaseNutritionHistoryLoading(false);
+            });
+
+        return () => { active = false; };
+    }, [currentUserId, phaseStartDate, fetchNutritionForDateRange]);
+
+    const getProgressNutrition = useCallback((from: Date, to: Date) => {
+        if (!phaseNutritionHistory) return getNutritionForDateRange(from, to);
+        const startKey = formatDate(from);
+        const endKey = formatDate(to);
+        return phaseNutritionHistory.filter(day => day.date >= startKey && day.date <= endKey);
+    }, [phaseNutritionHistory, getNutritionForDateRange]);
 
     useEffect(() => {
         if (!hasMoreWorkoutHistory || loadingMoreWorkoutHistory || workoutHistoryLoadMoreError) return;
@@ -564,8 +608,11 @@ const ProgressScreen = () => {
     } = useProgressScreenModel({
         userData,
         workoutHistory,
-        getNutrition: getNutritionForDateRange,
+        getNutrition: getProgressNutrition,
         getSteps: getStepsForDateRange,
+        nutritionHistoryStart: phaseNutritionHistory && phaseNutritionStart && !Number.isNaN(phaseNutritionStart.getTime())
+            ? phaseNutritionStart
+            : null,
         rollingWeekStats,
         rangeKey,
         planned,
@@ -579,7 +626,6 @@ const ProgressScreen = () => {
     const openProfile = useCallback(() => navigation.navigate('Profile'), [navigation]);
 
     const { switching, onSwitch } = useMaintenanceSwitch({ recap, userData, refreshUserData });
-
     const status = weeks.length ? `${info.label} · week ${info.phaseWeeks}` : 'Your trends over time';
 
     return (
@@ -649,6 +695,14 @@ const ProgressScreen = () => {
                         {tab === 'nutrition' ? (
                             <>
                                 {recap && <RecapCard r={recap} busy={switching} onSwitch={onSwitch} onProfile={openProfile} />}
+                                {phaseNutritionHistoryLoading && (
+                                    <Text style={styles.statDetail}>Loading food history from this phase...</Text>
+                                )}
+                                {phaseNutritionHistoryError && (
+                                    <Text style={styles.emptySub}>
+                                        Could not load historical food logs. Showing saved weekly summaries instead.
+                                    </Text>
+                                )}
                                 <PaceCard m={pace} info={info} n={n} />
                                 <EnergyCard m={energy} info={info} n={n} />
                                 <MonthsCard

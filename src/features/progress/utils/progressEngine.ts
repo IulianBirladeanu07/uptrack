@@ -28,6 +28,7 @@ export type BuildSource = {
   dailySteps?: DailySteps | undefined;
   workouts?: WorkoutDoc[] | undefined;
   getNutrition?: (from: Date, to: Date) => NutritionDay[];
+  nutritionHistoryStart?: Date | null;
   getSteps?: (from: Date, to: Date) => StepDay[];
   calc1RM: (kg: number, reps: number) => number;
 };
@@ -79,6 +80,7 @@ export type PaceModel = {
   rate: number | null;
   rate4: number | null;
   total: number;
+  spanWeeks: number;
   lastRate: number;
   spike: boolean;
   status: PaceStatus;
@@ -130,7 +132,9 @@ export type PhaseRecap = {
   weightPct: number | null;
   perKg: number | null;
   maintenance: number | null;
-  measured: boolean;
+  maintenanceSource: 'recent' | 'stored' | null;
+  avgKcalWeeks: number;
+  avgKcalDays: number;
 };
 
 export type SetsModel = {
@@ -301,6 +305,9 @@ export const buildWeeks = (src: BuildSource, now: Date = new Date()): { weeks: W
   const keys = [...wMap.keys(), ...nMap.keys(), ...byWeek.keys()].sort();
   if (!keys.length) return { weeks: [], lifts: [] };
   const firstNutrition = [...nMap.keys()].sort()[0] ?? null;
+  const historyStartKey = src.nutritionHistoryStart
+    ? toKey(mondayOf(src.nutritionHistoryStart))
+    : null;
   const best = new Map<string, number>();
 
   const cur = mondayOf(now);
@@ -326,12 +333,38 @@ export const buildWeeks = (src: BuildSource, now: Date = new Date()): { weeks: W
     let steps: number | null = null;
     let nd = 0;
     const snap = overlayWeekSteps(nMap.get(key), dailySteps);
-    if (snap && !isCurrent) {
+    const shouldReadDaily = !!getNutrition && (
+      isCurrent ||
+      (historyStartKey != null && key >= historyStartKey) ||
+      (!snap && firstNutrition != null && key >= firstNutrition)
+    );
+    const daily = shouldReadDaily && getNutrition
+      ? getNutrition(monday, sunday).filter(d => d.calories > 0 && !(isCurrent && d.date === todayKey))
+      : [];
+    const snapDays = snap?.daysLoggedNutrition || 0;
+    if (daily.length > 0 && (isCurrent || daily.length >= snapDays)) {
+      nd = daily.length;
+      kcal = mean(daily.map(d => d.calories));
+      protein = mean(daily.map(d => d.protein));
+      steps = !isCurrent && snap ? snap.avgSteps || null : null;
+      if (getSteps && (isCurrent || !snap)) {
+        const sd = getSteps(monday, sunday).filter(d => d.steps > 0 && !(isCurrent && d.date === todayKey));
+        steps = sd.length ? mean(sd.map(d => d.steps)) : null;
+      }
+    } else if (snap && !isCurrent) {
       nd = snap.daysLoggedNutrition || 0;
       kcal = snap.avgCalories || null;
       protein = snap.avgProtein || null;
       steps = snap.avgSteps || null;
-    } else if (getNutrition && (i >= count - LIVE_WEEKS || (!snap && firstNutrition != null && key >= firstNutrition))) {
+    } else if (shouldReadDaily) {
+      nd = daily.length;
+      kcal = nd ? mean(daily.map(d => d.calories)) : null;
+      protein = nd ? mean(daily.map(d => d.protein)) : null;
+      if (getSteps) {
+        const sd = getSteps(monday, sunday).filter(d => d.steps > 0 && !(isCurrent && d.date === todayKey));
+        steps = sd.length ? mean(sd.map(d => d.steps)) : null;
+      }
+    } else if (getNutrition && i >= count - LIVE_WEEKS) {
       const days = getNutrition(monday, sunday).filter(d => d.calories > 0 && !(isCurrent && d.date === todayKey));
       nd = days.length;
       kcal = nd ? mean(days.map(d => d.calories)) : null;
@@ -503,9 +536,12 @@ export const paceModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, now: D
   const win = slots.filter((w): w is RatedWeek & { rate: number } => w.rate != null);
   if (win.length < 2) return null;
 
-  const rate = mean(win.map(w => w.rate));
-  const rate4 = mean(win.slice(-4).map(w => w.rate));
   const total = sum(win.map(w => w.chg));
+  const spanWeeks = sum(win.map(w => w.gap));
+  const rate = spanWeeks > 0 ? total / spanWeeks : null;
+  const recent = win.slice(-4);
+  const recentWeeks = sum(recent.map(w => w.gap));
+  const rate4 = recentWeeks > 0 ? sum(recent.map(w => w.chg)) / recentWeeks : null;
   const lastRate = win[win.length - 1].rate;
   const rest = win.slice(0, -1).map(w => w.rate);
   const restMean = mean(rest) ?? 0;
@@ -527,7 +563,9 @@ export const paceModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, now: D
     const trail = win.slice(Math.max(0, k - 3), k + 1);
     roll.set(w.i, trail.length >= 3 ? mean(trail.map(x => x.rate)) : null);
   });
-  const rate12 = mean(weeks.filter(w => w.rate != null).slice(-RATE_WINDOW).map(w => w.rate));
+  const recent12 = weeks.filter(w => w.rate != null).slice(-RATE_WINDOW);
+  const recent12Weeks = sum(recent12.map(w => w.gap));
+  const rate12 = recent12Weeks > 0 ? sum(recent12.map(w => w.chg)) / recent12Weeks : null;
   let eta: Date | null = null;
   let reached = false;
   if (info.dir !== 0 && info.remaining != null) {
@@ -543,6 +581,7 @@ export const paceModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, now: D
     rate4,
     total,
     lastRate,
+    spanWeeks,
     spike,
     status,
     eta,
@@ -572,7 +611,7 @@ export const paceTip = (m: PaceModel, info: PhaseInfo): string => {
       ? 'Faster than plan. Check the strength card to make sure it is fat coming off, not muscle.'
       : 'Faster than plan. More of the extra gain is likely fat.';
   }
-  return `Right on plan over ${m.count} weeks.`;
+  return `Right on plan over ${m.spanWeeks} weeks.`;
 };
 
 type FullWeek = RatedWeek & { kcal: number; dw: number };
@@ -589,7 +628,7 @@ const maintSeries = (weeks: RatedWeek[]): (number | null)[] =>
 
 export const balanceNote = (balance: number, weeks: number): string => {
   const side = Math.abs(balance) < 50 ? 'around' : balance < 0 ? 'below' : 'above';
-  return `${side} maintenance \u00b7 ${weeks}-week avg`;
+  return `${side} maintenance \u00b7 recent ${weeks}-week estimate`;
 };
 
 const estimatorWeeks = (weeks: RatedWeek[]): WeekStats[] =>
@@ -799,15 +838,20 @@ export const phaseRecap = (
   const endWeight = rated[rated.length - 1].w;
   const change = sum(rated.map(w => w.delta));
   const span = sum(rated.map(w => w.gap));
-  const avgKcal = mean(inPhase.filter(w => !w.isCurrent).map(w => w.kcal));
+  const nutritionWeeks = inPhase.filter(w => !w.isCurrent && w.kcal != null && w.nd > 0);
+  const avgKcalDays = nutritionWeeks.reduce((days, week) => days + week.nd, 0);
+  const avgKcal = avgKcalDays > 0
+    ? nutritionWeeks.reduce((total, week) => total + (week.kcal as number) * week.nd, 0) / avgKcalDays
+    : null;
 
   const sNow = strength?.sNow ?? null;
   const wNow = strength?.wNow ?? null;
   const hasStrength = sNow != null && wNow != null;
   const perKg = sNow != null && wNow != null ? ((1 + sNow / 100) / (1 + wNow / 100) - 1) * 100 : null;
 
-  const measured = energy?.maintNow ?? null;
-  const base = measured ?? userData?.maintenanceCalories ?? userData?.weightChangePlan?.tdee ?? null;
+  const recentMaintenance = energy?.maintNow ?? null;
+  const storedMaintenance = userData?.maintenanceCalories ?? userData?.weightChangePlan?.tdee ?? null;
+  const maintenance = recentMaintenance ?? storedMaintenance;
 
   return {
     type: info.type,
@@ -823,15 +867,20 @@ export const phaseRecap = (
     strengthPct: hasStrength ? sNow : null,
     weightPct: hasStrength ? wNow : null,
     perKg,
-    maintenance: base != null ? Math.round(base) : null,
-    measured: measured != null,
+    maintenance: maintenance != null ? Math.round(maintenance) : null,
+    maintenanceSource: recentMaintenance != null ? 'recent' : maintenance != null ? 'stored' : null,
+    avgKcalWeeks: nutritionWeeks.length,
+    avgKcalDays,
   };
 };
 
 export const recapTip = (r: PhaseRecap): string => {
-  if (r.maintenance == null) return 'Set a new goal in Profile to start the next phase.';
-  const basis = r.measured ? 'Your measured maintenance is' : 'Your estimated maintenance is';
-  return `${basis} about ${kfmt(r.maintenance)} kcal. Switching makes it your target and starts a new phase at ${fmt1(r.endWeight)} kg.`;
+  if (r.maintenanceSource !== 'recent' || r.maintenance == null) {
+    return r.maintenance != null
+      ? `Your saved estimate is ${kfmt(r.maintenance)} kcal, but there is not enough recent data to recommend switching yet.`
+      : 'Log weight and nutrition consistently to estimate maintenance before starting the next phase.';
+  }
+  return `Your recent maintenance estimate is about ${kfmt(r.maintenance)} kcal. It is based on recent weight and food trends, so treat it as a starting point and adjust from your progress.`;
 };
 
 export const recapEntry = (r: PhaseRecap, now: Date = new Date()) => ({
@@ -842,6 +891,7 @@ export const recapEntry = (r: PhaseRecap, now: Date = new Date()) => ({
   startWeight: Number(r.startWeight.toFixed(1)),
   endWeight: Number(r.endWeight.toFixed(1)),
   avgKcal: r.avgKcal != null ? Math.round(r.avgKcal) : null,
+  avgKcalDays: r.avgKcalDays,
   strengthPct: r.strengthPct != null ? Number(r.strengthPct.toFixed(1)) : null,
   weightPct: r.weightPct != null ? Number(r.weightPct.toFixed(1)) : null,
 });

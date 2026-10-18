@@ -11,6 +11,7 @@ module.exports = {
       "expo-font",
       "expo-system-ui",
       "expo-web-browser",
+      "expo-apple-authentication",
       "@react-native-google-signin/google-signin",
       "react-native-health",
       "react-native-health-connect",
@@ -37,6 +38,7 @@ module.exports = {
     assetBundlePatterns: ["**/*"],
     ios: {
       jsEngine: "hermes",
+      usesAppleSignIn: true,
       supportsTablet: true,
       infoPlist: {
         CFBundleDisplayName: "UpTrack",

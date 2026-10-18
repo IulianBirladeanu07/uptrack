@@ -2,7 +2,7 @@ import { doc, setDoc, getDoc, updateDoc, Timestamp, collection, getDocs, query, 
 import { db } from '../../auth/services/firebaseConfigService';
 import { formatDate } from '../utils/dateUtils';
 import { mealDayConverter } from '../../../shared/firestore/converters';
-import type { LoggedFood, MealDayDoc, MealGroup, MealType, MealsByType } from '../../../shared/types';
+import type { DateInput, LoggedFood, MealDayDoc, MealGroup, MealType, MealsByType } from '../../../shared/types';
 
 type AddUndoSpec = { id: string; previous: LoggedFood | null };
 
@@ -94,16 +94,18 @@ export const fetchRawMealsForDate = async (uid: string, date: string): Promise<M
     };
 };
 
-export const fetchLast30DaysMeals = async (uid: string): Promise<MealGroup[]> => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = formatDate(thirtyDaysAgo);
-
+export const fetchMealsForDateRange = async (
+    uid: string,
+    startDate: DateInput,
+    endDate: DateInput,
+    direction: 'asc' | 'desc' = 'asc',
+): Promise<MealGroup[]> => {
     const q = query(
         mealsCollection(),
         where('uid', '==', uid),
-        where('date', '>=', dateStr),
-        orderBy('date', 'desc')
+        where('date', '>=', formatDate(startDate)),
+        where('date', '<=', formatDate(endDate)),
+        orderBy('date', direction)
     );
 
     const snap = await getDocs(q);
@@ -114,4 +116,28 @@ export const fetchLast30DaysMeals = async (uid: string): Promise<MealGroup[]> =>
             return foods.length > 0 ? [{ date: data.date, mealType, foods }] : [];
         });
     });
+};
+
+export const fetchLast30DaysMeals = async (uid: string): Promise<MealGroup[]> => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return fetchMealsForDateRange(uid, thirtyDaysAgo, new Date(), 'desc');
+};
+
+export const fetchNutritionForDateRange = async (
+    uid: string,
+    startDate: DateInput,
+    endDate: DateInput,
+): Promise<{ date: string; calories: number; protein: number }[]> => {
+    const meals = await fetchMealsForDateRange(uid, startDate, endDate);
+    const totals = new Map<string, { calories: number; protein: number }>();
+    meals.forEach(({ date, foods }) => {
+        const day = totals.get(date) ?? { calories: 0, protein: 0 };
+        foods.forEach(food => {
+            day.calories += num(food.calories);
+            day.protein += num(food.protein);
+        });
+        totals.set(date, day);
+    });
+    return [...totals].map(([date, values]) => ({ date, ...values }));
 };

@@ -3,13 +3,19 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
-import type { WeightInWeek } from '../../../../shared/types';
+import type { PlanType, WeightInWeek } from '../../../../shared/types';
 import WeightChart, { getAvailablePeriods } from './WeightChart';
 import type { ChartDelta, ChartEntry, PeriodKey } from './WeightChart';
-import { buildWeeklyGroups, formatWeekLabel, formatWeightDate } from './weightTrackerPresentation';
+import {
+    buildWeeklyGroups,
+    formatWeekLabel,
+    formatWeightDate,
+    getWeightTrendTone,
+    isComparisonInCurrentGoalPhase,
+} from './weightTrackerPresentation';
 
-type TrendBadgeProps = { value: number | null; isBulking: boolean };
-type WeekRowProps = { group: ReturnType<typeof buildWeeklyGroups>[number]; isBulking: boolean; expanded: boolean; onToggle: () => void };
+type TrendBadgeProps = { value: number | null; planType: PlanType; phaseKnown: boolean };
+type WeekRowProps = { group: ReturnType<typeof buildWeeklyGroups>[number]; planType: PlanType; phaseKnown: boolean; expanded: boolean; onToggle: () => void };
 
 type WeightProgressPanelProps = {
     trendData: ChartEntry[];
@@ -17,18 +23,23 @@ type WeightProgressPanelProps = {
     startWeight: number | null;
     weightIns: WeightInWeek[];
     isBulking: boolean;
+    planType: PlanType;
     onViewAll: () => void;
 };
 
-const TrendBadge = ({ value, isBulking }: TrendBadgeProps) => {
+const TrendBadge = ({ value, planType, phaseKnown }: TrendBadgeProps) => {
     if (value == null) return null;
-    const isGood = isBulking ? value > 0 : value < 0;
-    const color = value === 0
-        ? colors.text.quaternary
-        : isGood ? colors.accent.success : colors.accent.error;
-    const bg = value === 0
-        ? colors.faded.surface
-        : isGood ? colors.faded.successAlt : colors.faded.errorAlt;
+    const tone = getWeightTrendTone(value, planType, phaseKnown);
+    const color = tone === 'favorable'
+        ? colors.accent.success
+        : tone === 'unfavorable'
+            ? colors.accent.error
+            : colors.text.quaternary;
+    const bg = tone === 'favorable'
+        ? colors.faded.successAlt
+        : tone === 'unfavorable'
+            ? colors.faded.errorAlt
+            : colors.faded.surface;
     return (
         <View style={[styles.trendChip, { backgroundColor: bg }]}>
             <Text style={[styles.trendChipText, { color }]}>
@@ -38,7 +49,7 @@ const TrendBadge = ({ value, isBulking }: TrendBadgeProps) => {
     );
 };
 
-const WeekRow = ({ group, isBulking, expanded, onToggle }: WeekRowProps) => (
+const WeekRow = ({ group, planType, phaseKnown, expanded, onToggle }: WeekRowProps) => (
     <View>
         <TouchableOpacity style={styles.weekHeader} onPress={onToggle} activeOpacity={0.7}>
             <View style={styles.weekHeaderLeft}>
@@ -52,7 +63,7 @@ const WeekRow = ({ group, isBulking, expanded, onToggle }: WeekRowProps) => (
                         <Text style={styles.weekAverageUnit}> kg</Text>
                     </View>
                 )}
-                <TrendBadge value={group.trend} isBulking={isBulking} />
+                <TrendBadge value={group.trend} planType={planType} phaseKnown={phaseKnown} />
                 <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={colors.text.quaternary} />
             </View>
         </TouchableOpacity>
@@ -78,6 +89,7 @@ const WeightProgressPanel = ({
     startWeight,
     weightIns,
     isBulking,
+    planType,
     onViewAll,
 }: WeightProgressPanelProps) => {
     const [chartPeriod, setChartPeriod] = useState<PeriodKey>('7');
@@ -89,9 +101,11 @@ const WeightProgressPanel = ({
     const availablePeriods = useMemo(() => {
         const periods = getAvailablePeriods(trendData, goalSwitchDate);
         return periods.map(period =>
-            period.key === 'PHASE' ? { ...period, label: isBulking ? 'Bulk' : 'Cut' } : period
+            period.key === 'PHASE'
+                ? { ...period, label: planType === 'muscle_gain' ? 'Bulk' : planType === 'maintenance' ? 'Maintenance' : 'Cut' }
+                : period
         );
-    }, [trendData, goalSwitchDate, isBulking]);
+    }, [trendData, goalSwitchDate, isBulking, planType]);
 
     useEffect(() => {
         if (!availablePeriods.some(period => period.key === chartPeriod)) setChartPeriod('7');
@@ -157,7 +171,12 @@ const WeightProgressPanel = ({
                                 {index > 0 && <View style={styles.weekDivider} />}
                                 <WeekRow
                                     group={group}
-                                    isBulking={isBulking}
+                                    planType={planType}
+                                    phaseKnown={isComparisonInCurrentGoalPhase(
+                                        group.weekStart,
+                                        weeklyGroups[index + 1]?.weekStart,
+                                        goalSwitchDate,
+                                    )}
                                     expanded={!!expandedWeeks[group.weekStart]}
                                     onToggle={() => toggleWeek(group.weekStart)}
                                 />

@@ -166,6 +166,7 @@ export type PhaseHistoryEntry = {
   avgKcal: number | null;
   strengthPct: number | null;
   weightPct: number | null;
+  avgKcalDays?: number;
 };
 
 export type FoodItem = {

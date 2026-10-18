@@ -1,6 +1,14 @@
 import { calculateWeightChangePlan, deriveFitnessGoal, refreshWeightChangePlan } from './nutritionPlanEngine';
 import type { PlanFormData, PlanType, UserData, WeightChangePlan } from '../../../shared/types';
 
+type EditablePlanForm = PlanFormData & {
+  fitnessGoals?: PlanType;
+  targetCalories?: number;
+  targetProtein?: number;
+  targetCarbs?: number;
+  targetFats?: number;
+};
+
 type PlanBase = Pick<WeightChangePlan, 'goalCalories' | 'macros'>;
 type PlanNext = Pick<WeightChangePlan, 'goalCalories' | 'macros' | 'ratePerWeek' | 'weeksToGoal'>;
 type PlanView = { replan: boolean; goal: PlanType; base: PlanBase; next: PlanNext };
@@ -15,17 +23,35 @@ export const changedFields = <T extends object>(form: T, original: T): Partial<T
   return out;
 };
 
+export const isTargetWeightOnlyChange = (diff: Partial<PlanFormData>): boolean =>
+  Object.keys(diff).length === 1 && Object.prototype.hasOwnProperty.call(diff, 'targetWeight');
+
 export const shouldReplan = (userData: UserData | null | undefined, goalChanged: boolean): boolean =>
   goalChanged || userData?.planConfidence !== 'calibrated';
 
-const goalsOf = (form: PlanFormData, original: PlanFormData): { previous: PlanType; next: PlanType } => ({
-  previous: deriveFitnessGoal(original.currentWeight, original.targetWeight),
-  next: deriveFitnessGoal(form.currentWeight, form.targetWeight),
-});
+const savedGoal = (userData: UserData | null | undefined, fallback: PlanType): PlanType =>
+  userData?.weightChangePlan?.type
+  ?? userData?.fitnessGoals
+  ?? fallback;
 
-export const planView = ({ userData, form, original }: { userData: UserData | null | undefined; form: PlanFormData; original: PlanFormData }): PlanView => {
-  const { previous, next } = goalsOf(form, original);
-  const replan = shouldReplan(userData, previous !== next);
+const goalsOf = (
+  userData: UserData | null | undefined,
+  form: EditablePlanForm,
+  original: EditablePlanForm,
+  targetWeightOnly: boolean,
+): { previous: PlanType; next: PlanType } => {
+  const derivedPrevious = deriveFitnessGoal(original.currentWeight, original.targetWeight);
+  const previous = userData?.weightChangePlan?.type ?? userData?.fitnessGoals ?? original.fitnessGoals ?? derivedPrevious;
+  const derivedNext = form.fitnessGoals ?? deriveFitnessGoal(form.currentWeight, form.targetWeight);
+  return { previous, next: targetWeightOnly ? savedGoal(userData, previous) : derivedNext };
+};
+
+export const planView = ({ userData, form, original }: { userData: UserData | null | undefined; form: EditablePlanForm; original: EditablePlanForm }): PlanView => {
+  const diff = changedFields(form, original);
+  const targetWeightOnly = isTargetWeightOnlyChange(diff);
+  const { previous, next } = goalsOf(userData, form, original, targetWeightOnly);
+  const goalChanged = !targetWeightOnly && previous !== next;
+  const replan = !targetWeightOnly && shouldReplan(userData, goalChanged);
   const steps = stepsOf(userData);
   const formulaNow = calculateWeightChangePlan({ ...original, avgDailySteps: steps, fitnessGoals: previous });
   const formula = calculateWeightChangePlan({ ...form, avgDailySteps: steps, fitnessGoals: next });
@@ -37,9 +63,22 @@ export const planView = ({ userData, form, original }: { userData: UserData | nu
       fats: userData?.targetFats ?? formulaNow.macros.fats,
     },
   };
-  if (replan) return { replan, goal: next, base, next: formula };
+  const hasManualTargetChanges = ['targetCalories', 'targetProtein', 'targetCarbs', 'targetFats']
+    .some(key => Object.prototype.hasOwnProperty.call(diff, key));
+  const preview: PlanNext = hasManualTargetChanges
+    ? {
+      ...formula,
+      goalCalories: form.targetCalories ?? formula.goalCalories,
+      macros: {
+        protein: form.targetProtein ?? formula.macros.protein,
+        carbs: form.targetCarbs ?? formula.macros.carbs,
+        fats: form.targetFats ?? formula.macros.fats,
+      },
+    }
+    : formula;
+  if (replan) return { replan, goal: next, base, next: preview };
   const refreshed = userData?.weightChangePlan
-    ? refreshWeightChangePlan({ ...userData, ...changedFields(form, original) }, {})
+    ? refreshWeightChangePlan({ ...userData, ...diff }, {})
     : null;
   return {
     replan,
@@ -47,27 +86,47 @@ export const planView = ({ userData, form, original }: { userData: UserData | nu
     base,
     next: {
       ...base,
+      ...(hasManualTargetChanges ? {
+        goalCalories: form.targetCalories ?? base.goalCalories,
+        macros: {
+          protein: form.targetProtein ?? base.macros.protein,
+          carbs: form.targetCarbs ?? base.macros.carbs,
+          fats: form.targetFats ?? base.macros.fats,
+        },
+      } : {}),
       ratePerWeek: refreshed?.ratePerWeek ?? formula.ratePerWeek,
       weeksToGoal: refreshed?.weeksToGoal ?? formula.weeksToGoal,
     },
   };
 };
 
-export const buildPlanUpdate = ({ userData, form, original, now }: { userData: UserData | null | undefined; form: PlanFormData; original: PlanFormData; now: string }): Record<string, unknown> => {
+export const buildPlanUpdate = ({ userData, form, original, now }: { userData: UserData | null | undefined; form: EditablePlanForm; original: EditablePlanForm; now: string }): Record<string, unknown> => {
   const diff = changedFields(form, original);
-  const { previous, next } = goalsOf(form, original);
-  const goalChanged = previous !== next;
+  const targetWeightOnly = isTargetWeightOnlyChange(diff);
+  const { previous, next } = goalsOf(userData, form, original, targetWeightOnly);
+  const goalChanged = !targetWeightOnly && previous !== next;
   const payload: Record<string, unknown> = { ...diff };
+  const hasManualTargetChanges = ['targetCalories', 'targetProtein', 'targetCarbs', 'targetFats']
+    .some(key => Object.prototype.hasOwnProperty.call(diff, key));
 
-  if (shouldReplan(userData, goalChanged)) {
-    const plan = calculateWeightChangePlan({ ...form, avgDailySteps: stepsOf(userData), fitnessGoals: next });
+  if (!targetWeightOnly && shouldReplan(userData, goalChanged)) {
+    const calculated = calculateWeightChangePlan({ ...form, avgDailySteps: stepsOf(userData), fitnessGoals: next });
+    const plan: WeightChangePlan = {
+      ...calculated,
+      goalCalories: hasManualTargetChanges ? form.targetCalories ?? calculated.goalCalories : calculated.goalCalories,
+      macros: {
+        protein: hasManualTargetChanges ? form.targetProtein ?? calculated.macros.protein : calculated.macros.protein,
+        carbs: hasManualTargetChanges ? form.targetCarbs ?? calculated.macros.carbs : calculated.macros.carbs,
+        fats: hasManualTargetChanges ? form.targetFats ?? calculated.macros.fats : calculated.macros.fats,
+      },
+    };
     Object.assign(payload, {
       fitnessGoals: next,
       weightChangePlan: plan,
-      targetCalories: plan.goalCalories,
-      targetProtein: plan.macros.protein,
-      targetCarbs: plan.macros.carbs,
-      targetFats: plan.macros.fats,
+      targetCalories: hasManualTargetChanges ? form.targetCalories ?? plan.goalCalories : plan.goalCalories,
+      targetProtein: hasManualTargetChanges ? form.targetProtein ?? plan.macros.protein : plan.macros.protein,
+      targetCarbs: hasManualTargetChanges ? form.targetCarbs ?? plan.macros.carbs : plan.macros.carbs,
+      targetFats: hasManualTargetChanges ? form.targetFats ?? plan.macros.fats : plan.macros.fats,
       maintenanceCalories: plan.tdee,
       lastNutritionUpdate: now,
       planConfidence: 'estimated',
@@ -75,9 +134,26 @@ export const buildPlanUpdate = ({ userData, form, original, now }: { userData: U
       lastAdjustmentDate: null,
       stepsBonusAppliedAt: null,
     });
-  } else if (userData?.weightChangePlan && Object.keys(diff).some(k => k !== 'autoAdjustEnabled')) {
+  } else if (!targetWeightOnly && userData?.weightChangePlan && Object.keys(diff).some(k => k !== 'autoAdjustEnabled')) {
     const refreshed = refreshWeightChangePlan({ ...userData, ...diff }, {});
-    if (refreshed) payload['weightChangePlan'] = refreshed;
+    if (refreshed) {
+      const plan = {
+        ...refreshed,
+        goalCalories: form.targetCalories ?? refreshed.goalCalories,
+        macros: {
+          protein: form.targetProtein ?? refreshed.macros.protein,
+          carbs: form.targetCarbs ?? refreshed.macros.carbs,
+          fats: form.targetFats ?? refreshed.macros.fats,
+        },
+      };
+      payload['weightChangePlan'] = plan;
+      if (hasManualTargetChanges) {
+        payload['targetCalories'] = form.targetCalories ?? plan.goalCalories;
+        payload['targetProtein'] = form.targetProtein ?? plan.macros.protein;
+        payload['targetCarbs'] = form.targetCarbs ?? plan.macros.carbs;
+        payload['targetFats'] = form.targetFats ?? plan.macros.fats;
+      }
+    }
   }
 
   if (goalChanged) {

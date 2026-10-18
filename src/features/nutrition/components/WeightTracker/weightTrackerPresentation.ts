@@ -1,4 +1,5 @@
-import type { DayKey, WeightInWeek } from '../../../../shared/types';
+import type { DayKey, PlanType, WeightInWeek } from '../../../../shared/types';
+import { isGoalReached } from '../../../profile/utils/weightTrendEngine';
 
 export type DayEntry = { key: DayKey; weight: number; date: Date };
 export type WeekGroup = {
@@ -20,6 +21,55 @@ export const getWeightGoalProgressPercent = (
     const totalChange = goalWeight - startWeight;
     if (totalChange === 0) return 100;
     return Math.min(Math.max(((currentWeight - startWeight) / totalChange) * 100, 0), 100);
+};
+
+export const isWeightGoalReached = (
+    currentWeight: number | null | undefined,
+    goalWeight: number | null | undefined,
+    planType: PlanType,
+): boolean => isGoalReached(currentWeight, goalWeight, 0, planType);
+
+export const getWeightGoalRemaining = (
+    currentWeight: number | null | undefined,
+    goalWeight: number | null | undefined,
+    planType: PlanType,
+): number | null => {
+    if (currentWeight == null || goalWeight == null) return null;
+    if (isWeightGoalReached(currentWeight, goalWeight, planType)) return 0;
+    if (planType === 'weight_loss') return Math.max(0, currentWeight - goalWeight);
+    if (planType === 'muscle_gain') return Math.max(0, goalWeight - currentWeight);
+    return Math.abs(currentWeight - goalWeight);
+};
+
+export const getWeightTrendTone = (
+    delta: number,
+    planType: PlanType,
+    phaseKnown = true,
+): 'favorable' | 'unfavorable' | 'neutral' => {
+    if (!phaseKnown || planType === 'maintenance' || delta === 0) return 'neutral';
+    const favorable = planType === 'muscle_gain' ? delta > 0 : delta < 0;
+    return favorable ? 'favorable' : 'unfavorable';
+};
+
+export const isComparisonInCurrentGoalPhase = (
+    weekStart: string,
+    previousWeekStart: string | null | undefined,
+    goalSwitchDate: string | null | undefined,
+): boolean => {
+    if (!previousWeekStart) return false;
+    if (!goalSwitchDate) return true;
+
+    const switchDate = new Date(goalSwitchDate);
+    if (Number.isNaN(switchDate.getTime())) return false;
+    const mondayOffset = (switchDate.getDay() + 6) % 7;
+    switchDate.setDate(switchDate.getDate() - mondayOffset + 7);
+    const firstFullPhaseWeek = [
+        switchDate.getFullYear(),
+        String(switchDate.getMonth() + 1).padStart(2, '0'),
+        String(switchDate.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    return weekStart >= firstFullPhaseWeek && previousWeekStart >= firstFullPhaseWeek;
 };
 
 export const buildWeeklyGroups = (weightIns: WeightInWeek[]): WeekGroup[] => {

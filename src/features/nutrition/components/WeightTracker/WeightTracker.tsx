@@ -16,16 +16,20 @@ import {
     processWeightInsForDisplay,
     adjustWeight,
     getRollingAverageWeight,
+    getLocalWeekStart,
 } from '../../helpers/weightTrackerUtils';
 import type { ChartEntry } from './WeightChart';
 import { isSuspiciousWeightEntry, getCurrentTrendWeight } from '../../../profile/utils/weightTrendEngine';
 import { useFoodContext } from '../../context/FoodContext';
 import { formatDate as formatDateKey } from '../../utils/dateUtils';
 import { useAppNavigation } from '../../../../shared/navigation';
-import type { Numeric, WeightInWeek } from '../../../../shared/types';
+import type { Numeric, PlanType, WeightInWeek } from '../../../../shared/types';
 import {
     WEEK_DAYS,
     getWeightGoalProgressPercent,
+    getWeightGoalRemaining,
+    isComparisonInCurrentGoalPhase,
+    isWeightGoalReached,
 } from './weightTrackerPresentation';
 import { applyWeightKey } from './weightInput';
 import WeightEntryModal from './WeightEntryModal';
@@ -95,7 +99,8 @@ const WeightTracker = () => {
 
     const planType      = userData?.weightChangePlan?.type ?? null;
     const fallbackBulk  = goalWeight != null && startWeight != null && goalWeight > startWeight;
-    const isBulking     = planType != null ? planType === 'muscle_gain' : fallbackBulk;
+    const effectivePlanType: PlanType = planType ?? (fallbackBulk ? 'muscle_gain' : 'weight_loss');
+    const isBulking     = effectivePlanType === 'muscle_gain';
     const loadData = useCallback(async () => {
         if (!userId) return;
         setLoading(true);
@@ -152,8 +157,17 @@ const WeightTracker = () => {
         [progressWeight, startWeight, goalWeight],
     );
 
-    const remaining = (progressWeight != null && goalWeight != null)
-        ? parseFloat(Math.abs(progressWeight - goalWeight).toFixed(1)) : null;
+    const remaining = getWeightGoalRemaining(progressWeight, goalWeight, effectivePlanType);
+    const goalReached = isWeightGoalReached(progressWeight, goalWeight, effectivePlanType);
+    const summaryWeekStart = weeklyData?.weekStart ?? getLocalWeekStart(committedDate);
+    const previousSummaryWeekStart = weightIns
+        .filter(week => week.weekStart < summaryWeekStart)
+        .sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0]?.weekStart;
+    const summaryTrendPhaseKnown = isComparisonInCurrentGoalPhase(
+        summaryWeekStart,
+        previousSummaryWeekStart,
+        goalSwitchDate,
+    );
 
     const handleKeypadPress = (key: string) => {
         if (Platform.OS === 'ios') Vibration.vibrate(5);
@@ -288,7 +302,9 @@ const WeightTracker = () => {
                     lastWeekAverage={lastWeekAverage}
                     weeklyAverage={weeklyAverage}
                     remaining={remaining}
-                    isBulking={isBulking}
+                    planType={effectivePlanType}
+                    goalReached={goalReached}
+                    trendPhaseKnown={summaryTrendPhaseKnown}
                 />
 
                 <WeightProgressPanel
@@ -297,11 +313,13 @@ const WeightTracker = () => {
                     startWeight={startWeight}
                     weightIns={weightIns}
                     isBulking={isBulking}
+                    planType={effectivePlanType}
                     onViewAll={() => navigation.navigate('WeightHistory', {
                         weightIns: serializeWeightIns(weightIns),
-                        isBulking,
+                        planType: effectivePlanType,
                         startWeight,
                         goalWeight,
+                        goalSwitchDate,
                     })}
                 />
             </ScrollView>

@@ -8,6 +8,8 @@ import {
     seedProfilePicture,
 } from '../../utils/profileSeed';
 import type { ProfileFormSeed, ProfileIdentitySeed } from '../../utils/profileSeed';
+import { recalculateMacrosForCalories, recalculateMacrosForEdit } from '../../utils/macroTargets';
+import type { MacroKey } from '../../utils/macroTargets';
 
 export type ProfileIdentityErrors = {
     [K in keyof ProfileIdentitySeed]?: string | undefined;
@@ -29,6 +31,8 @@ type ProfileFormState = {
     setPendingUri: Dispatch<SetStateAction<string | null>>;
     errors: ProfileIdentityErrors;
     setErrors: Dispatch<SetStateAction<ProfileIdentityErrors>>;
+    nutritionError: string | null;
+    stepNutritionValue: (key: 'targetCalories' | MacroKey, delta: number) => void;
     planCount: number;
     identityCount: number;
     changedCount: number;
@@ -49,6 +53,7 @@ export const useProfileFormState = (
     const [picture, setPicture] = useState(() => seedProfilePicture(userData));
     const [pendingUri, setPendingUri] = useState<string | null>(null);
     const [errors, setErrors] = useState<ProfileIdentityErrors>({});
+    const [nutritionError, setNutritionError] = useState<string | null>(null);
 
     const planCount = Object.keys(changedFields(form, original)).length;
     const identityCount = (['username', 'email'] as const)
@@ -70,7 +75,24 @@ export const useProfileFormState = (
 
     const update = useCallback((key: keyof ProfileFormSeed, value: string | number | boolean) => {
         setForm(prev => ({ ...prev, [key]: value }));
+        if (key === 'fitnessGoals') setNutritionError(null);
     }, []);
+
+    const stepNutritionValue = useCallback((key: 'targetCalories' | MacroKey, delta: number) => {
+        const next = key === 'targetCalories'
+            ? recalculateMacrosForCalories(form, form.targetCalories + delta)
+            : recalculateMacrosForEdit(form, key, form[key] + delta);
+        if (!next) {
+            setNutritionError(
+                key === 'targetCalories'
+                    ? 'These calorie and macro values cannot be balanced. Choose another calorie target.'
+                    : 'That macro amount leaves no valid calorie balance for the other macros.',
+            );
+            return;
+        }
+        setNutritionError(null);
+        setForm(previous => ({ ...previous, ...next }));
+    }, [form]);
 
     const updateIdentity = useCallback((key: keyof ProfileIdentitySeed, value: string) => {
         setIdentity(prev => ({ ...prev, [key]: value }));
@@ -98,6 +120,8 @@ export const useProfileFormState = (
         setPendingUri,
         errors,
         setErrors,
+        nutritionError,
+        stepNutritionValue,
         planCount,
         identityCount,
         changedCount,

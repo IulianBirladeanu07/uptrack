@@ -35,7 +35,9 @@ const recap: PhaseRecap = {
     weightPct: -10.7,
     perKg: 15,
     maintenance: 2400,
-    measured: true,
+    maintenanceSource: 'recent',
+    avgKcalWeeks: 12,
+    avgKcalDays: 84,
 };
 
 const userData = { uid: 'user-1' } as UserData;

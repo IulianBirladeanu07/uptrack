@@ -17,6 +17,13 @@ describe('getAuthErrorMessage', () => {
     );
   });
 
+  it('guides users to their existing provider when an email is already linked elsewhere', () => {
+    expect(getAuthErrorMessage(
+      { code: 'auth/account-exists-with-different-credential' },
+      'appleSignIn',
+    )).toBe('An account already exists with this email. Sign in using your original method.');
+  });
+
   it('does not expose raw Firebase messages for unknown errors', () => {
     expect(getAuthErrorMessage(new Error('Firebase: Error (auth/internal-error).'), 'signIn')).toBe(
       "We couldn't sign you in right now. Please try again later.",

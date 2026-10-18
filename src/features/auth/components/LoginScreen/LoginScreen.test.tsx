@@ -4,6 +4,30 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import LoginScreen from './LoginScreen';
 
 const mockNavigate = jest.fn();
+const mockAppleSignIn = jest.fn();
+const mockAppleAvailable = jest.fn(async () => true);
+const mockSignInWithApple = jest.fn();
+
+jest.mock('expo-apple-authentication', () => {
+    return {
+        isAvailableAsync: (...args: unknown[]) => mockAppleAvailable(...args),
+        signInAsync: (...args: unknown[]) => mockAppleSignIn(...args),
+        AppleAuthenticationScope: { EMAIL: 1, FULL_NAME: 0 },
+        AppleAuthenticationButtonType: { SIGN_IN: 0 },
+        AppleAuthenticationButtonStyle: { BLACK: 0 },
+        AppleAuthenticationButton: ({ onPress, testID }: { onPress: () => void; testID: string }) => {
+            const ReactRuntime = jest.requireActual('react');
+            const ReactNative = jest.requireActual('react-native');
+            return ReactRuntime.createElement(ReactNative.TouchableOpacity, { onPress, testID });
+        },
+    };
+});
+
+jest.mock('expo-crypto', () => ({
+    CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+    randomUUID: jest.fn(() => 'raw-nonce'),
+    digestStringAsync: jest.fn(async () => 'hashed-nonce'),
+}));
 
 jest.mock('@react-native-google-signin/google-signin', () => ({
     GoogleSignin: { configure: jest.fn(), hasPlayServices: jest.fn(), signOut: jest.fn(), signIn: jest.fn() },
@@ -18,6 +42,7 @@ jest.mock('../../services/firebaseAuthService', () => ({
         getGoogleWebClientId: () => 'web-client-id',
         signInWithEmailAndPassword: jest.fn(),
         signInWithGoogle: jest.fn(),
+        signInWithApple: (...args: unknown[]) => mockSignInWithApple(...args),
         resendVerificationEmail: jest.fn(),
     },
 }));
@@ -34,12 +59,74 @@ jest.mock('../../../../shared/navigation', () => ({
 }));
 
 describe('LoginScreen', () => {
+    beforeEach(() => {
+        mockAppleAvailable.mockResolvedValue(false);
+        mockAppleSignIn.mockReset();
+        mockSignInWithApple.mockReset();
+    });
+
     it('shows both sign-in methods with the Google option as its own action', () => {
         render(<LoginScreen />);
 
         expect(screen.getAllByText('Login')).toHaveLength(2);
         expect(screen.getByText('Sign In with Google')).toBeTruthy();
         expect(screen.getByText('or')).toBeTruthy();
+    });
+
+    it('offers Apple sign-in when the native provider is available', async () => {
+        mockAppleAvailable.mockResolvedValueOnce(true);
+        render(<LoginScreen />);
+
+        expect(await screen.findByTestId('apple-sign-in-button')).toBeTruthy();
+    });
+
+    it('passes the nonce-bound Apple identity token to Firebase', async () => {
+        mockAppleAvailable.mockResolvedValueOnce(true);
+        mockAppleSignIn.mockResolvedValueOnce({
+            identityToken: 'apple-id-token',
+            email: 'person@privaterelay.appleid.com',
+            fullName: { givenName: 'Ana', middleName: null, familyName: 'Pop' },
+        });
+        render(<LoginScreen />);
+        fireEvent.press(await screen.findByTestId('apple-sign-in-button'));
+
+        await waitFor(() => {
+            expect(mockSignInWithApple).toHaveBeenCalledWith(
+                'apple-id-token',
+                'raw-nonce',
+                {
+                    email: 'person@privaterelay.appleid.com',
+                    fullName: { givenName: 'Ana', middleName: null, familyName: 'Pop' },
+                },
+                expect.any(Function),
+                expect.any(Function),
+            );
+        });
+        expect(mockAppleSignIn).toHaveBeenCalledWith({
+            requestedScopes: [1, 0],
+            nonce: 'hashed-nonce',
+        });
+    });
+
+    it('does not show a user-facing error when Apple sign-in is cancelled', async () => {
+        mockAppleAvailable.mockResolvedValueOnce(true);
+        mockAppleSignIn.mockRejectedValueOnce(Object.assign(new Error('cancelled'), {
+            code: 'ERR_REQUEST_CANCELED',
+        }));
+        render(<LoginScreen />);
+        fireEvent.press(await screen.findByTestId('apple-sign-in-button'));
+
+        await waitFor(() => expect(mockAppleSignIn).toHaveBeenCalledTimes(1));
+        expect(screen.queryByText(/couldn't sign you in with Apple/i)).toBeNull();
+    });
+
+    it('does not render the Apple button when it is unavailable', async () => {
+        mockAppleAvailable.mockResolvedValueOnce(false);
+        render(<LoginScreen />);
+
+        await waitFor(() => {
+            expect(screen.queryByTestId('apple-sign-in-button')).toBeNull();
+        });
     });
 
     it('navigates to Forgot Password and Registration from their links', () => {
@@ -104,8 +191,8 @@ describe('LoginScreen', () => {
 
             expect(screen.getByText('Verify your email')).toBeTruthy();
             expect(screen.getByText(/person@example\.com/)).toBeTruthy();
-            expect(screen.getByText(/noreply@activerecovery-3a400\.firebaseapp\.com/)).toBeTruthy();
-            expect(screen.getByText(/not an Uptrack-branded address/)).toBeTruthy();
+            expect(screen.getByText(/Verify your email for Uptrack/)).toBeTruthy();
+            expect(screen.queryByText(/activerecovery|firebaseapp|not an Uptrack-branded address/i)).toBeNull();
             expect(screen.queryByText(/Email not verified/)).toBeNull();
             expect(screen.getByText('Resend email')).toBeTruthy();
         });
@@ -121,7 +208,7 @@ describe('LoginScreen', () => {
             expect(authService.resendVerificationEmail).toHaveBeenCalledTimes(1);
             expect(Alert.alert).toHaveBeenCalledWith(
                 'Verification Email Sent',
-                expect.stringContaining('noreply@activerecovery-3a400.firebaseapp.com'),
+                expect.stringContaining('Verify your email for Uptrack'),
             );
             expect(screen.getByText('Resend in 60s')).toBeTruthy();
 

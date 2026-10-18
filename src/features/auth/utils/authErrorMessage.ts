@@ -6,7 +6,8 @@ export type AuthErrorAction =
   | 'verification'
   | 'resendVerification'
   | 'passwordReset'
-  | 'googleSignIn';
+  | 'googleSignIn'
+  | 'appleSignIn';
 
 const getErrorCode = (error: unknown): string | undefined =>
   (error as Partial<FirebaseError> | null)?.code;
@@ -52,9 +53,14 @@ export const getAuthErrorMessage = (error: unknown, action: AuthErrorAction): st
       if (action === 'googleSignIn') {
         return "We couldn't reach Google sign-in. Check your internet connection and try again.";
       }
+      if (action === 'appleSignIn') {
+        return "We couldn't reach Apple sign-in. Check your internet connection and try again.";
+      }
       return "We couldn't reach the sign-in service. Check your internet connection and try again.";
     case 'auth/operation-not-allowed':
       return 'This sign-in method is currently unavailable. Please try another sign-in option or contact support.';
+    case 'auth/account-exists-with-different-credential':
+      return 'An account already exists with this email. Sign in using your original method.';
     default:
       if (action === 'signUp') {
         return "We couldn't create your account right now. Please try again later. If the problem continues, contact support.";
@@ -70,6 +76,9 @@ export const getAuthErrorMessage = (error: unknown, action: AuthErrorAction): st
       }
       if (action === 'googleSignIn') {
         return "We couldn't sign you in with Google. Please try again or use your email and password.";
+      }
+      if (action === 'appleSignIn') {
+        return "We couldn't sign you in with Apple. Please try again or use another sign-in option.";
       }
       return "We couldn't sign you in right now. Please try again later.";
   }

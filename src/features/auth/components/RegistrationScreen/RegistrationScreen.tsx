@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRootNavigation } from '../../../../shared/navigation';
 import firebaseAuthService from '../../services/firebaseAuthService';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { getPasswordStrength, isStrongPassword, isValidEmail } from '../../utils/credentials';
@@ -80,10 +80,14 @@ const RegistrationScreen = () => {
 
   return (
     <View style={styles.container}>
+      <View style={styles.logoContainer}>
+        <Text style={styles.logoText}>UPTRACK</Text>
+      </View>
+
       <Text style={styles.title}>Registration</Text>
 
       <View style={styles.inputContainer}>
-        <Ionicons name="mail-outline" size={spacing[5]} color={colors.text.tertiary} style={styles.inputIcon} />
+        <MaterialIcons name="email" size={spacing[6]} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={email}
@@ -99,7 +103,7 @@ const RegistrationScreen = () => {
       </View>
 
       <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed-outline" size={spacing[5]} color={colors.text.tertiary} style={styles.inputIcon} />
+        <MaterialIcons name="lock" size={spacing[6]} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={password}
@@ -112,7 +116,7 @@ const RegistrationScreen = () => {
           secureTextEntry={!showPassword}
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Ionicons name={showPassword ? "eye-off" : "eye"} size={spacing[5]} color={colors.text.tertiary} />
+          <Ionicons name={showPassword ? "eye-off" : "eye"} size={spacing[6]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
       {password.length > 0 && (
@@ -130,7 +134,7 @@ const RegistrationScreen = () => {
       )}
 
       <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed-outline" size={spacing[5]} color={colors.text.tertiary} style={styles.inputIcon} />
+        <MaterialIcons name="lock" size={spacing[6]} color={colors.text.tertiary} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={confirmedPassword}
@@ -143,7 +147,7 @@ const RegistrationScreen = () => {
           secureTextEntry={!showConfirmPassword}
         />
         <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-          <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={spacing[5]} color={colors.text.tertiary} />
+          <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={spacing[6]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
 
@@ -164,9 +168,12 @@ const RegistrationScreen = () => {
 
       <TouchableOpacity
         testID="registration-back-to-login"
+        style={styles.loginRow}
         onPress={() => navigation.navigate('Login')}
+        hitSlop={styles.loginHitSlop}
       >
-        <Text style={styles.linkText}>Already have an account? Login</Text>
+        <Text style={styles.loginPrompt}>Already have an account?</Text>
+        <Text style={styles.loginLink}>Log in</Text>
       </TouchableOpacity>
     </View>
   );
@@ -184,7 +191,18 @@ const styles = createStyles(() => ({
     fontSize: fontSize[24],
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
+    textAlign: 'center',
     marginBottom: spacing[8],
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: spacing[8],
+  },
+  logoText: {
+    fontSize: fontSize[32],
+    fontWeight: fontWeight.black,
+    color: colors.text.primary,
+    letterSpacing: 2,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -205,6 +223,7 @@ const styles = createStyles(() => ({
     flex: 1,
     color: colors.text.primary,
     fontSize: fontSize[16],
+    paddingVertical: spacing[2],
   },
   strengthContainer: {
     flexDirection: 'row',
@@ -232,12 +251,13 @@ const styles = createStyles(() => ({
   },
   button: {
     backgroundColor: colors.accent.primary,
-    padding: spacing[4],
+    paddingVertical: spacing[5],
+    paddingHorizontal: spacing[4],
     borderRadius: radius[4],
-    marginTop: spacing[6],
+    marginTop: spacing[5],
     width: '100%',
-    maxWidth: 400,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: colors.accent.primaryDark,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -258,12 +278,28 @@ const styles = createStyles(() => ({
     fontSize: fontSize[14],
     maxWidth: 400,
   },
-  linkText: {
-    color: colors.accent.cyan,
-    fontSize: fontSize[16],
-    fontWeight: fontWeight.semibold,
-    textAlign: 'center',
-    marginTop: spacing[5],
+  loginRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginTop: spacing[6],
+  },
+  loginPrompt: {
+    color: colors.text.secondary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.medium,
+  },
+  loginLink: {
+    color: colors.accent.primary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.bold,
+  },
+  loginHitSlop: {
+    top: spacing[3],
+    bottom: spacing[3],
+    left: spacing[3],
+    right: spacing[3],
   },
 }));
 

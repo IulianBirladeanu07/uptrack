@@ -1,6 +1,9 @@
 import { Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import type { PlanType } from '../../../../shared/types';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
+import { getWeightTrendTone } from './weightTrackerPresentation';
 
 type WeightSummaryCardProps = {
     currentWeight: number | null;
@@ -11,7 +14,9 @@ type WeightSummaryCardProps = {
     lastWeekAverage: number | null;
     weeklyAverage: number | null;
     remaining: number | null;
-    isBulking: boolean;
+    planType: PlanType;
+    goalReached: boolean;
+    trendPhaseKnown: boolean;
 };
 
 const WeightSummaryCard = ({
@@ -23,18 +28,23 @@ const WeightSummaryCard = ({
     lastWeekAverage,
     weeklyAverage,
     remaining,
-    isBulking,
+    planType,
+    goalReached,
+    trendPhaseKnown,
 }: WeightSummaryCardProps) => {
     const lastWeekDisplay = lastWeekAverage != null ? parseFloat(lastWeekAverage.toFixed(1)) : null;
     const weeklyDisplay = weeklyAverage != null ? parseFloat(weeklyAverage.toFixed(1)) : null;
-    const weekChangeColor = weeklyDisplay != null && lastWeekDisplay != null
-        ? (isBulking
-            ? (weeklyDisplay >= lastWeekDisplay ? colors.accent.success : colors.accent.error)
-            : (weeklyDisplay <= lastWeekDisplay ? colors.accent.success : colors.accent.error))
-        : colors.text.primary;
     const weekChangeDelta = weeklyDisplay != null && lastWeekDisplay != null
         ? parseFloat((weeklyDisplay - lastWeekDisplay).toFixed(1))
         : null;
+    const weekChangeTone = weekChangeDelta == null
+        ? 'neutral'
+        : getWeightTrendTone(weekChangeDelta, planType, trendPhaseKnown);
+    const weekChangeColor = weekChangeTone === 'favorable'
+        ? colors.accent.success
+        : weekChangeTone === 'unfavorable'
+            ? colors.accent.error
+            : colors.text.quaternary;
 
     return (
         <View style={styles.heroCard}>
@@ -55,7 +65,9 @@ const WeightSummaryCard = ({
                     </View>
                     <View style={styles.progressLabels}>
                         <Text style={styles.progressLabelSide}>{startWeight.toFixed(1)} kg</Text>
-                        <Text style={styles.progressPercent}>{progressPercent.toFixed(0)}% to goal</Text>
+                        <Text style={styles.progressPercent}>
+                            {goalReached ? 'Goal reached' : `${progressPercent.toFixed(0)}% to goal`}
+                        </Text>
                         <Text style={[styles.progressLabelSide, { color: colors.accent.primary }]}>
                             {goalWeight.toFixed(1)} kg
                         </Text>
@@ -76,11 +88,11 @@ const WeightSummaryCard = ({
                         <Text style={styles.statValue}>{weeklyAverage != null ? weeklyAverage.toFixed(1) : '--'}</Text>
                         {weekChangeDelta != null && (
                             <View style={[styles.deltaChip, {
-                                backgroundColor: weekChangeDelta === 0
-                                    ? colors.faded.surface
-                                    : (!isBulking ? weekChangeDelta < 0 : weekChangeDelta > 0)
-                                        ? colors.faded.successAlt
-                                        : colors.faded.errorAlt,
+                                backgroundColor: weekChangeTone === 'favorable'
+                                    ? colors.faded.successAlt
+                                    : weekChangeTone === 'unfavorable'
+                                        ? colors.faded.errorAlt
+                                        : colors.faded.surface,
                             }]}>
                                 <Text style={[styles.deltaChipText, { color: weekChangeColor }]}>
                                     {weekChangeDelta > 0 ? '+' : ''}{weekChangeDelta.toFixed(1)}
@@ -92,7 +104,18 @@ const WeightSummaryCard = ({
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statCell}>
-                    <Text style={styles.statValue}>{remaining != null ? remaining.toFixed(1) : '--'}</Text>
+                    <View style={styles.statValueRow}>
+                        {goalReached ? (
+                            <View style={styles.reachedChip}>
+                                <Ionicons name="checkmark" size={12} color={colors.accent.success} />
+                                <Text style={styles.reachedChipText}>Goal reached</Text>
+                            </View>
+                        ) : (
+                            <Text style={styles.statValue}>
+                                {remaining != null ? remaining.toFixed(1) : '--'}
+                            </Text>
+                        )}
+                    </View>
                     <Text style={styles.statLabel}>To Goal</Text>
                 </View>
             </View>
@@ -125,6 +148,8 @@ const styles = createStyles(() => ({
     statRow: { flexDirection: 'row', alignItems: 'flex-start', borderTopWidth: 1, borderTopColor: colors.border.default, marginTop: spacing[3], paddingTop: spacing[3] },
     statCell: { flex: 1, alignItems: 'center', gap: 2 },
     statValue: { fontSize: fontSize[18], fontWeight: fontWeight.extrabold, color: colors.text.primary, letterSpacing: -0.5 },
+    reachedChip: { minHeight: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[1], paddingHorizontal: spacing[2], paddingVertical: 4, borderRadius: radius[2], backgroundColor: colors.faded.successAlt },
+    reachedChipText: { fontSize: fontSize[10], fontWeight: fontWeight.bold, color: colors.accent.success, lineHeight: fontSize[14] },
     statValueRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
     statLabel: { fontSize: fontSize[10], fontWeight: fontWeight.semibold, color: colors.text.quaternary, textTransform: 'uppercase', letterSpacing: 0.5 },
     statDivider: { width: 1, height: spacing[8], backgroundColor: colors.border.default, marginTop: 2 },

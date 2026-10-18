@@ -8,7 +8,7 @@ import StepDisplay from '../../../shared/components/StepDisplay/StepDisplay';
 import type { StepDisplayHandle } from '../../../shared/components/StepDisplay/StepDisplay';
 
 import {
-    consolidateFoodData, buildAddUndo, applyAddUndo, fetchRawMealsForDate,
+    consolidateFoodData, buildAddUndo, applyAddUndo, fetchRawMealsForDate, fetchNutritionForDateRange as fetchNutritionHistory,
 } from '../services/mealService';
 import { calculateLearningStats } from '../helpers/learningCompletionService';
 import useDailyNutrition from '../helpers/useDailyNutrition';
@@ -44,6 +44,7 @@ import type {
 const REQUIRED_LEARNING_DAYS = 7;
 
 export type FoodContextValue = {
+    currentUserId:            string | null;
     breakfastFoods:           LoggedFood[];
     lunchFoods:               LoggedFood[];
     dinnerFoods:              LoggedFood[];
@@ -71,6 +72,7 @@ export type FoodContextValue = {
     rollingWeekStats:         ReturnType<typeof getCurrentWeekRollingStats>;
     getCaloriesForDateRange:  (startDate: DateInput, endDate: DateInput) => DayCalories[];
     getNutritionForDateRange: (startDate: DateInput, endDate: DateInput) => ({ date: string } & NutritionTotals)[];
+    fetchNutritionForDateRange: (startDate: DateInput, endDate: DateInput) => Promise<{ date: string; calories: number; protein: number }[]>;
     getStepsForDateRange:     (startDate: DateInput, endDate: DateInput) => { date: string; steps: number }[];
     getMealCache:             () => MealCache;
     stepsLoading:             boolean;
@@ -267,6 +269,12 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     const getNutritionForDateRange = useCallback((startDate: DateInput, endDate: DateInput) =>
         summarizeNutritionForDateRange(mealCache.current, startDate, endDate),
     []);
+
+    const fetchNutritionForDateRange = useCallback((startDate: DateInput, endDate: DateInput) => {
+        const uid = currentUserRef.current?.uid;
+        if (!uid) return Promise.reject(new Error('Cannot load nutrition history without an authenticated user.'));
+        return fetchNutritionHistory(uid, startDate, endDate);
+    }, []);
 
     const getStepsForDateRange = useCallback((startDate: DateInput, endDate: DateInput) =>
         summarizeStepsForDateRange(mealCache.current, startDate, endDate),
@@ -523,6 +531,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     }, [initializeAppData, resetBackgroundEvaluationFlags]);
 
     const contextValue = useMemo<FoodContextValue>(() => ({
+        currentUserId:    currentUser?.uid ?? null,
         breakfastFoods:   mealState.breakfast,
         lunchFoods:       mealState.lunch,
         dinnerFoods:      mealState.dinner,
@@ -550,6 +559,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         rollingWeekStats,
         getCaloriesForDateRange,
         getNutritionForDateRange,
+        fetchNutritionForDateRange,
         getStepsForDateRange,
         getMealCache,
         stepsLoading,
@@ -557,14 +567,14 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         stepsConnected,
         retryStepsConnection,
     }), [
-        mealState, selectedDate, handleDateChange, categoryData,
+        currentUser?.uid, mealState, selectedDate, handleDateChange, categoryData,
         nutritionHookData.hasTargets, enhancedLearningData,
         remainingCalories, nutritionHookData.dailyNutrition, nutritionHookData.userMacros,
         handleAddMeal, handleDeleteMeal, updateMealInDatabase, updateMealState,
         dailySteps, updateDailySteps,
         loading, error, initialLoadComplete, initializationError, retryInitialization,
         rollingWeekStats, getCaloriesForDateRange,
-        getNutritionForDateRange, getStepsForDateRange, getMealCache, stepsLoading, stepsError,
+        getNutritionForDateRange, fetchNutritionForDateRange, getStepsForDateRange, getMealCache, stepsLoading, stepsError,
         stepsConnected, retryStepsConnection,
     ]);
 

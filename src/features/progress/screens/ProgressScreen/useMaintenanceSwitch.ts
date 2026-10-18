@@ -23,7 +23,7 @@ export const useMaintenanceSwitch = ({
         if (!recap || recap.maintenance == null || switching) return;
         Alert.alert(
             'Switch to maintenance',
-            `Your target becomes ${kfmt(recap.maintenance)} kcal and a new phase starts at ${fmt1(recap.endWeight)} kg.`,
+            `Your target becomes about ${kfmt(recap.maintenance)} kcal based on recent trends, and a new phase starts at ${fmt1(recap.endWeight)} kg.`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {

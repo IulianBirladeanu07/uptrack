@@ -14,6 +14,11 @@ const firstUser: UserData = {
     experienceLevel: 'beginner',
     stressLevel: 'high',
     autoAdjustEnabled: false,
+    fitnessGoals: 'weight_loss',
+    targetCalories: 2000,
+    targetProtein: 150,
+    targetCarbs: 200,
+    targetFats: 60,
     profilePicture: 'https://example.com/first.jpg',
 };
 
@@ -144,5 +149,20 @@ describe('useProfileFormState', () => {
 
         expect(result.current.form.age).toBe(16);
         expect(result.current.form.currentWeight).toBe(300);
+    });
+
+    it('rebalances macros when a nutrition target is adjusted', () => {
+        const { result } = renderHook(() => useProfileFormState(firstUser));
+
+        act(() => {
+            result.current.stepNutritionValue('targetProtein', 5);
+        });
+
+        expect(result.current.form.targetProtein).toBe(155);
+        const macroCalories = result.current.form.targetProtein * 4
+            + result.current.form.targetCarbs * 4
+            + result.current.form.targetFats * 9;
+        expect(Math.abs(macroCalories - result.current.form.targetCalories)).toBeLessThanOrEqual(4);
+        expect(result.current.form.targetCarbs).not.toBe(firstUser.targetCarbs);
     });
 });

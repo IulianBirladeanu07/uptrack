@@ -1,4 +1,13 @@
-import { buildWeeklyGroups, formatWeekLabel, formatWeightDate, getWeightGoalProgressPercent } from './weightTrackerPresentation';
+import {
+    buildWeeklyGroups,
+    formatWeekLabel,
+    formatWeightDate,
+    getWeightGoalProgressPercent,
+    getWeightGoalRemaining,
+    getWeightTrendTone,
+    isComparisonInCurrentGoalPhase,
+    isWeightGoalReached,
+} from './weightTrackerPresentation';
 import type { WeightInWeek } from '../../../../shared/types';
 
 describe('buildWeeklyGroups', () => {
@@ -57,6 +66,47 @@ describe('formatWeightDate', () => {
             expect(getWeightGoalProgressPercent(75, 70, 80)).toBe(50);
             expect(getWeightGoalProgressPercent(80, 70, 60)).toBe(0);
             expect(getWeightGoalProgressPercent(60, 70, 80)).toBe(0);
+        });
+
+        describe('weight goal status', () => {
+            it('treats a weight-loss average at or below its target as reached', () => {
+                expect(isWeightGoalReached(79.4, 79.5, 'weight_loss')).toBe(true);
+                expect(getWeightGoalRemaining(79.4, 79.5, 'weight_loss')).toBe(0);
+            });
+
+            it('keeps a gain goal unreached until the average reaches the target', () => {
+                expect(isWeightGoalReached(79.4, 79.5, 'muscle_gain')).toBe(false);
+                expect(getWeightGoalRemaining(79.4, 79.5, 'muscle_gain')).toBeCloseTo(0.1);
+            });
+
+            it('returns no remaining amount without both weights', () => {
+                expect(getWeightGoalRemaining(null, 79.5, 'weight_loss')).toBeNull();
+            });
+        });
+
+        describe('getWeightTrendTone', () => {
+            it('uses the phase direction to classify a weekly change', () => {
+                expect(getWeightTrendTone(2, 'muscle_gain')).toBe('favorable');
+                expect(getWeightTrendTone(2, 'weight_loss')).toBe('unfavorable');
+            });
+
+            it('keeps historical and maintenance changes neutral when direction is unknown', () => {
+                expect(getWeightTrendTone(2, 'weight_loss', false)).toBe('neutral');
+                expect(getWeightTrendTone(2, 'maintenance')).toBe('neutral');
+            });
+        });
+
+        describe('isComparisonInCurrentGoalPhase', () => {
+            it('only classifies full-week comparisons after the current phase switch', () => {
+                const switchDate = '2026-10-08T12:00:00.000Z';
+                expect(isComparisonInCurrentGoalPhase('2026-10-12', '2026-10-05', switchDate)).toBe(false);
+                expect(isComparisonInCurrentGoalPhase('2026-10-19', '2026-10-12', switchDate)).toBe(true);
+                expect(isComparisonInCurrentGoalPhase('2026-10-05', '2026-09-28', switchDate)).toBe(false);
+            });
+
+            it('uses the current plan for all history when there is no switch date', () => {
+                expect(isComparisonInCurrentGoalPhase('2026-10-12', '2026-10-05', null)).toBe(true);
+            });
         });
 
         it('clamps progress at the goal and handles missing or equal weights', () => {

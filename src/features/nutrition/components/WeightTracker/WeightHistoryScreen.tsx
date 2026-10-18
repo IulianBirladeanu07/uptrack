@@ -5,17 +5,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
-import type { DayKey, WeightInWeek } from '../../../../shared/types';
+import type { DayKey, PlanType, WeightInWeek } from '../../../../shared/types';
+import {
+    getWeightTrendTone,
+    isComparisonInCurrentGoalPhase,
+} from './weightTrackerPresentation';
 
 type DayRow = { key: DayKey; weight: number; label: string };
 type MonthGroup = { label: string; weeks: WeightInWeek[] };
 
-type TrendChipProps = { value: number | null; isBulking: boolean };
+type TrendChipProps = { value: number | null; planType: PlanType; phaseKnown: boolean };
 
 type WeekCardProps = {
     week: WeightInWeek;
     prevAverage: number | null;
-    isBulking: boolean;
+    planType: PlanType;
+    phaseKnown: boolean;
     expanded: boolean;
     onToggle: () => void;
 };
@@ -63,13 +68,19 @@ const groupByMonth = (weightIns: WeightInWeek[]): MonthGroup[] => {
     return Object.values(groups);
 };
 
-const TrendChip = ({ value, isBulking }: TrendChipProps) => {
+const TrendChip = ({ value, planType, phaseKnown }: TrendChipProps) => {
     if (value == null) return <View style={{ minWidth: 40 }} />;
-    const isGood  = isBulking ? value > 0 : value < 0;
-    const color   = value === 0 ? colors.text.quaternary : isGood ? colors.accent.success : colors.accent.error;
-    const bgColor = value === 0
-        ? colors.faded.surface
-        : isGood ? colors.faded.successAlt : colors.faded.errorAlt;
+    const tone = getWeightTrendTone(value, planType, phaseKnown);
+    const color = tone === 'favorable'
+        ? colors.accent.success
+        : tone === 'unfavorable'
+            ? colors.accent.error
+            : colors.text.quaternary;
+    const bgColor = tone === 'favorable'
+        ? colors.faded.successAlt
+        : tone === 'unfavorable'
+            ? colors.faded.errorAlt
+            : colors.faded.surface;
     return (
         <View style={[styles.trendChip, { backgroundColor: bgColor }]}>
             <Text style={[styles.trendChipText, { color }]}>
@@ -79,7 +90,7 @@ const TrendChip = ({ value, isBulking }: TrendChipProps) => {
     );
 };
 
-const WeekCard = memo(({ week, prevAverage, isBulking, expanded, onToggle }: WeekCardProps) => {
+const WeekCard = memo(({ week, prevAverage, planType, phaseKnown, expanded, onToggle }: WeekCardProps) => {
     const days = useMemo<DayRow[]>(() => (
         DAY_KEY_ORDER
             .map((key, i) => {
@@ -93,7 +104,7 @@ const WeekCard = memo(({ week, prevAverage, isBulking, expanded, onToggle }: Wee
     const weekRange = useMemo(() => formatWeekRange(week.weekStart), [week.weekStart]);
 
     const trend = (week.average != null && prevAverage != null)
-        ? parseFloat((week.average - prevAverage).toFixed(2))
+        ? parseFloat((week.average - prevAverage).toFixed(1))
         : null;
 
     return (
@@ -111,7 +122,7 @@ const WeekCard = memo(({ week, prevAverage, isBulking, expanded, onToggle }: Wee
                     {week.average != null && (
                         <Text style={styles.weekAvg}>{week.average.toFixed(1)} kg</Text>
                     )}
-                    <TrendChip value={trend} isBulking={isBulking} />
+                    <TrendChip value={trend} planType={planType} phaseKnown={phaseKnown} />
                     <Ionicons
                         name={expanded ? 'chevron-up' : 'chevron-down'}
                         size={14}
@@ -141,7 +152,8 @@ const WeightHistoryScreen = () => {
     const navigation = useAppNavigation();
     const route = useAppRoute<'WeightHistory'>();
     const weightIns = route.params?.weightIns ?? NO_WEEKS;
-    const isBulking = route.params?.isBulking ?? false;
+    const planType = route.params?.planType ?? 'weight_loss';
+    const goalSwitchDate = route.params?.goalSwitchDate;
     const startWeight = route.params?.startWeight;
     const goalWeight = route.params?.goalWeight;
     const [expandedWeeks, setExpandedWeeks] = useState<Record<string, boolean>>({});
@@ -160,6 +172,14 @@ const WeightHistoryScreen = () => {
         return map;
     }, [sortedAll]);
 
+    const prevWeekStartMap = useMemo(() => {
+        const map: Record<string, string | undefined> = {};
+        for (let i = 1; i < sortedAll.length; i++) {
+            map[sortedAll[i].weekStart] = sortedAll[i - 1].weekStart;
+        }
+        return map;
+    }, [sortedAll]);
+
     const totalWeeks    = weightIns.length;
     const latestAverage = sortedAll[sortedAll.length - 1]?.average ?? null;
 
@@ -169,8 +189,8 @@ const WeightHistoryScreen = () => {
         ? parseFloat((latestAverage - baseline).toFixed(1))
         : null;
 
-    const changeIsGood = totalChange != null
-        ? (isBulking ? totalChange > 0 : totalChange < 0)
+    const changeIsGood = totalChange != null && planType !== 'maintenance'
+        ? (planType === 'muscle_gain' ? totalChange > 0 : totalChange < 0)
         : null;
 
     const toggleWeek = useCallback((weekStart: string) => {
@@ -248,7 +268,12 @@ const WeightHistoryScreen = () => {
                                     key={week.weekStart}
                                     week={week}
                                     prevAverage={prevAverageMap[week.weekStart] ?? null}
-                                    isBulking={isBulking}
+                                    planType={planType}
+                                    phaseKnown={isComparisonInCurrentGoalPhase(
+                                        week.weekStart,
+                                        prevWeekStartMap[week.weekStart],
+                                        goalSwitchDate,
+                                    )}
                                     expanded={!!expandedWeeks[week.weekStart]}
                                     onToggle={() => toggleWeek(week.weekStart)}
                                 />

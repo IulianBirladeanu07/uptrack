@@ -1,4 +1,4 @@
-import type { OnboardingFormData, WeightInWeek } from '../types';
+import type { OnboardingFormData, PlanType, WeightInWeek } from '../types';
 import type { WorkoutSplit } from '../../features/workout/types';
 
 export type RootStackParamList = {
@@ -86,9 +86,10 @@ export type AuthenticatedStackParamList = {
   } | undefined;
   WeightHistory: {
     weightIns?: WeightInWeek[];
-    isBulking?: boolean | undefined;
+    planType?: PlanType | undefined;
     startWeight?: number | null | undefined;
     goalWeight?: number | null | undefined;
+    goalSwitchDate?: string | null | undefined;
   } | undefined;
   ExerciseHistory: {
     exerciseName: string;

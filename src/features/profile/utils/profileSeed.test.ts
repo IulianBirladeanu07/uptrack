@@ -16,6 +16,11 @@ describe('seedProfileForm', () => {
       experienceLevel: 'intermediate',
       stressLevel: 'moderate',
       autoAdjustEnabled: true,
+      fitnessGoals: 'maintenance',
+      targetCalories: 2000,
+      targetProtein: 150,
+      targetCarbs: 200,
+      targetFats: 60,
     });
   });
 
@@ -30,10 +35,17 @@ describe('seedProfileForm', () => {
       experienceLevel: 'beginner',
       stressLevel: 'high',
       autoAdjustEnabled: false,
+      fitnessGoals: 'weight_loss',
+      targetCalories: 1900,
+      targetProtein: 140,
+      targetCarbs: 210,
+      targetFats: 55,
     });
     expect(seeded.age).toBe(30);
     expect(seeded.autoAdjustEnabled).toBe(false);
     expect(seeded.gender).toBe('female');
+    expect(seeded.fitnessGoals).toBe('weight_loss');
+    expect(seeded.targetCalories).toBe(1900);
   });
 });
 

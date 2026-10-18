@@ -13,7 +13,7 @@ jest.mock('../../../../shared/navigation', () => ({
   useRootNavigation: () => ({ navigate: jest.fn() }),
 }));
 
-jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
+jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null, MaterialIcons: () => null }));
 
 describe('RegistrationScreen', () => {
   beforeEach(() => {
@@ -62,9 +62,17 @@ describe('RegistrationScreen', () => {
         { cancelable: false },
       );
     });
-    expect(Alert.alert.mock.calls[0][1]).toContain('noreply@activerecovery-3a400.firebaseapp.com');
-    expect(Alert.alert.mock.calls[0][1]).toContain('not an Uptrack-branded address');
+    expect(Alert.alert.mock.calls[0][1]).toContain('Verify your email for Uptrack');
+    expect(Alert.alert.mock.calls[0][1]).not.toMatch(/activerecovery|firebaseapp|not an Uptrack-branded address/i);
     expect(Alert.alert.mock.calls[0][1]).toContain('spam/junk folder');
     expect(Alert.alert.mock.calls[0][1]).toContain("You don't need to register again.");
+  });
+
+  it('matches the login brand treatment and uses a clear login action', () => {
+    render(<RegistrationScreen />);
+
+    expect(screen.getByText('UPTRACK')).toBeTruthy();
+    expect(screen.getByText('Already have an account?')).toBeTruthy();
+    expect(screen.getByText('Log in')).toBeTruthy();
   });
 });

@@ -9,7 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getAuth } from 'firebase/auth';
 import { AuthContext } from '../../../auth/context/AuthContext';
-import { planView } from '../../utils/planUpdate';
+import { isTargetWeightOnlyChange, planView, changedFields } from '../../utils/planUpdate';
 import DeleteAccountModal from './DeleteAccountModal';
 import { OptionRow, NumberStepper } from '../../../../shared/components/FormControls/FormControls';
 import { ACTIVITY_OPTIONS, EXPERIENCE_OPTIONS, STRESS_OPTIONS } from '../../utils/profileOptions';
@@ -59,12 +59,14 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
     setPendingUri,
     errors,
     setErrors,
+    nutritionError,
     planCount,
     changedCount,
     hasChanges,
     update,
     updateIdentity,
     stepValue,
+    stepNutritionValue,
   } = useProfileFormState(userData, auth.currentUser?.email);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -73,8 +75,14 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
   const currentPlan = view.base;
   const previewPlan = view.next;
   const isGaining = previewGoal === 'muscle_gain';
+  const savedGoal = userData?.weightChangePlan?.type ?? userData?.fitnessGoals ?? original.fitnessGoals;
+  const phaseChanged = previewGoal !== savedGoal;
   const calDiff = previewPlan.goalCalories - currentPlan.goalCalories;
   const planChanged = planCount > 0;
+  const formDiff = changedFields(form, original);
+  const targetWeightOnly = isTargetWeightOnlyChange(formDiff);
+  const nutritionChanged = ['targetCalories', 'targetProtein', 'targetCarbs', 'targetFats']
+    .some(key => Object.prototype.hasOwnProperty.call(formDiff, key));
   const { saving, persist } = useProfileSave({
     auth,
     isPasswordAccount,
@@ -95,7 +103,7 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -122,8 +130,14 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
     }
     Alert.alert(
       'Update Plan',
-      view.replan
-        ? 'This will recalculate your calorie and macro targets. Continue?'
+      targetWeightOnly
+        ? 'This changes only your target weight. Your calorie and macro targets and other plan settings will stay unchanged. Continue?'
+        : view.replan
+        ? phaseChanged
+          ? 'This will switch your goal phase and recalculate the plan. Any calorie or macro edits will be applied to the new plan. Continue?'
+          : 'This will recalculate the plan from your updated profile. Any calorie or macro edits will be applied. Continue?'
+        : nutritionChanged
+        ? 'Your calorie and macro edits will be saved while the learned plan settings are preserved. Continue?'
         : 'Your calorie and macro targets stay as learned from your data. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -253,7 +267,13 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
                 : 'Maintenance'}
             </Text>
             {!view.replan && planChanged && (
-              <Text style={styles.heroRate}>Targets stay as learned from your data</Text>
+              <Text style={styles.heroRate}>
+                {targetWeightOnly
+                  ? 'Calorie and macro targets stay unchanged'
+                  : nutritionChanged
+                  ? 'Manual calorie and macro targets'
+                  : 'Targets stay as learned from your data'}
+              </Text>
             )}
           </View>
         </View>
@@ -311,6 +331,63 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
           <NumberStepper label="Current" value={form.currentWeight} unit="kg" onDecrement={() => stepValue('currentWeight', -0.1, 30, 300, 1)} onIncrement={() => stepValue('currentWeight', 0.1, 30, 300, 1)} />
           <View style={styles.divider} />
           <NumberStepper label="Target"  value={form.targetWeight}  unit="kg" onDecrement={() => stepValue('targetWeight',  -0.1, 30, 300, 1)} onIncrement={() => stepValue('targetWeight',  0.1, 30, 300, 1)} />
+        </View>
+
+        <SectionTitle>Goal Phase</SectionTitle>
+        <View style={styles.card}>
+          {[
+            { label: 'Weight loss', value: 'weight_loss', desc: 'Set a calorie deficit and track progress toward losing weight.' },
+            { label: 'Muscle gain', value: 'muscle_gain', desc: 'Set a calorie surplus to support gradual muscle gain.' },
+            { label: 'Maintenance', value: 'maintenance', desc: 'Maintain your current weight and nutrition targets.' },
+          ].map((option, index, options) => (
+            <View key={option.value}>
+              <OptionRow
+                option={option}
+                selected={form.fitnessGoals === option.value}
+                onPress={value => update('fitnessGoals', value)}
+              />
+              {index < options.length - 1 && <View style={styles.divider} />}
+            </View>
+          ))}
+        </View>
+
+        <SectionTitle>Nutrition Targets</SectionTitle>
+        <View style={styles.card}>
+          <NumberStepper
+            label="Calories"
+            value={form.targetCalories}
+            unit="kcal"
+            onDecrement={() => stepNutritionValue('targetCalories', -25)}
+            onIncrement={() => stepNutritionValue('targetCalories', 25)}
+          />
+          <View style={styles.divider} />
+          <NumberStepper
+            label="Protein"
+            value={form.targetProtein}
+            unit="g"
+            onDecrement={() => stepNutritionValue('targetProtein', -5)}
+            onIncrement={() => stepNutritionValue('targetProtein', 5)}
+          />
+          <View style={styles.divider} />
+          <NumberStepper
+            label="Carbs"
+            value={form.targetCarbs}
+            unit="g"
+            onDecrement={() => stepNutritionValue('targetCarbs', -5)}
+            onIncrement={() => stepNutritionValue('targetCarbs', 5)}
+          />
+          <View style={styles.divider} />
+          <NumberStepper
+            label="Fat"
+            value={form.targetFats}
+            unit="g"
+            onDecrement={() => stepNutritionValue('targetFats', -5)}
+            onIncrement={() => stepNutritionValue('targetFats', 5)}
+          />
+          {nutritionError ? <Text style={styles.errorText}>{nutritionError}</Text> : null}
+          <Text style={styles.nutritionHint}>
+            Changing calories redistributes macros proportionally. Changing a macro balances the other two within your calorie target.
+          </Text>
         </View>
 
         <SectionTitle>Activity Level</SectionTitle>
@@ -460,6 +537,7 @@ const styles = createStyles(() => ({
   genderBtnText:       { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.text.tertiary },
   genderBtnTextSelected: { color: colors.accent.buttonText, fontWeight: fontWeight.bold },
   optionDesc:          { fontSize: fontSize[12], color: colors.text.quaternary, fontWeight: fontWeight.medium, marginTop: spacing[1] },
+  nutritionHint:       { fontSize: fontSize[12], color: colors.text.tertiary, lineHeight: fontSize[18], paddingHorizontal: spacing[4], paddingBottom: spacing[4] },
   automationTextCol:   { flex: 1, paddingRight: spacing[4] },
   logoutButton:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2], backgroundColor: colors.faded.errorAlt, borderRadius: radius[4], height: spacing.buttonHeight, borderWidth: 1, borderColor: colors.border.error, marginTop: spacing[2] },
   logoutText:          { color: colors.accent.error, fontWeight: fontWeight.semibold, fontSize: fontSize[16] },

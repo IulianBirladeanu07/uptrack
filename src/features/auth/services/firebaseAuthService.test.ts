@@ -20,6 +20,7 @@ jest.mock('firebase/auth', () => ({
     mockCalls.push('signOut');
   }),
   GoogleAuthProvider: { credential: jest.fn() },
+  OAuthProvider: jest.fn(() => ({ credential: jest.fn((value) => value) })),
   signInWithCredential: jest.fn(),
   sendPasswordResetEmail: jest.fn(),
 }));
@@ -40,6 +41,7 @@ jest.mock('../../auth/services/firebaseConfigService', () => ({ auth: {}, db: {}
 jest.mock('expo-constants', () => ({ expoConfig: { extra: {} } }));
 
 import { signInWithCredential } from 'firebase/auth';
+import { OAuthProvider } from 'firebase/auth';
 import { updateDoc } from 'firebase/firestore';
 import firebaseAuthService from './firebaseAuthService';
 
@@ -188,5 +190,87 @@ describe('signInWithGoogle', () => {
       photoURL: 'https://x/y.jpg',
       lastLogin: 'ts',
     });
+  });
+});
+
+describe('signInWithApple', () => {
+  it('uses the Apple ID token and raw nonce, and creates a profile with the first-time name', async () => {
+    (signInWithCredential as jest.Mock).mockResolvedValueOnce({
+      user: {
+        uid: 'apple-user',
+        email: 'person@privaterelay.appleid.com',
+        displayName: null,
+        photoURL: null,
+      },
+    });
+    const setAuthenticated = jest.fn();
+    const setProfileSetupComplete = jest.fn();
+    const { getDoc } = jest.requireMock('firebase/firestore');
+    getDoc
+      .mockResolvedValueOnce({ exists: () => false })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ profileSetupComplete: false }),
+      });
+
+    await firebaseAuthService.signInWithApple(
+      'apple-id-token',
+      'raw-nonce',
+      {
+        email: 'person@privaterelay.appleid.com',
+        fullName: { givenName: 'Ana', middleName: null, familyName: 'Pop' },
+      },
+      setAuthenticated,
+      setProfileSetupComplete,
+    );
+
+    expect(OAuthProvider).toHaveBeenCalledWith('apple.com');
+    expect(signInWithCredential).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ idToken: 'apple-id-token', rawNonce: 'raw-nonce' }),
+    );
+    const { setDoc } = jest.requireMock('firebase/firestore');
+    expect(setDoc).toHaveBeenCalledWith(
+      { name: 'users', id: 'apple-user' },
+      expect.objectContaining({
+        email: 'person@privaterelay.appleid.com',
+        displayName: 'Ana Pop',
+        profileSetupComplete: false,
+      }),
+    );
+    expect(setAuthenticated).toHaveBeenCalledWith(true);
+    expect(setProfileSetupComplete).toHaveBeenCalledWith(false);
+  });
+
+  it('does not replace an existing profile name with the transient Apple name', async () => {
+    (signInWithCredential as jest.Mock).mockResolvedValueOnce({
+      user: { uid: 'u1', email: 'a@b.co', displayName: null },
+    });
+    const { getDoc, updateDoc } = jest.requireMock('firebase/firestore');
+    getDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ displayName: 'Stored Name', email: 'a@b.co', profileSetupComplete: true }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ displayName: 'Stored Name', email: 'a@b.co', profileSetupComplete: true }),
+      });
+
+    await firebaseAuthService.signInWithApple(
+      'apple-id-token',
+      'raw-nonce',
+      {
+        email: 'a@b.co',
+        fullName: { givenName: 'Different', middleName: null, familyName: 'Name' },
+      },
+      jest.fn(),
+      jest.fn(),
+    );
+
+    expect(updateDoc).toHaveBeenCalledWith(
+      { name: 'users', id: 'u1' },
+      { lastLogin: 'ts' },
+    );
   });
 });

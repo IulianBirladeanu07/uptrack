@@ -400,10 +400,10 @@ describe('phaseInfo and ranges', () => {
 
 describe('balanceNote', () => {
   test('picks the side from the sign and calls small gaps around', () => {
-    expect(balanceNote(-737, 4)).toBe('below maintenance \u00b7 4-week avg');
-    expect(balanceNote(310, 3)).toBe('above maintenance \u00b7 3-week avg');
-    expect(balanceNote(-20, 4)).toBe('around maintenance \u00b7 4-week avg');
-    expect(balanceNote(49, 4)).toBe('around maintenance \u00b7 4-week avg');
+    expect(balanceNote(-737, 4)).toBe('below maintenance \u00b7 recent 4-week estimate');
+    expect(balanceNote(310, 3)).toBe('above maintenance \u00b7 recent 3-week estimate');
+    expect(balanceNote(-20, 4)).toBe('around maintenance \u00b7 recent 4-week estimate');
+    expect(balanceNote(49, 4)).toBe('around maintenance \u00b7 recent 4-week estimate');
   });
 });
 
@@ -462,7 +462,7 @@ describe('energyModel', () => {
 
   test('describes the balance in plain words with the averaging window', () => {
     const m = energyModel(rated, 12, info);
-    expect(m.balNote).toBe(`below maintenance \u00b7 ${m.statsWeeks}-week avg`);
+    expect(m.balNote).toBe(`below maintenance \u00b7 recent ${m.statsWeeks}-week estimate`);
   });
 
   test('drops gap weeks so every slot has a balance, keeping real dates', () => {
@@ -620,6 +620,38 @@ describe('buildWeeks nutrition gaps', () => {
     expect(weeks[7].kcal).toBe(KCAL[6]);
   });
 
+  test('uses complete daily history since the phase start instead of an older weekly snapshot', () => {
+    const src = buildSrc();
+    const key = weekKey(8);
+    const start = new Date(`${key}T00:00:00`);
+    const daily = Array.from({ length: 7 }, (_, d) => ({
+      date: toKey(addDays(start, d)),
+      calories: 2800,
+      protein: 190,
+      carbs: 300,
+      fat: 80,
+    }));
+    src.nutritionHistoryStart = start;
+    src.getNutrition = from => toKey(from) === key ? daily : [];
+    const { weeks } = buildWeeks(src, NOW);
+    expect(weeks[8].kcal).toBe(2800);
+    expect(weeks[8].nd).toBe(7);
+  });
+
+  test('keeps a fuller weekly snapshot when fewer individual daily logs are available', () => {
+    const src = buildSrc();
+    const key = weekKey(8);
+    const start = new Date(`${key}T00:00:00`);
+    src.nutritionHistoryStart = start;
+    src.getNutrition = () => [
+      { date: key, calories: 2800, protein: 190, carbs: 300, fat: 80 },
+      { date: toKey(addDays(start, 1)), calories: 2800, protein: 190, carbs: 300, fat: 80 },
+    ];
+    const { weeks } = buildWeeks(src, NOW);
+    expect(weeks[8].kcal).toBe(KCAL[7]);
+    expect(weeks[8].nd).toBe(7);
+  });
+
   test('does not query daily logs for weeks before nutrition history started', () => {
     const src = buildSrc();
     const calls = [];
@@ -745,7 +777,9 @@ describe('phaseRecap', () => {
     expect(r.strengthPct).toBeGreaterThan(5);
     expect(r.perKg).toBeGreaterThan(r.strengthPct);
     expect(r.maintenance).toBe(Math.round(energy.maintNow));
-    expect(r.measured).toBe(true);
+    expect(r.maintenanceSource).toBe('recent');
+    expect(r.avgKcalWeeks).toBeGreaterThan(0);
+    expect(r.avgKcalDays).toBeGreaterThanOrEqual(r.avgKcalWeeks * 4);
   });
 
   test('counts the same weekly changes as the pace card over the phase', () => {
@@ -753,7 +787,7 @@ describe('phaseRecap', () => {
     const pace = paceModel(rated, info.phaseWeeks, info, NOW);
     expect(Math.abs(r.change)).toBeCloseTo(pace.total, 8);
     expect(r.startWeight - r.endWeight).toBeCloseTo(pace.total, 8);
-    expect(r.rate).toBeCloseTo(pace.total / info.phaseWeeks, 8);
+    expect(r.rate).toBeCloseTo(pace.total / pace.spanWeeks, 8);
   });
 
   test('relative strength combines the strength and weight changes', () => {
@@ -765,7 +799,7 @@ describe('phaseRecap', () => {
   test('falls back to stored maintenance without an energy model', () => {
     const r = phaseRecap(reachedUser, rated, info, null, null);
     expect(r.maintenance).toBe(3700);
-    expect(r.measured).toBe(false);
+    expect(r.maintenanceSource).toBe('stored');
     expect(r.perKg).toBeNull();
     expect(r.strengthPct).toBeNull();
   });
@@ -774,7 +808,23 @@ describe('phaseRecap', () => {
     const bare = { ...reachedUser, maintenanceCalories: undefined };
     const r = phaseRecap(bare, rated, info, null, null);
     expect(r.maintenance).toBeNull();
-    expect(recapTip(r)).toMatch(/Profile/);
+    expect(recapTip(r)).toMatch(/Log weight and nutrition/);
+  });
+
+  test('weights average intake by logged days and exposes actual coverage', () => {
+    const phaseWeeks = rated.slice(-info.phaseWeeks);
+    const recorded = phaseWeeks.filter(week => !week.isCurrent).slice(-2);
+    const recordedKeys = new Set(recorded.map(week => week.key));
+    const sparse = rated.map(week => ({
+      ...week,
+      kcal: recordedKeys.has(week.key) ? (week.key === recorded[0].key ? 1000 : 3000) : null,
+      nd: recordedKeys.has(week.key) ? (week.key === recorded[0].key ? 1 : 3) : 0,
+    }));
+    const result = phaseRecap(reachedUser, sparse, info, null, null);
+
+    expect(result.avgKcal).toBe(2500);
+    expect(result.avgKcalWeeks).toBe(2);
+    expect(result.avgKcalDays).toBe(4);
   });
 
   test('stays hidden until the goal is reached', () => {
@@ -809,6 +859,7 @@ describe('phaseRecap', () => {
     expect(e.startDate).toBe(new Date(gs).toISOString());
     expect(e.weeks).toBe(19);
     expect(e.avgKcal).toBe(Math.round(r.avgKcal));
+    expect(e.avgKcalDays).toBe(r.avgKcalDays);
     expect(JSON.parse(JSON.stringify(e))).toEqual(e);
     expect(Object.values(e).every(v => v !== undefined)).toBe(true);
   });

@@ -194,6 +194,13 @@ const styles = createStyles(() => ({
         textTransform: 'uppercase',
         letterSpacing: 1.2,
     },
+    statDetail: {
+        marginTop: 2,
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.medium,
+        color: colors.text.quaternary,
+        textAlign: 'center',
+    },
     statDot: {
         width: 7,
         height: 7,

@@ -1,4 +1,4 @@
-import { buildPlanUpdate, planView, changedFields } from './planUpdate';
+import { buildPlanUpdate, planView, changedFields, isTargetWeightOnlyChange } from './planUpdate';
 import { calculateWeightChangePlan } from './nutritionPlanEngine';
 
 const base = {
@@ -11,6 +11,11 @@ const base = {
   experienceLevel: 'intermediate',
   stressLevel: 'moderate',
   autoAdjustEnabled: true,
+  fitnessGoals: 'weight_loss',
+  targetCalories: 3416,
+  targetProtein: 200,
+  targetCarbs: 430,
+  targetFats: 67,
 };
 
 const NOW = '2026-10-07T10:00:00.000Z';
@@ -41,6 +46,11 @@ describe('changedFields', () => {
   test('returns only fields that differ', () => {
     expect(changedFields(form({ age: 31 }), base)).toEqual({ age: 31 });
   });
+
+  test('identifies a target-weight-only edit', () => {
+    expect(isTargetWeightOnlyChange(changedFields(form({ targetWeight: 79.5 }), base))).toBe(true);
+    expect(isTargetWeightOnlyChange(changedFields(form({ targetWeight: 79.5, age: 31 }), base))).toBe(false);
+  });
 });
 
 describe('buildPlanUpdate', () => {
@@ -67,12 +77,27 @@ describe('buildPlanUpdate', () => {
 
   test('a goal change replans even when the plan is calibrated and restarts the phase', () => {
     const user = makeUser('calibrated');
-    const p = buildPlanUpdate({ userData: user, form: form({ targetWeight: 90 }), original: base, now: NOW });
+    const p = buildPlanUpdate({
+      userData: user,
+      form: form({ fitnessGoals: 'muscle_gain', age: 31 }),
+      original: base,
+      now: NOW,
+    });
     expect(p.fitnessGoals).toBe('muscle_gain');
     expect(p.planConfidence).toBe('estimated');
     expect(p.goalSwitchDate).toBe(NOW);
     expect(p.weeksSinceCutStart).toBe(0);
     expect(p.startWeight).toBe(82);
+  });
+
+  test.each(['estimated', 'calibrated'])('a target-weight-only edit preserves an %s plan even if it crosses current weight', confidence => {
+    const p = buildPlanUpdate({
+      userData: makeUser(confidence),
+      form: form({ targetWeight: 90 }),
+      original: base,
+      now: NOW,
+    });
+    expect(p).toEqual({ targetWeight: 90 });
   });
 
   test('untouched fields and avgDailySteps are never written', () => {
@@ -114,5 +139,61 @@ describe('planView', () => {
     const expected = calculateWeightChangePlan({ ...form({ activityLevel: 'very_active' }), avgDailySteps: 9000, fitnessGoals: 'weight_loss' });
     expect(v.replan).toBe(true);
     expect(v.next.goalCalories).toBe(expected.goalCalories);
+  });
+
+  test('a target-weight-only edit previews the current goal and nutrition targets', () => {
+    const user = makeUser('estimated');
+    const v = planView({
+      userData: user,
+      form: form({ targetWeight: 79.5 }),
+      original: base,
+    });
+
+    expect(v.replan).toBe(false);
+    expect(v.base.goalCalories).toBe(3416);
+    expect(v.next.goalCalories).toBe(3416);
+    expect(v.next.macros).toEqual(v.base.macros);
+  });
+
+  test('a target-weight-only edit keeps the existing goal when it crosses current weight', () => {
+    const v = planView({
+      userData: makeUser('estimated'),
+      form: form({ targetWeight: 90 }),
+      original: base,
+    });
+
+    expect(v.goal).toBe('weight_loss');
+    expect(v.replan).toBe(false);
+    expect(v.next.goalCalories).toBe(3416);
+  });
+
+  test('manual nutrition targets are saved with the plan', () => {
+    const user = makeUser('calibrated');
+    const formData = form({ targetCalories: 3500, targetProtein: 210, targetCarbs: 445, targetFats: 70 });
+    const p = buildPlanUpdate({ userData: user, form: formData, original: base, now: NOW });
+
+    expect(p).toMatchObject({
+      targetCalories: 3500,
+      targetProtein: 210,
+      targetCarbs: 445,
+      targetFats: 70,
+      weightChangePlan: {
+        goalCalories: 3500,
+        macros: { protein: 210, carbs: 445, fats: 70 },
+      },
+    });
+  });
+
+  test('an explicit phase selection replans even when the target weight is unchanged', () => {
+    const p = buildPlanUpdate({
+      userData: makeUser('calibrated'),
+      form: form({ fitnessGoals: 'muscle_gain' }),
+      original: base,
+      now: NOW,
+    });
+
+    expect(p.fitnessGoals).toBe('muscle_gain');
+    expect(p.weightChangePlan).toMatchObject({ type: 'muscle_gain' });
+    expect(p.goalSwitchDate).toBe(NOW);
   });
 });

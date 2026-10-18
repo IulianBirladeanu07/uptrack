@@ -443,14 +443,14 @@ export const styles = createStyles(() => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: radius[1],
   },
 
   weeklyBadgeText: {
-    fontSize: fontSize[12],
-    lineHeight: 14,
+    fontSize: fontSize[10],
+    lineHeight: 12,
     fontWeight: fontWeight.bold,
   },
 

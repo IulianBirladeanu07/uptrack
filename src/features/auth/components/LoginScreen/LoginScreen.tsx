@@ -1,8 +1,9 @@
-import { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { useState, useContext, useEffect, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import firebaseAuthService from '../../services/firebaseAuthService';
@@ -13,6 +14,7 @@ import {
   loginVerificationNotice,
   resentVerificationMessage,
 } from '../../utils/verificationEmailCopy';
+import { createAppleSignInNonce } from '../../utils/appleSignInNonce';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -26,11 +28,14 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unverified, setUnverified] = useState(false);
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const socialSignInInProgress = useRef(false);
 
   const navigation = useRootNavigation();
   const { setAuthenticated, setProfileSetupComplete } = useContext(AuthContext)!;
@@ -42,6 +47,21 @@ const LoginScreen = () => {
     const id = setInterval(() => setCooldown(c => Math.max(0, c - 1)), 1000);
     return () => clearInterval(id);
   }, [counting]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    let mounted = true;
+    AppleAuthentication.isAvailableAsync()
+      .then(available => {
+        if (mounted) setAppleSignInAvailable(available);
+      })
+      .catch(error => {
+        console.error('Could not check Apple sign-in availability:', error);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSignIn = async () => {
     setError(null);
@@ -77,6 +97,8 @@ const LoginScreen = () => {
   };
 
   const handleGoogleSignIn = async () => {
+    if (socialSignInInProgress.current) return;
+    socialSignInInProgress.current = true;
     setError(null);
     setGoogleLoading(true);
     try {
@@ -93,6 +115,42 @@ const LoginScreen = () => {
       }
     } finally {
       setGoogleLoading(false);
+      socialSignInInProgress.current = false;
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (socialSignInInProgress.current) return;
+    socialSignInInProgress.current = true;
+    setError(null);
+    setAppleLoading(true);
+    try {
+      const { rawNonce, hashedNonce } = await createAppleSignInNonce();
+      const appleCredential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        ],
+        nonce: hashedNonce,
+      });
+      if (!appleCredential.identityToken) {
+        throw new Error('Apple did not return an identity token.');
+      }
+      await firebaseAuthService.signInWithApple(
+        appleCredential.identityToken,
+        rawNonce,
+        { email: appleCredential.email, fullName: appleCredential.fullName },
+        setAuthenticated,
+        setProfileSetupComplete,
+      );
+    } catch (e) {
+      const err = e as { code?: string };
+      if (err.code !== 'ERR_REQUEST_CANCELED') {
+        setError(getAuthErrorMessage(e, 'appleSignIn'));
+      }
+    } finally {
+      setAppleLoading(false);
+      socialSignInInProgress.current = false;
     }
   };
 
@@ -186,7 +244,7 @@ const LoginScreen = () => {
       <TouchableOpacity
         style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
         onPress={handleGoogleSignIn}
-        disabled={googleLoading}
+        disabled={googleLoading || appleLoading}
       >
         {googleLoading ? (
           <ActivityIndicator color={colors.text.primary} />
@@ -197,6 +255,17 @@ const LoginScreen = () => {
           </>
         )}
       </TouchableOpacity>
+
+      {appleSignInAvailable && (
+        <AppleAuthentication.AppleAuthenticationButton
+          testID="apple-sign-in-button"
+          buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+          cornerRadius={radius[4]}
+          style={[styles.appleButton, (appleLoading || googleLoading) && styles.buttonDisabled]}
+          onPress={handleAppleSignIn}
+        />
+      )}
 
       <View style={styles.registerRow}>
         <Text style={styles.registerPrompt}>New to Uptrack?</Text>
@@ -314,6 +383,11 @@ const styles = createStyles(() => ({
   },
   googleButtonIcon: {
     marginRight: spacing[3],
+  },
+  appleButton: {
+    width: '100%',
+    height: 48,
+    marginTop: spacing[3],
   },
   buttonDisabled: {
     opacity: 0.6,
