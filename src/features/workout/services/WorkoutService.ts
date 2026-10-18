@@ -30,7 +30,7 @@ export const createEmptySet = (): WorkoutSet => ({
 class WorkoutService {
     uid: string | null = null;
     userGeneration = 0;
-    asyncStateGeneration = 0;
+    workoutDataGeneration = 0;
     listeners: WorkoutListener[] = [];
     exerciseData: WorkoutExercise[] = [];
     batchingUpdates = false;
@@ -58,7 +58,7 @@ class WorkoutService {
         const next = uid || null;
         if (next === this.uid) return;
         this.userGeneration++;
-        this.asyncStateGeneration++;
+        this.workoutDataGeneration++;
 
         let flush = null;
         if (this._persistTimeout) {
@@ -102,7 +102,6 @@ class WorkoutService {
     }
 
     notifyListenersThrottled(): void {
-        this.asyncStateGeneration++;
         if (this._notifyTimeout) return;
         this._notifyTimeout = setTimeout(() => {
             this._notifyTimeout = null;
@@ -111,7 +110,6 @@ class WorkoutService {
     }
 
     schedulePersist(): void {
-        this.asyncStateGeneration++;
         if (this._persistTimeout) clearTimeout(this._persistTimeout);
         this._persistTimeout = setTimeout(() => {
             this.persistWorkout().catch(error => {
@@ -153,13 +151,13 @@ class WorkoutService {
         const key = this.storageKey();
         if (!key) return null;
         const userGeneration = this.userGeneration;
-        const asyncStateGeneration = this.asyncStateGeneration;
+        const workoutDataGeneration = this.workoutDataGeneration;
         try {
             const saved = await AsyncStorage.getItem(key);
             if (
                 !saved ||
                 userGeneration !== this.userGeneration ||
-                asyncStateGeneration !== this.asyncStateGeneration ||
+                workoutDataGeneration !== this.workoutDataGeneration ||
                 key !== this.storageKey()
             ) return null;
             const state = JSON.parse(saved) as PersistedWorkoutState;
@@ -181,7 +179,7 @@ class WorkoutService {
     }
 
     async clearWorkout(): Promise<void> {
-        this.asyncStateGeneration++;
+        this.workoutDataGeneration++;
         if (this._persistTimeout) {
             clearTimeout(this._persistTimeout);
             this._persistTimeout = null;
@@ -220,7 +218,7 @@ class WorkoutService {
 
     startWorkout(): void {
         if (!this.workoutStartTime) {
-            this.asyncStateGeneration++;
+            this.workoutDataGeneration++;
             this.workoutStartTime = Date.now();
             this.schedulePersist();
         }
@@ -231,6 +229,7 @@ class WorkoutService {
     }
 
     setExerciseData(data: WorkoutExercise[]): void {
+        this.workoutDataGeneration++;
         this.exerciseData = Array.isArray(data) ? [...data] : [];
         this.notifyListeners();
     }
@@ -261,14 +260,14 @@ class WorkoutService {
         if (!Array.isArray(templateExercises) || templateExercises.length === 0) return [];
 
         const userGeneration = this.userGeneration;
-        const asyncStateGeneration = ++this.asyncStateGeneration;
+        const workoutDataGeneration = ++this.workoutDataGeneration;
         const validExercises = templateExercises.filter(e => e && e.exerciseName);
         const allLastSets = await Promise.all(
             validExercises.map(e => this.fetchLastSets(e.exerciseName, e.muscleGroup))
         );
         if (
             userGeneration !== this.userGeneration ||
-            asyncStateGeneration !== this.asyncStateGeneration
+            workoutDataGeneration !== this.workoutDataGeneration
         ) return [];
 
         this.exerciseData = buildWorkoutFromTemplate(validExercises, allLastSets, generateId);
@@ -279,6 +278,7 @@ class WorkoutService {
     updateWeight(exerciseIndex: number, setIndex: number, value: string): void {
         const updated = updateWorkoutWeight(this.exerciseData, exerciseIndex, setIndex, value);
         if (!updated) return;
+        this.workoutDataGeneration++;
         this.exerciseData = updated;
         this.notifyListenersThrottled();
     }
@@ -286,6 +286,7 @@ class WorkoutService {
     updateReps(exerciseIndex: number, setIndex: number, value: string): void {
         const updated = updateWorkoutReps(this.exerciseData, exerciseIndex, setIndex, value);
         if (!updated) return;
+        this.workoutDataGeneration++;
         this.exerciseData = updated;
         this.notifyListenersThrottled();
     }
@@ -293,6 +294,7 @@ class WorkoutService {
     toggleValidation(exerciseIndex: number, setIndex: number): void {
         const updated = toggleWorkoutSetValidation(this.exerciseData, exerciseIndex, setIndex);
         if (!updated) return;
+        this.workoutDataGeneration++;
         this.exerciseData = updated;
         this.notifyListeners();
     }
@@ -300,6 +302,7 @@ class WorkoutService {
     setExerciseNote(exerciseIndex: number, note: string): void {
         const updated = updateWorkoutExerciseNote(this.exerciseData, exerciseIndex, note);
         if (!updated) return;
+        this.workoutDataGeneration++;
         this.exerciseData = updated;
         this.notifyListeners();
     }
@@ -307,6 +310,7 @@ class WorkoutService {
     addSet(exerciseIndex: number): void {
         const updated = addWorkoutSet(this.exerciseData, exerciseIndex, createEmptySet);
         if (!updated) return;
+        this.workoutDataGeneration++;
         this.exerciseData = updated;
         this.notifyListeners();
     }
@@ -314,11 +318,13 @@ class WorkoutService {
     deleteSet(exerciseIndex: number, setIndex: number): void {
         const updated = deleteWorkoutSet(this.exerciseData, exerciseIndex, setIndex);
         if (!updated) return;
+        this.workoutDataGeneration++;
         this.exerciseData = updated;
         this.notifyListeners();
     }
 
     deleteExercise(exerciseIndex: number): void {
+        this.workoutDataGeneration++;
         this.exerciseData = deleteWorkoutExercise(this.exerciseData, exerciseIndex);
         this.notifyListeners();
     }
@@ -326,6 +332,7 @@ class WorkoutService {
     moveExercise(exerciseIndex: number, direction: number): void {
         const updated = moveWorkoutExercise(this.exerciseData, exerciseIndex, direction);
         if (!updated) return;
+        this.workoutDataGeneration++;
         this.exerciseData = updated;
         this.notifyListeners();
     }
@@ -333,6 +340,7 @@ class WorkoutService {
     replaceExercise(exerciseIndex: number, newExercise: WorkoutExercise): void {
         const updated = replaceWorkoutExercise(this.exerciseData, exerciseIndex, newExercise);
         if (!updated) return;
+        this.workoutDataGeneration++;
         this.exerciseData = updated;
         this.notifyListeners();
     }
@@ -340,6 +348,7 @@ class WorkoutService {
     addExercises(exercises: WorkoutExercise[] | null | undefined): void {
         const updated = addWorkoutExercises(this.exerciseData, exercises);
         if (!updated) return;
+        this.workoutDataGeneration++;
         this.exerciseData = updated;
         this.notifyListeners();
     }
@@ -349,11 +358,13 @@ class WorkoutService {
     }
 
     reset(): void {
+        this.workoutDataGeneration++;
         this.exerciseData = [];
         this.notifyListeners();
     }
 
     resetAndLoad(data: WorkoutExercise[]): WorkoutExercise[] {
+        this.workoutDataGeneration++;
         this.exerciseData = Array.isArray(data) ? [...data] : [];
         this.notifyListeners();
         return [...this.exerciseData];

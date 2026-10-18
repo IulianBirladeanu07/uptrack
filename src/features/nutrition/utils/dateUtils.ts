@@ -1,4 +1,5 @@
 import type { DateInput } from '../../../shared/types';
+import { formatLocalDateKey } from '../../../shared/utils/localDateKey';
 
 export const toLocalDate = (date: DateInput): Date => {
   if (date instanceof Date) return new Date(date.getTime());
@@ -25,11 +26,7 @@ export const toLocalDate = (date: DateInput): Date => {
 };
 
 export const formatDate = (date: DateInput): string => {
-  const d = toLocalDate(date);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return formatLocalDateKey(toLocalDate(date));
 };
 
 export const differenceInLocalDays = (later: DateInput, earlier: DateInput): number => {

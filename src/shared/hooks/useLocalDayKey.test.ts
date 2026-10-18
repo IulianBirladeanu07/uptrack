@@ -1,9 +1,12 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { getLocalDayKey, useLocalDayKey } from './useLocalDayKey';
+import { formatDate } from '../../features/nutrition/utils/dateUtils';
 
 describe('getLocalDayKey', () => {
     it('formats a local calendar date without converting through UTC', () => {
-        expect(getLocalDayKey(new Date(2026, 9, 18, 23, 59))).toBe('2026-10-18');
+        const date = new Date(2026, 9, 18, 23, 59);
+        expect(getLocalDayKey(date)).toBe('2026-10-18');
+        expect(getLocalDayKey(date)).toBe(formatDate(date));
     });
 });
 

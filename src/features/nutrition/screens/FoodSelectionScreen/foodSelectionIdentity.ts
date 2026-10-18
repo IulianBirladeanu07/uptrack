@@ -23,3 +23,27 @@ export const getFoodSelectionIdentity = (food: FoodIdentity): string =>
             food.carbohydrates ?? '',
             food.fats ?? '',
         ])}`;
+
+export const prepareFoodForDetail = <T extends FoodIdentity>(
+    selectedFoods: T[],
+    food: T,
+    generatedId: string,
+): { food: T; selectedFoods: T[] } => {
+    const identity = getFoodSelectionIdentity(food);
+    const foodWithStableId = { ...food, id: food.id || generatedId };
+
+    return {
+        food: foodWithStableId,
+        selectedFoods: selectedFoods.map(selected =>
+            getFoodSelectionIdentity(selected) === identity ? foodWithStableId : selected,
+        ),
+    };
+};
+
+export const upsertSelectedFood = <T extends FoodIdentity>(selectedFoods: T[], food: T): T[] => {
+    const identity = getFoodSelectionIdentity(food);
+    const index = selectedFoods.findIndex(selected => getFoodSelectionIdentity(selected) === identity);
+    if (index < 0) return [...selectedFoods, food];
+
+    return selectedFoods.map((selected, selectedIndex) => selectedIndex === index ? food : selected);
+};

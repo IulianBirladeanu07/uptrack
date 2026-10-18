@@ -174,6 +174,49 @@ describe('active workout storage per user', () => {
     expect(svc.getExerciseData().map(exercise => exercise.exerciseName)).toEqual(['Edited session']);
   });
 
+  test('a note write does not cancel a pending template load', async () => {
+    let resolveLastSets;
+    mockGetSetsFromLastWorkout.mockImplementationOnce(() => new Promise(resolve => {
+      resolveLastSets = resolve;
+    }));
+
+    await svc.setUser('a');
+    const pending = svc.loadWorkoutFromTemplate([{
+      exerciseName: 'Bench Press',
+      muscleGroup: 'Chest',
+      numSets: 3,
+      repRange: '5-8',
+      sets: [],
+    }]);
+    svc.setWorkoutNote('');
+    resolveLastSets([]);
+
+    const loaded = await pending;
+    expect(loaded.map(exercise => exercise.exerciseName)).toEqual(['Bench Press']);
+    expect(svc.getExerciseData().map(exercise => exercise.exerciseName)).toEqual(['Bench Press']);
+  });
+
+  test('overlapping restores both resolve without cancelling the resumed workout', async () => {
+    await svc.setUser('a');
+    mockStore.set('activeWorkout_a', JSON.stringify({
+      startTime: Date.now() - 60000,
+      exercises: [ex('Row')],
+      note: '',
+      templateName: '',
+      isActive: true,
+      lastSaved: Date.now() - 60000,
+    }));
+
+    const [firstRestore, secondRestore] = await Promise.all([
+      svc.restoreWorkout(),
+      svc.restoreWorkout(),
+    ]);
+
+    expect(firstRestore).not.toBeNull();
+    expect(secondRestore).not.toBeNull();
+    expect(svc.getExerciseData().map(exercise => exercise.exerciseName)).toEqual(['Row']);
+  });
+
   test('a stale restore does not overwrite a later session for the same user', async () => {
     let resolveSavedWorkout;
     mockGetItem.mockImplementationOnce(() => new Promise(resolve => {

@@ -20,12 +20,8 @@ import WeeklyOverview from './WeeklyOverview';
 import { useDashboardScheduledWorkout } from './useDashboardScheduledWorkout';
 import type { ScheduledWorkout } from './useDashboardScheduledWorkout';
 import { useHomeNoticeDismissals } from './useHomeNoticeDismissals';
-import {
-    countWeeklyWorkouts,
-    getCompletedToday,
-    type CompletedToday,
-    type DashboardWorkoutHistoryEntry,
-} from './dashboardWorkoutSummary';
+import type { CompletedToday, DashboardWorkoutHistoryEntry } from './dashboardWorkoutSummary';
+import { useDashboardWorkoutSummary } from './useDashboardWorkoutSummary';
 
 const LiveTimer = ({ startTime }: { startTime: number }) => {
     const [elapsed, setElapsed] = useState(0);
@@ -264,14 +260,8 @@ const DashboardScreen = () => {
         }
     }, [navigation, retryStepsConnection]);
 
-    const weeklyWorkoutsCount = useMemo(
-        () => countWeeklyWorkouts(workoutHistory as DashboardWorkoutHistoryEntry[]),
-        [workoutHistory],
-    );
-
-    const completedToday = useMemo(
-        () => getCompletedToday(workoutHistory as DashboardWorkoutHistoryEntry[]),
-        [workoutHistory],
+    const { weeklyWorkoutsCount, completedToday } = useDashboardWorkoutSummary(
+        workoutHistory as DashboardWorkoutHistoryEntry[],
     );
 
     const handleWorkoutPress = useCallback(() => {

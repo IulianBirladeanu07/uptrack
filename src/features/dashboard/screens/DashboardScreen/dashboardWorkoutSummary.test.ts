@@ -27,6 +27,14 @@ describe('countWeeklyWorkouts', () => {
         expect(countWeeklyWorkouts([at('2026-05-13T10:21:00')], now)).toBe(0);
     });
 
+    it('does not pull next week into the count when clock skew crosses Monday midnight', () => {
+        const sunday = new Date(2026, 4, 17, 23, 59);
+        expect(countWeeklyWorkouts([
+            at('2026-05-17T23:30:00'),
+            at('2026-05-18T00:02:00'),
+        ], sunday)).toBe(1);
+    });
+
     it('returns zero for an empty or missing history', () => {
         expect(countWeeklyWorkouts([], now)).toBe(0);
         expect(countWeeklyWorkouts(undefined, now)).toBe(0);

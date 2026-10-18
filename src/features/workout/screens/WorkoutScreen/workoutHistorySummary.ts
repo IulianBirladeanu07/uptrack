@@ -74,6 +74,8 @@ export const getWorkoutHistorySummary = (
     const daysToMonday = now.getDay() === 0 ? 6 : now.getDay() - 1;
     weekStart.setDate(now.getDate() - daysToMonday);
     weekStart.setHours(0, 0, 0, 0);
+    const nextWeekStart = new Date(weekStart);
+    nextWeekStart.setDate(nextWeekStart.getDate() + 7);
 
     const sorted = workoutHistory.filter(workout => {
         const date = workout.timestamp?.toDate?.();
@@ -86,7 +88,12 @@ export const getWorkoutHistorySummary = (
 
     sorted.forEach(workout => {
         const date = workout.timestamp?.toDate?.();
-        if (!date || date < weekStart || !isWorkoutTimestampWithinClockSkew(date, now)) return;
+        if (
+            !date ||
+            date < weekStart ||
+            date >= nextWeekStart ||
+            !isWorkoutTimestampWithinClockSkew(date, now)
+        ) return;
         const day = date.getDay();
         if (!completedDaysThisWeek.includes(day)) completedDaysThisWeek.push(day);
     });

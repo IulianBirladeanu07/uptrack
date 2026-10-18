@@ -17,11 +17,14 @@ export const countWorkoutEntriesThisWeek = (
     const day = weekStart.getDay();
     weekStart.setDate(weekStart.getDate() + (day === 0 ? -6 : 1 - day));
     weekStart.setHours(0, 0, 0, 0);
+    const nextWeekStart = new Date(weekStart);
+    nextWeekStart.setDate(nextWeekStart.getDate() + 7);
 
     return workouts.filter(workout => {
         const timestamp = workout.timestamp?.toDate?.();
         return timestamp instanceof Date &&
             isWorkoutTimestampWithinClockSkew(timestamp, now) &&
-            timestamp >= weekStart;
+            timestamp >= weekStart &&
+            timestamp < nextWeekStart;
     }).length;
 };

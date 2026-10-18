@@ -26,6 +26,15 @@ The Play account type/creation date and whether this app has already been publis
 - `app.config.js` sets app version `2.0.5`, Android `versionCode: 3`, compile/target API 36, minimum API 30 (Android 11, chosen to cover Galaxy S21 and newer), `allowBackup: false`, declares camera and Health Connect step-read permissions, and blocks `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `READ_EXTERNAL_STORAGE` and `WRITE_EXTERNAL_STORAGE`. The last three were Expo default permissions that appeared in the generated manifest; the app's own source does not use them (image picking uses `launchImageLibraryAsync` with no permission request, haptics and `Vibration` need only `VIBRATE`, which stays). `expo-image-picker` 17.0.11 asks for `WRITE_EXTERNAL_STORAGE` before `launchCameraAsync` only on Android below API 29, which the minimum API 30 excludes, so blocking it does not affect the selfie camera or gallery picking. Expo System UI is installed/configured to apply the app's light UI setting natively.
 - The account-deletion service and weight-save/snapshot regressions have tests. These do not replace device, store-policy, or backend integration checks.
 
+## OTA runtime compatibility
+
+`app.config.js` uses Expo's `fingerprint` runtime policy. The fingerprint includes native configuration inputs, including the contents of `android.googleServicesFile`; generating an update fingerprint without the same Google services file used for the target native build can produce a runtime that no installed binary matches.
+
+- Before publishing an EAS Update, use the same EAS environment and native configuration/file variables as the build being targeted.
+- Generate the platform fingerprint in that environment and compare it with the fingerprint recorded for the intended native build. Do not publish if they differ or if the file variable is unavailable.
+- The previous `appVersion` runtime (`2.0.5`) is intentionally isolated from fingerprint-policy updates. Install a compatible native build before expecting those users to receive updates.
+- There is currently no repository update workflow enforcing these checks. Do not treat a local Expo config resolution or JS export as proof of OTA compatibility.
+
 ## Release blockers to verify first (P0)
 
 ### Build and artifact

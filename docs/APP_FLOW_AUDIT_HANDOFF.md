@@ -45,7 +45,7 @@ New findings:
 | Severity | Finding | Evidence | Status |
 |---|---|---|---|
 | Medium | Decimal commas were mangled in the custom-food form (`12,5` became `125`) and read as `1` in the serving-size input (`parseFloat('1,5')`). Silent wrong data for anyone whose numeric keyboard shows a comma. | `useCustomFood.ts` stripped everything except digits and points; `ServingSizeSelector.tsx` parsed the raw text. An existing test asserted `'1,25g'` becomes `'125'`. The weight entry uses an in-app keypad and is not affected. | Fixed: `utils/decimalInput.ts`, both inputs, tests added, the characterization test updated. Not tried on a device keyboard. |
-| Medium | After a dependency bump the committed `package-lock.json` has `expo-modules-core` 3.0.30 (was 3.0.21) and `expo` 54.0.37 (was 54.0.13), but `runtimeVersion` is `{ policy: "appVersion" }` and the version is still `2.0.5`. An OTA update published from this tree would be delivered to older binaries built with the previous native module. A dev client built before the bump does not match the current JS. | `package.json`, `package-lock.json`, `app.config.js`. | Open. Rebuild the dev client and any preview or release binary after pulling, and bump `version` (or change the runtime policy) before publishing any EAS Update. No update workflow exists in the repo. |
+| Medium | After a dependency bump the committed `package-lock.json` has `expo-modules-core` 3.0.30 (was 3.0.21) and `expo` 54.0.37 (was 54.0.13), but `runtimeVersion` is `{ policy: "appVersion" }` and the version is still `2.0.5`. An OTA update published from this tree would be delivered to older binaries built with the previous native module. A dev client built before the bump does not match the current JS. | `package.json`, `package-lock.json`, `app.config.js`. | Updated after this audit checkpoint: `runtimeVersion` now uses the `fingerprint` policy, so old `2.0.5` binaries are isolated from updates with a different native fingerprint. Before publishing, generate/compare fingerprints in the same environment as the native build; the Google services file is a fingerprint input. No update workflow exists in the repo. |
 | Low | `AuthContext` sets `loading` to `true` on every auth event, and `App.tsx` swaps the whole navigator for the splash stack while it is true. The login and registration screens therefore unmount and remount during sign-in and sign-up, including the intermediate unverified-user event. | `AuthContext.tsx` lines 94 to 120, `App.tsx` lines 83 to 90. | Open. Likely effect: typed fields reset and a visible flash after an unverified sign-in. Not observed on a device. |
 | Low | Weekly and completion counts now exclude workouts whose timestamp is later than the device clock (`<= now`). History timestamps are Firestore server times, so a device clock that runs behind hides a just-finished workout until the clock catches up. | `workoutHistory.ts`, `dashboardWorkoutSummary.ts`, `workoutHistorySummary.ts` (commits `cabacfa`, `8cbd45f`). History cannot contain future workouts through the app, so the guard protects against no known case. | Open. Consider a tolerance of a few minutes, or reverting. Not reproduced. |
 | Low | `updateSplitInFirestore` writes the schedule without the sanitizer that `addSplitToFirestore` uses, so edited splits keep hydrated template fields and could carry `undefined` for legacy data, which Firestore rejects. | `workoutSplitService.ts`, `CreateSplitScreen.tsx` line 216. | Open, low likelihood. |
@@ -104,7 +104,7 @@ The findings listed as open at this audit checkpoint were subsequently addressed
 
 Verification at `3d584e3`: `npx tsc --noEmit` passed; the full Jest run passed **128 suites / 1,052 tests** in the default timezone; Android `npx expo export --platform android` passed; `npm audit --omit=dev` reported **28 advisories (22 high, 6 moderate)** and exited non-zero. The raw Metro `image-size` API behavior was reproduced, and tracked patches were confirmed to adapt it. Multi-timezone Jest and Firebase emulator tests were not rerun at this revision. The export is JS bundling only; no native build or device/backend validation was done. No code fixes were made as part of this audit request.
 
-### Subsequent implementation of audited fixes (working tree; 2026-10-18)
+### Fixes included in commit `7a81fd6` (2026-10-18)
 
 The following confirmed code-level findings have been fixed with regression coverage in the current, uncommitted working tree:
 
@@ -123,7 +123,20 @@ The following confirmed code-level findings have been fixed with regression cove
 
 This does not resolve the anonymous barcode-catalog insert policy, triage the 55 reported async-handler warnings, or establish device/backend behavior. The fingerprint runtime policy has only had Expo config resolution checked so far; it does not replace a native build or release/device verification.
 
-Validation after the working-tree fixes: `npx tsc --noEmit` passed; `npx jest --runInBand` passed **133 suites / 1,067 tests**; the focused clock-skew tests passed in the default timezone and `America/Los_Angeles`; Android `npx expo export --platform android` passed; Expo config resolved `runtimeVersion` to `{ "policy": "fingerprint" }`; and `git diff --check` passed. This is JS bundle and unit-test verification only, not a native build, device run, Firebase emulator run, or live-backend/RLS verification.
+Validation for commit `7a81fd6`: `npx tsc --noEmit` passed; `npx jest --runInBand` passed **133 suites / 1,067 tests**; the focused clock-skew tests passed in the default timezone and `America/Los_Angeles`; Android `npx expo export --platform android` passed; Expo config resolved `runtimeVersion` to `{ "policy": "fingerprint" }`; and `git diff --check` passed. This is JS bundle and unit-test verification only, not a native build, device run, Firebase emulator run, or live-backend/RLS verification.
+
+### Independent review follow-up (after `7a81fd6`; working tree)
+
+An independent review identified two confirmed `WorkoutService` regressions, a missing Dashboard midnight dependency, and an id-less food edit identity gap. Follow-up changes now:
+
+- Increment the workout-data generation only for real workout-data/session mutations, not persistence scheduling or note writes. A note update no longer cancels a pending template load, and overlapping restore reads can both resolve without invalidating each other.
+- Recompute Dashboard weekly/today summaries on local-day changes and test the Sunday-to-Monday transition. Weekly counts are bounded to the Monday-through-Monday interval so a timestamp within the clock-skew tolerance cannot pull next week's workout into the prior week.
+- Assign a stable ID before opening FoodDetail for an id-less selection, pass it through the detail route, and upsert the returned edited item instead of appending a duplicate.
+- Use one shared local-date-key formatter for the midnight invalidation token and Nutrition's persisted local date keys.
+
+The review also confirmed the fingerprint policy's environment-sensitive constraint: `googleServicesFile` content contributes to the Android fingerprint. Do not publish an update from an environment missing or using a different Google services file than the target native build. This repository has no EAS Update workflow to enforce that precondition; fingerprint/build matching remains a release-process check, not a passing unit test.
+
+Follow-up validation after these independent-review fixes: `npx tsc --noEmit` passed; the full Jest run passed **134 suites / 1,073 tests**; five focused date suites passed **21 tests** in `America/Los_Angeles`; Android `npx expo export --platform android` passed; and `git diff --check` passed. Native build, device, Firebase emulator, live backend/RLS, and EAS Update fingerprint equivalence remain unverified.
 
 ## Main fixes and rationale
 

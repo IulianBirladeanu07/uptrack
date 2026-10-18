@@ -19,7 +19,11 @@ import { colors } from '../../../../shared/theme';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import { toLocalDate } from '../../utils/dateUtils';
 import type { LoggedFood, MealType } from '../../../../shared/types';
-import { getFoodSelectionIdentity } from './foodSelectionIdentity';
+import {
+    getFoodSelectionIdentity,
+    prepareFoodForDetail,
+    upsertSelectedFood,
+} from './foodSelectionIdentity';
 
 const LoadingView = memo(() => (
     <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -96,11 +100,7 @@ const FoodSelectionScreen = () => {
 
     useEffect(() => {
         if (!selectedFoodDetail) return;
-        const selectedIdentity = getFoodSelectionIdentity(selectedFoodDetail);
-        setSelectedFoods(prev => prev.some(food => getFoodSelectionIdentity(food) === selectedIdentity)
-            ? prev.map(food => getFoodSelectionIdentity(food) === selectedIdentity ? selectedFoodDetail : food)
-            : [...prev, selectedFoodDetail]
-        );
+        setSelectedFoods(prev => upsertSelectedFood(prev, selectedFoodDetail));
     }, [selectedFoodDetail]);
 
     const handleSearchComplete = useCallback(async (query: string) => {
@@ -132,7 +132,16 @@ const FoodSelectionScreen = () => {
         if (isSearching && searchQuery && searchQuery.trim().length >= 3) {
             await handleSearchComplete(searchQuery);
         }
-        navigation.navigate('FoodDetail', { food, meal, selectedDate, remainingCalories });
+        const generatedId = food.id || `${Date.now()}_${Math.random()}`;
+        const prepared = prepareFoodForDetail([], food, generatedId);
+        setSelectedFoods(prev => prepareFoodForDetail(prev, food, generatedId).selectedFoods);
+        navigation.navigate('FoodDetail', {
+            food: prepared.food,
+            foodId: prepared.food.id,
+            meal,
+            selectedDate,
+            remainingCalories,
+        });
     }, [navigation, meal, selectedDate, remainingCalories, isSearching, searchQuery, handleSearchComplete]);
 
     const handleCreateFood = useCallback(() => {

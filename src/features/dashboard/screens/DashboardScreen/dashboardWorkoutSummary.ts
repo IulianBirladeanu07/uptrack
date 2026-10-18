@@ -27,9 +27,14 @@ export const countWeeklyWorkouts = (
 ): number => {
     if (!workoutHistory?.length) return 0;
     const weekStart = getMonday(now);
+    const nextWeekStart = new Date(weekStart);
+    nextWeekStart.setDate(nextWeekStart.getDate() + 7);
     return workoutHistory.filter(workout => {
         const date = workout.timestamp?.toDate?.();
-        return date && date >= weekStart && isWorkoutTimestampWithinClockSkew(date, now);
+        return date &&
+            date >= weekStart &&
+            date < nextWeekStart &&
+            isWorkoutTimestampWithinClockSkew(date, now);
     }).length;
 };
 

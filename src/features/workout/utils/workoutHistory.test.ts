@@ -31,6 +31,13 @@ describe('countWorkoutEntriesThisWeek', () => {
         ], now)).toBe(1);
     });
 
+    test('does not count a next-week timestamp within clock-skew tolerance', () => {
+        const now = new Date(2026, 9, 18, 23, 59);
+        expect(countWorkoutEntriesThisWeek([
+            { timestamp: { toDate: () => new Date(2026, 9, 19, 0, 2) } },
+        ], now)).toBe(0);
+    });
+
     test('ignores missing and invalid timestamps', () => {
         expect(countWorkoutEntriesThisWeek([
             {},

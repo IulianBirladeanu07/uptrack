@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
+import { formatLocalDateKey } from '../utils/localDateKey';
 
-export const getLocalDayKey = (date: Date): string =>
-    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+export const getLocalDayKey = formatLocalDateKey;
 
 export const useLocalDayKey = (): string => {
     const [dayKey, setDayKey] = useState(() => getLocalDayKey(new Date()));
