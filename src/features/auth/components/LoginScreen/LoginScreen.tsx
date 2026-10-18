@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -9,6 +9,8 @@ import firebaseAuthService from '../../services/firebaseAuthService';
 import { useRootNavigation } from '../../../../shared/navigation';
 import type { FirebaseError } from 'firebase/app';
 import { getAuthErrorMessage } from '../../utils/authErrorMessage';
+
+const RESEND_COOLDOWN_SECONDS = 60;
 
 const googleWebClientId = firebaseAuthService.getGoogleWebClientId();
 if (googleWebClientId) {
@@ -24,9 +26,18 @@ const LoginScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [unverified, setUnverified] = useState(false);
   const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
   const navigation = useRootNavigation();
   const { setAuthenticated, setProfileSetupComplete } = useContext(AuthContext)!;
+
+  const counting = cooldown > 0;
+
+  useEffect(() => {
+    if (!counting) return;
+    const id = setInterval(() => setCooldown(c => Math.max(0, c - 1)), 1000);
+    return () => clearInterval(id);
+  }, [counting]);
 
   const handleSignIn = async () => {
     setError(null);
@@ -51,7 +62,7 @@ const LoginScreen = () => {
     try {
       const sent = await firebaseAuthService.resendVerificationEmail(email, password);
       if (sent) {
-        setUnverified(false);
+        setCooldown(RESEND_COOLDOWN_SECONDS);
         Alert.alert('Verification Email Sent', 'Open the link in the email, then log in.');
       }
     } catch (e) {
@@ -125,7 +136,7 @@ const LoginScreen = () => {
         <Text style={styles.forgotText}>Forgot Password?</Text>
       </TouchableOpacity>
 
-      {error && (
+      {error && !unverified && (
         <View style={styles.errorBanner}>
           <Ionicons name="alert-circle-outline" size={spacing[5]} color={colors.accent.error} />
           <Text style={styles.errorText}>{error}</Text>
@@ -133,9 +144,29 @@ const LoginScreen = () => {
       )}
 
       {unverified && (
-        <TouchableOpacity onPress={handleResend} disabled={resending}>
-          {resending ? <ActivityIndicator color={colors.text.primary} /> : <Text style={styles.linkText}>Resend verification email</Text>}
-        </TouchableOpacity>
+        <View style={styles.noticeBanner} testID="verify-email-notice">
+          <View style={styles.noticeHeader}>
+            <Ionicons name="mail-unread-outline" size={spacing[5]} color={colors.accent.primary} />
+            <Text style={styles.noticeTitle}>Verify your email</Text>
+          </View>
+          <Text style={styles.noticeText}>
+            Open the link we sent to {email.trim()}, then log in. Check your spam folder too.
+          </Text>
+          <TouchableOpacity
+            testID="resend-verification-button"
+            style={[styles.resendButton, (resending || cooldown > 0) && styles.resendButtonDisabled]}
+            onPress={handleResend}
+            disabled={resending || cooldown > 0}
+          >
+            {resending ? (
+              <ActivityIndicator color={colors.accent.primary} />
+            ) : (
+              <Text style={[styles.resendText, cooldown > 0 && styles.resendTextDisabled]}>
+                {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend email'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
       )}
 
       <TouchableOpacity testID="login-submit-button" style={styles.button} onPress={handleSignIn} disabled={loading}>
@@ -283,12 +314,50 @@ const styles = createStyles(() => ({
   buttonDisabled: {
     opacity: 0.6,
   },
-  linkText: {
-    color: colors.accent.cyan,
+  noticeBanner: {
+    backgroundColor: colors.faded.primaryLight,
+    borderWidth: 1,
+    borderColor: colors.border.primary,
+    borderRadius: radius[3],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    marginBottom: spacing[2],
+    gap: spacing[2],
+  },
+  noticeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  noticeTitle: {
+    color: colors.text.primary,
     fontSize: fontSize[16],
-    fontWeight: fontWeight.semibold,
-    textAlign: 'center',
-    marginTop: spacing[5],
+    fontWeight: fontWeight.bold,
+  },
+  noticeText: {
+    color: colors.text.secondary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.medium,
+  },
+  resendButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border.primary,
+    borderRadius: radius[3],
+    paddingVertical: spacing[3],
+    marginTop: spacing[1],
+  },
+  resendButtonDisabled: {
+    borderColor: colors.border.default,
+  },
+  resendText: {
+    color: colors.accent.primary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.bold,
+  },
+  resendTextDisabled: {
+    color: colors.text.tertiary,
   },
   forgotLink: {
     alignSelf: 'flex-end',
