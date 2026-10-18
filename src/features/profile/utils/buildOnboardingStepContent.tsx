@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { OptionRow, NumberStepper } from '../../../shared/components/FormControls/FormControls';
 import * as ProfileOptions from './profileOptions';
 import onboardingFieldConfig from './onboardingFieldConfig';
+import { convertCmToFtIn } from './heightConversion';
 import type { HeightField, Numeric, OnboardingChange, OnboardingField, OnboardingFormData, PickerField, StepperField, WeightField } from '../../../shared/types';
 
 const convertLbsToKg = (lbs: Numeric) => parseFloat((parseFloat(String(lbs)) * 0.453592).toFixed(1));
@@ -10,13 +11,6 @@ const convertFtInToCm = (feet: Numeric, inches: Numeric) => {
   return parseFloat((totalInches * 2.54).toFixed(1));
 };
 const convertKgToLbs = (kg: Numeric) => parseFloat((parseFloat(String(kg)) / 0.453592).toFixed(1));
-const convertCmToFtIn = (cm: Numeric) => {
-  const totalInches = parseFloat(String(cm)) / 2.54;
-  const feet = Math.floor(totalInches / 12);
-  const inches = Math.round(totalInches - feet * 12);
-  return { feet, inches };
-};
-
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const renderPicker = (field: PickerField, formData: OnboardingFormData, handleChange: OnboardingChange) => {
@@ -70,7 +64,7 @@ const renderUnitInput = (field: HeightField | WeightField, formData: OnboardingF
   if (field.key === 'height') {
     const feetCfg   = field.imperial.feet;
     const inchesCfg = field.imperial.inches;
-    const derivedHeight = formData.height != null ? convertCmToFtIn(formData.height) : { feet: 5, inches: 6 };
+    const derivedHeight = formData.height != null ? convertCmToFtIn(Number(formData.height)) : { feet: 5, inches: 6 };
     const feet   = formData.height_feet   ?? derivedHeight.feet;
     const inches = formData.height_inches ?? derivedHeight.inches;
 

@@ -25,6 +25,7 @@ import { useAppNavigation } from '../../../../shared/navigation';
 import type { Numeric, WeightInWeek } from '../../../../shared/types';
 import {
     WEEK_DAYS,
+    getWeightGoalProgressPercent,
 } from './weightTrackerPresentation';
 import { applyWeightKey } from './weightInput';
 import WeightEntryModal from './WeightEntryModal';
@@ -146,12 +147,10 @@ const WeightTracker = () => {
     const rollingAverageWeight = useMemo(() => getRollingAverageWeight(weightIns, 7), [weightIns]);
     const progressWeight = rollingAverageWeight ?? currentWeight;
 
-    const progressPercent = useMemo(() => {
-        if (progressWeight == null || startWeight == null || goalWeight == null) return 0;
-        const total = Math.abs(goalWeight - startWeight);
-        if (total === 0) return 100;
-        return Math.min(Math.max((Math.abs(progressWeight - startWeight) / total) * 100, 0), 100);
-    }, [progressWeight, startWeight, goalWeight]);
+    const progressPercent = useMemo(
+        () => getWeightGoalProgressPercent(progressWeight, startWeight, goalWeight),
+        [progressWeight, startWeight, goalWeight],
+    );
 
     const remaining = (progressWeight != null && goalWeight != null)
         ? parseFloat(Math.abs(progressWeight - goalWeight).toFixed(1)) : null;
@@ -186,7 +185,11 @@ const WeightTracker = () => {
     const stopLongPress = useCallback(() => {
         clearTimeout(longPressTimer.current);
         clearInterval(longPressInterval.current);
+        longPressTimer.current = undefined;
+        longPressInterval.current = undefined;
     }, []);
+
+    useEffect(() => stopLongPress, [stopLongPress]);
 
     const selectDate = useCallback((d: Date) => {
         setModalDate(d);

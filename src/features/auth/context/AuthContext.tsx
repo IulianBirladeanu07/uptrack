@@ -12,7 +12,7 @@ import { SEARCH } from '../../../shared/theme/constants';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import type { UserData } from '../../../shared/types';
 import { needsEmailVerification } from '../utils/emailVerification';
-import { isCurrentAuthRequest } from '../utils/authRequest';
+import { isCurrentAuthRequest, isSameAuthIdentity } from '../utils/authRequest';
 import { syncAuthEmail } from '../services/emailSyncService';
 
 export type AuthContextValue = {
@@ -60,6 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profileSetupComplete, setProfileSetupComplete] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
   const authRequestGeneration = useRef(0);
+  const previousAuthUid = useRef<string | null | undefined>(undefined);
 
   const refreshUserData = useCallback(async (): Promise<UserData | undefined> => {
     const user = auth.currentUser;
@@ -84,17 +85,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      const nextUid = user?.uid ?? null;
+      const preserveCurrentState = isSameAuthIdentity(previousAuthUid.current, nextUid);
+      previousAuthUid.current = nextUid;
       const request = {
-        uid: user?.uid ?? null,
+        uid: nextUid,
         generation: authRequestGeneration.current + 1,
       };
       authRequestGeneration.current = request.generation;
       const isCurrent = () =>
         isCurrentAuthRequest(request, auth.currentUser?.uid ?? null, authRequestGeneration.current);
-      setLoading(true);
-      setAuthenticated(false);
-      setProfileSetupComplete(false);
-      setUserData(null);
+      if (!preserveCurrentState) {
+        setLoading(true);
+        setAuthenticated(false);
+        setProfileSetupComplete(false);
+        setUserData(null);
+      }
       try {
         if (user && !needsEmailVerification(user)) {
           const userDoc = await getDoc(doc(db, 'users', user.uid).withConverter(userConverter));

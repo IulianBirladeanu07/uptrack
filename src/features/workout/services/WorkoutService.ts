@@ -102,6 +102,7 @@ class WorkoutService {
     }
 
     notifyListenersThrottled(): void {
+        this.asyncStateGeneration++;
         if (this._notifyTimeout) return;
         this._notifyTimeout = setTimeout(() => {
             this._notifyTimeout = null;
@@ -110,6 +111,7 @@ class WorkoutService {
     }
 
     schedulePersist(): void {
+        this.asyncStateGeneration++;
         if (this._persistTimeout) clearTimeout(this._persistTimeout);
         this._persistTimeout = setTimeout(() => {
             this.persistWorkout().catch(error => {

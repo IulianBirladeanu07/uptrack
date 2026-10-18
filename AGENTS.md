@@ -17,7 +17,7 @@ Uptrack is an Expo / React Native app for tracking nutrition, weight and workout
 - Supabase JS v2 with the anon key, for food search and barcode lookup.
 - Health data: `react-native-health` (iOS HealthKit) and `react-native-health-connect` (Android Health Connect).
 - Jest 29 with babel-jest. TypeScript ~5.9 with `allowJs`; most of the app is still JavaScript.
-- One patch-package patch, `patches/react-native+0.81.5.patch`. It makes the Event phase constants writable.
+- Three patch-package patches currently pin Metro 0.83.1, Metro 0.83.3 and React Native 0.81.5 behavior. Recheck all patches when upgrading those dependencies.
 
 ## Commands
 
@@ -65,7 +65,7 @@ Run it from the repo root:
 node <scratch>/node_modules/eslint/bin/eslint.js -c <scratch>/eslint.config.mjs "src/**/*.js" "src/**/*.ts" "src/**/*.tsx" App.js
 ```
 
-Baseline on `master`: 0 rules-of-hooks errors and 38 exhaustive-deps warnings. A change must not add any.
+Baseline from the 2026-10-17 tool-driven scan: 0 rules-of-hooks errors and 45 exhaustive-deps warnings. A change must not add any.
 
 ## Layout
 

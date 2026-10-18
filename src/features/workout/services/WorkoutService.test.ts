@@ -152,6 +152,28 @@ describe('active workout storage per user', () => {
     expect(svc.getExerciseData()).toEqual([]);
   });
 
+  test('a pending restore cannot overwrite set edits made before storage resolves', async () => {
+    let resolveSavedWorkout;
+    mockGetItem.mockImplementationOnce(() => new Promise(resolve => {
+      resolveSavedWorkout = resolve;
+    }));
+
+    await svc.setUser('a');
+    const pending = svc.restoreWorkout();
+    svc.setExerciseData([ex('Edited session')]);
+    resolveSavedWorkout(JSON.stringify({
+      startTime: Date.now() - 60000,
+      exercises: [ex('Stale session')],
+      note: '',
+      templateName: '',
+      isActive: true,
+      lastSaved: Date.now() - 60000,
+    }));
+
+    await expect(pending).resolves.toBeNull();
+    expect(svc.getExerciseData().map(exercise => exercise.exerciseName)).toEqual(['Edited session']);
+  });
+
   test('a stale restore does not overwrite a later session for the same user', async () => {
     let resolveSavedWorkout;
     mockGetItem.mockImplementationOnce(() => new Promise(resolve => {

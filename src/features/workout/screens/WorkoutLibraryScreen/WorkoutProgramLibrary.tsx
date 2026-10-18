@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, memo, type ReactElement } from 'react';
 import { FlatList, Alert } from 'react-native';
+import { getAuth } from 'firebase/auth';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import { deleteSplitFromFirestore } from '../../services/workoutSplitService';
 import ProgramItemJS from './components/ProgramItem';
@@ -20,7 +21,7 @@ type WorkoutProgramLibraryProps = {
   refreshControl?: ReactElement | undefined;
   onCreateSplit: () => void;
   onActivateSplit: (split: SplitItem) => void;
-  onSplitDeleted: (id: string) => void;
+  onSplitDeleted: (id: string, ownerUid: string) => void;
 };
 
 const WorkoutProgramLibrary = ({ 
@@ -45,6 +46,12 @@ const WorkoutProgramLibrary = ({
   }, [navigation]);
 
   const handleDeleteSplit = useCallback(async (split: SplitItem) => {
+    const ownerUid = getAuth().currentUser?.uid;
+    if (!ownerUid) {
+      Alert.alert('Error', 'User not authenticated.');
+      return;
+    }
+
     const name = split.name || split.templateName || 'Split';
     Alert.alert(
       'Delete Split',
@@ -56,8 +63,12 @@ const WorkoutProgramLibrary = ({
           style: 'destructive',
           onPress: async () => {
             try {
+              if (getAuth().currentUser?.uid !== ownerUid) {
+                Alert.alert('Account changed', 'Please reopen the split library before deleting a split.');
+                return;
+              }
               await deleteSplitFromFirestore(String(split.id));
-              onSplitDeleted(String(split.id));
+              onSplitDeleted(String(split.id), ownerUid);
             } catch (error) {
               Alert.alert('Error', 'Failed to delete split.');
             }

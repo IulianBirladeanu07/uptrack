@@ -22,8 +22,9 @@ describe('countWeeklyWorkouts', () => {
         expect(countWeeklyWorkouts(history, now)).toBe(2);
     });
 
-    it('does not count a future-only timestamp as a completed workout', () => {
-        expect(countWeeklyWorkouts([at('2026-05-13T10:16:00')], now)).toBe(0);
+    it('counts small server-clock offsets but ignores substantially future timestamps', () => {
+        expect(countWeeklyWorkouts([at('2026-05-13T10:18:00')], now)).toBe(1);
+        expect(countWeeklyWorkouts([at('2026-05-13T10:21:00')], now)).toBe(0);
     });
 
     it('returns zero for an empty or missing history', () => {
@@ -65,7 +66,7 @@ describe('getCompletedToday', () => {
 
     it('returns null when no workout was completed today or history is missing', () => {
         expect(getCompletedToday([at('2026-05-12T23:59:00')], now)).toBeNull();
-        expect(getCompletedToday([at('2026-05-13T10:16:00')], now)).toBeNull();
+        expect(getCompletedToday([at('2026-05-13T10:21:00')], now)).toBeNull();
         expect(getCompletedToday([], now)).toBeNull();
         expect(getCompletedToday(undefined, now)).toBeNull();
     });

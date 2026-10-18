@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { fetchSplitsFromFirestore } from '../../../workout/services/workoutSplitService';
 import { getWorkoutsPerWeek } from '../../../workout/utils/splitSchedule';
@@ -19,10 +19,15 @@ export const resolvePlannedWorkouts = (
 
 export const usePlannedWorkouts = (activeSplitId: string | null | undefined): number | null => {
     const [planned, setPlanned] = useState<number | null>(null);
+    const previousSplitId = useRef(activeSplitId);
 
     useFocusEffect(
         useCallback(() => {
             let focused = true;
+            if (previousSplitId.current !== activeSplitId) {
+                previousSplitId.current = activeSplitId;
+                setPlanned(null);
+            }
             const loadPlannedWorkouts = async () => {
                 try {
                     const splits = await fetchSplitsFromFirestore();

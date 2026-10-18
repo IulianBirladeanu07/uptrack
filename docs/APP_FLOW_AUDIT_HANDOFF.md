@@ -100,9 +100,30 @@ A supplementary scan report was supplied during this audit. It says all 280 `.ts
 
 The scan does not cover runtime behavior, layout, native code, backend state, or logic errors that no rule detects. `knip` reportedly ran out of memory and was replaced with a small usage scan. Treat the 55 untriaged async handlers and device/backend checklist as remaining work.
 
-The following open findings were independently rechecked or remain documented from the prior pass: active-workout restore can overwrite edits made during a pending AsyncStorage read; an older workout-schedule request can replace the schedule for a newer split; same-name foods collide in selection identity; the custom-food unit selector has no handler; Dashboard dates can stay stale across local midnight; Progress can retain the old weekly target after a failed split fetch; and anonymous barcode-catalog inserts remain an owner-accepted shared-data poisoning risk. The later `updateSplitInFirestore` sanitizer and app-version/runtime-version compatibility concerns also remain open as recorded above.
+The findings listed as open at this audit checkpoint were subsequently addressed in the working tree as recorded below. The shared barcode-catalog insert policy remains an owner-accepted risk. The later `updateSplitInFirestore` sanitizer and app-version/runtime-version compatibility concerns were also addressed in the working tree.
 
 Verification at `3d584e3`: `npx tsc --noEmit` passed; the full Jest run passed **128 suites / 1,052 tests** in the default timezone; Android `npx expo export --platform android` passed; `npm audit --omit=dev` reported **28 advisories (22 high, 6 moderate)** and exited non-zero. The raw Metro `image-size` API behavior was reproduced, and tracked patches were confirmed to adapt it. Multi-timezone Jest and Firebase emulator tests were not rerun at this revision. The export is JS bundling only; no native build or device/backend validation was done. No code fixes were made as part of this audit request.
+
+### Subsequent implementation of audited fixes (working tree; 2026-10-18)
+
+The following confirmed code-level findings have been fixed with regression coverage in the current, uncommitted working tree:
+
+- Active-workout restore now invalidates an in-flight storage read when a local mutation occurs.
+- Workout schedule fetches use a request generation guard; stale responses are ignored and a missing active split clears the displayed schedule.
+- Progress clears the prior split's weekly target when the selected split changes, including when the next request fails.
+- Active split deletion carries the deleting user's UID through the async operation and avoids clearing persisted state after an account switch. Split update data is sanitized before Firestore writes.
+- Imperial height conversion rounds total inches before splitting feet/inches; weight-goal progress reflects movement toward rather than away from the goal.
+- The custom-food unit selector now opens unit choices; “Combine Foods” routes to the existing multi-food selection flow; food-selection identity prefers item IDs and falls back to food attributes.
+- Barcode permission failures are logged and surfaced to the user; settings-open failures are caught. WeightTracker press-and-hold timers are cleared on unmount.
+- Dashboard date-dependent workout summaries update at local midnight and when the app resumes. Haptic rejections are logged through shared feedback helpers.
+- Workout-history summaries allow up to five minutes of server/device clock skew while continuing to ignore substantially future-dated records.
+- Repeated Auth events for the same UID no longer reset auth/loading state and remount the login/registration flow; a changed UID still clears prior account state while the new profile loads.
+- Expo `runtimeVersion` now uses the `fingerprint` policy to prevent incompatible OTA delivery across native dependency changes. A compatible native build is still required before distribution.
+- Jest now includes `src/shared/hooks` tests, and `AGENTS.md` reflects the reported patch-package and hooks-warning baselines.
+
+This does not resolve the anonymous barcode-catalog insert policy, triage the 55 reported async-handler warnings, or establish device/backend behavior. The fingerprint runtime policy has only had Expo config resolution checked so far; it does not replace a native build or release/device verification.
+
+Validation after the working-tree fixes: `npx tsc --noEmit` passed; `npx jest --runInBand` passed **133 suites / 1,067 tests**; the focused clock-skew tests passed in the default timezone and `America/Los_Angeles`; Android `npx expo export --platform android` passed; Expo config resolved `runtimeVersion` to `{ "policy": "fingerprint" }`; and `git diff --check` passed. This is JS bundle and unit-test verification only, not a native build, device run, Firebase emulator run, or live-backend/RLS verification.
 
 ## Main fixes and rationale
 

@@ -98,7 +98,7 @@ module.exports = {
     },
     owner: "iulian_birladeanu",
     runtimeVersion: {
-      policy: "appVersion",
+      policy: "fingerprint",
     },
     updates: {
       url: "https://u.expo.dev/2512a7a0-ae42-4736-9b5a-03ce8ad42d13",

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, useRef, memo } from 'react';
 import { View, Text, TouchableOpacity, Animated, LayoutAnimation } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { triggerImpactFeedback, triggerSelectionFeedback } from '../../../../../shared/services/hapticFeedback';
 import { colors, spacing } from '../../../../../shared/theme';
 import styles from './WorkoutPreviewCardStyles';
 
@@ -61,9 +62,7 @@ const WorkoutPreviewCardContent = ({
   const handleToggleExpand = useCallback(() => {
     if (!exercises.length) return;
 
-    if (Haptics?.selectionAsync) {
-      Haptics.selectionAsync();
-    }
+    void triggerSelectionFeedback();
 
     LayoutAnimation.configureNext(animationConfig);
     setIsExpanded(prev => !prev);
@@ -77,9 +76,7 @@ const WorkoutPreviewCardContent = ({
     event.stopPropagation();
 
     if (onSelect && selectedDay && !isAssigned) {
-      if (Haptics?.impactAsync) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
+      void triggerImpactFeedback(Haptics.ImpactFeedbackStyle.Light);
 
       onSelect(workout);
 
@@ -95,9 +92,7 @@ const WorkoutPreviewCardContent = ({
 
     if (!onRemove || !isAssigned) return;
 
-    if (Haptics?.impactAsync) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    void triggerImpactFeedback(Haptics.ImpactFeedbackStyle.Light);
 
     onRemove(isAssigned);
     LayoutAnimation.configureNext(animationConfig);

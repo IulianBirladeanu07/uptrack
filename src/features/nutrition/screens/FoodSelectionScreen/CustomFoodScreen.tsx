@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, memo, forwardRef, useMemo, useCallback, useImperativeHandle } from 'react';
 import type { ComponentProps } from 'react';
 import {
+  Alert,
   View,
   Text,
   TextInput,
@@ -65,6 +66,7 @@ type FooterProps = {
   foodData: FoodFormData;
   handleSubmit: () => void;
   onAmountChange: (value: string) => void;
+  onChooseUnit: () => void;
   visible: boolean;
 };
 
@@ -154,7 +156,7 @@ const NutrientDataField = memo(forwardRef<FieldHandle, NutrientDataFieldProps>((
   );
 }));
 
-const Footer = memo(({ foodData, handleSubmit, onAmountChange, visible }: FooterProps) => {
+const Footer = memo(({ foodData, handleSubmit, onAmountChange, onChooseUnit, visible }: FooterProps) => {
   const insets = useSafeAreaInsets();
 
   if (!visible) return null;
@@ -176,7 +178,12 @@ const Footer = memo(({ foodData, handleSubmit, onAmountChange, visible }: Footer
           maxLength={5}
           returnKeyType="done"
         />
-        <TouchableOpacity style={styles.unitSelector}>
+        <TouchableOpacity
+          style={styles.unitSelector}
+          onPress={onChooseUnit}
+          accessibilityRole="button"
+          accessibilityLabel={`Serving unit, ${foodData.unit || 'g'}`}
+        >
           <Text style={styles.unitText}>{foodData.unit || 'g'}</Text>
           <MaterialCommunityIcons name="chevron-down" size={20} color={colors.text.secondary} />
         </TouchableOpacity>
@@ -218,6 +225,7 @@ const CustomFoodScreen = () => {
     handleFieldFocus: originalHandleFieldFocus,
     handleSubmitEditing,
     handleAmountChange,
+    changeUnit,
     handleSubmit,
     focusFirstField,
     inputRefs,
@@ -249,6 +257,14 @@ const CustomFoodScreen = () => {
 
   const showFooter = !keyboardVisible || currentFocusedField === 'amount';
   const shouldShowBarcode = type === 'foodWithBarcode';
+  const chooseUnit = useCallback(() => {
+    Alert.alert('Serving unit', 'Choose the unit for this food serving.', [
+      { text: 'g', onPress: () => changeUnit('g') },
+      { text: 'ml', onPress: () => changeUnit('ml') },
+      { text: 'piece', onPress: () => changeUnit('piece') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [changeUnit]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -384,6 +400,7 @@ const CustomFoodScreen = () => {
           foodData={foodData}
           handleSubmit={handleSubmit}
           onAmountChange={handleAmountChange}
+          onChooseUnit={chooseUnit}
           visible={showFooter}
         />
       </KeyboardAvoidingView>

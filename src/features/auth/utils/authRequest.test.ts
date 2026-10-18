@@ -1,4 +1,14 @@
-import { isCurrentAuthRequest } from './authRequest';
+import { isCurrentAuthRequest, isSameAuthIdentity } from './authRequest';
+
+describe('isSameAuthIdentity', () => {
+  it('preserves state only for subsequent events with the same uid', () => {
+    expect(isSameAuthIdentity(undefined, null)).toBe(false);
+    expect(isSameAuthIdentity(null, null)).toBe(true);
+    expect(isSameAuthIdentity('user-a', 'user-a')).toBe(true);
+    expect(isSameAuthIdentity('user-a', 'user-b')).toBe(false);
+    expect(isSameAuthIdentity('user-a', null)).toBe(false);
+  });
+});
 
 describe('isCurrentAuthRequest', () => {
   it('accepts the latest request for the current uid, including signed-out state', () => {

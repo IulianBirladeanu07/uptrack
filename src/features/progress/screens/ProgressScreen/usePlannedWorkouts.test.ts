@@ -61,7 +61,7 @@ describe('usePlannedWorkouts', () => {
         expect(result.current).toBeNull();
     });
 
-    it('logs load failures and preserves the previously loaded planned count', async () => {
+    it('clears the previous split target when a new split fetch fails', async () => {
         const logError = jest.spyOn(console, 'error').mockImplementation(() => {});
         fetchSplits.mockResolvedValueOnce([split('active', 4)]).mockRejectedValueOnce(new Error('offline'));
 
@@ -75,7 +75,7 @@ describe('usePlannedWorkouts', () => {
             rerender({ activeSplitId: 'other' });
             await waitFor(() => expect(fetchSplits).toHaveBeenCalledTimes(2));
             await waitFor(() => expect(logError).toHaveBeenCalledWith('Progress split load error:', 'offline'));
-            expect(result.current).toBe(4);
+            expect(result.current).toBeNull();
         } finally {
             logError.mockRestore();
         }

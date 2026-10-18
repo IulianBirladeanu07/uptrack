@@ -1,4 +1,4 @@
-import { countWorkoutEntriesThisWeek } from './workoutHistory';
+import { countWorkoutEntriesThisWeek, isWorkoutTimestampWithinClockSkew } from './workoutHistory';
 
 describe('countWorkoutEntriesThisWeek', () => {
     test('counts completed workouts from Monday through now in the local week', () => {
@@ -36,5 +36,11 @@ describe('countWorkoutEntriesThisWeek', () => {
             {},
             { timestamp: { toDate: () => new Date(Number.NaN) } },
         ], new Date(2026, 9, 14))).toBe(0);
+    });
+
+    test('allows a small server timestamp offset when the device clock lags', () => {
+        const now = new Date(2026, 9, 14, 15, 0);
+        expect(isWorkoutTimestampWithinClockSkew(new Date(now.getTime() + 4 * 60_000), now)).toBe(true);
+        expect(isWorkoutTimestampWithinClockSkew(new Date(now.getTime() + 6 * 60_000), now)).toBe(false);
     });
 });

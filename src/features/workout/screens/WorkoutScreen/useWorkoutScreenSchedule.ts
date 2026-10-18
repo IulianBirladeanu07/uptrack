@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchSplitsFromFirestore } from '../../services/workoutSplitService';
 import type { SplitLike } from '../../utils/splitSchedule';
 import { selectActiveWorkoutSplit } from './activeWorkoutSplit';
@@ -23,13 +23,16 @@ export const useWorkoutScreenSchedule = (
     const [upcomingWorkouts, setUpcomingWorkouts] = useState<UpcomingWorkout[]>([]);
     const [loading, setLoading] = useState(true);
     const hasLoadedOnceRef = useRef(false);
+    const requestGenerationRef = useRef(0);
 
     const loadActiveSplit = useCallback(async () => {
+        const requestGeneration = ++requestGenerationRef.current;
         try {
             if (!hasLoadedOnceRef.current) {
                 setLoading(true);
             }
             const splits = await fetchSplitsFromFirestore();
+            if (requestGeneration !== requestGenerationRef.current) return;
             if (!splits.length) {
                 setActiveSplit(null);
                 setTodayWorkout(null);
@@ -38,7 +41,12 @@ export const useWorkoutScreenSchedule = (
             }
 
             const selectedSplit = selectActiveWorkoutSplit(splits, activeSplitId);
-            if (!selectedSplit) return;
+            if (!selectedSplit) {
+                setActiveSplit(null);
+                setTodayWorkout(null);
+                setUpcomingWorkouts([]);
+                return;
+            }
             setActiveSplit(selectedSplit);
 
             const scheduleDisplay = buildWorkoutScheduleDisplay(
@@ -49,12 +57,20 @@ export const useWorkoutScreenSchedule = (
             setTodayWorkout(scheduleDisplay.todayWorkout);
             setUpcomingWorkouts(scheduleDisplay.upcomingWorkouts);
         } catch (error) {
-            console.error('Error loading split:', error);
+            if (requestGeneration === requestGenerationRef.current) {
+                console.error('Error loading split:', error);
+            }
         } finally {
-            hasLoadedOnceRef.current = true;
-            setLoading(false);
+            if (requestGeneration === requestGenerationRef.current) {
+                hasLoadedOnceRef.current = true;
+                setLoading(false);
+            }
         }
     }, [activeSplitId, rotationStartDate]);
+
+    useEffect(() => () => {
+        requestGenerationRef.current++;
+    }, []);
 
     return { activeSplit, todayWorkout, upcomingWorkouts, loading, loadActiveSplit };
 };

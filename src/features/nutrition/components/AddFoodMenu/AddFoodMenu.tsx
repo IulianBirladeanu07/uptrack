@@ -47,8 +47,8 @@ const menuItems: MenuItem[] = [
   },
   {
     icon: 'silverware-fork-knife',
-    label: 'New Meal',
-    sublabel: 'meal combination',
+    label: 'Combine Foods',
+    sublabel: 'add multiple foods',
     type: 'meals',
     color: colors.accent.cyan,
     bgColor: colors.faded.cyan,
@@ -121,7 +121,14 @@ const AddFoodMenu = memo(({ isExpanded, onClose, navigation, meal, selectedDate 
   const handleItemPress = useCallback((type: string) => {
     onClose();
     setTimeout(() => {
-      navigation.navigate('CustomFood', { type, meal, selectedDate });
+      if (type === 'meals') {
+        navigation.navigate('FoodSelection', {
+          ...(meal === undefined ? {} : { meal }),
+          ...(selectedDate === undefined ? {} : { selectedDate }),
+        });
+      } else {
+        navigation.navigate('CustomFood', { type, meal, selectedDate });
+      }
     }, 250);
   }, [navigation, meal, selectedDate, onClose]);
 

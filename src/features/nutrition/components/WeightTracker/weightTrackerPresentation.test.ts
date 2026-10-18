@@ -1,4 +1,4 @@
-import { buildWeeklyGroups, formatWeekLabel, formatWeightDate } from './weightTrackerPresentation';
+import { buildWeeklyGroups, formatWeekLabel, formatWeightDate, getWeightGoalProgressPercent } from './weightTrackerPresentation';
 import type { WeightInWeek } from '../../../../shared/types';
 
 describe('buildWeeklyGroups', () => {
@@ -49,6 +49,21 @@ describe('formatWeekLabel', () => {
 describe('formatWeightDate', () => {
     it('falls back to today for invalid dates', () => {
         expect(formatWeightDate(new Date(Number.NaN))).toBe('Today');
+    });
+
+    describe('getWeightGoalProgressPercent', () => {
+        it('counts progress toward weight-loss and weight-gain goals only', () => {
+            expect(getWeightGoalProgressPercent(65, 70, 60)).toBe(50);
+            expect(getWeightGoalProgressPercent(75, 70, 80)).toBe(50);
+            expect(getWeightGoalProgressPercent(80, 70, 60)).toBe(0);
+            expect(getWeightGoalProgressPercent(60, 70, 80)).toBe(0);
+        });
+
+        it('clamps progress at the goal and handles missing or equal weights', () => {
+            expect(getWeightGoalProgressPercent(55, 70, 60)).toBe(100);
+            expect(getWeightGoalProgressPercent(75, 70, 70)).toBe(100);
+            expect(getWeightGoalProgressPercent(null, 70, 60)).toBe(0);
+        });
     });
 
     it('formats dates that are neither today nor yesterday', () => {

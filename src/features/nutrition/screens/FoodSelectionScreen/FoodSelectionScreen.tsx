@@ -19,6 +19,7 @@ import { colors } from '../../../../shared/theme';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import { toLocalDate } from '../../utils/dateUtils';
 import type { LoggedFood, MealType } from '../../../../shared/types';
+import { getFoodSelectionIdentity } from './foodSelectionIdentity';
 
 const LoadingView = memo(() => (
     <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -95,8 +96,9 @@ const FoodSelectionScreen = () => {
 
     useEffect(() => {
         if (!selectedFoodDetail) return;
-        setSelectedFoods(prev => prev.some(food => food.productName === selectedFoodDetail.productName)
-            ? prev.map(food => food.productName === selectedFoodDetail.productName ? selectedFoodDetail : food)
+        const selectedIdentity = getFoodSelectionIdentity(selectedFoodDetail);
+        setSelectedFoods(prev => prev.some(food => getFoodSelectionIdentity(food) === selectedIdentity)
+            ? prev.map(food => getFoodSelectionIdentity(food) === selectedIdentity ? selectedFoodDetail : food)
             : [...prev, selectedFoodDetail]
         );
     }, [selectedFoodDetail]);
@@ -142,9 +144,10 @@ const FoodSelectionScreen = () => {
             await handleSearchComplete(searchQuery);
         }
         setSelectedFoods(prev => {
-            const isSelected = prev.some(food => food.productName === item.productName);
+            const itemIdentity = getFoodSelectionIdentity(item);
+            const isSelected = prev.some(food => getFoodSelectionIdentity(food) === itemIdentity);
             return isSelected
-                ? prev.filter(food => food.productName !== item.productName)
+                ? prev.filter(food => getFoodSelectionIdentity(food) !== itemIdentity)
                 : [...prev, item];
         });
     }, [isSearching, searchQuery, handleSearchComplete]);

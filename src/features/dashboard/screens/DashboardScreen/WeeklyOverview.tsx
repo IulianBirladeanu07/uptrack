@@ -5,6 +5,7 @@ import { colors, spacing } from '../../../../shared/theme';
 import type { FoodContextValue } from '../../../nutrition/context/FoodContext';
 import { styles } from './DashboardScreenStyles';
 import { getWeeklyCaloriesDays, getWeeklyWeightDelta } from './weeklyOverviewModel';
+import { useLocalDayKey } from '../../../../shared/hooks/useLocalDayKey';
 
 type WeeklyOverviewProps = {
     rollingStats: FoodContextValue['rollingWeekStats'];
@@ -25,9 +26,10 @@ const WeeklyOverview = ({
     onWeightPress,
     dataReady,
 }: WeeklyOverviewProps) => {
+    const localDayKey = useLocalDayKey();
     const weekDays = useMemo(
         () => getWeeklyCaloriesDays(new Date(), getCaloriesForDateRange),
-        [getCaloriesForDateRange, dataReady],
+        [getCaloriesForDateRange, dataReady, localDayKey],
     );
     const maxCalories = Math.max(...weekDays.filter(day => !day.isFuture).map(day => day.calories || 0), 2500);
 

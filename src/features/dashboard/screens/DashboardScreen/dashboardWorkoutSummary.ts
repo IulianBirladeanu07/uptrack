@@ -1,4 +1,5 @@
 import { durationLabel } from '../../../workout/utils/durationUtils';
+import { isWorkoutTimestampWithinClockSkew } from '../../../workout/utils/workoutHistory';
 
 export type DashboardWorkoutHistoryEntry = {
     timestamp?: { toDate?: () => Date };
@@ -28,7 +29,7 @@ export const countWeeklyWorkouts = (
     const weekStart = getMonday(now);
     return workoutHistory.filter(workout => {
         const date = workout.timestamp?.toDate?.();
-        return date && date >= weekStart && date <= now;
+        return date && date >= weekStart && isWorkoutTimestampWithinClockSkew(date, now);
     }).length;
 };
 
@@ -40,7 +41,7 @@ export const getCompletedToday = (
     const todayString = now.toDateString();
     const entries = workoutHistory.filter(workout => {
         const date = workout.timestamp?.toDate?.();
-        return date?.toDateString() === todayString && date <= now;
+        return date?.toDateString() === todayString && isWorkoutTimestampWithinClockSkew(date, now);
     });
     if (!entries.length) return null;
     const latest = entries.reduce((first, second) =>

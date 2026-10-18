@@ -3,6 +3,11 @@ export type AuthRequest = {
   generation: number;
 };
 
+export const isSameAuthIdentity = (
+  previousUid: string | null | undefined,
+  nextUid: string | null,
+): boolean => previousUid !== undefined && previousUid === nextUid;
+
 export const isCurrentAuthRequest = (
   request: AuthRequest,
   currentUid: string | null,

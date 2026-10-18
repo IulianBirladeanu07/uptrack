@@ -84,14 +84,17 @@ describe('getWorkoutHistorySummary', () => {
         expect(getWorkoutHistorySummary(history, sunday).completedDaysThisWeek).toEqual([1]);
     });
 
-    it('ignores future-dated entries when finding completed days and the latest workout', () => {
+    it('allows minor device clock skew but ignores substantially future-dated entries', () => {
         const future = workout('2026-10-18T10:00:00', { workoutName: 'Future Workout' });
         const completed = workout('2026-10-17T10:00:00', { workoutName: 'Completed Workout' });
+        const slightlyFuture = workout(new Date(now.getTime() + 2 * 60_000).toISOString(), {
+            workoutName: 'Clock Skew Workout',
+        });
 
-        expect(getWorkoutHistorySummary([future, completed], now)).toEqual({
+        expect(getWorkoutHistorySummary([future, completed, slightlyFuture], now)).toEqual({
             completedDaysThisWeek: [6],
-            lastWorkoutStats: expect.objectContaining({ name: 'Completed Workout' }),
-            todayCompletedStats: expect.objectContaining({ name: 'Completed Workout' }),
+            lastWorkoutStats: expect.objectContaining({ name: 'Clock Skew Workout' }),
+            todayCompletedStats: expect.objectContaining({ name: 'Clock Skew Workout' }),
         });
         expect(getWorkoutHistorySummary([future], now)).toEqual({
             completedDaysThisWeek: [],

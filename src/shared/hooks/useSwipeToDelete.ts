@@ -4,6 +4,7 @@ import { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-nat
 import { Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { SWIPE } from '../theme';
+import { triggerImpactFeedback } from '../services/hapticFeedback';
 
 const useSwipeToDelete = (onDelete?: () => void) => {
   const translateX = useSharedValue(0);
@@ -44,7 +45,7 @@ const useSwipeToDelete = (onDelete?: () => void) => {
 
       if (!hasTriggeredHaptic.value && newProgress >= 1) {
         hasTriggeredHaptic.value = true;
-        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+        runOnJS(triggerImpactFeedback)(Haptics.ImpactFeedbackStyle.Medium);
       }
     })
     .onEnd((event) => {

@@ -111,4 +111,56 @@ describe('useWorkoutScreenSchedule', () => {
         });
         expect(result.current.loading).toBe(false);
     });
+
+    it('ignores an older split response after the selected split changes', async () => {
+        const firstSplit: WorkoutSplit = {
+            id: 'first',
+            schedule: {
+                [(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()] ?? 'monday')]: {
+                    templateName: 'First',
+                    exercises: [{ exerciseName: 'Press' }],
+                },
+            },
+        };
+        const secondSplit: WorkoutSplit = {
+            id: 'second',
+            schedule: {
+                [(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()] ?? 'monday')]: {
+                    templateName: 'Second',
+                    exercises: [{ exerciseName: 'Row' }],
+                },
+            },
+        };
+        const pending: ((splits: WorkoutSplit[]) => void)[] = [];
+        fetchSplits.mockImplementation(() => new Promise(resolve => { pending.push(resolve); }));
+
+        const { result, rerender } = renderHook(
+            ({ activeSplitId }: { activeSplitId: string }) => useWorkoutScreenSchedule(activeSplitId),
+            { initialProps: { activeSplitId: 'first' } },
+        );
+        let firstLoad: Promise<void> | undefined;
+        act(() => {
+            firstLoad = result.current.loadActiveSplit();
+        });
+
+        rerender({ activeSplitId: 'second' });
+        let secondLoad: Promise<void> | undefined;
+        act(() => {
+            secondLoad = result.current.loadActiveSplit();
+        });
+
+        await act(async () => {
+            pending[1]?.([secondSplit]);
+            await secondLoad;
+        });
+        await act(async () => {
+            pending[0]?.([firstSplit]);
+            await firstLoad;
+        });
+
+        expect(result.current.activeSplit).toMatchObject({
+            schedule: secondSplit.schedule,
+        });
+        expect(result.current.todayWorkout).toMatchObject({ name: 'Second' });
+    });
 });

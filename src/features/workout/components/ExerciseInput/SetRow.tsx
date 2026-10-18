@@ -10,6 +10,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { triggerImpactFeedback } from '../../../../shared/services/hapticFeedback';
 import { workoutService } from '../../services/WorkoutService';
 import PreviousSetDisplay from './PreviousSetDisplay';
 import { isValidWorkoutSetInput } from '../../utils/workoutSetValidation';
@@ -193,7 +194,7 @@ const SetRow = ({
             deleteProgress.value = newProgress;
             if (!hasTriggeredHaptic.value && newProgress >= 1) {
                 hasTriggeredHaptic.value = true;
-                runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+                runOnJS(triggerImpactFeedback)(Haptics.ImpactFeedbackStyle.Light);
             }
         })
         .onEnd((event) => {

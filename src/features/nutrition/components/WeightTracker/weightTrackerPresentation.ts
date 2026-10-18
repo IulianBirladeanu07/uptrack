@@ -11,6 +11,17 @@ export type WeekGroup = {
 
 export const WEEK_DAYS: DayKey[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
+export const getWeightGoalProgressPercent = (
+    currentWeight: number | null | undefined,
+    startWeight: number | null | undefined,
+    goalWeight: number | null | undefined,
+): number => {
+    if (currentWeight == null || startWeight == null || goalWeight == null) return 0;
+    const totalChange = goalWeight - startWeight;
+    if (totalChange === 0) return 100;
+    return Math.min(Math.max(((currentWeight - startWeight) / totalChange) * 100, 0), 100);
+};
+
 export const buildWeeklyGroups = (weightIns: WeightInWeek[]): WeekGroup[] => {
     if (!weightIns?.length) return [];
 

@@ -73,7 +73,9 @@ export const updateSplitInFirestore = async (
     if (splitData.name !== undefined) updateData['name'] = splitData.name;
     if (splitData.description !== undefined) updateData['description'] = splitData.description;
     if (splitData.type !== undefined) updateData['type'] = splitData.type;
-    if (splitData.schedule !== undefined) updateData['schedule'] = splitData.schedule;
+    if (splitData.schedule !== undefined) {
+      updateData['schedule'] = sanitizeSplitSchedule(splitData.schedule);
+    }
     if (splitData.durationWeeks !== undefined) updateData['durationWeeks'] = splitData.durationWeeks;
 
     await updateDoc(splitRef, updateData);

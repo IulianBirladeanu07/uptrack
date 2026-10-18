@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Linking, Alert } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import styles from './BarcodeScannerScreenStyle';
@@ -119,19 +119,33 @@ const BarcodeScannerScreen = () => {
   }, [isScanning, scanLineAnimation]);
 
   useEffect(() => {
-    const getCameraPermissions = async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
+    let cancelled = false;
+    void Camera.requestCameraPermissionsAsync()
+      .then(({ status }) => {
+        if (!cancelled) setHasPermission(status === 'granted');
+      })
+      .catch(error => {
+        console.error('Failed to request camera permission:', error);
+        if (!cancelled) {
+          setHasPermission(false);
+          Alert.alert('Camera unavailable', 'Unable to check camera permission. Please try again.');
+        }
+      });
+    return () => {
+      cancelled = true;
     };
-
-    getCameraPermissions();
   }, []);
 
   const requestCameraPermission = async () => {
-    const { status, canAskAgain } = await Camera.requestCameraPermissionsAsync();
-    setHasPermission(status === 'granted');
-    if (status !== 'granted' && !canAskAgain) {
-      Linking.openSettings();
+    try {
+      const { status, canAskAgain } = await Camera.requestCameraPermissionsAsync();
+      setHasPermission(status === 'granted');
+      if (status !== 'granted' && !canAskAgain) {
+        await Linking.openSettings();
+      }
+    } catch (error) {
+      console.error('Failed to update camera permission:', error);
+      Alert.alert('Camera unavailable', 'Unable to update camera permission. Please try again.');
     }
   };
 

@@ -1,4 +1,5 @@
 import { findBestSet, formatBestSet } from '../../utils/workoutMetrics';
+import { isWorkoutTimestampWithinClockSkew } from '../../utils/workoutHistory';
 import type { WorkoutSet } from '../../types';
 
 export type WorkoutSummaryExercise = {
@@ -76,7 +77,7 @@ export const getWorkoutHistorySummary = (
 
     const sorted = workoutHistory.filter(workout => {
         const date = workout.timestamp?.toDate?.();
-        return !date || date <= now;
+        return !date || isWorkoutTimestampWithinClockSkew(date, now);
     }).sort((a, b) => {
         const aTime = a.timestamp?.toDate?.()?.getTime() ?? 0;
         const bTime = b.timestamp?.toDate?.()?.getTime() ?? 0;
@@ -85,7 +86,7 @@ export const getWorkoutHistorySummary = (
 
     sorted.forEach(workout => {
         const date = workout.timestamp?.toDate?.();
-        if (!date || date < weekStart || date > now) return;
+        if (!date || date < weekStart || !isWorkoutTimestampWithinClockSkew(date, now)) return;
         const day = date.getDay();
         if (!completedDaysThisWeek.includes(day)) completedDaysThisWeek.push(day);
     });

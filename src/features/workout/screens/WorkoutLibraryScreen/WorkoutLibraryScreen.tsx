@@ -120,7 +120,9 @@ const WorkoutLibraryScreen = () => {
         }
     }, []);
 
-    const handleSplitDeleted = useCallback(async (splitId: string) => {
+    const handleSplitDeleted = useCallback(async (splitId: string, ownerUid: string) => {
+        if (getAuth().currentUser?.uid !== ownerUid) return;
+
         const remaining = splits.filter(s => s.id !== splitId);
         setSplits(remaining);
 
@@ -129,8 +131,8 @@ const WorkoutLibraryScreen = () => {
         if (!next.clearPersisted) return;
 
         try {
-            const uid = getAuth().currentUser?.uid;
-            await setDoc(doc(db, 'users', uid!), { activeSplitId: deleteField() }, { merge: true });
+            await setDoc(doc(db, 'users', ownerUid), { activeSplitId: deleteField() }, { merge: true });
+            if (getAuth().currentUser?.uid !== ownerUid) return;
             await refreshUserData();
         } catch (error) {
             console.error('Failed to clear the active split:', error);

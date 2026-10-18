@@ -6,6 +6,7 @@ import { fetchSplitsFromFirestore } from '../../../workout/services/workoutSplit
 import { SPLITS_CACHE_KEY } from '../../../workout/services/splitCache';
 import { getScheduledDay } from '../../../workout/utils/splitSchedule';
 import type { SplitLike } from '../../../workout/utils/splitSchedule';
+import { useLocalDayKey } from '../../../../shared/hooks/useLocalDayKey';
 
 const SPLITS_CACHE_TTL = 15 * 60 * 1000;
 
@@ -37,6 +38,7 @@ export const useDashboardScheduledWorkout = (
     activeSplitId: string | null | undefined,
     rotationStartDate: unknown,
 ) => {
+    const localDayKey = useLocalDayKey();
     const [workout, setWorkout] = useState<ScheduledWorkout | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState(false);
@@ -85,7 +87,7 @@ export const useDashboardScheduledWorkout = (
 
             loadWorkout();
             return () => { cancelled = true; };
-        }, [activeSplitId, rotationStartDate]),
+        }, [activeSplitId, rotationStartDate, localDayKey]),
     );
 
     return { workout, loading, loadError };
