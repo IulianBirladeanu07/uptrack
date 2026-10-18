@@ -57,7 +57,6 @@ const RegistrationScreen = () => {
       const err = error as { message?: string };
       const errorMessage = err.message || 'An error occurred during registration. Please try again.';
       setError(errorMessage);
-      Alert.alert('Registration Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -87,7 +86,10 @@ const RegistrationScreen = () => {
         <TextInput
           style={styles.input}
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(value) => {
+            setEmail(value);
+            setError(null);
+          }}
           placeholder="Email"
           placeholderTextColor={colors.text.tertiary}
           autoCapitalize="none"
@@ -100,7 +102,10 @@ const RegistrationScreen = () => {
         <TextInput
           style={styles.input}
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(value) => {
+            setPassword(value);
+            setError(null);
+          }}
           placeholder="Password"
           placeholderTextColor={colors.text.tertiary}
           secureTextEntry={!showPassword}
@@ -128,7 +133,10 @@ const RegistrationScreen = () => {
         <TextInput
           style={styles.input}
           value={confirmedPassword}
-          onChangeText={setConfirmedPassword}
+          onChangeText={(value) => {
+            setConfirmedPassword(value);
+            setError(null);
+          }}
           placeholder="Confirm Password"
           placeholderTextColor={colors.text.tertiary}
           secureTextEntry={!showConfirmPassword}

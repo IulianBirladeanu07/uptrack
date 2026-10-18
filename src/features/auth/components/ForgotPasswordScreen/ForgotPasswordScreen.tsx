@@ -16,7 +16,6 @@ const ForgotPasswordScreen = () => {
     if (!email.trim()) {
       const errorMsg = 'Email is required';
       setError(errorMsg);
-      Alert.alert('Error', errorMsg);
       return;
     }
 
@@ -44,7 +43,6 @@ const ForgotPasswordScreen = () => {
       const err = error as { message?: string };
       const errorMessage = err.message || 'Failed to send password reset email. Please try again.';
       setError(errorMessage);
-      Alert.alert('Error', errorMessage);
       setLoading(false);
     }
   };

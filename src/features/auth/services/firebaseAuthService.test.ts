@@ -1,5 +1,5 @@
 const mockCalls = [];
-const mockStore = { signInUser: null, signUpUser: null, setDocError: null, sendError: null, signInError: null };
+const mockStore = { signInUser: null, signUpUser: null, setDocError: null, sendError: null, signInError: null, signUpError: null };
 
 jest.mock('firebase/auth', () => ({
   signInWithEmailAndPassword: jest.fn(async () => {
@@ -9,6 +9,7 @@ jest.mock('firebase/auth', () => ({
   }),
   createUserWithEmailAndPassword: jest.fn(async () => {
     mockCalls.push('createUser');
+    if (mockStore.signUpError) throw mockStore.signUpError;
     return { user: mockStore.signUpUser };
   }),
   sendEmailVerification: jest.fn(async () => {
@@ -55,6 +56,7 @@ beforeEach(() => {
   mockStore.setDocError = null;
   mockStore.sendError = null;
   mockStore.signInError = null;
+  mockStore.signUpError = null;
 });
 
 describe('signInWithEmailAndPassword', () => {
@@ -93,15 +95,35 @@ describe('signUpWithEmailAndPassword', () => {
   it('still signs out when the verification email fails', async () => {
     mockStore.sendError = Object.assign(new Error('x'), { code: 'auth/network-request-failed' });
     await expect(firebaseAuthService.signUpWithEmailAndPassword('a@b.co', 'pw')).rejects.toThrow(
-      'An error occurred. Please try again later.'
+      "We couldn't reach the email service. Check your internet connection and try again."
     );
     expect(mockCalls).toEqual(['createUser', 'setDoc', 'sendVerification', 'signOut']);
   });
 
   it('still signs out when the profile write fails', async () => {
     mockStore.setDocError = new Error('denied');
-    await expect(firebaseAuthService.signUpWithEmailAndPassword('a@b.co', 'pw')).rejects.toThrow();
+    await expect(firebaseAuthService.signUpWithEmailAndPassword('a@b.co', 'pw')).rejects.toThrow(
+      "Your account was created, but we couldn't finish setting it up. Please contact support before trying to register again."
+    );
     expect(mockCalls).toEqual(['createUser', 'setDoc', 'signOut']);
+  });
+
+  it('explains temporary sign-up throttling without exposing the Firebase code', async () => {
+    mockStore.signUpError = Object.assign(new Error('Firebase: Error (auth/too-many-requests).'), {
+      code: 'auth/too-many-requests',
+    });
+    await expect(firebaseAuthService.signUpWithEmailAndPassword('a@b.co', 'pw')).rejects.toThrow(
+      "We couldn't create your account because sign-up is temporarily limited. Please wait a while before trying again. If this keeps happening, contact support."
+    );
+    expect(mockCalls).toEqual(['createUser']);
+  });
+
+  it('explains when the account exists but Firebase throttles its verification email', async () => {
+    mockStore.sendError = Object.assign(new Error('x'), { code: 'auth/too-many-requests' });
+    await expect(firebaseAuthService.signUpWithEmailAndPassword('a@b.co', 'pw')).rejects.toThrow(
+      "Your account was created, but we couldn't send the verification email because requests are temporarily limited. Wait a while, then go to Login and choose “Resend verification email” when prompted."
+    );
+    expect(mockCalls).toEqual(['createUser', 'setDoc', 'sendVerification', 'signOut']);
   });
 });
 
@@ -121,7 +143,7 @@ describe('resendVerificationEmail', () => {
     mockStore.signInUser = passwordUser(false);
     mockStore.sendError = Object.assign(new Error('x'), { code: 'auth/too-many-requests' });
     await expect(firebaseAuthService.resendVerificationEmail('a@b.co', 'pw')).rejects.toThrow(
-      'Too many login attempts. Please try again later.'
+      "We couldn't resend the verification email because email requests are temporarily limited. Please wait a while and try again."
     );
     expect(mockCalls).toEqual(['signIn', 'sendVerification', 'signOut']);
   });
@@ -129,7 +151,7 @@ describe('resendVerificationEmail', () => {
   it('maps bad credentials to a readable message', async () => {
     mockStore.signInError = Object.assign(new Error('x'), { code: 'auth/invalid-credential' });
     await expect(firebaseAuthService.resendVerificationEmail('a@b.co', 'bad')).rejects.toThrow(
-      'Invalid email or password.'
+      'The email or password doesn’t match an account. Check your details or reset your password.'
     );
     expect(mockCalls).toEqual(['signIn']);
   });

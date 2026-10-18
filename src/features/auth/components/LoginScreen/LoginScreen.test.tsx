@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import LoginScreen from './LoginScreen';
 
 const mockNavigate = jest.fn();
@@ -49,5 +49,26 @@ describe('LoginScreen', () => {
 
         fireEvent.press(screen.getByTestId('register-link'));
         expect(mockNavigate).toHaveBeenLastCalledWith('Registration');
+    });
+
+    it('shows a helpful sign-in message instead of a raw Firebase error', async () => {
+        const authService = jest.requireMock('../../services/firebaseAuthService').default;
+        authService.signInWithEmailAndPassword.mockRejectedValueOnce(
+            Object.assign(new Error('Firebase: Error (auth/too-many-requests).'), {
+                code: 'auth/too-many-requests',
+            }),
+        );
+        render(<LoginScreen />);
+
+        fireEvent.changeText(screen.getByPlaceholderText('Email'), 'person@example.com');
+        fireEvent.changeText(screen.getByPlaceholderText('Password'), 'not-a-real-password');
+        fireEvent.press(screen.getByTestId('login-submit-button'));
+
+        await waitFor(() => {
+            expect(screen.getByText(
+                "We couldn't sign you in because requests are temporarily limited. Please wait a while, then try again.",
+            )).toBeTruthy();
+        });
+        expect(screen.queryByText(/auth\/too-many-requests/)).toBeNull();
     });
 });

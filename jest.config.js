@@ -5,6 +5,7 @@ module.exports = {
     '<rootDir>/src/features/auth/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/auth/services/**/*.test.{js,ts}',
     '<rootDir>/src/features/auth/components/LoginScreen/**/*.test.{js,ts,tsx}',
+    '<rootDir>/src/features/auth/components/RegistrationScreen/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/profile/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/profile/services/**/*.test.{js,ts}',
     '<rootDir>/src/features/profile/components/Profile/**/*.test.{js,ts,tsx}',

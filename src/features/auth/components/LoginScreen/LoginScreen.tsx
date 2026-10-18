@@ -8,6 +8,7 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../../../share
 import firebaseAuthService from '../../services/firebaseAuthService';
 import { useRootNavigation } from '../../../../shared/navigation';
 import type { FirebaseError } from 'firebase/app';
+import { getAuthErrorMessage } from '../../utils/authErrorMessage';
 
 const googleWebClientId = firebaseAuthService.getGoogleWebClientId();
 if (googleWebClientId) {
@@ -35,7 +36,9 @@ const LoginScreen = () => {
       await firebaseAuthService.signInWithEmailAndPassword(email, password, setAuthenticated, setProfileSetupComplete);
     } catch (e) {
       const err = e as FirebaseError & { message?: string };
-      setError(err.message ?? 'Sign in failed.');
+      setError(err.code === 'auth/email-not-verified'
+        ? err.message ?? 'Please verify your email before signing in.'
+        : getAuthErrorMessage(e, 'signIn'));
       setUnverified(err.code === 'auth/email-not-verified');
     } finally {
       setLoading(false);
@@ -52,8 +55,7 @@ const LoginScreen = () => {
         Alert.alert('Verification Email Sent', 'Open the link in the email, then log in.');
       }
     } catch (e) {
-      const err = e as { message?: string };
-      setError(err.message ?? 'Failed to resend verification email.');
+      setError(getAuthErrorMessage(e, 'verification'));
     } finally {
       setResending(false);
     }
@@ -72,7 +74,7 @@ const LoginScreen = () => {
     } catch (e) {
       const err = e as { code?: string; message?: string };
       if (err.code !== statusCodes.SIGN_IN_CANCELLED) {
-        setError(err.message || 'Failed to sign in with Google. Please try again.');
+        setError(getAuthErrorMessage(e, 'googleSignIn'));
       }
     } finally {
       setGoogleLoading(false);
@@ -136,7 +138,7 @@ const LoginScreen = () => {
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.button} onPress={handleSignIn} disabled={loading}>
+      <TouchableOpacity testID="login-submit-button" style={styles.button} onPress={handleSignIn} disabled={loading}>
         {loading ? <ActivityIndicator color={colors.accent.buttonText} /> : <Text style={styles.buttonText}>Login</Text>}
       </TouchableOpacity>
 

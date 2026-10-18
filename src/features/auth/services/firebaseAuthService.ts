@@ -6,23 +6,9 @@ import { needsEmailVerification } from '../utils/emailVerification';
 import type { FirebaseError } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { UserData } from '../../../shared/types';
+import { getAuthErrorMessage } from '../utils/authErrorMessage';
 
 type SetFlag = (value: boolean) => void;
-
-const handleFirebaseError = (error: unknown): string => {
-  switch ((error as FirebaseError).code) {
-    case 'auth/wrong-password':
-      return 'Invalid password. Please try again.';
-    case 'auth/invalid-credential':
-      return 'Invalid email or password.';
-    case 'auth/email-already-in-use':
-      return 'Email is already in use. Please use a different email.';
-    case 'auth/too-many-requests':
-      return 'Too many login attempts. Please try again later.';
-    default:
-      return 'An error occurred. Please try again later.';
-  }
-};
 
 const signInWithEmailAndPassword = async (
   email: string,
@@ -49,26 +35,35 @@ const signInWithEmailAndPassword = async (
 };
 
 const signUpWithEmailAndPassword = async (email: string, password: string): Promise<User> => {
+  let user: User;
   try {
     const response = await createUserWithEmailAndPassword(auth, email, password);
-    const user = response.user;
+    user = response.user;
+  } catch (error) {
+    throw new Error(getAuthErrorMessage(error, 'signUp'));
+  }
 
+  try {
     try {
       await setDoc(doc(db, 'users', user.uid), {
         email,
         profileSetupComplete: false,
         createdAt: serverTimestamp(),
       });
-
-      await sendEmailVerification(user);
-    } finally {
-      await signOut(auth);
+    } catch {
+      throw new Error("Your account was created, but we couldn't finish setting it up. Please contact support before trying to register again.");
     }
 
-    return user;
-  } catch (error) {
-    throw new Error(handleFirebaseError(error));
+    try {
+      await sendEmailVerification(user);
+    } catch (error) {
+      throw new Error(getAuthErrorMessage(error, 'verification'));
+    }
+  } finally {
+    await signOut(auth);
   }
+
+  return user;
 };
 
 const resendVerificationEmail = async (email: string, password: string): Promise<boolean> => {
@@ -86,7 +81,7 @@ const resendVerificationEmail = async (email: string, password: string): Promise
 
     return true;
   } catch (error) {
-    throw new Error(handleFirebaseError(error));
+    throw new Error(getAuthErrorMessage(error, 'resendVerification'));
   }
 };
 
@@ -133,7 +128,7 @@ export const sendPasswordResetEmail = async (email: string): Promise<void> => {
     await firebaseSendPasswordResetEmail(auth, email);
   } catch (error) {
     if ((error as FirebaseError).code === 'auth/user-not-found') return;
-    throw new Error(handleFirebaseError(error));
+    throw new Error(getAuthErrorMessage(error, 'passwordReset'));
   }
 };
 
