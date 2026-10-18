@@ -455,14 +455,14 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                 isCurrentRequest,
                 onCachedMeals: cachedMeals => {
                     mealCache.current.buildFromMeals(cachedMeals);
-                    updateCurrentDayMeals(new Date());
+                    updateCurrentDayMeals(selectedDateRef.current);
                     setCacheVersion(v => v + 1);
                     setInitialLoadComplete(true);
                 },
                 onFreshMeals: (freshMeals, hadCachedMeals) => {
                     mealCache.current.buildFromMeals(freshMeals);
                     setFreshMealsLoaded(true);
-                    updateCurrentDayMeals(new Date());
+                    updateCurrentDayMeals(selectedDateRef.current);
                     setCacheVersion(v => v + 1);
                     if (!hadCachedMeals) setInitialLoadComplete(true);
 

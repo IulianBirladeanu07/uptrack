@@ -568,6 +568,59 @@ describe('FoodProvider initialization', () => {
         expect(persistMealCache).toHaveBeenCalledWith('user-1', [freshMeal]);
     });
 
+    test('keeps showing the selected day when the fresh meal history arrives after the date changed', async () => {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const freshToday = { date: today, mealType: 'breakfast' as const, foods: [oats] };
+        const freshYesterday = { date: formatDate(yesterday), mealType: 'lunch' as const, foods: [rice] };
+        let resolveFresh: (meals: (typeof freshToday | typeof freshYesterday)[]) => void = () => undefined;
+        (fetchLast30DaysMeals as jest.Mock).mockImplementationOnce(
+            () => new Promise(resolve => { resolveFresh = resolve; }),
+        );
+        (fetchRawMealsForDate as jest.Mock).mockResolvedValue(emptyDay);
+        const hook = renderHook(() => useFoodContext(), { wrapper });
+
+        await signIn();
+        await act(async () => {
+            hook.result.current.setSelectedDate(yesterday);
+        });
+        await act(async () => {
+            resolveFresh([freshToday, freshYesterday]);
+        });
+        await waitFor(() => expect(hook.result.current.initialLoadComplete).toBe(true));
+
+        expect(formatDate(hook.result.current.selectedDate)).toBe(formatDate(yesterday));
+        expect(hook.result.current.lunchFoods.map(food => food.id)).toEqual(['rice']);
+        expect(hook.result.current.breakfastFoods).toEqual([]);
+    });
+
+    test('keeps showing the selected day when cached meals arrive after the date changed', async () => {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const cachedToday = { date: today, mealType: 'breakfast' as const, foods: [oats] };
+        const cachedYesterday = { date: formatDate(yesterday), mealType: 'lunch' as const, foods: [rice] };
+        let resolveCached: (meals: (typeof cachedToday | typeof cachedYesterday)[]) => void = () => undefined;
+        (loadPersistedMealCache as jest.Mock).mockImplementationOnce(
+            () => new Promise(resolve => { resolveCached = resolve; }),
+        );
+        (fetchLast30DaysMeals as jest.Mock).mockImplementationOnce(() => new Promise(() => undefined));
+        (fetchRawMealsForDate as jest.Mock).mockResolvedValue(emptyDay);
+        const hook = renderHook(() => useFoodContext(), { wrapper });
+
+        await signIn();
+        await act(async () => {
+            hook.result.current.setSelectedDate(yesterday);
+        });
+        await act(async () => {
+            resolveCached([cachedToday, cachedYesterday]);
+        });
+        await waitFor(() => expect(hook.result.current.initialLoadComplete).toBe(true));
+
+        expect(formatDate(hook.result.current.selectedDate)).toBe(formatDate(yesterday));
+        expect(hook.result.current.lunchFoods.map(food => food.id)).toEqual(['rice']);
+        expect(hook.result.current.breakfastFoods).toEqual([]);
+    });
+
     test('sets an initialization error and retries the fresh meal load', async () => {
         (fetchLast30DaysMeals as jest.Mock)
             .mockRejectedValueOnce(new Error('offline'))
