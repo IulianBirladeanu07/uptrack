@@ -66,6 +66,44 @@ The dependency numbers in `docs/PLAY_STORE_RELEASE_READINESS.md` (65 and 91 advi
 - GitHub Actions for commit `e2fb3a2` on `master` passed. That run validates the committed base only, not this dirty working tree.
 - Not verified: a fresh signed Android AAB/native build, any iOS build, physical-device or Play internal-track behavior, HealthKit/Health Connect and camera permission journeys, screen reader/accessibility behavior, live Supabase RLS, deployed Firebase/Supabase console state, and Play Console declarations. Use the owner checklist below and `docs/PLAY_STORE_RELEASE_READINESS.md`.
 
+### Follow-up audit and verification (2026-10-18; HEAD `3d584e3`)
+
+The cross-feature review has **not** read every source line individually. The tracked `src/` inventory is 278 production TypeScript/JavaScript files (approximately 39,228 lines) plus 126 test files. Reviewers covered principal flows, but their own coverage accounting confirms partial, not line-by-line, review: Auth/Profile 33 tracked production files (~4,150 lines), Workout 115 (~17,231), Nutrition 75 (~11,549), Dashboard/Progress 13 (~3,585). Shared-platform review initially targeted a different repository and covered zero files there; a selection of shared files was inspected directly afterward, not the whole shared tree. Generated native projects, assets, dependencies, and most test sources were not line-reviewed.
+
+New code-level findings from this follow-up:
+
+| Severity | Finding | Current evidence |
+|---|---|---|
+| Medium | Deleting an active split after an account switch can clear the new account's active-split setting. | The deletion callback closes over the old split/user state, but `handleSplitDeleted` reads `getAuth().currentUser.uid` only after the async delete completes (`WorkoutLibraryScreen.tsx`). |
+| Low | Imperial height conversion can render 12 inches instead of carrying into feet. | `convertCmToFtIn` rounds the inch remainder without normalizing a result of 12 (`buildOnboardingStepContent.tsx`); 182 cm yields 5 ft 12 in, and the controls clamp the inches to 11 on the next edit. |
+| Low | Weight-goal progress counts movement away from the goal as progress. | `WeightTracker.tsx` uses the absolute distance from the starting weight; for a 70 kg start and 60 kg goal, 80 kg produces 100%. |
+| Low | “New Meal” opens single-food creation rather than a meal-combination flow. | `AddFoodMenu.tsx` labels the option “meal combination”, but routes to `CustomFood`; `useCustomFood.ts` submits one food to `FoodDetail`. |
+| Low | A held weight-adjustment button can leave an interval running if the component unmounts before release. | `WeightTracker.tsx` clears the interval only in `stopLongPress`; there is no unmount cleanup. |
+| Low | A native camera-permission rejection can leave barcode scanner permission state unset and become an unhandled promise rejection. | `BarcodeScannerScreen.tsx` awaits permission calls without a catch; the mount-time async function is launched without handling its rejection. |
+
+The Metro concern raised by the earlier reviewer is **not a confirmed finding at this HEAD**: both `patches/@expo+metro++metro+0.83.3.patch` and `patches/metro+0.83.1.patch` are tracked, and `postinstall` runs `patch-package`. The raw `image-size` API does reject a filename and accepts a buffer, but the tracked Metro patches adapt those calls. A fresh CI/EAS export was not run in this follow-up.
+
+### Tool-driven whole-tree scan (reported 2026-10-17)
+
+A supplementary scan report was supplied during this audit. It says all 280 `.ts`/`.tsx` files were checked with type-aware ESLint rules for floating/misused promises, React hooks, and basic correctness, and an import-cycle/orphan scan covered 408 files. The report also describes unused-export/dependency scans, a `patch-package` check, and inspection of standalone scripts. I did not independently rerun these tools in this follow-up. This gives broad static-tool coverage, not manual line-by-line review or runtime verification.
+
+| Scan result | Reported outcome |
+|---|---|
+| Circular imports / orphan source files | None reported. |
+| Floating promises (39) | 33 calls were reported to catch their own errors. Remaining native calls include camera permission, settings, and haptics; the camera-permission rejection risk is listed above. |
+| Misused promises (55) | Async handlers passed to void-typed props; not triaged individually, so this remains an open review area rather than 55 confirmed defects. |
+| React hooks warnings (45) | Mostly stable animation values/refs; three inspected closure warnings were reported benign. The existing `AGENTS.md` count of 38 is stale. |
+| Timers/listeners | Cleanup was reported except for the WeightTracker press-and-hold interval, listed above. |
+| `patch-package` | All three tracked Metro/React Native patches were reported to apply; they are tied to exact dependency versions and should be rechecked on upgrades. |
+| Unused exports / dependencies | 17 exports with no references and 39 referenced only by tests were reported, along with six unused dependencies (`react-redux`, `react-native-toast-message`, `react-native-chart-kit`, `react-native-vector-icons`, `@welldone-software/why-did-you-render`, `dotenv-cli`). These are maintenance candidates, not runtime defects; no removal was made. |
+| Standalone scripts / external URLs | Migration script is reported dry-run unless `--apply`; RLS verification reads keys from the environment. Only the Expo Updates URL was reported hardcoded. |
+
+The scan does not cover runtime behavior, layout, native code, backend state, or logic errors that no rule detects. `knip` reportedly ran out of memory and was replaced with a small usage scan. Treat the 55 untriaged async handlers and device/backend checklist as remaining work.
+
+The following open findings were independently rechecked or remain documented from the prior pass: active-workout restore can overwrite edits made during a pending AsyncStorage read; an older workout-schedule request can replace the schedule for a newer split; same-name foods collide in selection identity; the custom-food unit selector has no handler; Dashboard dates can stay stale across local midnight; Progress can retain the old weekly target after a failed split fetch; and anonymous barcode-catalog inserts remain an owner-accepted shared-data poisoning risk. The later `updateSplitInFirestore` sanitizer and app-version/runtime-version compatibility concerns also remain open as recorded above.
+
+Verification at `3d584e3`: `npx tsc --noEmit` passed; the full Jest run passed **128 suites / 1,052 tests** in the default timezone; Android `npx expo export --platform android` passed; `npm audit --omit=dev` reported **28 advisories (22 high, 6 moderate)** and exited non-zero. The raw Metro `image-size` API behavior was reproduced, and tracked patches were confirmed to adapt it. Multi-timezone Jest and Firebase emulator tests were not rerun at this revision. The export is JS bundling only; no native build or device/backend validation was done. No code fixes were made as part of this audit request.
+
 ## Main fixes and rationale
 
 - Active workouts are isolated by user in `WorkoutService`; user changes reset in-memory workout state and remove the legacy device-wide key. This prevents one account's unfinished workout being resumed or saved under another account.
