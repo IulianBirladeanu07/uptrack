@@ -5,11 +5,13 @@ class MealCache implements MealCacheLike {
     data: Map<string, MealsByType>;
     stepsData: Map<string, number>;
     maxSize: number;
+    private edited: Map<string, Set<MealType>>;
 
     constructor(maxSize = 60) {
         this.data = new Map();
         this.stepsData = new Map();
         this.maxSize = maxSize;
+        this.edited = new Map();
     }
 
     get(key: string): MealsByType {
@@ -35,16 +37,25 @@ class MealCache implements MealCacheLike {
     clear(): void {
         this.data.clear();
         this.stepsData.clear();
+        this.edited.clear();
     }
 
     updateMealType(dateKey: string, mealType: MealType, foods: LoggedFood[]): MealsByType {
         const dayMeals = this.get(dateKey);
         dayMeals[mealType] = foods;
         this.set(dateKey, dayMeals);
+        const types = this.edited.get(dateKey) ?? new Set<MealType>();
+        types.add(mealType);
+        this.edited.set(dateKey, types);
         return dayMeals;
     }
 
     buildFromMeals(meals: MealGroup[]): void {
+        const kept: { date: string; mealType: MealType; foods: LoggedFood[] }[] = [];
+        this.edited.forEach((types, date) => {
+            if (!this.data.has(date)) return;
+            types.forEach(mealType => kept.push({ date, mealType, foods: this.get(date)[mealType] }));
+        });
         this.data.clear();
         const groupedMeals = new Map<string, MealsByType>();
         meals.forEach(meal => {
@@ -53,6 +64,11 @@ class MealCache implements MealCacheLike {
             groupedMeals.get(dateKey)![meal.mealType] = meal.foods || [];
         });
         groupedMeals.forEach((meals, date) => this.set(date, meals));
+        kept.forEach(({ date, mealType, foods }) => {
+            const dayMeals = this.get(date);
+            dayMeals[mealType] = foods;
+            this.set(date, dayMeals);
+        });
     }
 
     getDateRange(startDate: DateInput, endDate: DateInput): { date: string; meals: MealsByType }[] {

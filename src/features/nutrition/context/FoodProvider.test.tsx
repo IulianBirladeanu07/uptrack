@@ -645,6 +645,29 @@ describe('FoodProvider initialization', () => {
         expect(fetchLast30DaysMeals).toHaveBeenCalledTimes(2);
     });
 
+    test('keeps a meal added while the fresh meal history is still loading', async () => {
+        let resolveFresh: (meals: { date: string; mealType: 'breakfast'; foods: LoggedFood[] }[]) => void = () => undefined;
+        (fetchLast30DaysMeals as jest.Mock).mockImplementationOnce(
+            () => new Promise(resolve => { resolveFresh = resolve; }),
+        );
+        (fetchRawMealsForDate as jest.Mock).mockResolvedValue(emptyDay);
+        (writeMealType as jest.Mock).mockResolvedValue([]);
+        const hook = renderHook(() => useFoodContext(), { wrapper });
+
+        await signIn();
+        await act(async () => {
+            await hook.result.current.handleAddMeal('breakfast', [oats]);
+        });
+        expect(hook.result.current.breakfastFoods.map(food => food.id)).toEqual(['oats']);
+
+        await act(async () => {
+            resolveFresh([]);
+        });
+        await waitFor(() => expect(hook.result.current.initialLoadComplete).toBe(true));
+
+        expect(hook.result.current.breakfastFoods.map(food => food.id)).toEqual(['oats']);
+    });
+
     test('ignores a previous account initialization when a different account signs in', async () => {
         const pendingLoads = new Map<string, (meals: { date: string; mealType: 'breakfast'; foods: LoggedFood[] }[]) => void>();
         (fetchLast30DaysMeals as jest.Mock).mockImplementation(
