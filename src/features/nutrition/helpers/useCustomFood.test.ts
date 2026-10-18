@@ -148,4 +148,53 @@ describe('useCustomFood', () => {
     await act(async () => result.current.handleSubmit());
     expect(Alert.alert).toHaveBeenCalledWith('Database Error', 'Failed to save food data to the database.');
   });
+
+  it('ignores a second submit while the barcode save is still running', async () => {
+    const navigation = { navigate: jest.fn() } as never;
+    const { result } = renderHook(() =>
+      useCustomFood('foodWithBarcode', navigation, 1000, '12345678', 'dinner', '2026-10-17'),
+    );
+    fillRequiredFields(result);
+    const missing = { data: null, error: { code: 'PGRST116' } };
+    const { single, insert } = setupBarcodeTable(missing);
+    let release!: (value: typeof missing) => void;
+    single.mockReturnValueOnce(new Promise<typeof missing>(resolve => { release = resolve; }));
+
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    await act(async () => {
+      first = result.current.handleSubmit();
+      second = result.current.handleSubmit();
+    });
+    release(missing);
+    await act(async () => { await Promise.all([first, second]); });
+
+    expect(single).toHaveBeenCalledTimes(1);
+    expect(insert).toHaveBeenCalledTimes(1);
+    expect(navigation.navigate).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts a new submit after a failed save, a duplicate barcode, and a successful save', async () => {
+    const navigation = { navigate: jest.fn() } as never;
+    const { result } = renderHook(() =>
+      useCustomFood('foodWithBarcode', navigation, 1000, '12345678', 'dinner', '2026-10-17'),
+    );
+    fillRequiredFields(result);
+
+    const failing = setupBarcodeTable({ data: null, error: { code: 'PGRST116' } }, { error: new Error('insert failed') });
+    await act(async () => result.current.handleSubmit());
+    await act(async () => result.current.handleSubmit());
+    expect(failing.insert).toHaveBeenCalledTimes(2);
+
+    const duplicate = setupBarcodeTable({ data: { barcode_id: '12345678' }, error: null });
+    await act(async () => result.current.handleSubmit());
+    await act(async () => result.current.handleSubmit());
+    expect(duplicate.single).toHaveBeenCalledTimes(2);
+
+    const ok = setupBarcodeTable({ data: null, error: { code: 'PGRST116' } });
+    await act(async () => result.current.handleSubmit());
+    await act(async () => result.current.handleSubmit());
+    expect(ok.insert).toHaveBeenCalledTimes(2);
+    expect(navigation.navigate).toHaveBeenCalledTimes(2);
+  });
 });

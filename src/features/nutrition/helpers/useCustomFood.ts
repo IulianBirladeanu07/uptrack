@@ -27,6 +27,7 @@ export const useCustomFood = (
 ) => {
     const inputRefs = useRef<Record<string, FieldHandle | null>>({});
     const validationTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const submittingRef = useRef(false);
     
     const [formData, setFormData] = useState<FoodFormData>(() => {
         const initial: FoodFormData = getInitialFoodData();
@@ -110,6 +111,9 @@ export const useCustomFood = (
             return;
         }
         
+        if (submittingRef.current) return;
+        submittingRef.current = true;
+
         Keyboard.dismiss();
         
         try {
@@ -177,6 +181,8 @@ export const useCustomFood = (
         } catch (error) {
             console.error('Error saving data: ', error);
             Alert.alert('System Error', 'An unexpected error occurred. Please try again later.');
+        } finally {
+            submittingRef.current = false;
         }
     }, [formData, type, remainingCalories, navigation, meal, selectedDate]);
     
