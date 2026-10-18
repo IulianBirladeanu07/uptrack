@@ -1,45 +1,42 @@
-import { useCallback, useRef, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
-import { clearExercisesCache, fetchExercises } from '../../services/exerciseCatalogService';
-import type { ExerciseGroup } from '../../../../shared/types';
+import { useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getAuth } from 'firebase/auth';
+import { fetchExercises } from '../../services/exerciseCatalogService';
+
+const EXERCISE_CATALOG_STALE_TIME = 12 * 60 * 60 * 1000;
 
 export const useExerciseCatalog = () => {
-  const [exerciseGroups, setExerciseGroups] = useState<ExerciseGroup[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const hasClearedCacheRef = useRef(false);
-  const createdExerciseRef = useRef(false);
+  const uid = getAuth().currentUser?.uid ?? null;
+  const queryKey = useMemo(() => ['exercise-catalog', uid] as const, [uid]);
+  const {
+    data: exerciseGroups = [],
+    error: queryError,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey,
+    queryFn: () => fetchExercises(false),
+    enabled: uid !== null,
+    staleTime: EXERCISE_CATALOG_STALE_TIME,
+  });
 
   const loadExercises = useCallback(async (isRetry = false) => {
-    if (!isRetry && exerciseGroups.length > 0) return;
+    if (!isRetry) return;
+    const result = await refetch();
+    if (result.error) throw result.error;
+  }, [refetch]);
 
-    setLoading(true);
-    setError(null);
+  const error = queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : 'Failed to load exercises'
+    : null;
 
-    try {
-      const data = await fetchExercises(true);
-      setExerciseGroups(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load exercises');
-    } finally {
-      setLoading(false);
-    }
-  }, [exerciseGroups.length]);
-
-  const markCreatedExercise = useCallback(() => {
-    createdExerciseRef.current = true;
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!hasClearedCacheRef.current) {
-        hasClearedCacheRef.current = true;
-        clearExercisesCache(true);
-      }
-      loadExercises(createdExerciseRef.current);
-      createdExerciseRef.current = false;
-    }, [loadExercises])
-  );
-
-  return { exerciseGroups, loading, error, loadExercises, markCreatedExercise };
+  return {
+    exerciseGroups,
+    loading: isLoading || isFetching,
+    error,
+    loadExercises,
+  };
 };

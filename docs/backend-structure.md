@@ -56,7 +56,7 @@ Rules gotcha: where the read rule uses `resource.data` (`workoutHistory`, `measu
 
 | Collection | Fields | Used by |
 |---|---|---|
-| `workoutHistory` | `uid` asc, `timestamp` desc | `WorkoutContext` history load, `getSetsFromLastWorkout`, `getLastWorkout`, `getExerciseHistory` |
+| `workoutHistory` | `uid` asc, `timestamp` desc | Paged history, recent-workout lookups, this-week count, and exercise history |
 | `measurements` | `uid` asc, `timestamp` desc | latest measurements |
 | `workoutSplits` | `uid` asc, `createdAt` desc | `fetchSplitsFromFirestore` |
 | `meals` | `uid` asc, `date` desc | `fetchLast30DaysMeals` (range on `date`) |
@@ -66,6 +66,14 @@ Queries that only filter on `uid` (templates, custom exercises) use the automati
 A new query with a filter and an `orderBy` on different fields needs a new composite index before it works. Add it in the console and record it in this table.
 
 `fetchSplitsFromFirestore` orders by `createdAt`, so a legacy split document without that field is silently left out. Only the owner can check the console for such documents.
+
+### Client read caches
+
+The app uses one in-memory TanStack Query client for reads that benefit from request deduplication and shared freshness. Its defaults are one-minute staleness, ten-minute garbage collection, one retry, and no automatic focus/reconnect refetch. Exercise catalogs are cached for 12 hours; workout history, templates, and splits for five minutes; food-catalog searches for five minutes; and barcode lookups for one hour. Large unfiltered food-catalog reads are not cached.
+
+Private query keys include the Firebase uid, and private cached queries are removed when the authenticated identity changes. Food-catalog queries are shared public data and are retained. Workout history is fetched in 100-record pages: History loads older pages on scroll, Progress loads pages as needed for its 104-week view, and recent-workout lookups reuse the first cached page. Workout saves invalidate history; template/split writes invalidate their related reads.
+
+Meals and weight keep their existing specialized caches because they also provide persistence and write-through/optimistic behavior. Profile documents and transaction validation reads remain uncached to avoid serving stale user data across the many existing mutation paths.
 
 ### Storage
 

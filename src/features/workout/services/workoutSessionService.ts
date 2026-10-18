@@ -7,6 +7,9 @@ import type { AuthenticatedStackParamList } from '../../../shared/navigation';
 import type { WorkoutExercise } from '../types';
 import { isValidWorkoutSetInput } from '../utils/workoutSetValidation';
 import { buildWorkoutCompletionData } from './buildWorkoutCompletionData';
+import { queryClient } from '../../../shared/query/queryClient';
+import { workoutHistoryQueryKeys } from './workoutQueryKeys';
+import { workoutService } from './WorkoutService';
 
 type AppNav = NativeStackNavigationProp<AuthenticatedStackParamList>;
 type MessageFn = (message: string) => void;
@@ -108,6 +111,10 @@ async function finishWorkout(
 
     const workoutDocRef = doc(collection(db, 'workoutHistory'));
     await setDoc(workoutDocRef, workoutDataToSend);
+    await queryClient.invalidateQueries({
+      queryKey: workoutHistoryQueryKeys.forUser(uid),
+    });
+    workoutService.clearLastSetCache();
 
     if (getAuth().currentUser?.uid !== expectedUid) {
       console.error('Workout saved, but the signed-in user changed before workout details could open.');

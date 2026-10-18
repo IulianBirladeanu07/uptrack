@@ -1,17 +1,9 @@
 import { getAuth } from 'firebase/auth';
-import {
-  collection,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
-} from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
-import { db } from '../../auth/services/firebaseConfigService';
 import type { WorkoutSet } from '../types';
 import { getPreviousWorkoutExerciseSets } from '../utils/exerciseHistory';
-import { countWorkoutEntriesThisWeek } from '../utils/workoutHistory';
+import { countWorkoutEntriesThisWeek, getWorkoutWeekRange } from '../utils/workoutHistory';
+import { fetchUserWorkoutHistory, fetchUserWorkoutHistoryInRange } from './workoutHistoryQuery';
 
 export const getSetsFromLastWorkout = async (
   exerciseName: string,
@@ -24,17 +16,9 @@ export const getSetsFromLastWorkout = async (
       throw new Error('User not authenticated.');
     }
 
-    const workoutsRef = collection(db, 'workoutHistory');
-    const workoutQuery = query(
-      workoutsRef,
-      where('uid', '==', user.uid),
-      orderBy('timestamp', 'desc'),
-      limit(50),
-    );
-    const querySnapshot = await getDocs(workoutQuery);
-
-    for (const snap of querySnapshot.docs) {
-      const workoutData = snap.data() as {
+    const workoutHistory = await fetchUserWorkoutHistory(user.uid, 50);
+    for (const workout of workoutHistory) {
+      const previousWorkout = workout.data as {
         exercises?: Array<{
           exerciseName?: string;
           muscleGroup?: string;
@@ -42,7 +26,7 @@ export const getSetsFromLastWorkout = async (
         }>;
       };
       const previousSets = getPreviousWorkoutExerciseSets(
-        workoutData.exercises || [],
+        previousWorkout.exercises || [],
         exerciseName,
         muscleGroup,
       );
@@ -73,12 +57,12 @@ export const countWorkoutsThisWeek = async (): Promise<number> => {
       throw new Error('User not authenticated.');
     }
 
-    const workoutsRef = collection(db, 'workoutHistory');
-    const workoutsQuery = query(workoutsRef, where('uid', '==', user.uid));
-    const querySnapshot = await getDocs(workoutsQuery);
-    return countWorkoutEntriesThisWeek(querySnapshot.docs.map(workout =>
-      workout.data() as { timestamp?: { toDate?: () => Date } | null }
-    ));
+    const now = new Date();
+    const { start, end } = getWorkoutWeekRange(now);
+    const workouts = await fetchUserWorkoutHistoryInRange(user.uid, start, end);
+    return countWorkoutEntriesThisWeek(workouts.map(workout => workout.data) as {
+      timestamp?: { toDate?: () => Date } | null
+    }[], now);
   } catch (error) {
     console.error('Error counting workouts for this week:', (error as Error).message);
     throw error;
@@ -93,19 +77,8 @@ export const getLastWorkout = async (): Promise<DocumentData | null> => {
       throw new Error('User not authenticated.');
     }
 
-    const workoutsRef = collection(db, 'workoutHistory');
-    const workoutsQuery = query(
-      workoutsRef,
-      where('uid', '==', user.uid),
-      orderBy('timestamp', 'desc'),
-      limit(1),
-    );
-    const querySnapshot = await getDocs(workoutsQuery);
-
-    if (!querySnapshot.empty) {
-      return querySnapshot.docs[0].data() as DocumentData;
-    }
-    return null;
+    const workouts = await fetchUserWorkoutHistory(user.uid, 1);
+    return workouts[0]?.data ?? null;
   } catch (error) {
     console.error('Error fetching last workout:', (error as Error).message);
     throw error;

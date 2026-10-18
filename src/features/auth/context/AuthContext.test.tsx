@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
 import { act, render, waitFor } from '@testing-library/react-native';
+import { queryClient } from '../../../shared/query/queryClient';
 import { AuthContext, AuthProvider } from './AuthContext';
 
 type MockUser = {
@@ -79,6 +80,7 @@ describe('AuthProvider loading state', () => {
     beforeEach(() => {
         mockAuth.currentUser = null;
         mockListener = null;
+        queryClient.clear();
     });
 
     it('does not show the loading state while an unverified account is signed in and straight back out', async () => {
@@ -116,5 +118,20 @@ describe('AuthProvider loading state', () => {
         await emit(unverified);
 
         expect(seen[seen.length - 1]).toEqual({ loading: false, authenticated: false });
+    });
+
+    it('clears cached user data when the authenticated identity changes', async () => {
+        const seen = renderProvider();
+        await emit(verified);
+        queryClient.setQueryData(['workout-history', verified.uid, 50], { value: 'private data' });
+        queryClient.setQueryData(['food-catalog', 'products', 'oats'], { value: 'public data' });
+
+        await emit({ ...verified, uid: 'user-2' });
+
+        expect(queryClient.getQueryData(['workout-history', verified.uid, 50])).toBeUndefined();
+        expect(queryClient.getQueryData(['food-catalog', 'products', 'oats'])).toEqual({
+            value: 'public data',
+        });
+        expect(seen[seen.length - 1]).toEqual({ loading: false, authenticated: true });
     });
 });

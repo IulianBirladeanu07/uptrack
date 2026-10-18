@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuth } from 'firebase/auth';
 import { fetchSplitsFromFirestore } from '../../../workout/services/workoutSplitService';
 import { getScheduledDay } from '../../../workout/utils/splitSchedule';
 import { SPLITS_CACHE_KEY } from '../../../workout/services/splitCache';
@@ -11,6 +12,9 @@ jest.mock('@react-navigation/native', () => {
         useFocusEffect: (callback: () => void | (() => void)) => React.useEffect(callback, [callback]),
     };
 });
+jest.mock('firebase/auth', () => ({
+    getAuth: jest.fn(() => ({ currentUser: { uid: 'user-1' } })),
+}));
 jest.mock('@react-native-async-storage/async-storage', () => ({
     __esModule: true,
     default: {
@@ -43,6 +47,7 @@ const scheduled = {
 describe('useDashboardScheduledWorkout', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        jest.mocked(getAuth).mockReturnValue({ currentUser: { uid: 'user-1' } } as never);
         getItem.mockResolvedValue(null);
         setItem.mockResolvedValue(undefined);
         fetchSplits.mockResolvedValue(splits);
@@ -50,7 +55,7 @@ describe('useDashboardScheduledWorkout', () => {
     });
 
     it('uses a fresh split cache without fetching and resolves the selected rotation', async () => {
-        getItem.mockResolvedValue(JSON.stringify({ splits, ts: Date.now() }));
+        getItem.mockResolvedValue(JSON.stringify({ uid: 'user-1', splits, ts: Date.now() }));
 
         const { result } = renderHook(() => useDashboardScheduledWorkout('split-b', '2026-10-01'));
 
@@ -73,6 +78,7 @@ describe('useDashboardScheduledWorkout', () => {
 
     it('fetches and caches splits when the cached value has expired', async () => {
         getItem.mockResolvedValue(JSON.stringify({
+            uid: 'user-1',
             splits: [{ id: 'stale' }],
             ts: Date.now() - 15 * 60 * 1000 - 1,
         }));
@@ -82,12 +88,28 @@ describe('useDashboardScheduledWorkout', () => {
         await waitFor(() => expect(result.current.loading).toBe(false));
         await waitFor(() => expect(setItem).toHaveBeenCalledWith(
             SPLITS_CACHE_KEY,
-            expect.stringContaining('"split-a"'),
+            expect.stringContaining('"uid":"user-1"'),
         ));
 
         expect(fetchSplits).toHaveBeenCalledTimes(1);
         expect(scheduledDay).toHaveBeenCalledWith(splits[0], expect.any(Date), null);
         expect(result.current.loadError).toBe(false);
+    });
+
+    it('does not serve a different account the cached split schedule', async () => {
+        getAuth.mockReturnValue({ currentUser: { uid: 'user-2' } } as never);
+        getItem.mockResolvedValue(JSON.stringify({
+            uid: 'user-1',
+            splits: [{ id: 'private-split' }],
+            ts: Date.now(),
+        }));
+
+        const { result } = renderHook(() => useDashboardScheduledWorkout(null, null));
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        expect(fetchSplits).toHaveBeenCalledTimes(1);
+        expect(scheduledDay).toHaveBeenCalledWith(splits[0], expect.any(Date), null);
     });
 
     it('falls back to Firestore when the persisted cache is malformed', async () => {

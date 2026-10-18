@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { getAuth } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WorkoutSplit } from '../../../workout/types';
 import { fetchSplitsFromFirestore } from '../../../workout/services/workoutSplitService';
@@ -50,11 +51,23 @@ export const useDashboardScheduledWorkout = (
             setLoadError(false);
 
             const loadWorkout = async () => {
+                const uid = getAuth().currentUser?.uid;
+                if (!uid) {
+                    setWorkout(null);
+                    setLoadError(true);
+                    setLoading(false);
+                    return;
+                }
+
                 try {
                     const cached = await AsyncStorage.getItem(SPLITS_CACHE_KEY);
                     if (cached) {
-                        const { splits, ts } = JSON.parse(cached) as { splits: WorkoutSplit[]; ts: number };
-                        if (Date.now() - ts < SPLITS_CACHE_TTL) {
+                        const { uid: cachedUid, splits, ts } = JSON.parse(cached) as {
+                            uid?: string;
+                            splits: WorkoutSplit[];
+                            ts: number;
+                        };
+                        if (cachedUid === uid && Date.now() - ts < SPLITS_CACHE_TTL) {
                             if (!cancelled) {
                                 setWorkout(resolveWorkoutFromSplits(splits, activeSplitId, rotationStartDate));
                                 setLoading(false);
@@ -71,7 +84,11 @@ export const useDashboardScheduledWorkout = (
                     if (!cancelled) {
                         setWorkout(resolveWorkoutFromSplits(splits, activeSplitId, rotationStartDate));
                         setLoadError(false);
-                        AsyncStorage.setItem(SPLITS_CACHE_KEY, JSON.stringify({ splits, ts: Date.now() }))
+                        AsyncStorage.setItem(SPLITS_CACHE_KEY, JSON.stringify({
+                            uid,
+                            splits,
+                            ts: Date.now(),
+                        }))
                             .catch(error => console.error('Dashboard split cache save failed:', error));
                     }
                 } catch (error) {

@@ -4,8 +4,8 @@ import { Animated } from 'react-native';
 import type { BarcodeScanningResult } from 'expo-camera';
 import { transformBarcodeDBToFoodDetail } from '../utils/customFoodDataUtils';
 import type { AppNavigationProp } from '../../../shared/navigation';
-import { supabase } from '../../../shared/services/supabaseClient';
 import { BarcodeScanGuard } from '../utils/barcodeScanGuard';
+import { fetchBarcodeProduct } from '../services/barcodeProductService';
 
 export const useBarcodeScanner = (
   navigation: AppNavigationProp,
@@ -21,19 +21,6 @@ export const useBarcodeScanner = (
   const lastScannedRef = useRef<string | null>(null);
   const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scanGuardRef = useRef(new BarcodeScanGuard());
-
-  const findProductByBarcode = async (barcode: string) => {
-    const { data: product, error } = await supabase
-      .from('barcoded_products')
-      .select('*')
-      .eq('barcode_id', barcode)
-      .limit(1)
-      .maybeSingle();
-    if (error) {
-      throw new Error(error.message);
-    }
-    return product;
-  };
 
   const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
     if (lastScannedRef.current === data && scanTimeoutRef.current) {
@@ -55,7 +42,7 @@ export const useBarcodeScanner = (
     setLoadingProduct(true);
 
     try {
-      const product = await findProductByBarcode(data);
+      const product = await fetchBarcodeProduct(data);
       if (product) {
         showSuccessAnimation();
         const transformedProduct = transformBarcodeDBToFoodDetail(product);

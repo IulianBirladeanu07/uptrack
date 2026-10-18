@@ -4,6 +4,16 @@ type WorkoutHistoryEntry = {
 
 const CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
 
+export const getWorkoutWeekRange = (now: Date = new Date()) => {
+    const start = new Date(now);
+    const day = start.getDay();
+    start.setDate(start.getDate() + (day === 0 ? -6 : 1 - day));
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    return { start, end };
+};
+
 export const isWorkoutTimestampWithinClockSkew = (timestamp: Date, now: Date): boolean =>
     timestamp instanceof Date &&
     !Number.isNaN(timestamp.getTime()) &&
@@ -13,12 +23,7 @@ export const countWorkoutEntriesThisWeek = (
     workouts: WorkoutHistoryEntry[],
     now: Date = new Date(),
 ): number => {
-    const weekStart = new Date(now);
-    const day = weekStart.getDay();
-    weekStart.setDate(weekStart.getDate() + (day === 0 ? -6 : 1 - day));
-    weekStart.setHours(0, 0, 0, 0);
-    const nextWeekStart = new Date(weekStart);
-    nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+    const { start: weekStart, end: nextWeekStart } = getWorkoutWeekRange(now);
 
     return workouts.filter(workout => {
         const timestamp = workout.timestamp?.toDate?.();

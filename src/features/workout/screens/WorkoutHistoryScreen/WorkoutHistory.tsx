@@ -1,5 +1,5 @@
 import { useCallback, useContext, useMemo } from 'react';
-import { View, Text, SectionList, TouchableOpacity } from 'react-native';
+import { View, Text, SectionList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WorkoutContext } from '../../context/WorkoutContext';
@@ -87,7 +87,14 @@ const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; a
 
 const WorkoutHistoryScreen = () => {
     const navigation = useAppNavigation();
-    const { workoutHistory, activeWorkout } = useContext(WorkoutContext)!;
+    const {
+        workoutHistory,
+        activeWorkout,
+        hasMoreWorkoutHistory,
+        loadingMoreWorkoutHistory,
+        workoutHistoryLoadMoreError,
+        loadMoreWorkoutHistory,
+    } = useContext(WorkoutContext)!;
 
     const handleStartWorkout = useCallback((workout: HistoryWorkout) => {
         if (activeWorkout) return;
@@ -138,6 +145,21 @@ const WorkoutHistoryScreen = () => {
                 showsVerticalScrollIndicator={false}
                 initialNumToRender={10}
                 maxToRenderPerBatch={10}
+                onEndReached={() => {
+                    if (hasMoreWorkoutHistory) void loadMoreWorkoutHistory();
+                }}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={loadingMoreWorkoutHistory
+                    ? <ActivityIndicator color={colors.accent.primary} />
+                    : workoutHistoryLoadMoreError
+                        ? (
+                            <TouchableOpacity onPress={() => void loadMoreWorkoutHistory()}>
+                                <Text style={styles.emptySubtitle}>
+                                    Couldn't load more workouts. Tap to retry.
+                                </Text>
+                            </TouchableOpacity>
+                        )
+                        : null}
                 windowSize={5}
                 removeClippedSubviews={true}
                 stickySectionHeadersEnabled={false}

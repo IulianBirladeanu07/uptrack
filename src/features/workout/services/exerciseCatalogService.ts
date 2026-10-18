@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../auth/services/firebaseConfigService';
+import { queryClient } from '../../../shared/query/queryClient';
 import { customDocToExercise, mergeCustomExercises } from '../utils/exerciseCatalog';
 import {
   clearExerciseImagePrefetchStatus,
@@ -280,6 +281,7 @@ export const createCustomExercise = async (
 
     await setDoc(doc(collection(db, 'customExercises')), newExercise);
     customCache = { uid: null, data: null };
+    await queryClient.invalidateQueries({ queryKey: ['exercise-catalog', user.uid] });
     return { success: true, exercise: newExercise };
   } catch (error) {
     console.error('Error creating custom exercise:', (error as Error).message);

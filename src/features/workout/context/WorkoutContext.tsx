@@ -1,11 +1,13 @@
 import { createContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getDocs, collection, query, where, orderBy } from 'firebase/firestore';
-import { db } from '../../auth/services/firebaseConfigService';
 import { fetchTemplatesFromFirestore } from '../services/workoutTemplateService';
 import { workoutService } from '../services/WorkoutService';
 import { workoutTimer } from '../services/WorkoutTimerService';
+import {
+  fetchUserWorkoutHistoryPage,
+  WORKOUT_HISTORY_PAGE_SIZE,
+} from '../services/workoutHistoryQuery';
 import type { PersistedWorkoutState } from '../types';
 
 type UserSettings = {
@@ -20,6 +22,10 @@ export type WorkoutContextValue = {
   templates: unknown[];
   activeWorkout: PersistedWorkoutState | null;
   setActiveWorkout: (w: PersistedWorkoutState | null) => void;
+  hasMoreWorkoutHistory: boolean;
+  loadingMoreWorkoutHistory: boolean;
+  workoutHistoryLoadMoreError: string | null;
+  loadMoreWorkoutHistory: () => Promise<void>;
   refreshAllData: (immediate?: boolean) => Promise<unknown>;
   userSettings: UserSettings;
   setUserSettings: (settings: Partial<UserSettings>) => void;
@@ -29,6 +35,9 @@ export const WorkoutContext = createContext<WorkoutContextValue | undefined>(und
 
 export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
   const [workoutHistory, setWorkoutHistory] = useState<Record<string, unknown>[]>([]);
+  const [hasMoreWorkoutHistory, setHasMoreWorkoutHistory] = useState(false);
+  const [loadingMoreWorkoutHistory, setLoadingMoreWorkoutHistory] = useState(false);
+  const [workoutHistoryLoadMoreError, setWorkoutHistoryLoadMoreError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<unknown[]>([]);
   const [activeWorkout, setActiveWorkout] = useState<PersistedWorkoutState | null>(null);
   const [userSettings, setUserSettingsState] = useState<UserSettings>({
@@ -39,6 +48,9 @@ export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const refreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const historyPageRef = useRef(0);
+  const historyGenerationRef = useRef(0);
+  const loadingMoreHistoryRef = useRef(false);
 
   const setUserSettings = useCallback((settings: Partial<UserSettings>) => {
     setUserSettingsState(prev => ({ ...prev, ...settings }));
@@ -73,15 +85,58 @@ export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
       if (!user) return;
 
       const uid = user.uid;
-      const workoutRef = collection(db, 'workoutHistory');
-      const workoutQuery = query(workoutRef, where('uid', '==', uid), orderBy('timestamp', 'desc'));
-      const querySnapshot = await getDocs(workoutQuery);
-      if (getAuth().currentUser?.uid !== uid) return;
-      setWorkoutHistory(querySnapshot.docs.map(docSnap => docSnap.data()));
+      const historyGeneration = ++historyGenerationRef.current;
+      loadingMoreHistoryRef.current = false;
+      setLoadingMoreWorkoutHistory(false);
+      setWorkoutHistoryLoadMoreError(null);
+      const history = await fetchUserWorkoutHistoryPage(uid, WORKOUT_HISTORY_PAGE_SIZE, 0);
+      if (
+        getAuth().currentUser?.uid !== uid ||
+        historyGenerationRef.current !== historyGeneration
+      ) return;
+      historyPageRef.current = 0;
+      setWorkoutHistory(history.records.map(workout => ({
+        ...workout.data,
+        id: workout.id,
+      })));
+      setHasMoreWorkoutHistory(history.hasMore);
     } catch (error) {
       console.error('Error fetching workout history:', (error as Error).message);
     }
   }, []);
+
+  const loadMoreWorkoutHistory = useCallback(async () => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid || loadingMoreHistoryRef.current || !hasMoreWorkoutHistory) return;
+    loadingMoreHistoryRef.current = true;
+    setLoadingMoreWorkoutHistory(true);
+    setWorkoutHistoryLoadMoreError(null);
+    const historyGeneration = historyGenerationRef.current;
+    const nextPageIndex = historyPageRef.current + 1;
+    try {
+      const page = await fetchUserWorkoutHistoryPage(uid, WORKOUT_HISTORY_PAGE_SIZE, nextPageIndex);
+      if (
+        getAuth().currentUser?.uid !== uid ||
+        historyGenerationRef.current !== historyGeneration
+      ) return;
+      historyPageRef.current = nextPageIndex;
+      setWorkoutHistory(previous => [
+        ...previous,
+        ...page.records.map(workout => ({ ...workout.data, id: workout.id })),
+      ]);
+      setHasMoreWorkoutHistory(page.hasMore);
+    } catch (error) {
+      console.error('Error loading more workout history:', (error as Error).message);
+      setWorkoutHistoryLoadMoreError(
+        error instanceof Error ? error.message : 'Could not load more workout history.',
+      );
+    } finally {
+      if (historyGenerationRef.current === historyGeneration) {
+        loadingMoreHistoryRef.current = false;
+        setLoadingMoreWorkoutHistory(false);
+      }
+    }
+  }, [hasMoreWorkoutHistory]);
 
   const fetchTemplates = useCallback(async () => {
     const uid = getAuth().currentUser?.uid;
@@ -100,7 +155,13 @@ export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
       const uid = user?.uid ?? null;
       if (workoutService.uid !== uid) {
         workoutTimer.stop();
+        historyGenerationRef.current++;
+        historyPageRef.current = 0;
+        loadingMoreHistoryRef.current = false;
         setWorkoutHistory([]);
+        setHasMoreWorkoutHistory(false);
+        setLoadingMoreWorkoutHistory(false);
+        setWorkoutHistoryLoadMoreError(null);
         setTemplates([]);
         setActiveWorkout(null);
       }
@@ -143,6 +204,10 @@ export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
   const contextValue = useMemo(
     () => ({
       workoutHistory,
+      hasMoreWorkoutHistory,
+      loadingMoreWorkoutHistory,
+      workoutHistoryLoadMoreError,
+      loadMoreWorkoutHistory,
       templates,
       activeWorkout,
       setActiveWorkout,
@@ -150,7 +215,18 @@ export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
       userSettings,
       setUserSettings,
     }),
-    [workoutHistory, templates, activeWorkout, refreshAllData, userSettings, setUserSettings],
+    [
+      workoutHistory,
+      hasMoreWorkoutHistory,
+      loadingMoreWorkoutHistory,
+      workoutHistoryLoadMoreError,
+      loadMoreWorkoutHistory,
+      templates,
+      activeWorkout,
+      refreshAllData,
+      userSettings,
+      setUserSettings,
+    ],
   );
 
   return (

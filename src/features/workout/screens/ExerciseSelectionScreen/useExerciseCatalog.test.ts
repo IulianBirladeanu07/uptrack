@@ -1,31 +1,16 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import type { ExerciseGroup } from '../../../../shared/types';
-import { clearExercisesCache, fetchExercises } from '../../services/exerciseCatalogService';
+import { fetchExercises } from '../../services/exerciseCatalogService';
 import { useExerciseCatalog } from './useExerciseCatalog';
 
-const mockFocus = {
-  trigger: null as (() => void) | null,
-};
-
-jest.mock('@react-navigation/native', () => {
-  const { useEffect, useRef } = jest.requireActual<typeof import('react')>('react');
-  return {
-    useFocusEffect: (callback: () => void | (() => void)) => {
-      const callbackRef = useRef(callback);
-      callbackRef.current = callback;
-      useEffect(() => {
-        mockFocus.trigger = () => callbackRef.current();
-        mockFocus.trigger();
-        return () => {
-          mockFocus.trigger = null;
-        };
-      }, []);
-    },
-  };
-});
 jest.mock('../../services/exerciseCatalogService', () => ({
-  clearExercisesCache: jest.fn().mockResolvedValue(undefined),
   fetchExercises: jest.fn(),
+}));
+jest.mock('firebase/auth', () => ({
+  getAuth: () => ({ currentUser: { uid: 'user-1' } }),
 }));
 
 const groups: ExerciseGroup[] = [{
@@ -41,29 +26,49 @@ const groups: ExerciseGroup[] = [{
 }];
 
 describe('useExerciseCatalog', () => {
+  let queryClient: QueryClient;
+  let wrapper: ({ children }: { children: ReactNode }) => ReactElement;
+
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFocus.trigger = null;
     jest.mocked(fetchExercises).mockResolvedValue(groups);
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { gcTime: 0, retry: false } },
+    });
+    wrapper = ({ children }) => createElement(QueryClientProvider, { client: queryClient }, children);
   });
 
-  it('clears the catalog cache on the first focus and loads exercises', async () => {
-    const { result } = renderHook(() => useExerciseCatalog());
+  afterEach(() => queryClient.clear());
+
+  it('loads the catalog through the shared query cache without clearing its persistent cache', async () => {
+    const { result } = renderHook(() => useExerciseCatalog(), { wrapper });
 
     await waitFor(() => expect(result.current.exerciseGroups).toEqual(groups));
 
-    expect(clearExercisesCache).toHaveBeenCalledTimes(1);
-    expect(clearExercisesCache).toHaveBeenCalledWith(true);
-    expect(fetchExercises).toHaveBeenCalledWith(true);
+    expect(fetchExercises).toHaveBeenCalledTimes(1);
+    expect(fetchExercises).toHaveBeenCalledWith(false);
+    expect(queryClient.getQueryData(['exercise-catalog', 'user-1'])).toEqual(groups);
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
+  });
+
+  it('deduplicates simultaneous catalog consumers for the same user', async () => {
+    const first = renderHook(() => useExerciseCatalog(), { wrapper });
+    const second = renderHook(() => useExerciseCatalog(), { wrapper });
+
+    await waitFor(() => {
+      expect(first.result.current.exerciseGroups).toEqual(groups);
+      expect(second.result.current.exerciseGroups).toEqual(groups);
+    });
+
+    expect(fetchExercises).toHaveBeenCalledTimes(1);
   });
 
   it('retries a failed load and reports the original error message', async () => {
     jest.mocked(fetchExercises)
       .mockRejectedValueOnce(new Error('catalog unavailable'))
       .mockResolvedValueOnce(groups);
-    const { result } = renderHook(() => useExerciseCatalog());
+    const { result } = renderHook(() => useExerciseCatalog(), { wrapper });
 
     await waitFor(() => expect(result.current.error).toBe('catalog unavailable'));
     expect(result.current.exerciseGroups).toEqual([]);
@@ -72,28 +77,16 @@ describe('useExerciseCatalog', () => {
       await result.current.loadExercises(true);
     });
 
-    expect(result.current.exerciseGroups).toEqual(groups);
-    expect(result.current.error).toBeNull();
-    expect(fetchExercises).toHaveBeenNthCalledWith(2, true);
-  });
-
-  it('forces a catalog reload on focus after creating an exercise without clearing cache again', async () => {
-    const { result } = renderHook(() => useExerciseCatalog());
-
-    await waitFor(() => expect(result.current.exerciseGroups).toEqual(groups));
-
-    act(() => result.current.markCreatedExercise());
-    act(() => mockFocus.trigger?.());
-
-    await waitFor(() => expect(fetchExercises).toHaveBeenCalledTimes(2));
-
-    expect(fetchExercises).toHaveBeenNthCalledWith(2, true);
-    expect(clearExercisesCache).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(result.current.exerciseGroups).toEqual(groups);
+      expect(result.current.error).toBeNull();
+    });
+    expect(fetchExercises).toHaveBeenNthCalledWith(2, false);
   });
 
   it('uses a fallback message when a load fails with a non-Error value', async () => {
     jest.mocked(fetchExercises).mockRejectedValue('offline');
-    const { result } = renderHook(() => useExerciseCatalog());
+    const { result } = renderHook(() => useExerciseCatalog(), { wrapper });
 
     await waitFor(() => expect(result.current.error).toBe('Failed to load exercises'));
     expect(result.current.loading).toBe(false);

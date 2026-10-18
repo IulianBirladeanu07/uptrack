@@ -14,6 +14,7 @@ import type { UserData } from '../../../shared/types';
 import { needsEmailVerification } from '../utils/emailVerification';
 import { isCurrentAuthRequest, isSameAuthIdentity } from '../utils/authRequest';
 import { syncAuthEmail } from '../services/emailSyncService';
+import { clearUserScopedQueries } from '../../../shared/query/queryClient';
 
 export type AuthContextValue = {
   authenticated: boolean;
@@ -92,6 +93,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const unverified = needsEmailVerification(user);
       const keepScreen = unverified || (user === null && previousWasUnverified.current);
       previousWasUnverified.current = unverified;
+      if (!preserveCurrentState) clearUserScopedQueries();
       const request = {
         uid: nextUid,
         generation: authRequestGeneration.current + 1,
@@ -146,6 +148,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       await signOut(auth);
+      clearUserScopedQueries();
       setAuthenticated(false);
       setProfileSetupComplete(false);
       setUserData(null);

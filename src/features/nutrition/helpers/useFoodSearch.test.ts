@@ -1,9 +1,13 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
-import { fetchNonBarcodedProducts } from '../handlers/NutritionHandler';
+import {
+  clearFoodCatalogQueryCache,
+  fetchNonBarcodedProducts,
+} from '../handlers/NutritionHandler';
 import { useFoodSearch } from './useFoodSearch';
 
 jest.mock('../handlers/NutritionHandler', () => ({
   fetchNonBarcodedProducts: jest.fn(),
+  clearFoodCatalogQueryCache: jest.fn(),
 }));
 
 const product = {
@@ -55,16 +59,17 @@ describe('useFoodSearch', () => {
     expect(result.current.resultsCount).toBe(1);
   });
 
-  it('uses cache for case-insensitive repeated searches and supports reset', async () => {
+  it('delegates repeated-search caching to the shared product query cache and supports reset', async () => {
     const { result } = renderHook(() => useFoodSearch());
     await act(async () => result.current.handleSearch('Oats'));
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => result.current.handleSearch('oats'));
-    expect(fetchNonBarcodedProducts).toHaveBeenCalledTimes(1);
+    expect(fetchNonBarcodedProducts).toHaveBeenCalledTimes(2);
 
     act(() => result.current.resetCache());
+    expect(clearFoodCatalogQueryCache).toHaveBeenCalledTimes(1);
     await act(async () => result.current.handleSearch('Oats'));
-    expect(fetchNonBarcodedProducts).toHaveBeenCalledTimes(2);
+    expect(fetchNonBarcodedProducts).toHaveBeenCalledTimes(3);
   });
 
   it('reports search errors and clears results', async () => {
@@ -79,7 +84,7 @@ describe('useFoodSearch', () => {
     consoleError.mockRestore();
   });
 
-  it('returns cached suggestions and handles short queries and request failures', async () => {
+  it('loads suggestions through the shared query cache and handles short queries and failures', async () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const { result } = renderHook(() => useFoodSearch());
     await expect(result.current.getSuggestions('o')).resolves.toEqual([]);
@@ -87,10 +92,11 @@ describe('useFoodSearch', () => {
       { id: 'food-1', productName: 'Oats', category: 'grains', calories: 380 },
     ]);
     await expect(result.current.getSuggestions(' oats ')).resolves.toHaveLength(1);
-    expect(fetchNonBarcodedProducts).toHaveBeenCalledTimes(1);
+    expect(fetchNonBarcodedProducts).toHaveBeenCalledTimes(2);
 
     (fetchNonBarcodedProducts as jest.Mock).mockRejectedValue(new Error('offline'));
     await expect(result.current.getSuggestions('rice')).resolves.toEqual([]);
+    expect(fetchNonBarcodedProducts).toHaveBeenCalledTimes(3);
     expect(consoleError).toHaveBeenCalled();
     consoleError.mockRestore();
   });

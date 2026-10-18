@@ -238,6 +238,10 @@ class WorkoutService {
         return [...this.exerciseData];
     }
 
+    clearLastSetCache(): void {
+        this.lastSetCache.clear();
+    }
+
     async fetchLastSets(exerciseName: string, muscleGroup?: string): Promise<WorkoutSet[]> {
         const cacheKey = JSON.stringify([exerciseName, muscleGroup || '']);
         if (this.lastSetCache.has(cacheKey)) {

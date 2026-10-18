@@ -5,6 +5,7 @@ import type {
   ProductSearchResult,
   ScoredProduct,
 } from '../../../shared/types';
+import { queryClient } from '../../../shared/query/queryClient';
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -16,9 +17,52 @@ export const fetchNonBarcodedProducts = async (
   lastVisibleDoc: string | null = null,
   searchQuery: string | null = null
 ): Promise<ProductSearchResult[]> => {
+  const normalizedSearch = searchQuery?.trim() || null;
+  if (!normalizedSearch && limitCount > 500) {
+    return fetchNonBarcodedProductsFromSupabase(
+      filters,
+      order,
+      limitCount,
+      lastVisibleDoc,
+      normalizedSearch,
+    );
+  }
+
+  return queryClient.fetchQuery({
+    queryKey: ['food-catalog', 'products', {
+      filters,
+      order,
+      limitCount,
+      lastVisibleDoc,
+      searchQuery: normalizedSearch?.toLowerCase() ?? null,
+    }],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: false,
+    queryFn: () => fetchNonBarcodedProductsFromSupabase(
+      filters,
+      order,
+      limitCount,
+      lastVisibleDoc,
+      normalizedSearch,
+    ),
+  });
+};
+
+export const clearFoodCatalogQueryCache = (): void => {
+  queryClient.removeQueries({ queryKey: ['food-catalog', 'products'] });
+};
+
+const fetchNonBarcodedProductsFromSupabase = async (
+  filters: ProductFilter[],
+  order: keyof NonBarcodedProduct | null,
+  limitCount: number,
+  lastVisibleDoc: string | null,
+  searchQuery: string | null,
+): Promise<ProductSearchResult[]> => {
   try {
-    if (searchQuery && searchQuery.trim()) {
-      return await performEnhancedSearch(searchQuery.trim(), limitCount);
+    if (searchQuery) {
+      return await performEnhancedSearch(searchQuery, limitCount);
     }
 
     let queryBuilder = supabase.from('non_barcoded_products').select('*');

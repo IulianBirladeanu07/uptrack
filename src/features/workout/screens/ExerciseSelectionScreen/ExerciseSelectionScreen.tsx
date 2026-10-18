@@ -368,7 +368,7 @@ const ExerciseSelectionScreen = () => {
   const [selectedExercises, setSelectedExercises] = useState<Set<string>>(() => new Set());
   const [activeFilter, setActiveFilter] = useState('All');
 
-  const { exerciseGroups, loading, error, loadExercises, markCreatedExercise } = useExerciseCatalog();
+  const { exerciseGroups, loading, error, loadExercises } = useExerciseCatalog();
   const [debouncedSearchTerm, isSearching] = useDebounce(searchTerm, 200);
   const { exerciseMap, muscleGroups, counts, flatExercises } = useMemo(
     () => buildExerciseCatalogData(exerciseGroups),
@@ -437,9 +437,8 @@ const ExerciseSelectionScreen = () => {
   }, [navigation]);
 
   const handleCreateExercise = useCallback(() => {
-    markCreatedExercise();
     navigation.navigate('CreateExercise', {});
-  }, [markCreatedExercise, navigation]);
+  }, [navigation]);
 
   const renderFlatListItem: ListRenderItem<ExerciseListRow> = useCallback(({ item }: ListRenderItemInfo<ExerciseListRow>) => {
     if (item.type === 'header') {

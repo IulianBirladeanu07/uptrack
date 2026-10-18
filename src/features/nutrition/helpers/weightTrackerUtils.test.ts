@@ -12,23 +12,22 @@ jest.mock('../helpers/learningCompletionService', () => ({
   deriveStartWeight: jest.fn(),
   checkAndRunWeeklyEval: jest.fn(),
 }));
-jest.mock('../services/weightService', () => ({ __esModule: true, default: {} }));
+jest.mock('../services/weightService', () => ({
+  __esModule: true,
+  default: { getUserWeightData: jest.fn() },
+}));
 
-import { doc, getDoc } from 'firebase/firestore';
+import WeightService from '../services/weightService';
 import { loadUserWeightData } from './weightTrackerUtils';
 
 describe('weight tracker date handling', () => {
   it('returns trend entries with local date keys', async () => {
-    (doc as jest.Mock).mockReturnValue({ withConverter: jest.fn(() => ({})) });
-    (getDoc as jest.Mock).mockResolvedValue({
-      exists: () => true,
-      data: () => ({
-        currentWeight: 70,
-        weightIns: [{
-          weekStart: '2026-10-12',
-          days: { monday: 70 },
-        }],
-      }),
+    jest.mocked(WeightService.getUserWeightData).mockResolvedValue({
+      currentWeight: 70,
+      weightIns: [{
+        weekStart: '2026-10-12',
+        days: { monday: 70 },
+      }],
     });
     const setTrendData = jest.fn();
 

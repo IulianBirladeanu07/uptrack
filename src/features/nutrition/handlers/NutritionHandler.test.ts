@@ -30,6 +30,7 @@ jest.mock('../../../shared/services/supabaseClient', () => {
 });
 
 import { supabase } from '../../../shared/services/supabaseClient';
+import { queryClient } from '../../../shared/query/queryClient';
 import { fetchNonBarcodedProducts } from './NutritionHandler';
 
 const orFilters = () => supabase.builder.or.mock.calls.map(c => c[0]);
@@ -42,6 +43,7 @@ const mockLimitResult = (result) => {
 describe('fetchNonBarcodedProducts text search', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    queryClient.clear();
     jest.spyOn(console, 'error').mockImplementation(() => {});
     supabase.builder.then.mockImplementation((resolve, reject) =>
       Promise.resolve({ data: [], error: null }).then(resolve, reject)
@@ -72,6 +74,15 @@ describe('fetchNonBarcodedProducts text search', () => {
     supabase.rpc.mockResolvedValueOnce({ data: [{ id: 1 }], error: null });
     await expect(fetchNonBarcodedProducts([], null, 50, null, 'oats')).resolves.toEqual([{ id: 1 }]);
     expect(orFilters()).toHaveLength(0);
+  });
+
+  test('reuses matching search results across callers through the shared query cache', async () => {
+    supabase.rpc.mockResolvedValueOnce({ data: [{ id: 42 }], error: null });
+
+    await expect(fetchNonBarcodedProducts([], null, 30, null, 'oats')).resolves.toEqual([{ id: 42 }]);
+    await expect(fetchNonBarcodedProducts([], null, 30, null, 'oats')).resolves.toEqual([{ id: 42 }]);
+
+    expect(supabase.rpc).toHaveBeenCalledTimes(1);
   });
 
   test('applies all supported filters, ordering, limit and cursor pagination', async () => {

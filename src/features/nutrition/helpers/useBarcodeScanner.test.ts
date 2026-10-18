@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { Alert, Vibration } from 'react-native';
 import { supabase } from '../../../shared/services/supabaseClient';
+import { queryClient } from '../../../shared/query/queryClient';
 import { useBarcodeScanner } from './useBarcodeScanner';
 
 jest.mock('react-native', () => ({
@@ -35,6 +36,7 @@ describe('useBarcodeScanner', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    queryClient.clear();
     jest.useFakeTimers();
   });
 

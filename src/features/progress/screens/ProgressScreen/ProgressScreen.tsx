@@ -505,13 +505,48 @@ const ProgressScreen = () => {
     const insets = useSafeAreaInsets();
     const navigation = useAppNavigation();
     const { userData, refreshUserData } = useContext(AuthContext)!;
-    const { workoutHistory } = useContext(WorkoutContext)!;
+    const {
+        workoutHistory,
+        hasMoreWorkoutHistory,
+        loadingMoreWorkoutHistory,
+        workoutHistoryLoadMoreError,
+        loadMoreWorkoutHistory,
+    } = useContext(WorkoutContext)!;
     const { getNutritionForDateRange, getStepsForDateRange, rollingWeekStats } = useFoodContext();
     const [tab, setTab] = useState<TabKey>('nutrition');
     const [rangeKey, setRangeKey] = useState<string | null>(null);
     const [open, setOpen] = useState<Record<string, boolean>>({});
     const [all, setAll] = useState({ n: false, t: false });
     const planned = usePlannedWorkouts(userData?.activeSplitId);
+
+    useEffect(() => {
+        if (!hasMoreWorkoutHistory || loadingMoreWorkoutHistory || workoutHistoryLoadMoreError) return;
+
+        const oldestDate = workoutHistory.reduce<Date | null>((oldest, workout) => {
+            const timestamp = workout['timestamp'] as {
+                toDate?: () => Date;
+                seconds?: number;
+            } | string | number | null | undefined;
+            const date = timestamp && typeof timestamp === 'object'
+                ? timestamp.toDate?.() ??
+                    (typeof timestamp.seconds === 'number' ? new Date(timestamp.seconds * 1000) : null)
+                : timestamp ? new Date(timestamp) : null;
+            if (!(date instanceof Date) || Number.isNaN(date.getTime())) return oldest;
+            return !oldest || date < oldest ? date : oldest;
+        }, null);
+        const analysisStart = new Date();
+        analysisStart.setDate(analysisStart.getDate() - 104 * 7);
+
+        if (oldestDate && oldestDate >= analysisStart) {
+            void loadMoreWorkoutHistory();
+        }
+    }, [
+        hasMoreWorkoutHistory,
+        loadingMoreWorkoutHistory,
+        workoutHistoryLoadMoreError,
+        loadMoreWorkoutHistory,
+        workoutHistory,
+    ]);
 
     const {
         weeks,
@@ -593,6 +628,13 @@ const ProgressScreen = () => {
                     )}
                 </View>
                 <Text style={styles.status} numberOfLines={1}>{status}</Text>
+                {workoutHistoryLoadMoreError && hasMoreWorkoutHistory && (
+                    <TouchableOpacity onPress={() => void loadMoreWorkoutHistory()}>
+                        <Text style={styles.emptySub}>
+                            Workout history is incomplete. Tap to retry loading it.
+                        </Text>
+                    </TouchableOpacity>
+                )}
 
                 {weeks.length < 2 ? (
                     <View style={styles.emptyScreen}>

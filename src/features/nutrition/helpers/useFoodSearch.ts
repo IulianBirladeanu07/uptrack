@@ -1,12 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { fetchNonBarcodedProducts } from '../handlers/NutritionHandler';
+import {
+  clearFoodCatalogQueryCache,
+  fetchNonBarcodedProducts,
+} from '../handlers/NutritionHandler';
 import { RequestTracker } from '../utils/requestTracker';
 import type { FoodSearchItem, FoodSuggestion } from '../../../shared/types';
-
-type CacheEntry = {
-  data: FoodSearchItem[] | FoodSuggestion[];
-  timestamp: number;
-};
 
 export const useFoodSearch = () => {
   const [searchQuery, setSearchQueryState] = useState('');
@@ -15,7 +13,6 @@ export const useFoodSearch = () => {
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchCache = useRef(new Map<string, CacheEntry>());
   const requestTracker = useRef(new RequestTracker());
   const mountedRef = useRef(true);
 
@@ -27,27 +24,6 @@ export const useFoodSearch = () => {
     };
   }, []);
   
-  const getCachedResult = useCallback(<T extends CacheEntry['data']>(key: string): T | null => {
-    const cached = searchCache.current.get(key);
-    if (cached && Date.now() - cached.timestamp < 3600000) {
-      return cached.data as T;
-    }
-    if (cached) searchCache.current.delete(key);
-    return null;
-  }, []);
-
-  const setCachedResult = useCallback((key: string, data: CacheEntry['data']) => {
-    if (searchCache.current.size > 20) {
-      const firstKey = searchCache.current.keys().next().value;
-      if (firstKey !== undefined) searchCache.current.delete(firstKey);
-    }
-    
-    searchCache.current.set(key, {
-      data,
-      timestamp: Date.now()
-    });
-  }, []);
-
   const performSearch = useCallback(async (query?: string | null) => {
     const requestId = requestTracker.current.begin();
     if (!query || query.trim().length < 2) {
@@ -58,18 +34,8 @@ export const useFoodSearch = () => {
     }
 
     const trimmedQuery = query.trim();
-    const cacheKey = `search_${trimmedQuery.toLowerCase()}`;
 
     setSearchError(null);
-    const cached = getCachedResult<FoodSearchItem[]>(cacheKey);
-    if (cached) {
-      if (mountedRef.current && requestTracker.current.isCurrent(requestId)) {
-        setSearchResults(cached);
-        setLoading(false);
-      }
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -108,7 +74,6 @@ export const useFoodSearch = () => {
         matchType: food.match_type || 'contains'
       }));
 
-      setCachedResult(cacheKey, processedResults);
       if (requestTracker.current.isCurrent(requestId) && mountedRef.current) {
         setSearchResults(processedResults);
       }
@@ -124,7 +89,7 @@ export const useFoodSearch = () => {
         setLoading(false);
       }
     }
-  }, [getCachedResult, setCachedResult]);
+  }, []);
 
   const setSearchQuery = useCallback((text?: string | null) => {
     const value = text || '';
@@ -158,10 +123,6 @@ export const useFoodSearch = () => {
       return [];
     }
 
-    const cacheKey = `suggestions_${partialQuery.toLowerCase()}`;
-    const cached = getCachedResult<FoodSuggestion[]>(cacheKey);
-    if (cached) return cached;
-
     try {
       const results = await fetchNonBarcodedProducts(
         [], null, 8, null, partialQuery.trim()
@@ -174,13 +135,12 @@ export const useFoodSearch = () => {
         calories: food.calories || 0
       }));
 
-      setCachedResult(cacheKey, suggestions);
       return suggestions;
     } catch (error) {
       console.error('Suggestions failed:', error);
       return [];
     }
-  }, [getCachedResult, setCachedResult]);
+  }, []);
 
   const clearSearch = useCallback(() => {
     setSearchQueryState('');
@@ -205,6 +165,6 @@ export const useFoodSearch = () => {
     clearSearch,
     
     resultsCount: searchResults.length,
-    resetCache: () => searchCache.current.clear(),
+    resetCache: clearFoodCatalogQueryCache,
   };
 };

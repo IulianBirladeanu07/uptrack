@@ -21,6 +21,7 @@ jest.mock('expo-image', () => ({ Image: { prefetch: jest.fn() } }));
 import { getAuth } from 'firebase/auth';
 import { getDocs, setDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { queryClient } from '../../../shared/query/queryClient';
 import {
   clearExercisesCache,
   createCustomExercise,
@@ -53,6 +54,7 @@ describe('exercise catalog service', () => {
   beforeEach(async () => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    queryClient.clear();
     await clearExercisesCache(true);
     (getAuth as jest.Mock).mockReturnValue({ currentUser: { uid: 'user-1' } });
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
@@ -147,5 +149,16 @@ describe('exercise catalog service', () => {
     })).rejects.toThrow('An exercise with this name already exists in this muscle group.');
     expect(setDoc).not.toHaveBeenCalled();
     consoleError.mockRestore();
+  });
+
+  it('invalidates the shared catalog cache after creating a custom exercise', async () => {
+    queryClient.setQueryData(['exercise-catalog', 'user-1'], []);
+
+    await expect(createCustomExercise({
+      name: 'Cable Fly',
+      muscleGroup: 'Chest',
+    })).resolves.toMatchObject({ success: true });
+
+    expect(queryClient.getQueryState(['exercise-catalog', 'user-1'])?.isInvalidated).toBe(true);
   });
 });

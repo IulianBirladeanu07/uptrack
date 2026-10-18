@@ -10,6 +10,9 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
+import { queryClient } from '../../../shared/query/queryClient';
+import { clearSplitsCache } from './splitCache';
+import { workoutSplitQueryKey, workoutTemplateQueryKey } from './workoutQueryKeys';
 import type { TemplateInput, WorkoutTemplate } from '../types';
 import {
   assertTemplateNameAvailable,
@@ -19,6 +22,12 @@ import {
 } from './templateNameRegistry';
 
 export { TemplateNameAlreadyExistsError } from './templateNameRegistry';
+
+const invalidateWorkoutTemplates = async (uid: string): Promise<void> => {
+  await queryClient.invalidateQueries({ queryKey: workoutTemplateQueryKey(uid) });
+  await queryClient.invalidateQueries({ queryKey: workoutSplitQueryKey(uid) });
+  await clearSplitsCache();
+};
 
 export const addTemplateToFirestore = async (
   templateData: TemplateInput,
@@ -71,6 +80,7 @@ export const addTemplateToFirestore = async (
       );
       transaction.set(targetRef, fullTemplateData);
     });
+    await invalidateWorkoutTemplates(user.uid);
     return savedTemplateId;
   } catch (error) {
     console.error('Error adding template data to Firestore:', (error as Error).message);
@@ -86,18 +96,19 @@ export const fetchTemplatesFromFirestore = async (): Promise<WorkoutTemplate[]> 
       throw new Error('User not authenticated.');
     }
 
-    const templatesCollectionRef = collection(db, 'workoutTemplates');
-    const templatesQuery = query(templatesCollectionRef, where('uid', '==', user.uid));
-    const querySnapshot = await getDocs(templatesQuery);
-    if (querySnapshot.empty) {
-      console.log('No templates found');
-      return [];
-    }
-
-    return querySnapshot.docs.map(docSnap => ({
-      ...(docSnap.data() as WorkoutTemplate),
-      id: docSnap.id,
-    }));
+    return await queryClient.fetchQuery({
+      queryKey: workoutTemplateQueryKey(user.uid),
+      staleTime: 5 * 60 * 1000,
+      queryFn: async () => {
+        const templatesCollectionRef = collection(db, 'workoutTemplates');
+        const templatesQuery = query(templatesCollectionRef, where('uid', '==', user.uid));
+        const querySnapshot = await getDocs(templatesQuery);
+        return querySnapshot.docs.map(docSnap => ({
+          ...(docSnap.data() as WorkoutTemplate),
+          id: docSnap.id,
+        }));
+      },
+    });
   } catch (error) {
     console.error('Error retrieving user templates from Firestore:', (error as Error).message);
     throw error;
@@ -134,6 +145,7 @@ export const deleteTemplateFromFirestore = async (templateId: string): Promise<b
       }
       transaction.delete(templateRef);
     });
+    await invalidateWorkoutTemplates(user.uid);
     return true;
   } catch (error) {
     console.error('Error deleting template from Firestore:', (error as Error).message);
@@ -205,6 +217,7 @@ export const updateTemplateInFirestore = async (
     } else {
       await updateDoc(templateRef, updateData);
     }
+    await invalidateWorkoutTemplates(user.uid);
     return templateId;
   } catch (error) {
     console.error('Error updating template:', error);

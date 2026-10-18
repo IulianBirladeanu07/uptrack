@@ -14,7 +14,7 @@ jest.mock('../helpers/learningCompletionService', () => ({
 }));
 jest.mock('../services/weightService', () => ({
   __esModule: true,
-  default: { setCachedUserData: jest.fn() },
+  default: { getUserWeightData: jest.fn(), setCachedUserData: jest.fn() },
 }));
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -32,6 +32,7 @@ const storedUser = (data: Record<string, unknown> | null) => {
     exists: () => data !== null,
     data: () => data,
   });
+  (WeightService.getUserWeightData as jest.Mock).mockResolvedValue(data as never);
 };
 
 const save = (

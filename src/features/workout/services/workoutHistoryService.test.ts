@@ -5,17 +5,25 @@ jest.mock('firebase/firestore', () => ({
   limit: jest.fn(() => ({})),
   orderBy: jest.fn(() => ({})),
   query: jest.fn(() => ({})),
+  Timestamp: { fromDate: jest.fn(date => date) },
   where: jest.fn(() => ({})),
 }));
 jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 
 import { getAuth } from 'firebase/auth';
 import { getDocs } from 'firebase/firestore';
-import { getLastWorkout, getSetsFromLastWorkout } from './workoutHistoryService';
+import { queryClient } from '../../../shared/query/queryClient';
+import {
+  countWorkoutsThisWeek,
+  getLastWorkout,
+  getSetsFromLastWorkout,
+} from './workoutHistoryService';
 
 describe('workout history service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (getDocs as jest.Mock).mockReset();
+    queryClient.clear();
     (getAuth as jest.Mock).mockReturnValue({ currentUser: { uid: 'user-1' } });
   });
 
@@ -43,7 +51,7 @@ describe('workout history service', () => {
 
   it('preserves the existing empty-array fallback when prior-workout lookup fails', async () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    (getDocs as jest.Mock).mockRejectedValueOnce(new Error('history unavailable'));
+    (getDocs as jest.Mock).mockRejectedValue(new Error('history unavailable'));
 
     await expect(getSetsFromLastWorkout('Bench')).resolves.toEqual([]);
     expect(consoleError).toHaveBeenCalledWith(
@@ -54,12 +62,41 @@ describe('workout history service', () => {
     consoleError.mockRestore();
   });
 
+  it('reuses one cached recent-history query across per-exercise lookups', async () => {
+    (getDocs as jest.Mock).mockResolvedValue({
+      docs: [{
+        id: 'workout-1',
+        data: () => ({
+          exercises: [
+            { exerciseName: 'Bench', muscleGroup: 'Chest', sets: [{ weight: 50, reps: 8 }] },
+            { exerciseName: 'Row', muscleGroup: 'Back', sets: [{ weight: 40, reps: 10 }] },
+          ],
+        }),
+      }],
+    });
+
+    await expect(getSetsFromLastWorkout('Bench', 'Chest')).resolves.toHaveLength(1);
+    await expect(getSetsFromLastWorkout('Row', 'Back')).resolves.toHaveLength(1);
+
+    expect(getDocs).toHaveBeenCalledTimes(1);
+  });
+
   it('returns the latest workout or null when the history is empty', async () => {
     (getDocs as jest.Mock)
       .mockResolvedValueOnce({ empty: false, docs: [{ data: () => ({ workoutName: 'Latest' }) }] })
       .mockResolvedValueOnce({ empty: true, docs: [] });
 
     await expect(getLastWorkout()).resolves.toEqual({ workoutName: 'Latest' });
+    queryClient.clear();
     await expect(getLastWorkout()).resolves.toBeNull();
+  });
+
+  it('counts this week using a bounded history range', async () => {
+    (getDocs as jest.Mock).mockResolvedValue({
+      docs: [{ data: () => ({ timestamp: { toDate: () => new Date() } }) }],
+    });
+
+    await expect(countWorkoutsThisWeek()).resolves.toBe(1);
+    expect(getDocs).toHaveBeenCalledTimes(1);
   });
 });

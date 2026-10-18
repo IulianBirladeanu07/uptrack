@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Alert, Keyboard } from 'react-native';
 import type { View } from 'react-native';
 import { supabase } from '../../../shared/services/supabaseClient';
+import { invalidateBarcodeProduct } from '../services/barcodeProductService';
 import { validateFoodData } from '../utils/customFoodValidators';
 import { formatDate } from '../utils/dateUtils';
 import { formatFoodDataForSubmission, getInitialFoodData, passesBarcodedProductsInsertPolicy, transformForBarcodeDB, transformForCustomFood } from '../utils/customFoodDataUtils';
@@ -164,6 +165,7 @@ export const useCustomFood = (
                     Alert.alert('Database Error', 'Failed to save food data to the database.');
                     return;
                 }
+                await invalidateBarcodeProduct(barcodeId);
                 
                 const foodForDetail = transformForCustomFood(formattedData);
                 

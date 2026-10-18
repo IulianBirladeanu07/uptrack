@@ -35,6 +35,7 @@ jest.mock('../utils/exerciseCatalog', () => ({
 
 import { getAuth } from 'firebase/auth';
 import { doc, getDocs, runTransaction, setDoc, updateDoc } from 'firebase/firestore';
+import { queryClient } from '../../../shared/query/queryClient';
 import {
   addTemplateToFirestore,
   addSplitToFirestore,
@@ -50,6 +51,7 @@ import {
 describe('sendWorkoutDataToFirestore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    queryClient.clear();
     mockTransaction.get.mockImplementation(async () => ({ exists: () => false, data: () => undefined }));
     (getAuth as jest.Mock).mockReturnValue({ currentUser: { uid: 'user-1' } });
     (getDocs as jest.Mock).mockResolvedValue({ docs: [] });

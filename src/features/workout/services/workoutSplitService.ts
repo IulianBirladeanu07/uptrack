@@ -12,6 +12,8 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
+import { queryClient } from '../../../shared/query/queryClient';
+import { workoutSplitQueryKey } from './workoutQueryKeys';
 import type { WorkoutSplit } from '../types';
 import { clearSplitsCache } from './splitCache';
 import { fetchTemplatesFromFirestore } from './workoutTemplateService';
@@ -21,6 +23,10 @@ import {
   sanitizeSplitSchedule,
 } from './workoutSplitData';
 
+const invalidateWorkoutSplits = async (uid: string): Promise<void> => {
+  await queryClient.invalidateQueries({ queryKey: workoutSplitQueryKey(uid) });
+};
+
 export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
   try {
     const user = getAuth().currentUser;
@@ -28,23 +34,25 @@ export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
       throw new Error('User not authenticated.');
     }
 
-    const splitsQuery = query(
-      collection(db, 'workoutSplits'),
-      where('uid', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-    );
-    const querySnapshot = await getDocs(splitsQuery);
-    if (querySnapshot.empty) {
-      console.log('No splits found');
-      return [];
-    }
-
-    const splits: WorkoutSplit[] = querySnapshot.docs.map(docSnap => ({
-      ...(docSnap.data() as WorkoutSplit),
-      id: docSnap.id,
-    }));
-    const templates = await fetchTemplatesFromFirestore();
-    return hydrateSplitSchedules(splits, templates);
+    return await queryClient.fetchQuery({
+      queryKey: workoutSplitQueryKey(user.uid),
+      staleTime: 5 * 60 * 1000,
+      queryFn: async () => {
+        const splitsQuery = query(
+          collection(db, 'workoutSplits'),
+          where('uid', '==', user.uid),
+          orderBy('createdAt', 'desc'),
+        );
+        const querySnapshot = await getDocs(splitsQuery);
+        if (querySnapshot.empty) return [];
+        const splits: WorkoutSplit[] = querySnapshot.docs.map(docSnap => ({
+          ...(docSnap.data() as WorkoutSplit),
+          id: docSnap.id,
+        }));
+        const templates = await fetchTemplatesFromFirestore();
+        return hydrateSplitSchedules(splits, templates);
+      },
+    });
   } catch (error) {
     console.error('Error fetching user splits from Firestore:', (error as Error).message);
     throw error;
@@ -80,6 +88,7 @@ export const updateSplitInFirestore = async (
 
     await updateDoc(splitRef, updateData);
     await clearSplitsCache();
+    await invalidateWorkoutSplits(user.uid);
     return splitId;
   } catch (error) {
     console.error('Error updating split:', error);
@@ -105,6 +114,7 @@ export const addSplitToFirestore = async (splitData: WorkoutSplit): Promise<stri
     const splitDocRef = doc(collection(db, 'workoutSplits'));
     await setDoc(splitDocRef, splitDataToSave);
     await clearSplitsCache();
+    await invalidateWorkoutSplits(user.uid);
     return splitDocRef.id;
   } catch (error) {
     console.error('Error saving split to Firestore:', (error as Error).message);
@@ -131,6 +141,7 @@ export const updateSplitDay = async (
     });
 
     await clearSplitsCache();
+    await invalidateWorkoutSplits(user.uid);
     return true;
   } catch (error) {
     console.error('Error updating split day:', (error as Error).message);
@@ -149,6 +160,7 @@ export const deleteSplitFromFirestore = async (splitId: string): Promise<boolean
     const splitDocRef = doc(db, 'workoutSplits', splitId);
     await deleteDoc(splitDocRef);
     await clearSplitsCache();
+    await invalidateWorkoutSplits(user.uid);
     return true;
   } catch (error) {
     console.error('Error deleting split from Firestore:', (error as Error).message);
@@ -169,6 +181,8 @@ export const updateSplitProgress = async (splitId: string, currentWeek: number):
       currentWeek,
       lastUpdated: serverTimestamp(),
     });
+    await clearSplitsCache();
+    await invalidateWorkoutSplits(user.uid);
 
     return true;
   } catch (error) {

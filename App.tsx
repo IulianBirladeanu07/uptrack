@@ -2,6 +2,8 @@ import React, { useContext, useMemo } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './src/shared/query/queryClient';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList, AuthenticatedStackParamList } from './src/shared/navigation';
 import { AuthProvider, AuthContext } from './src/features/auth/context/AuthContext';
@@ -133,13 +135,15 @@ const MainApp = () => {
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <NavigationContainer>
-          <AuthProvider>
-            <MainApp />
-          </AuthProvider>
-        </NavigationContainer>
-      </SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <NavigationContainer>
+            <AuthProvider>
+              <MainApp />
+            </AuthProvider>
+          </NavigationContainer>
+        </SafeAreaProvider>
+      </QueryClientProvider>
     </GestureHandlerRootView>
   );
 }

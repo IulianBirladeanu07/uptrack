@@ -89,10 +89,8 @@ export const loadUserWeightData = async (
   setGoalSwitchDate: Setter<string | null>,
 ): Promise<void> => {
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId).withConverter(userConverter));
-    if (!userDoc.exists()) return;
-
-    const data      = userDoc.data()!;
+    const data = await WeightService.getUserWeightData(userId);
+    if (!data) return;
     const weightIns = data.weightIns || [];
 
     setCurrentWeight(data.currentWeight);

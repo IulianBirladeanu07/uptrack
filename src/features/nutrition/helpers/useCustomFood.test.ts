@@ -1,6 +1,8 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { Alert, Keyboard } from 'react-native';
 import { supabase } from '../../../shared/services/supabaseClient';
+import { queryClient } from '../../../shared/query/queryClient';
+import { barcodeProductQueryKey } from '../services/barcodeProductService';
 import { useCustomFood } from './useCustomFood';
 
 jest.mock('react-native', () => ({
@@ -36,6 +38,7 @@ const fillRequiredFields = (result: { current: ReturnType<typeof useCustomFood> 
 describe('useCustomFood', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    queryClient.clear();
   });
 
   it('normalizes numeric input, tracks dirty fields, changes units, and resets', () => {
@@ -101,6 +104,7 @@ describe('useCustomFood', () => {
 
   it('inserts a valid barcode food when it does not already exist', async () => {
     const navigation = { navigate: jest.fn() } as never;
+    queryClient.setQueryData(barcodeProductQueryKey('12345678'), null);
     const { result } = renderHook(() =>
       useCustomFood('foodWithBarcode', navigation, 1000, '12345678', 'dinner', '2026-10-17'),
     );
@@ -122,6 +126,7 @@ describe('useCustomFood', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('FoodDetail', expect.objectContaining({
       meal: 'dinner', remainingCalories: 800,
     }));
+    expect(queryClient.getQueryState(barcodeProductQueryKey('12345678'))?.isInvalidated).toBe(true);
   });
 
   it('stops duplicate barcodes and surfaces lookup or insert failures', async () => {

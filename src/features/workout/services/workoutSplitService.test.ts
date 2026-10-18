@@ -17,12 +17,15 @@ jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 jest.mock('./splitCache', () => ({ clearSplitsCache: jest.fn() }));
 jest.mock('./workoutTemplateService', () => ({ fetchTemplatesFromFirestore: jest.fn() }));
 
-import { updateDoc } from 'firebase/firestore';
-import { updateSplitInFirestore } from './workoutSplitService';
+import { getDocs, updateDoc } from 'firebase/firestore';
+import { fetchSplitsFromFirestore, updateSplitInFirestore } from './workoutSplitService';
+import { queryClient } from '../../../shared/query/queryClient';
+import { fetchTemplatesFromFirestore } from './workoutTemplateService';
 
 describe('updateSplitInFirestore', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        queryClient.clear();
     });
 
     it('sanitizes hydrated schedule data before writing it', async () => {
@@ -60,5 +63,20 @@ describe('updateSplitInFirestore', () => {
                 },
             },
         );
+    });
+
+    it('reuses user splits and templates across calls', async () => {
+        const snap = {
+          docs: [{ id: 'split-1', data: () => ({ name: 'A', schedule: {} }) }],
+        };
+        (getDocs as jest.Mock).mockResolvedValue(snap);
+        jest.mocked(fetchTemplatesFromFirestore).mockResolvedValue([]);
+
+        const first = await fetchSplitsFromFirestore();
+        const second = await fetchSplitsFromFirestore();
+
+        expect(first).toEqual(second);
+        expect(first).toHaveLength(1);
+        expect(getDocs).toHaveBeenCalledTimes(1);
     });
 });
