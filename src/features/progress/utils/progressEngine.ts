@@ -532,12 +532,12 @@ export const phaseInfo = (userData: UserData | null | undefined, weeks: WeekRow[
 
 export const rangeOptions = (info: PhaseInfo): { key: string; label: string; n: number }[] => {
   const out = [
-    { key: '8W', label: '8W', n: 8 },
-    { key: '12W', label: '12W', n: 12 },
+    { key: '8W', label: '8 wk', n: 8 },
+    { key: '12W', label: '12 wk', n: 12 },
   ];
   if (info.phaseWeeks >= RECAP_MIN_WEEKS) {
     const phaseWeeks = Math.min(info.phaseWeeks, MAX_WEEKS);
-    out.unshift({ key: 'PHASE', label: `Phase · ${phaseWeeks}W`, n: phaseWeeks });
+    out.unshift({ key: 'PHASE', label: `Phase · ${phaseWeeks} wk`, n: phaseWeeks });
   }
   return out;
 };
@@ -904,9 +904,9 @@ export const recapTip = (r: PhaseRecap): string => {
       ? `Your saved estimate is ${kfmt(r.maintenance)} kcal, but there is not enough recent data to recommend switching yet.`
       : 'Log weight and nutrition consistently to estimate maintenance before starting the next phase.';
   }
-  const note = maintenanceEstimateNote(r);
+  const note = maintenanceRangeNote(r);
   return note
-    ? `Estimate ${note.margin} kcal · ${note.window}\nTreat it as a starting point.`
+    ? `${note.headline}\n${note.basis}\n${note.advice}`
     : 'Your recent maintenance estimate is missing its uncertainty range or date window. Treat it as provisional.';
 };
 
@@ -929,6 +929,23 @@ export const maintenanceEstimateNote = (r: PhaseRecap): { margin: string; window
   const start = shortDate(dateFromKey(r.maintenanceWindow.start));
   const end = shortDate(dateFromKey(r.maintenanceWindow.end));
   return { margin: `±${kfmt(margin)}`, window: `weeks ${start} to ${end}` };
+};
+
+export const maintenanceRangeNote = (r: PhaseRecap): { headline: string; basis: string; advice: string } | null => {
+  const note = maintenanceEstimateNote(r);
+  if (!note || r.maintenance == null || r.maintenanceMargin == null || r.maintenanceWindow == null) return null;
+
+  const low = Math.round((r.maintenance - r.maintenanceMargin) / 10) * 10;
+  const high = Math.round((r.maintenance + r.maintenanceMargin) / 10) * 10;
+  const start = dateFromKey(r.maintenanceWindow.start);
+  const end = dateFromKey(r.maintenanceWindow.end);
+  const days = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+  const wk = Math.max(1, Math.round(days / 7));
+  return {
+    headline: `Maintenance is about ${kfmt(r.maintenance)} kcal, probably between ${kfmt(low)} and ${kfmt(high)}.`,
+    basis: `Based on ${wk} ${wk === 1 ? 'week' : 'weeks'}, ${shortDate(start)} - ${shortDate(end)}.`,
+    advice: 'Recheck after two more weeks of logging.',
+  };
 };
 
 export const recapEntry = (r: PhaseRecap, now: Date = new Date()) => ({

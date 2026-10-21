@@ -12,6 +12,7 @@ import {
   balanceNote,
   energyTip,
   maintenanceEstimateNote,
+  maintenanceRangeNote,
   maintenanceEstimateSummary,
   liftStats,
   strengthModel,
@@ -394,7 +395,7 @@ describe('phaseInfo and ranges', () => {
     expect(info.phaseWeeks).toBe(19);
     const opts = rangeOptions(info);
     expect(opts.map(o => o.key)).toEqual(['PHASE', '8W', '12W']);
-    expect(opts[0].label).toBe('Phase · 19W');
+    expect(opts[0].label).toBe('Phase · 19 wk');
     expect(opts[0].n).toBe(19);
   });
 
@@ -449,7 +450,7 @@ describe('phaseInfo and ranges', () => {
   test('caps phase range at 26 weeks', () => {
     const info = { phaseWeeks: 60, tab: 'Cut' };
     expect(rangeOptions(info)[0].n).toBe(26);
-    expect(rangeOptions(info)[0].label).toBe('Phase · 26W');
+    expect(rangeOptions(info)[0].label).toBe('Phase · 26 wk');
   });
 });
 
@@ -845,7 +846,12 @@ describe('phaseRecap', () => {
     const window = `weeks ${shortDate(dateFromKey(energy.maintenanceWindow.start))} to ${shortDate(dateFromKey(energy.maintenanceWindow.end))}`;
     expect(maintenanceEstimateNote(r)).toEqual({ margin, window });
     expect(maintenanceEstimateSummary(r)).toBe(`about ${kfmt(r.maintenance)} kcal (${margin}), based on ${window}`);
-    expect(recapTip(r)).toBe(`Estimate ${margin} kcal · ${window}\nTreat it as a starting point.`);
+    const rangeNote = maintenanceRangeNote(r);
+    const low = Math.round((r.maintenance - energy.margin) / 10) * 10;
+    const high = Math.round((r.maintenance + energy.margin) / 10) * 10;
+    expect(rangeNote.headline).toBe(`Maintenance is about ${kfmt(r.maintenance)} kcal, probably between ${kfmt(low)} and ${kfmt(high)}.`);
+    expect(rangeNote.basis).toMatch(/^Based on \d+ weeks?, [A-Z][a-z]{2} \d+ - [A-Z][a-z]{2} \d+\.$/);
+    expect(recapTip(r)).toBe(`${rangeNote.headline}\n${rangeNote.basis}\n${rangeNote.advice}`);
     expect(r.avgKcalWeeks).toBeGreaterThan(0);
     expect(r.avgKcalDays).toBeGreaterThanOrEqual(r.avgKcalWeeks * 4);
   });
@@ -870,6 +876,7 @@ describe('phaseRecap', () => {
     expect(r.maintenanceSource).toBe('stored');
     expect(r.maintenanceMargin).toBeNull();
     expect(r.maintenanceWindow).toBeNull();
+    expect(maintenanceRangeNote(r)).toBeNull();
     expect(recapTip(r)).toBe('Your saved estimate is 3,700 kcal, but there is not enough recent data to recommend switching yet.');
     expect(r.perKg).toBeNull();
     expect(r.strengthPct).toBeNull();

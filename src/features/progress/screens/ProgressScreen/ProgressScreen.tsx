@@ -17,7 +17,7 @@ import {
     recapTip,
     paceTip,
     energyTip,
-    maintenanceEstimateNote,
+    maintenanceRangeNote,
     liftStats,
     strengthTip,
     setsTip,
@@ -27,6 +27,7 @@ import {
     kfmt,
 } from '../../utils/progressEngine';
 import type { EnergyModel, MonthRow as MonthData, NutritionDay, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
+import RangeSegmentedControl from './RangeSegmentedControl';
 import { useProgressScreenModel } from './useProgressScreenModel';
 import { useMaintenanceSwitch } from './useMaintenanceSwitch';
 import { usePlannedWorkouts } from './usePlannedWorkouts';
@@ -117,13 +118,14 @@ const Tip = ({ text }: { text: string | null | undefined }) =>
     ) : null;
 
 const MaintenanceNote = ({ recap }: { recap: PhaseRecap }) => {
-    const note = maintenanceEstimateNote(recap);
+    const note = maintenanceRangeNote(recap);
     if (!note) return <Tip text={recapTip(recap)} />;
 
     return (
         <View style={styles.maintenanceNote}>
-            <Text style={[styles.tipText, styles.maintenanceNoteText]}>{`Estimate ${note.margin} kcal · ${note.window}`}</Text>
-            <Text style={styles.maintenanceNoteAdvice}>Treat it as a starting point.</Text>
+            <Text style={[styles.tipText, styles.maintenanceNoteText]}>{note.headline}</Text>
+            <Text style={styles.maintenanceNoteAdvice}>{note.basis}</Text>
+            <Text style={styles.maintenanceNoteAdvice}>{note.advice}</Text>
         </View>
     );
 };
@@ -149,6 +151,7 @@ const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: bool
         ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Rel. strength', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
         : { value: r.strengthPct != null ? sg(r.strengthPct, 0) : '--', unit: r.strengthPct != null ? '%' : undefined, label: 'Strength', color: r.strengthPct != null && r.strengthPct > 0 ? colors.accent.success : undefined };
     const phaseLabel = r.dir < 0 ? 'Cutting' : 'Bulking';
+    const hasRange = maintenanceRangeNote(r) != null;
 
     return (
         <View style={styles.card}>
@@ -181,7 +184,7 @@ const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: bool
                 >
                     <Ionicons name="swap-horizontal" size={spacing.iconSm} color={colors.accent.buttonText} />
                     <Text style={styles.ctaText}>
-                        {busy ? 'Switching...' : `Switch to maintenance · ~${kfmt(r.maintenance)} kcal`}
+                        {busy ? 'Switching...' : hasRange ? 'Switch to maintenance' : `Switch to maintenance · ~${kfmt(r.maintenance)} kcal`}
                     </Text>
                 </TouchableOpacity>
             )}
@@ -646,6 +649,11 @@ const ProgressScreen = () => {
     const openProfile = useCallback(() => navigation.navigate('Profile'), [navigation]);
 
     const { switching, onSwitch } = useMaintenanceSwitch({ recap, userData, refreshUserData });
+    const rangeControl = (
+        <View style={styles.rangeBar}>
+            <RangeSegmentedControl options={ranges} selectedKey={range.key} onSelect={setRangeKey} />
+        </View>
+    );
     return (
         <ApplicationCustomScreen>
             <ScrollView
@@ -674,24 +682,6 @@ const ProgressScreen = () => {
                             );
                         })}
                     </View>
-                    {weeks.length >= 2 && (
-                        <View style={styles.rangeSelector}>
-                            {ranges.map(r => (
-                                <TouchableOpacity
-                                    key={r.key}
-                                    style={styles.rangeOption}
-                                    onPress={() => setRangeKey(r.key)}
-                                    activeOpacity={0.7}
-                                    accessibilityRole="button"
-                                    accessibilityState={{ selected: range.key === r.key }}
-                                >
-                                    <Text style={[styles.rangeText, range.key === r.key && styles.rangeTextActive]}>
-                                        {r.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
                 </View>
                 {workoutHistoryLoadMoreError && hasMoreWorkoutHistory && (
                     <TouchableOpacity onPress={() => void loadMoreWorkoutHistory()}>
@@ -722,6 +712,7 @@ const ProgressScreen = () => {
                                         Could not load historical food logs. Showing saved weekly summaries instead.
                                     </Text>
                                 )}
+                                {rangeControl}
                                 <PaceCard m={pace} info={info} n={n} />
                                 <EnergyCard m={energy} info={info} n={n} />
                                 <MonthsCard
@@ -736,6 +727,7 @@ const ProgressScreen = () => {
                             </>
                         ) : (
                             <>
+                                {rangeControl}
                                 <StrengthCard m={strength} lifts={lifts} info={info} onLift={openLift} />
                                 <SetsCard m={sets} />
                                 <MonthsCard

@@ -69,12 +69,12 @@ describe('useProgressScreenModel', () => {
                 useProgressScreenModel({ ...params, rangeKey }),
             { initialProps: { rangeKey: '8W' } },
         );
-        expect(result.current.range).toEqual({ key: '8W', label: '8W', n: 8 });
+        expect(result.current.range).toEqual({ key: '8W', label: '8 wk', n: 8 });
         expect(result.current.n).toBe(8);
 
         rerender({ rangeKey: 'missing' });
         const unknown = result.current;
-        expect(unknown.range).toEqual({ key: '12W', label: '12W', n: 12 });
+        expect(unknown.range).toEqual({ key: '12W', label: '12 wk', n: 12 });
         expect(unknown.n).toBe(12);
     });
 });
