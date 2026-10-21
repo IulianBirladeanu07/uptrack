@@ -6,7 +6,7 @@ import { colors } from '../../../shared/theme';
 import { shortDate, kfmt, sg } from '../utils/progressEngine';
 import type { EnergyModel, PaceModel, StrengthModel } from '../utils/progressEngine';
 
-const AX = colors.text.quaternary;
+const AX = colors.text.tertiary;
 const GRID = colors.border.default;
 const PLAN = colors.text.primary;
 const EAT = colors.accent.primary;

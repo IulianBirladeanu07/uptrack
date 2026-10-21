@@ -193,7 +193,7 @@ const styles = createStyles(() => ({
         marginTop: 2,
         fontSize: fontSize[10],
         fontWeight: fontWeight.medium,
-        color: colors.text.quaternary,
+        color: colors.text.tertiary,
         textAlign: 'center',
     },
     statDot: {
@@ -429,7 +429,7 @@ const styles = createStyles(() => ({
         marginTop: 2,
         fontSize: fontSize[10],
         fontWeight: fontWeight.medium,
-        color: colors.text.quaternary,
+        color: colors.text.tertiary,
     },
     monthValueRow: {
         flexDirection: 'row',
