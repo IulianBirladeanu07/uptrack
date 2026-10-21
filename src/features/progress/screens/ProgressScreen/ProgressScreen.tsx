@@ -148,7 +148,7 @@ const EmptyCard = ({ cap, text }: { cap: string; text: string }) => (
 
 const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: boolean; onSwitch: () => void; onProfile: () => void }) => {
     const third = r.dir < 0
-        ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Rel. strength', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
+        ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Strength / kg', detail: 'vs bodyweight', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
         : { value: r.strengthPct != null ? sg(r.strengthPct, 0) : '--', unit: r.strengthPct != null ? '%' : undefined, label: 'Strength', color: r.strengthPct != null && r.strengthPct > 0 ? colors.accent.success : undefined };
     const phaseLabel = r.dir < 0 ? 'Cutting' : 'Bulking';
     const hasRange = maintenanceRangeNote(r) != null;
@@ -228,6 +228,7 @@ const PaceCard = ({ m, info, n }: { m: PaceModel | null; info: PhaseInfo; n: num
     const goalStat = m.reached
         ? { value: fmt1(info.remaining ?? 0), unit: 'kg', label: 'To goal' }
         : { value: eta, label: 'Goal ETA' };
+    const trendShown = m.slots.length >= 12 && m.slots.filter(slot => slot.avg != null).length > 1;
     const latestIsPartial = [...m.slots].reverse().find(slot => slot.v != null)?.cur ?? false;
 
     const note = picked
@@ -250,10 +251,18 @@ const PaceCard = ({ m, info, n }: { m: PaceModel | null; info: PhaseInfo; n: num
             <ChartBox>
                 {w => <PaceChart slots={m.slots} plan={m.plan} width={w} sel={sel} onSelect={setSel} />}
             </ChartBox>
+            {trendShown && (
+                <View style={[styles.legendRow, styles.chartLegend]}>
+                    <View style={styles.legendItem}>
+                        <View style={styles.legendLine} />
+                        <Text style={styles.legendText}>4-week average</Text>
+                    </View>
+                </View>
+            )}
             <Stats
                 items={[
                     { value: fmt1(m.lastRate), unit: 'kg/wk', label: latestIsPartial ? 'This week · partial' : 'Latest week' },
-                    { value: fmt1(m.rate), unit: 'kg/wk', label: 'Range avg' },
+                    { value: fmt1(m.rate), unit: 'kg/wk', label: `${n}-wk avg` },
                     goalStat,
                 ]}
             />

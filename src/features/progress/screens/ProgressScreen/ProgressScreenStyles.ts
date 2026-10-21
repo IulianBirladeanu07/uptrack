@@ -81,6 +81,16 @@ const styles = createStyles(() => ({
         alignItems: 'center',
         gap: spacing[1],
     },
+    chartLegend: {
+        marginTop: spacing[2],
+        justifyContent: 'center',
+    },
+    legendLine: {
+        width: 14,
+        height: 2,
+        borderRadius: 1,
+        backgroundColor: colors.text.primary,
+    },
     legendDot: {
         width: 8,
         height: 8,

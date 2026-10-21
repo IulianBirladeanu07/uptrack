@@ -140,7 +140,8 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
                       height={Math.max(base - y(s.v), 2)}
                       rx={3}
                       fill={EAT}
-                      fillOpacity={hot ? 1 : s.cur ? 0.24 : 0.5}
+                      fillOpacity={s.cur ? (hot ? 0.4 : 0.14) : hot ? 1 : 0.5}
+                      {...(s.cur ? { stroke: EAT, strokeWidth: 1.5, strokeOpacity: hot ? 1 : 0.6, strokeDasharray: '3 3' } : {})}
                     />
                   </>
                 )}
