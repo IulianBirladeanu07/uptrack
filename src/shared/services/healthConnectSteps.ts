@@ -22,13 +22,14 @@ const STEPS_READ = { accessType: 'read', recordType: 'Steps' } as const;
 const hasStepsRead = (granted: ReadonlyArray<{ recordType: string }>): boolean =>
   granted.some(p => p.recordType === 'Steps' && 'accessType' in p && p.accessType === 'read');
 
-export const ensureStepsAccess = async (): Promise<StepsAccess> => {
+export const ensureStepsAccess = async ({ request = true }: { request?: boolean } = {}): Promise<StepsAccess> => {
   try {
     const status = await getSdkStatus();
     if (status === SdkAvailabilityStatus.SDK_UNAVAILABLE) return 'unavailable';
     if (status === SdkAvailabilityStatus.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) return 'update_required';
     if (!(await initialize())) return 'unavailable';
     if (hasStepsRead(await getGrantedPermissions())) return 'ready';
+    if (!request) return 'permission_denied';
     return hasStepsRead(await requestPermission([STEPS_READ])) ? 'ready' : 'permission_denied';
   } catch (err) {
     console.log('[Steps] Health Connect access failed:', err);

@@ -58,6 +58,18 @@ describe('healthConnectSteps', () => {
     expect(await ensureStepsAccess()).toBe('permission_denied');
   });
 
+  it('does not show the permission dialog unless it is asked to', async () => {
+    expect(await ensureStepsAccess({ request: false })).toBe('permission_denied');
+    expect(requestPermission).not.toHaveBeenCalled();
+
+    (getGrantedPermissions as jest.Mock).mockResolvedValueOnce([{ accessType: 'read', recordType: 'Steps' }]);
+    expect(await ensureStepsAccess({ request: false })).toBe('ready');
+    expect(requestPermission).not.toHaveBeenCalled();
+
+    expect(await ensureStepsAccess({ request: true })).toBe('ready');
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+  });
+
   it('converts Health Connect failures to unavailable access', async () => {
     const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     (getSdkStatus as jest.Mock).mockRejectedValue(new Error('platform error'));

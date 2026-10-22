@@ -141,7 +141,7 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
             if (backend.kind === 'ios') {
                 await initializeHealthKit(backend.kit);
             } else {
-                const access = await backend.hc.ensureStepsAccess();
+                const access = await backend.hc.ensureStepsAccess({ request: userInitiated });
                 if (access !== 'ready') {
                     onStepsError?.(ACCESS_ERRORS[access]);
                     onConnectedChange?.(false);
