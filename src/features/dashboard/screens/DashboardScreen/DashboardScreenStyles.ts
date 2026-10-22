@@ -216,6 +216,8 @@ export const styles = createStyles(() => ({
   },
 
   percentageBadge: {
+    flexShrink: 1,
+    marginLeft: spacing[2],
     backgroundColor: colors.accent.primary,
     paddingHorizontal: spacing[2],
     paddingVertical: spacing[1],

@@ -191,7 +191,7 @@ const TodayNutrition = ({ calories, targetCalories, learningLabel, macros, macro
                     </Text>
                 </View>
                 <View style={styles.percentageBadge}>
-                    <Text style={styles.percentageText}>{badgeText}</Text>
+                    <Text style={styles.percentageText} numberOfLines={1}>{badgeText}</Text>
                 </View>
             </View>
             {targetCalories != null && (

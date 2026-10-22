@@ -33,6 +33,14 @@ describe('BottomNav', () => {
         expect(tabs.map(tab => tab.props.accessibilityState.selected)).toEqual([false, true, false, false]);
     });
 
+    it('groups the tabs in a tab list', () => {
+        render(<BottomNav />);
+
+        const root = screen.toJSON() as { props: { accessibilityRole?: string } };
+        expect(root.props.accessibilityRole).toBe('tablist');
+        expect(screen.getAllByRole('tab')).toHaveLength(4);
+    });
+
     it('navigates to the pressed destination', () => {
         render(<BottomNav />);
 

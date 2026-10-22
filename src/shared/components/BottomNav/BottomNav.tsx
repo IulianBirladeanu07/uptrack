@@ -59,7 +59,7 @@ const BottomNav = () => {
     );
 
     return (
-        <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, spacing[1]) }]}>
+        <View accessibilityRole="tablist" style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, spacing[1]) }]}>
             {screens.map(screen => (
                 <NavItem
                     key={screen.name}
