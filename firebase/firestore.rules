@@ -45,7 +45,7 @@ service cloud.firestore {
 
     match /measurements/{measurementId} {
       allow read, delete: if ownsDoc();
-      allow create: if claimsDoc();
+      allow create: if false;
     }
 
     match /workoutTemplates/{templateId} {
