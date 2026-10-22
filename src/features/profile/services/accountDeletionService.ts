@@ -3,7 +3,6 @@ import { getStorage, ref, deleteObject } from 'firebase/storage';
 import { deleteUser, reauthenticateWithCredential } from 'firebase/auth';
 import type { AuthCredential, User } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { db } from '../../auth/services/firebaseConfigService';
 import { workoutService } from '../../workout/services/WorkoutService';
 
@@ -50,6 +49,8 @@ export const deleteAccount = async (user: User, credential: AuthCredential): Pro
   }
 
   try {
+    // Lazy require: the native module is not available in Jest.
+    const { GoogleSignin } = require('@react-native-google-signin/google-signin');
     await GoogleSignin.signOut();
   } catch {
     // Device may not have used Google sign-in.

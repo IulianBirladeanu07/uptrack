@@ -57,6 +57,13 @@ jest.mock('../../workout/services/WorkoutService', () => ({
     }),
   },
 }));
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    signOut: jest.fn(async () => {
+      mockCalls.push('googleSignOut');
+    }),
+  },
+}));
 
 import { deleteAccount } from './accountDeletionService';
 
@@ -98,6 +105,7 @@ describe('deleteAccount', () => {
       'deleteDoc:users:u1',
       'deleteUser',
       'workoutReset',
+      'googleSignOut',
     ]);
   });
 
