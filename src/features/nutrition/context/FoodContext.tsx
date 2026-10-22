@@ -57,7 +57,6 @@ export type FoodContextValue = {
     favoriteFoods:            FoodCategories['favoriteFoods'];
     hasTargets:               boolean;
     learningData:             EnhancedLearningData;
-    remainingCalories:        number;
     dailyNutrition:           NutritionTotals;
     todayNutrition:           NutritionTotals;
     userMacros:               ReturnType<typeof useDailyNutrition>['userMacros'];
@@ -162,12 +161,6 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         () => calculateDailyNutritionFromMeals(mealCache.current.get(localDayKey)),
         [cacheVersion, localDayKey],
     );
-
-    const remainingCalories = useMemo(() => {
-        const target   = nutritionHookData.userMacros?.targetCalories || 2000;
-        const consumed = nutritionHookData.dailyNutrition?.calories || 0;
-        return Math.max(0, target - consumed);
-    }, [nutritionHookData.userMacros?.targetCalories, nutritionHookData.dailyNutrition?.calories]);
 
     const rollingWeekStats = useMemo(() =>
         getCurrentWeekRollingStats(mealCache.current, userData?.weightIns),
@@ -561,7 +554,6 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         favoriteFoods:    categoryData.favoriteFoods,
         hasTargets:       nutritionHookData.hasTargets,
         learningData:     enhancedLearningData,
-        remainingCalories,
         dailyNutrition:   nutritionHookData.dailyNutrition,
         todayNutrition,
         userMacros:       nutritionHookData.userMacros,
@@ -588,7 +580,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     }), [
         currentUser?.uid, mealState, selectedDate, handleDateChange, categoryData,
         nutritionHookData.hasTargets, enhancedLearningData,
-        remainingCalories, nutritionHookData.dailyNutrition, todayNutrition, nutritionHookData.userMacros,
+        nutritionHookData.dailyNutrition, todayNutrition, nutritionHookData.userMacros,
         handleAddMeal, handleDeleteMeal, updateMealInDatabase, updateMealState,
         dailySteps, updateDailySteps,
         loading, error, initialLoadComplete, initializationError, retryInitialization,

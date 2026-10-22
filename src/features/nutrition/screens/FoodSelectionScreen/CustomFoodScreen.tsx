@@ -18,7 +18,6 @@ import { colors } from '../../../../shared/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCustomFood } from '../../helpers/useCustomFood';
 import type { FieldHandle } from '../../helpers/useCustomFood';
-import { useFoodContext } from '../../context/FoodContext';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import type { FoodFormData, Numeric } from '../../../../shared/types';
 
@@ -209,7 +208,6 @@ const CustomFoodScreen = () => {
   const barcode = route.params?.barcode;
   const meal = route.params?.meal;
   const selectedDate = route.params?.selectedDate;
-  const { remainingCalories } = useFoodContext();
   const navigation = useAppNavigation();
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -230,7 +228,7 @@ const CustomFoodScreen = () => {
     focusFirstField,
     inputRefs,
     registerInputRef
-  } = useCustomFood(type, navigation, remainingCalories, barcode, meal, selectedDate);
+  } = useCustomFood(type, navigation, barcode, meal, selectedDate);
 
   useEffect(() => {
     if (barcode) {

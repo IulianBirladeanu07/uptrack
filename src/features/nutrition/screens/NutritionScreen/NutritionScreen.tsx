@@ -28,7 +28,6 @@ const NutritionScreen = () => {
         handleDeleteMeal,
         selectedDate,
         setSelectedDate,
-        remainingCalories,
         dailyNutrition,
         userMacros,
         initialLoadComplete,
@@ -88,11 +87,10 @@ const NutritionScreen = () => {
 
     const handleAddFood = useCallback(() => {
         navigation.navigate('FoodSelection', {
-            meal:              selectedMeal,
-            selectedDate:      formatDate(selectedDate),
-            remainingCalories: remainingCalories,
+            meal:         selectedMeal,
+            selectedDate: formatDate(selectedDate),
         });
-    }, [navigation, selectedMeal, selectedDate, remainingCalories]);
+    }, [navigation, selectedMeal, selectedDate]);
 
     const combinedFoods = useMemo(() => {
         const mealFoods: Record<MealType, LoggedFood[]> = { breakfast: breakfastFoods, lunch: lunchFoods, dinner: dinnerFoods, snacks: snacksFoods };

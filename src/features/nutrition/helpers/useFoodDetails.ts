@@ -11,7 +11,6 @@ type FoodAdditionArgs = {
   foodId?: string | undefined;
   meal: MealType;
   updateMealInDatabase: (meal: MealType, foodId: string, details: FoodDetailFood) => Promise<unknown>;
-  remainingCalories: number;
   selectedDate: Date | string;
   update?: boolean | undefined;
   isFavorite: boolean;
@@ -87,7 +86,6 @@ export const handleFoodAddition = async ({
   foodId,
   meal,
   updateMealInDatabase,
-  remainingCalories,
   selectedDate,
   update = false,
   isFavorite,
@@ -138,7 +136,6 @@ export const handleFoodAddition = async ({
         selectedFoodDetail: updatedFoodDetails,
         meal,
         selectedDate: formatDate(selectedDate),
-        remainingCalories: remainingCalories,
       }
     }
   };

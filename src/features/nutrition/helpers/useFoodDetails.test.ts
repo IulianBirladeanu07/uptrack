@@ -18,7 +18,6 @@ const createArgs = (updateMealInDatabase: jest.Mock) => ({
   foodId: 'food-1',
   meal: 'breakfast' as const,
   updateMealInDatabase,
-  remainingCalories: 1000,
   selectedDate: new Date(2026, 9, 15),
   update: true,
   isFavorite: false,

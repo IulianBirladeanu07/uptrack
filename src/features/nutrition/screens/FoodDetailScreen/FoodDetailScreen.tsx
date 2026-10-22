@@ -86,7 +86,6 @@ const FoodDetailScreen = () => {
       selectedDate,
       update,
       isFavorite,
-      remainingCalories: (route.params?.remainingCalories ?? 0) - memoizedTotalNutrients.calories,
     });
 
     if (result.success) {
@@ -108,8 +107,6 @@ const FoodDetailScreen = () => {
     update,
     isFavorite,
     navigation,
-    route.params?.remainingCalories,
-    memoizedTotalNutrients.calories,
   ]);
 
   if (!food) {

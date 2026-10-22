@@ -51,7 +51,6 @@ export type AuthenticatedStackParamList = {
     meal?: string;
     selectedDate?: string;
     selectedFoodDetail?: unknown;
-    remainingCalories?: number;
   } | undefined;
   BarcodeScanner: {
     meal?: string | undefined;
@@ -63,7 +62,6 @@ export type AuthenticatedStackParamList = {
     selectedDate?: string | undefined;
     update?: boolean;
     foodId?: string | undefined;
-    remainingCalories?: number;
   };
   CustomFood: {
     type?: string;

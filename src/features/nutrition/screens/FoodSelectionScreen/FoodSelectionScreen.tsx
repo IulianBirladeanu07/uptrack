@@ -52,7 +52,6 @@ const FoodSelectionScreen = () => {
 
     const {
         handleAddMeal,
-        remainingCalories,
         hasTargets,
         dailyNutrition,
         userMacros,
@@ -142,9 +141,8 @@ const FoodSelectionScreen = () => {
             foodId: prepared.food.id,
             meal,
             selectedDate,
-            remainingCalories,
         });
-    }, [navigation, meal, selectedDate, remainingCalories, isSearching, searchQuery, handleSearchComplete]);
+    }, [navigation, meal, selectedDate, isSearching, searchQuery, handleSearchComplete]);
 
     const handleCreateFood = useCallback(() => {
         navigation.navigate('CustomFood', { type: 'foodWithoutBarcode', meal, selectedDate });

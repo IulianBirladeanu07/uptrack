@@ -14,7 +14,6 @@ const mockFoodContext = {
     handleDeleteMeal: jest.fn(),
     selectedDate: new Date('2026-10-16T12:00:00.000Z'),
     setSelectedDate: jest.fn(),
-    remainingCalories: 0,
     dailyNutrition: {},
     userMacros: {},
     get initialLoadComplete() {

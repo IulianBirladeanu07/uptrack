@@ -44,7 +44,7 @@ describe('useCustomFood', () => {
   it('normalizes numeric input, tracks dirty fields, changes units, and resets', () => {
     const navigation = { navigate: jest.fn() } as never;
     const { result } = renderHook(() =>
-      useCustomFood('custom', navigation, 500, '12345678', 'lunch', '2026-10-17'),
+      useCustomFood('custom', navigation, '12345678', 'lunch', '2026-10-17'),
     );
 
     expect(result.current.foodData.barcode).toBe('12345678');
@@ -72,7 +72,7 @@ describe('useCustomFood', () => {
   it('shows validation errors without dismissing the keyboard or writing data', async () => {
     const navigation = { navigate: jest.fn() } as never;
     const { result } = renderHook(() =>
-      useCustomFood('custom', navigation, 500, '', 'lunch', '2026-10-17'),
+      useCustomFood('custom', navigation, '', 'lunch', '2026-10-17'),
     );
 
     await act(async () => result.current.handleSubmit());
@@ -86,7 +86,7 @@ describe('useCustomFood', () => {
   it('submits a valid custom food to FoodDetail with the computed remaining calories', async () => {
     const navigation = { navigate: jest.fn() } as never;
     const { result } = renderHook(() =>
-      useCustomFood('custom', navigation, 500, '', 'lunch', '2026-10-17'),
+      useCustomFood('custom', navigation, '', 'lunch', '2026-10-17'),
     );
     fillRequiredFields(result);
 
@@ -97,7 +97,6 @@ describe('useCustomFood', () => {
       food: expect.objectContaining({ productName: 'Chicken', calories: 200, quantity: 100 }),
       meal: 'lunch',
       selectedDate: '2026-10-17',
-      remainingCalories: 300,
       update: false,
     }));
   });
@@ -106,7 +105,7 @@ describe('useCustomFood', () => {
     const navigation = { navigate: jest.fn() } as never;
     queryClient.setQueryData(barcodeProductQueryKey('12345678'), null);
     const { result } = renderHook(() =>
-      useCustomFood('foodWithBarcode', navigation, 1000, '12345678', 'dinner', '2026-10-17'),
+      useCustomFood('foodWithBarcode', navigation, '12345678', 'dinner', '2026-10-17'),
     );
     fillRequiredFields(result);
     const { single, insert } = setupBarcodeTable({
@@ -124,7 +123,7 @@ describe('useCustomFood', () => {
       serving_size_value: 100,
     })]);
     expect(navigation.navigate).toHaveBeenCalledWith('FoodDetail', expect.objectContaining({
-      meal: 'dinner', remainingCalories: 800,
+      meal: 'dinner',
     }));
     expect(queryClient.getQueryState(barcodeProductQueryKey('12345678'))?.isInvalidated).toBe(true);
   });
@@ -132,7 +131,7 @@ describe('useCustomFood', () => {
   it('stops duplicate barcodes and surfaces lookup or insert failures', async () => {
     const navigation = { navigate: jest.fn() } as never;
     const { result } = renderHook(() =>
-      useCustomFood('foodWithBarcode', navigation, 1000, '12345678', 'dinner', '2026-10-17'),
+      useCustomFood('foodWithBarcode', navigation, '12345678', 'dinner', '2026-10-17'),
     );
     fillRequiredFields(result);
     setupBarcodeTable({ data: { barcode_id: '12345678' }, error: null });
@@ -157,7 +156,7 @@ describe('useCustomFood', () => {
   it('ignores a second submit while the barcode save is still running', async () => {
     const navigation = { navigate: jest.fn() } as never;
     const { result } = renderHook(() =>
-      useCustomFood('foodWithBarcode', navigation, 1000, '12345678', 'dinner', '2026-10-17'),
+      useCustomFood('foodWithBarcode', navigation, '12345678', 'dinner', '2026-10-17'),
     );
     fillRequiredFields(result);
     const missing = { data: null, error: { code: 'PGRST116' } };
@@ -182,7 +181,7 @@ describe('useCustomFood', () => {
   it('accepts a new submit after a failed save, a duplicate barcode, and a successful save', async () => {
     const navigation = { navigate: jest.fn() } as never;
     const { result } = renderHook(() =>
-      useCustomFood('foodWithBarcode', navigation, 1000, '12345678', 'dinner', '2026-10-17'),
+      useCustomFood('foodWithBarcode', navigation, '12345678', 'dinner', '2026-10-17'),
     );
     fillRequiredFields(result);
 
@@ -206,7 +205,7 @@ describe('useCustomFood', () => {
   it('reports an existing product when the insert loses a race on the barcode key', async () => {
     const navigation = { navigate: jest.fn() } as never;
     const { result } = renderHook(() =>
-      useCustomFood('foodWithBarcode', navigation, 1000, '12345678', 'dinner', '2026-10-17'),
+      useCustomFood('foodWithBarcode', navigation, '12345678', 'dinner', '2026-10-17'),
     );
     fillRequiredFields(result);
     setupBarcodeTable(

@@ -24,7 +24,6 @@ type FieldValue = FoodFormData[Field];
 export const useCustomFood = (
     type: string | undefined,
     navigation: AppNavigationProp,
-    remainingCalories: number,
     barcode = '',
     meal: string | undefined,
     selectedDate: string | undefined
@@ -122,7 +121,6 @@ export const useCustomFood = (
         
         try {
             const formattedData = formatFoodDataForSubmission(formData);
-            const updatedRemainingCalories = remainingCalories - formattedData.calories;
             const serializedDate = selectedDate ? formatDate(selectedDate) : formatDate(new Date());
             
             if (type === 'foodWithBarcode') {
@@ -173,7 +171,6 @@ export const useCustomFood = (
                     food: foodForDetail,
                     meal: meal,
                     selectedDate: serializedDate,
-                    remainingCalories: updatedRemainingCalories,
                     update: false
                 });
             } else {
@@ -183,7 +180,6 @@ export const useCustomFood = (
                     food: foodForDetail,
                     meal: meal,
                     selectedDate: serializedDate,
-                    remainingCalories: updatedRemainingCalories,
                     update: false,
                 });
             }
@@ -193,7 +189,7 @@ export const useCustomFood = (
         } finally {
             submittingRef.current = false;
         }
-    }, [formData, type, remainingCalories, navigation, meal, selectedDate]);
+    }, [formData, type, navigation, meal, selectedDate]);
     
     const focusFirstField = useCallback(() => {
         inputRefs.current['productName']?.focus();
