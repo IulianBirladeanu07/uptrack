@@ -22,3 +22,13 @@ describe('small text contrast', () => {
     expect(contrast(colors.text.tertiary, colors.background.primary)).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+describe('navigation label contrast', () => {
+  it('keeps the inactive bottom navigation label readable on its background', () => {
+    expect(contrast(colors.text.tertiary, colors.background.secondary)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('documents that quaternary text is too faint for small labels', () => {
+    expect(contrast(colors.text.quaternary, colors.background.secondary)).toBeLessThan(4.5);
+  });
+});

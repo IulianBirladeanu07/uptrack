@@ -37,7 +37,14 @@ const NavItem = ({ screen, isActive, onPress }: NavItemProps) => {
     const iconColor = isActive ? colors.accent.primary : colors.text.secondary;
 
     return (
-        <TouchableOpacity style={styles.navItem} onPress={onPress} activeOpacity={0.7}>
+        <TouchableOpacity
+            style={styles.navItem}
+            onPress={onPress}
+            activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityLabel={screen.label}
+            accessibilityState={{ selected: isActive }}
+        >
             {screen.renderIcon(iconColor)}
             <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>{screen.label}</Text>
         </TouchableOpacity>
@@ -86,7 +93,7 @@ const styles = createStyles(() => ({
     },
     navLabel: {
         fontSize: fontSize[10],
-        color: colors.text.quaternary,
+        color: colors.text.tertiary,
         fontWeight: fontWeight.medium,
     },
     navLabelActive: {

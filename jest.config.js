@@ -40,6 +40,7 @@ module.exports = {
     '<rootDir>/src/shared/firestore/**/*.test.{js,ts}',
     '<rootDir>/src/shared/hooks/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/shared/services/**/*.test.{js,ts}',
+    '<rootDir>/src/shared/components/BottomNav/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/shared/utils/**/*.test.{js,ts}',
   ],
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx', 'json'],
