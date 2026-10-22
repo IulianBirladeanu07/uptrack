@@ -68,6 +68,33 @@ describe('RegistrationScreen', () => {
     expect(Alert.alert.mock.calls[0][1]).toContain("You don't need to register again.");
   });
 
+  it('accepts an email with a trailing space and sends it trimmed', async () => {
+    const mockSignUp = jest.requireMock('../../services/firebaseAuthService').default.signUpWithEmailAndPassword;
+    mockSignUp.mockResolvedValueOnce({});
+    render(<RegistrationScreen />);
+
+    fireEvent.changeText(screen.getByPlaceholderText('Email'), '  person@example.com ');
+    fireEvent.changeText(screen.getByPlaceholderText('Password'), 'GoodPass1!');
+    fireEvent.changeText(screen.getByPlaceholderText('Confirm Password'), 'GoodPass1!');
+    fireEvent.press(screen.getByTestId('registration-submit-button'));
+
+    await waitFor(() => expect(mockSignUp).toHaveBeenCalledWith('person@example.com', 'GoodPass1!'));
+    expect(screen.queryByText('Please enter a valid email address.')).toBeNull();
+  });
+
+  it('still rejects an email with a space inside it', async () => {
+    const mockSignUp = jest.requireMock('../../services/firebaseAuthService').default.signUpWithEmailAndPassword;
+    render(<RegistrationScreen />);
+
+    fireEvent.changeText(screen.getByPlaceholderText('Email'), 'per son@example.com');
+    fireEvent.changeText(screen.getByPlaceholderText('Password'), 'GoodPass1!');
+    fireEvent.changeText(screen.getByPlaceholderText('Confirm Password'), 'GoodPass1!');
+    fireEvent.press(screen.getByTestId('registration-submit-button'));
+
+    await waitFor(() => expect(screen.getByText('Please enter a valid email address.')).toBeTruthy());
+    expect(mockSignUp).not.toHaveBeenCalled();
+  });
+
   it('matches the login brand treatment and uses a clear login action', () => {
     render(<RegistrationScreen />);
 

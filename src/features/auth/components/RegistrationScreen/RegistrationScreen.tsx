@@ -20,14 +20,15 @@ const RegistrationScreen = () => {
   const navigation = useRootNavigation();
 
   const handleSignUp = async () => {
+    const trimmedEmail = email.trim();
     try {
       setLoading(true);
-      if (!email || !password || !confirmedPassword) {
+      if (!trimmedEmail || !password || !confirmedPassword) {
         setError('Please fill out all fields.');
         setLoading(false);
         return;
       }
-      if (!isValidEmail(email)) {
+      if (!isValidEmail(trimmedEmail)) {
         setError('Please enter a valid email address.');
         setLoading(false);
         return;
@@ -42,11 +43,11 @@ const RegistrationScreen = () => {
         setLoading(false);
         return;
       }
-      await firebaseAuthService.signUpWithEmailAndPassword(email, password);
+      await firebaseAuthService.signUpWithEmailAndPassword(trimmedEmail, password);
       setError(null);
       Alert.alert(
         'Registration Successful',
-        registrationVerificationMessage(email.trim()),
+        registrationVerificationMessage(trimmedEmail),
         [
           {
             text: 'OK',
