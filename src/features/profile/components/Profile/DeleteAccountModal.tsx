@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { getAuth, EmailAuthProvider, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, EmailAuthProvider, GoogleAuthProvider, OAuthProvider } from 'firebase/auth';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { deleteAccount } from '../../services/accountDeletionService';
+import { createAppleSignInNonce } from '../../../auth/utils/appleSignInNonce';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
@@ -14,7 +16,7 @@ const errorMessage = (e: AuthError) => {
     case 'auth/invalid-credential':
       return 'Wrong password.';
     case 'auth/user-mismatch':
-      return 'Choose the Google account you signed in with.';
+      return 'Choose the same account you signed in with.';
     case 'auth/too-many-requests':
       return 'Too many attempts. Try again later.';
     case 'auth/network-request-failed':
@@ -31,6 +33,7 @@ const DeleteAccountModal = ({ visible, onClose }: { visible: boolean; onClose: (
 
   const user = getAuth().currentUser;
   const usesPassword = !!user?.providerData.some(p => p.providerId === 'password');
+  const usesApple = !!user?.providerData.some(p => p.providerId === 'apple.com');
   const canDelete = !busy && (!usesPassword || password.length > 0);
 
   const close = () => {
@@ -42,6 +45,23 @@ const DeleteAccountModal = ({ visible, onClose }: { visible: boolean; onClose: (
 
   const getCredential = async () => {
     if (usesPassword) return EmailAuthProvider.credential(user!.email!, password);
+
+    if (usesApple) {
+      const { rawNonce, hashedNonce } = await createAppleSignInNonce();
+      const appleCredential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        ],
+        nonce: hashedNonce,
+      });
+      if (!appleCredential.identityToken) throw new Error('No identity token received');
+      return new OAuthProvider('apple.com').credential({
+        idToken: appleCredential.identityToken,
+        rawNonce,
+      });
+    }
+
     await GoogleSignin.hasPlayServices();
     await GoogleSignin.signOut();
     const info = await GoogleSignin.signIn();
@@ -49,6 +69,12 @@ const DeleteAccountModal = ({ visible, onClose }: { visible: boolean; onClose: (
     if (!idToken) throw new Error('No id_token received');
     return GoogleAuthProvider.credential(idToken);
   };
+
+  const confirmHint = usesPassword
+    ? null
+    : usesApple
+      ? 'You will be asked to confirm with Apple.'
+      : 'You will be asked to confirm with Google.';
 
   const handleDelete = async () => {
     if (!user || !canDelete) return;
@@ -58,7 +84,12 @@ const DeleteAccountModal = ({ visible, onClose }: { visible: boolean; onClose: (
       const credential = await getCredential();
       await deleteAccount(user, credential);
     } catch (e) {
-      if ((e as AuthError).code !== statusCodes.SIGN_IN_CANCELLED) setError(errorMessage(e as AuthError));
+      const code = (e as AuthError).code;
+      if (code === statusCodes.SIGN_IN_CANCELLED || code === 'ERR_REQUEST_CANCELED') {
+        setBusy(false);
+        return;
+      }
+      setError(errorMessage(e as AuthError));
       setBusy(false);
     }
   };
@@ -85,7 +116,7 @@ const DeleteAccountModal = ({ visible, onClose }: { visible: boolean; onClose: (
               editable={!busy}
             />
           ) : (
-            <Text style={styles.hint}>You will be asked to confirm with Google.</Text>
+            <Text style={styles.hint}>{confirmHint}</Text>
           )}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.actions}>
@@ -103,21 +134,21 @@ const DeleteAccountModal = ({ visible, onClose }: { visible: boolean; onClose: (
 };
 
 const styles = createStyles(() => ({
-  root:              { flex: 1, justifyContent: 'center', paddingHorizontal: spacing[5] },
-  backdrop:          { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.background.overlay },
-  card:              { backgroundColor: colors.background.secondary, borderRadius: radius[4], borderWidth: 1, borderColor: colors.border.default, padding: spacing[5] },
-  title:             { fontSize: fontSize[20], fontWeight: fontWeight.bold, color: colors.text.primary, marginBottom: spacing[3] },
-  body:              { fontSize: fontSize[14], color: colors.text.secondary, lineHeight: 20, marginBottom: spacing[4] },
-  hint:              { fontSize: fontSize[14], color: colors.text.tertiary, marginBottom: spacing[2] },
-  input:             { backgroundColor: colors.background.tertiary, borderRadius: radius[3], borderWidth: 1, borderColor: colors.border.default, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize[16], color: colors.text.primary, marginBottom: spacing[2] },
-  error:             { fontSize: fontSize[12], color: colors.accent.error, marginBottom: spacing[2] },
-  actions:           { flexDirection: 'row', gap: spacing[3], marginTop: spacing[3] },
-  btn:               { flex: 1, height: spacing.buttonHeight, borderRadius: radius[3], alignItems: 'center', justifyContent: 'center' },
-  cancelBtn:         { backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.default },
-  cancelText:        { fontSize: fontSize[16], fontWeight: fontWeight.semibold, color: colors.text.primary },
-  deleteBtn:         { backgroundColor: colors.accent.error },
-  deleteBtnDisabled: { opacity: 0.4 },
-  deleteText:        { fontSize: fontSize[16], fontWeight: fontWeight.bold, color: colors.accent.buttonText },
+  root:             { flex: 1, justifyContent: 'center', paddingHorizontal: spacing[5] },
+  backdrop:         { ...({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } as const), backgroundColor: 'rgba(0,0,0,0.55)' },
+  card:             { backgroundColor: colors.background.secondary, borderRadius: radius[5], padding: spacing[5], borderWidth: 1, borderColor: colors.border.default },
+  title:            { fontSize: fontSize[20], fontWeight: fontWeight.bold, color: colors.text.primary, marginBottom: spacing[2] },
+  body:             { fontSize: fontSize[14], color: colors.text.secondary, lineHeight: fontSize[20], marginBottom: spacing[4] },
+  hint:             { fontSize: fontSize[13], color: colors.text.tertiary, marginBottom: spacing[3] },
+  input:            { borderWidth: 1, borderColor: colors.border.default, borderRadius: radius[3], paddingHorizontal: spacing[3], paddingVertical: spacing[3], color: colors.text.primary, marginBottom: spacing[3], backgroundColor: colors.background.primary },
+  error:            { color: colors.accent.error, fontSize: fontSize[13], marginBottom: spacing[3] },
+  actions:          { flexDirection: 'row', gap: spacing[3], marginTop: spacing[2] },
+  btn:              { flex: 1, height: spacing.buttonHeight, borderRadius: radius[4], alignItems: 'center', justifyContent: 'center' },
+  cancelBtn:        { backgroundColor: colors.background.tertiary, borderWidth: 1, borderColor: colors.border.default },
+  cancelText:       { fontSize: fontSize[16], fontWeight: fontWeight.semibold, color: colors.text.primary },
+  deleteBtn:        { backgroundColor: colors.accent.error },
+  deleteBtnDisabled:{ opacity: 0.4 },
+  deleteText:       { fontSize: fontSize[16], fontWeight: fontWeight.bold, color: colors.accent.buttonText },
 }));
 
 export default DeleteAccountModal;
