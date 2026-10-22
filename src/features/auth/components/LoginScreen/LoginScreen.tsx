@@ -15,6 +15,7 @@ import {
   resentVerificationMessage,
 } from '../../utils/verificationEmailCopy';
 import { createAppleSignInNonce } from '../../utils/appleSignInNonce';
+import AuthScreenLayout from '../AuthScreenLayout';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -155,7 +156,7 @@ const LoginScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <AuthScreenLayout contentContainerStyle={styles.container}>
       <View style={styles.logoContainer}>
         <Text style={styles.logoText}>UPTRACK</Text>
       </View>
@@ -172,6 +173,8 @@ const LoginScreen = () => {
           placeholderTextColor={colors.text.tertiary}
           autoCapitalize="none"
           keyboardType="email-address"
+          autoComplete="email"
+          textContentType="emailAddress"
         />
       </View>
 
@@ -184,6 +187,8 @@ const LoginScreen = () => {
           placeholder="Password"
           placeholderTextColor={colors.text.tertiary}
           secureTextEntry={!showPassword}
+          autoComplete="current-password"
+          textContentType="password"
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
           <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={spacing[6]} color={colors.text.tertiary} />
@@ -277,13 +282,13 @@ const LoginScreen = () => {
           <Text style={styles.registerText}>Register</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </AuthScreenLayout>
   );
 };
 
 const styles = createStyles(() => ({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: colors.background.primary,
     padding: spacing[5],
     justifyContent: 'center',

@@ -5,6 +5,7 @@ import { useRootNavigation } from '../../../../shared/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
+import AuthScreenLayout from '../AuthScreenLayout';
 
 const ForgotPasswordScreen = () => {
   const [email, setEmail] = useState('');
@@ -48,7 +49,7 @@ const ForgotPasswordScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <AuthScreenLayout contentContainerStyle={styles.container}>
       <View style={styles.iconContainer}>
         <Ionicons name="mail-outline" size={spacing[20]} color={colors.accent.primary} />
       </View>
@@ -97,13 +98,13 @@ const ForgotPasswordScreen = () => {
         <Ionicons name="arrow-back" size={spacing[6]} color={colors.accent.cyan} />
         <Text style={styles.backToLoginButtonText}>Back to Login</Text>
       </TouchableOpacity>
-    </View>
+    </AuthScreenLayout>
   );
 };
 
 const styles = createStyles(() => ({
   container: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing[5],

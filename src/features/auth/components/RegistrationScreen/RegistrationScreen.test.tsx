@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { Alert, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import RegistrationScreen from './RegistrationScreen';
 
@@ -74,5 +74,12 @@ describe('RegistrationScreen', () => {
     expect(screen.getByText('UPTRACK')).toBeTruthy();
     expect(screen.getByText('Already have an account?')).toBeTruthy();
     expect(screen.getByText('Log in')).toBeTruthy();
+  });
+
+  it('scrolls and keeps the keyboard from hiding the form', () => {
+    render(<RegistrationScreen />);
+
+    expect(screen.UNSAFE_getByType(ScrollView).props.keyboardShouldPersistTaps).toBe('handled');
+    expect(screen.UNSAFE_getByType(KeyboardAvoidingView)).toBeTruthy();
   });
 });

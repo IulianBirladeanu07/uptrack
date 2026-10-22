@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import LoginScreen from './LoginScreen';
 
@@ -233,5 +233,12 @@ describe('LoginScreen', () => {
 
             expect(screen.queryByTestId('verify-email-notice')).toBeNull();
         });
+    });
+
+    it('scrolls and keeps the keyboard from hiding the form', () => {
+        render(<LoginScreen />);
+
+        expect(screen.UNSAFE_getByType(ScrollView).props.keyboardShouldPersistTaps).toBe('handled');
+        expect(screen.UNSAFE_getByType(KeyboardAvoidingView)).toBeTruthy();
     });
 });

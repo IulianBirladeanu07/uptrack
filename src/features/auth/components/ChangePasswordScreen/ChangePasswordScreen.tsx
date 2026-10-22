@@ -7,6 +7,7 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../../../share
 import { passwordChangeError } from '../../utils/passwordChangeError';
 import { isStrongPassword } from '../../utils/credentials';
 import { useAppNavigation } from '../../../../shared/navigation';
+import AuthScreenLayout from '../AuthScreenLayout';
 
 const ChangePasswordScreen = () => {
   const navigation = useAppNavigation();
@@ -68,7 +69,7 @@ const ChangePasswordScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <AuthScreenLayout contentContainerStyle={styles.container}>
       <TouchableOpacity 
         style={styles.backButton} 
         onPress={() => navigation.goBack()}
@@ -134,13 +135,13 @@ const ChangePasswordScreen = () => {
           <Text style={styles.buttonText}>Update Password</Text>
         )}
       </TouchableOpacity>
-    </View>
+    </AuthScreenLayout>
   );
 };
 
 const styles = createStyles(() => ({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: colors.background.primary,
     padding: spacing[5],
   },

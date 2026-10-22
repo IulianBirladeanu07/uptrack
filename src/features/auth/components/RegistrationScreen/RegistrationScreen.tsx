@@ -7,6 +7,7 @@ import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { getPasswordStrength, isStrongPassword, isValidEmail } from '../../utils/credentials';
 import { registrationVerificationMessage } from '../../utils/verificationEmailCopy';
+import AuthScreenLayout from '../AuthScreenLayout';
 
 const RegistrationScreen = () => {
   const [email, setEmail] = useState('');
@@ -79,7 +80,7 @@ const RegistrationScreen = () => {
   const passwordStrength = getPasswordStrength(password);
 
   return (
-    <View style={styles.container}>
+    <AuthScreenLayout contentContainerStyle={styles.container}>
       <View style={styles.logoContainer}>
         <Text style={styles.logoText}>UPTRACK</Text>
       </View>
@@ -99,6 +100,8 @@ const RegistrationScreen = () => {
           placeholderTextColor={colors.text.tertiary}
           autoCapitalize="none"
           keyboardType="email-address"
+          autoComplete="email"
+          textContentType="emailAddress"
         />
       </View>
 
@@ -114,6 +117,8 @@ const RegistrationScreen = () => {
           placeholder="Password"
           placeholderTextColor={colors.text.tertiary}
           secureTextEntry={!showPassword}
+          autoComplete="new-password"
+          textContentType="newPassword"
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
           <Ionicons name={showPassword ? "eye-off" : "eye"} size={spacing[6]} color={colors.text.tertiary} />
@@ -145,6 +150,8 @@ const RegistrationScreen = () => {
           placeholder="Confirm Password"
           placeholderTextColor={colors.text.tertiary}
           secureTextEntry={!showConfirmPassword}
+          autoComplete="new-password"
+          textContentType="newPassword"
         />
         <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
           <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={spacing[6]} color={colors.text.tertiary} />
@@ -175,13 +182,13 @@ const RegistrationScreen = () => {
         <Text style={styles.loginPrompt}>Already have an account?</Text>
         <Text style={styles.loginLink}>Log in</Text>
       </TouchableOpacity>
-    </View>
+    </AuthScreenLayout>
   );
 };
 
 const styles = createStyles(() => ({
   container: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing[5],
