@@ -125,7 +125,7 @@ export const handleFoodAddition = async ({
       success: true,
       navigation: {
         screen: 'Nutrition',
-        params: { refresh: true, meal }
+        params: { meal }
       }
     };
   }
@@ -138,7 +138,6 @@ export const handleFoodAddition = async ({
         selectedFoodDetail: updatedFoodDetails,
         meal,
         selectedDate: formatDate(selectedDate),
-        refresh: true,
         remainingCalories: remainingCalories,
       }
     }

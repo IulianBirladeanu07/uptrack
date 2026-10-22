@@ -202,31 +202,6 @@ export const clearExercisesCache = async (clearImages = false): Promise<void> =>
   }
 };
 
-export const prefetchExercises = async (
-  priority: 'low' | 'medium' | 'high' = 'low',
-): Promise<ExerciseGroup[] | void> => {
-  try {
-    if (memoryCache.data && Date.now() - memoryCache.timestamp < CACHE_DURATION) {
-      return memoryCache.data;
-    }
-
-    if (priority === 'high') {
-      return await fetchExercises(false);
-    }
-
-    const delay = priority === 'medium' ? 500 : 2000;
-    setTimeout(async () => {
-      try {
-        await fetchExercises(false);
-      } catch (error) {
-        console.warn('Background exercise prefetch failed:', error);
-      }
-    }, delay);
-  } catch (error) {
-    console.warn('Exercise prefetch failed:', error);
-  }
-};
-
 export const getCacheStatus = (): CacheStatus => ({
   hasMemoryCache: !!memoryCache.data,
   cacheAge: memoryCache.timestamp ? Date.now() - memoryCache.timestamp : 0,

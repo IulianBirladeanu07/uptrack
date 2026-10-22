@@ -186,7 +186,7 @@ const FoodSelectionScreen = () => {
         })) as LoggedFood[];
         try {
             await handleAddMeal(meal as MealType, validatedFoods, selectedDate);
-            navigation.navigate('Nutrition', { refresh: true });
+            navigation.navigate('Nutrition');
         } catch {
             isSubmittingRef.current = false;
         }

@@ -14,7 +14,6 @@ export {
   createCustomExercise,
   fetchExercises,
   getCacheStatus,
-  prefetchExercises,
 } from '../services/exerciseCatalogService';
 export {
   countWorkoutsThisWeek,

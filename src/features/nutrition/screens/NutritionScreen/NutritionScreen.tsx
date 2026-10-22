@@ -12,14 +12,13 @@ import NutritionStats from '../../components/NutritionStats/NutritionStats';
 import useWeightData from '../../helpers/useWeightData';
 import styles from './NutritionScreenStyles';
 import type { FoodItemData } from '../../components/NutritionItem/FoodItem';
-import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import { useAppNavigation } from '../../../../shared/navigation';
 import { formatDate } from '../../utils/dateUtils';
 import type { FoodDetailFood, LoggedFood, MealType } from '../../../../shared/types';
 
 const NutritionScreen = () => {
     const navigation = useAppNavigation();
     const navInset = useBottomNavInset();
-    const route = useAppRoute<'Nutrition'>();
 
     const {
         breakfastFoods,
@@ -59,12 +58,6 @@ const NutritionScreen = () => {
         });
         return unsubscribe;
     }, [navigation, userId, refreshWeightData]);
-
-    useEffect(() => {
-        if (route.params?.refresh) {
-            navigation.setParams({ refresh: false });
-        }
-    }, [route.params?.refresh, navigation]);
 
     const handleDateChange = useCallback((date: Date) => {
         setSelectedDate(date);

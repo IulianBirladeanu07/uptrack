@@ -10,13 +10,6 @@ import {
 } from '../services/workoutHistoryQuery';
 import type { PersistedWorkoutState } from '../types';
 
-type UserSettings = {
-  targetCalories: number;
-  targetProtein: number;
-  targetFats: number;
-  targetCarbs: number;
-};
-
 export type WorkoutContextValue = {
   workoutHistory: Record<string, unknown>[];
   templates: unknown[];
@@ -27,8 +20,6 @@ export type WorkoutContextValue = {
   workoutHistoryLoadMoreError: string | null;
   loadMoreWorkoutHistory: () => Promise<void>;
   refreshAllData: (immediate?: boolean) => Promise<unknown>;
-  userSettings: UserSettings;
-  setUserSettings: (settings: Partial<UserSettings>) => void;
 };
 
 export const WorkoutContext = createContext<WorkoutContextValue | undefined>(undefined);
@@ -40,21 +31,11 @@ export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
   const [workoutHistoryLoadMoreError, setWorkoutHistoryLoadMoreError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<unknown[]>([]);
   const [activeWorkout, setActiveWorkout] = useState<PersistedWorkoutState | null>(null);
-  const [userSettings, setUserSettingsState] = useState<UserSettings>({
-    targetCalories: 2000,
-    targetProtein: 150,
-    targetFats: 70,
-    targetCarbs: 250,
-  });
 
   const refreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const historyPageRef = useRef(0);
   const historyGenerationRef = useRef(0);
   const loadingMoreHistoryRef = useRef(false);
-
-  const setUserSettings = useCallback((settings: Partial<UserSettings>) => {
-    setUserSettingsState(prev => ({ ...prev, ...settings }));
-  }, []);
 
   const checkActiveWorkout = useCallback(async () => {
     const uid = getAuth().currentUser?.uid;
@@ -212,8 +193,6 @@ export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
       activeWorkout,
       setActiveWorkout,
       refreshAllData,
-      userSettings,
-      setUserSettings,
     }),
     [
       workoutHistory,
@@ -224,8 +203,6 @@ export const WorkoutProvider = ({ children }: { children: ReactNode }) => {
       templates,
       activeWorkout,
       refreshAllData,
-      userSettings,
-      setUserSettings,
     ],
   );
 
