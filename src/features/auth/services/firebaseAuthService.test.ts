@@ -40,10 +40,15 @@ jest.mock('firebase/firestore', () => ({
 jest.mock('../../auth/services/firebaseConfigService', () => ({ auth: {}, db: {} }));
 jest.mock('expo-constants', () => ({ expoConfig: { extra: {} } }));
 
-import { signInWithCredential } from 'firebase/auth';
-import { OAuthProvider } from 'firebase/auth';
-import { updateDoc } from 'firebase/firestore';
-import firebaseAuthService from './firebaseAuthService';
+import {
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  signInWithEmailAndPassword as firebaseSignIn,
+  signInWithCredential,
+  OAuthProvider,
+} from 'firebase/auth';
+import { setDoc, updateDoc } from 'firebase/firestore';
+import firebaseAuthService, { sendPasswordResetEmail } from './firebaseAuthService';
 
 const passwordUser = (emailVerified) => ({
   uid: 'u1',
@@ -272,5 +277,34 @@ describe('signInWithApple', () => {
       { name: 'users', id: 'u1' },
       { lastLogin: 'ts' },
     );
+  });
+});
+
+describe('email normalisation', () => {
+  it('sends a trimmed address when signing in', async () => {
+    await firebaseAuthService.signInWithEmailAndPassword('  a@b.co ', ' pw ', jest.fn(), jest.fn());
+
+    expect(firebaseSignIn).toHaveBeenLastCalledWith({}, 'a@b.co', ' pw ');
+  });
+
+  it('creates the account and its profile with a trimmed address', async () => {
+    await firebaseAuthService.signUpWithEmailAndPassword('a@b.co ', 'pw');
+
+    expect(createUserWithEmailAndPassword).toHaveBeenLastCalledWith({}, 'a@b.co', 'pw');
+    expect(setDoc).toHaveBeenLastCalledWith({ name: 'users', id: 'u1' }, expect.objectContaining({ email: 'a@b.co' }));
+  });
+
+  it('resends the verification email to a trimmed address', async () => {
+    mockStore.signInUser = passwordUser(false);
+
+    await firebaseAuthService.resendVerificationEmail(' a@b.co', 'pw');
+
+    expect(firebaseSignIn).toHaveBeenLastCalledWith({}, 'a@b.co', 'pw');
+  });
+
+  it('sends the password reset to a trimmed address', async () => {
+    await sendPasswordResetEmail(' a@b.co  ');
+
+    expect(firebaseSendPasswordResetEmail).toHaveBeenLastCalledWith({}, 'a@b.co');
   });
 });

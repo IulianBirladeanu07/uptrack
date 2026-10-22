@@ -16,7 +16,7 @@ const signInWithEmailAndPassword = async (
   setAuthenticated: SetFlag,
   setProfileSetupComplete: SetFlag,
 ): Promise<void> => {
-  const response = await firebaseSignInWithEmailAndPassword(auth, email, password);
+  const response = await firebaseSignInWithEmailAndPassword(auth, email.trim(), password);
   const user = response.user;
 
   if (needsEmailVerification(user)) {
@@ -34,7 +34,8 @@ const signInWithEmailAndPassword = async (
   setProfileSetupComplete(userData.profileSetupComplete || false);
 };
 
-const signUpWithEmailAndPassword = async (email: string, password: string): Promise<User> => {
+const signUpWithEmailAndPassword = async (rawEmail: string, password: string): Promise<User> => {
+  const email = rawEmail.trim();
   let user: User;
   try {
     const response = await createUserWithEmailAndPassword(auth, email, password);
@@ -68,7 +69,7 @@ const signUpWithEmailAndPassword = async (email: string, password: string): Prom
 
 const resendVerificationEmail = async (email: string, password: string): Promise<boolean> => {
   try {
-    const response = await firebaseSignInWithEmailAndPassword(auth, email, password);
+    const response = await firebaseSignInWithEmailAndPassword(auth, email.trim(), password);
     const user = response.user;
 
     if (!needsEmailVerification(user)) return false;
@@ -175,7 +176,7 @@ const signInWithApple = async (
 
 export const sendPasswordResetEmail = async (email: string): Promise<void> => {
   try {
-    await firebaseSendPasswordResetEmail(auth, email);
+    await firebaseSendPasswordResetEmail(auth, email.trim());
   } catch (error) {
     if ((error as FirebaseError).code === 'auth/user-not-found') return;
     throw new Error(getAuthErrorMessage(error, 'passwordReset'));
