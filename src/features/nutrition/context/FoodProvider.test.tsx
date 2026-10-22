@@ -716,6 +716,26 @@ describe('FoodProvider initialization', () => {
         expect(fetchLast30DaysMeals).not.toHaveBeenCalled();
     });
 
+    test('does not publish a new context value when the step count has not changed', async () => {
+        const hook = await setup();
+        await act(async () => {
+            hook.result.current.updateDailySteps(8000, today);
+        });
+        const published = hook.result.current;
+        expect(published.dailySteps).toBe(8000);
+
+        await act(async () => {
+            hook.result.current.updateDailySteps(8000, today);
+        });
+        expect(hook.result.current).toBe(published);
+
+        await act(async () => {
+            hook.result.current.updateDailySteps(8100, today);
+        });
+        expect(hook.result.current).not.toBe(published);
+        expect(hook.result.current.dailySteps).toBe(8100);
+    });
+
     test('resets account-scoped state before loading data for a different account', async () => {
         const hook = await setup();
         await act(async () => {

@@ -240,6 +240,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     const updateDailySteps = useCallback((steps: number, dateKey?: string) => {
         if (!mountedRef.current) return;
         const key = dateKey || formatDate(selectedDateRef.current);
+        if (mealCache.current.getSteps(key) === steps) return;
         mealCache.current.setSteps(key, steps);
         setStepsVersion(v => v + 1);
     }, []);
