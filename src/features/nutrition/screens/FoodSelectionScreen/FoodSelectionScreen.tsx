@@ -9,6 +9,7 @@ import CategorySelector from '../../components/CategorySelector/CategorySelector
 import FoodListItem from '../../components/NutritionItem/FoodListItem';
 import type { FoodItemData } from '../../components/NutritionItem/FoodItem';
 import DoneButton from '../../../../shared/components/DoneButton/DoneButton';
+import { resolveCalorieTarget } from '../../helpers/calorieTarget';
 import { useFoodSearch } from '../../helpers/useFoodSearch';
 import { useRecentSearches } from '../../helpers/useRecentSearches';
 import FoodSelectionHeader from '../../components/FoodSelectionHeader/FoodSelectionHeader';
@@ -52,6 +53,7 @@ const FoodSelectionScreen = () => {
     const {
         handleAddMeal,
         remainingCalories,
+        hasTargets,
         dailyNutrition,
         userMacros,
         error,
@@ -96,7 +98,7 @@ const FoodSelectionScreen = () => {
     }, [selectedDate]);
 
     const currentCalories = useMemo(() => Math.round(dailyNutrition?.calories || 0), [dailyNutrition?.calories]);
-    const targetCalories = useMemo(() => Math.round(userMacros?.targetCalories || 2000), [userMacros?.targetCalories]);
+    const targetCalories = useMemo(() => resolveCalorieTarget(hasTargets, userMacros?.targetCalories), [hasTargets, userMacros?.targetCalories]);
 
     useEffect(() => {
         if (!selectedFoodDetail) return;
@@ -247,10 +249,9 @@ const FoodSelectionScreen = () => {
             {!isSearching && (
                 <FoodSelectionHeader
                     date={formattedDate}
-                    dailyGoal={targetCalories}
                     selectedFoods={selectedFoods}
                     currentCalories={currentCalories}
-                    targetCalories={targetCalories}
+                    targetCalories={targetCalories ?? undefined}
                     onQuickActionsPress={handleQuickActionsPress}
                 />
             )}

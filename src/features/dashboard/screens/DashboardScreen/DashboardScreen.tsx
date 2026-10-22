@@ -3,7 +3,8 @@ import { View, ScrollView, TouchableOpacity, Text, ActivityIndicator, Animated }
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
-import { useFoodContext } from '../../../nutrition/context/FoodContext';
+import { REQUIRED_LEARNING_DAYS, useFoodContext } from '../../../nutrition/context/FoodContext';
+import { learningProgressLabel, resolveCalorieTarget } from '../../../nutrition/helpers/calorieTarget';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
@@ -167,33 +168,37 @@ type MacroTotals = { carbs: number; protein: number; fat: number };
 
 type TodayNutritionProps = {
     calories: number;
-    targetCalories: number;
+    targetCalories: number | null;
+    learningLabel: string;
     macros: MacroTotals;
     macroTargets: MacroTotals;
     onPress: () => void;
 };
 
-const TodayNutrition = ({ calories, targetCalories, macros, macroTargets, onPress }: TodayNutritionProps) => {
-    const percentage = targetCalories > 0 ? Math.round((calories / targetCalories) * 100) : 0;
-    const remaining = targetCalories - calories;
-    const isComplete = calories >= targetCalories;
+const TodayNutrition = ({ calories, targetCalories, learningLabel, macros, macroTargets, onPress }: TodayNutritionProps) => {
+    const percentage = targetCalories ? Math.round((calories / targetCalories) * 100) : 0;
+    const remaining = targetCalories ? targetCalories - calories : 0;
+    const isComplete = targetCalories ? calories >= targetCalories : false;
+    const badgeText = targetCalories == null ? learningLabel : isComplete ? 'Complete' : `${Math.round(remaining)} left`;
 
     return (
         <TouchableOpacity style={styles.nutritionCard} onPress={onPress} activeOpacity={0.85}>
             <View style={styles.nutritionHeader}>
                 <View style={styles.caloriesValues}>
                     <Text style={styles.caloriesValue}>{Math.round(calories).toLocaleString()}</Text>
-                    <Text style={styles.caloriesTarget}>/ {Math.round(targetCalories).toLocaleString()}</Text>
-                </View>
-                <View style={styles.percentageBadge}>
-                    <Text style={styles.percentageText}>
-                        {isComplete ? 'Complete' : `${Math.round(remaining)} left`}
+                    <Text style={styles.caloriesTarget}>
+                        {targetCalories == null ? 'kcal' : `/ ${targetCalories.toLocaleString()}`}
                     </Text>
                 </View>
+                <View style={styles.percentageBadge}>
+                    <Text style={styles.percentageText}>{badgeText}</Text>
+                </View>
             </View>
-            <View style={styles.nutritionProgress}>
-                <View style={[styles.nutritionProgressFill, { width: `${Math.min(percentage, 100)}%` }]} />
-            </View>
+            {targetCalories != null && (
+                <View style={styles.nutritionProgress}>
+                    <View style={[styles.nutritionProgressFill, { width: `${Math.min(percentage, 100)}%` }]} />
+                </View>
+            )}
             <View style={styles.macroRow}>
                 {[
                     { label: 'Carbs',   value: macros.carbs,   target: macroTargets.carbs,   color: colors.accent.success },
@@ -222,12 +227,13 @@ const DashboardScreen = () => {
     const navigation = useAppNavigation();
     const navInset = useBottomNavInset();
 
-    const { dailyNutrition, userMacros, rollingWeekStats, getCaloriesForDateRange, initialLoadComplete, stepsConnected, stepsLoading, retryStepsConnection } = useFoodContext();
+    const { dailyNutrition, userMacros, hasTargets, learningData, rollingWeekStats, getCaloriesForDateRange, initialLoadComplete, stepsConnected, stepsLoading, retryStepsConnection } = useFoodContext();
     const { workoutHistory, activeWorkout } = useContext(WorkoutContext)!;
     const { userData } = useContext(AuthContext)!;
 
     const targetWorkouts = userData?.targetWorkoutsPerWeek || 5;
-    const targetCalories = userMacros?.targetCalories || 2000;
+    const targetCalories = resolveCalorieTarget(hasTargets, userMacros?.targetCalories);
+    const learningLabel = learningProgressLabel(learningData?.daysLogged ?? 0, REQUIRED_LEARNING_DAYS);
     const goalDir = dirOf(userData?.weightChangePlan?.type);
     const uid = getAuth().currentUser?.uid;
     const { workout: todayScheduledWorkout, loading: workoutLoading, loadError: workoutLoadError } =
@@ -341,6 +347,7 @@ const DashboardScreen = () => {
                             <TodayNutrition
                                 calories={dailyNutrition?.calories || 0}
                                 targetCalories={targetCalories}
+                                learningLabel={learningLabel}
                                 macros={{ carbs: dailyNutrition?.carbs || 0, protein: dailyNutrition?.protein || 0, fat: dailyNutrition?.fat || 0 }}
                                 macroTargets={{ carbs: userMacros?.targetCarbs || 0, protein: userMacros?.targetProtein || 0, fat: userMacros?.targetFats || 0 }}
                                 onPress={() => navigation.navigate('Nutrition')}

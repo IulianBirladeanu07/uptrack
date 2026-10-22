@@ -6,7 +6,6 @@ import type { FoodItem } from '../../../../shared/types';
 
 type FoodSelectionHeaderProps = {
   date?: string | undefined;
-  dailyGoal?: number | undefined;
   selectedFoods?: FoodItem[] | undefined;
   currentCalories?: number | undefined;
   targetCalories?: number | undefined;
@@ -15,10 +14,9 @@ type FoodSelectionHeaderProps = {
 
 const FoodSelectionHeader = ({
   date,
-  dailyGoal = 2000,
   selectedFoods = [],
   currentCalories = 0,
-  targetCalories = 2000,
+  targetCalories,
   onQuickActionsPress,
 }: FoodSelectionHeaderProps) => {
   const { calculatedCurrentCalories, foodCount, calorieProgress } = useMemo(() => {
@@ -26,16 +24,16 @@ const FoodSelectionHeader = ({
       selectedFoods.reduce((total, food) => total + (Number(food.calories) || 0), 0)
     );
     const totalCurrentCalories = Math.round((currentCalories || 0) + selectedFoodsCalories);
-    const effectiveTargetCalories = targetCalories || dailyGoal;
-    const calculatedCalorieProgress = Math.min((totalCurrentCalories / effectiveTargetCalories) * 100, 100);
+    const calculatedCalorieProgress = targetCalories
+      ? Math.min((totalCurrentCalories / targetCalories) * 100, 100)
+      : 0;
 
     return {
       calculatedCurrentCalories: totalCurrentCalories,
       foodCount: selectedFoods.length,
       calorieProgress: calculatedCalorieProgress,
-      isOverGoal: totalCurrentCalories > effectiveTargetCalories,
     };
-  }, [selectedFoods, currentCalories, targetCalories, dailyGoal]);
+  }, [selectedFoods, currentCalories, targetCalories]);
 
   const formattedDate = useMemo(() => {
     return date || new Date().toLocaleDateString('en-US', {
@@ -44,10 +42,6 @@ const FoodSelectionHeader = ({
       day: 'numeric'
     });
   }, [date]);
-
-  const effectiveTargetCalories = useMemo(() => {
-    return targetCalories || dailyGoal;
-  }, [targetCalories, dailyGoal]);
 
   const animatedProgress = useRef(new Animated.Value(0)).current;
 
@@ -98,27 +92,31 @@ const FoodSelectionHeader = ({
               strokeWidth={2.5}
             />
             <Text style={styles.calorieValue}>
-              {calculatedCurrentCalories.toLocaleString()} / {effectiveTargetCalories.toLocaleString()} kcal
+              {targetCalories
+                ? `${calculatedCurrentCalories.toLocaleString()} / ${targetCalories.toLocaleString()} kcal`
+                : `${calculatedCurrentCalories.toLocaleString()} kcal`}
             </Text>
           </View>
         </View>
 
-        <View style={styles.progressRow}>
-          <View style={styles.progressTrack}>
-            <Animated.View
-              style={[
-                styles.progressFill,
-                {
-                  backgroundColor: colors.accent.primary,
-                  transform: [{ scaleX: animatedProgress }],
-                },
-              ]}
-            />
+        {!!targetCalories && (
+          <View style={styles.progressRow}>
+            <View style={styles.progressTrack}>
+              <Animated.View
+                style={[
+                  styles.progressFill,
+                  {
+                    backgroundColor: colors.accent.primary,
+                    transform: [{ scaleX: animatedProgress }],
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.progressPercent}>
+              {Math.round(calorieProgress)}%
+            </Text>
           </View>
-          <Text style={styles.progressPercent}>
-            {Math.round(calorieProgress)}%
-          </Text>
-        </View>
+        )}
       </View>
     </View>
   );

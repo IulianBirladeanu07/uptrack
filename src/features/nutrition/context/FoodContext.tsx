@@ -41,7 +41,7 @@ import type {
     MealGroup, MealType, MealsByType, NutritionTotals, UserData,
 } from '../../../shared/types';
 
-const REQUIRED_LEARNING_DAYS = 7;
+export const REQUIRED_LEARNING_DAYS = 7;
 
 export type FoodContextValue = {
     currentUserId:            string | null;
