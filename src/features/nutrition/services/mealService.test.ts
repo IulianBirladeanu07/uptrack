@@ -3,18 +3,21 @@ jest.mock('firebase/firestore', () => ({
   doc: jest.fn(() => ({ withConverter: jest.fn(() => ({})) })),
   getDoc: jest.fn(),
   getDocs: jest.fn(),
+  setDoc: jest.fn(),
+  Timestamp: { now: jest.fn(() => ({ seconds: 1 })) },
   orderBy: jest.fn(() => ({})),
   query: jest.fn(() => ({})),
   where: jest.fn(() => ({})),
 }));
 jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 
-import { getDoc, getDocs, where } from 'firebase/firestore';
+import { getDoc, getDocs, setDoc, where } from 'firebase/firestore';
 import {
   consolidateFoodData,
   buildAddUndo,
   applyAddUndo,
   normalizeLoggedFoods,
+  writeMealType,
   fetchRawMealsForDate,
   fetchLast30DaysMeals,
   fetchNutritionForDateRange,
@@ -26,6 +29,30 @@ describe('normalizeLoggedFoods', () => {
   test('filters null and malformed meal entries', () => {
     expect(normalizeLoggedFoods([validFood, null, undefined, {}, 'invalid', []])).toEqual([validFood]);
     expect(normalizeLoggedFoods(null)).toEqual([]);
+  });
+});
+
+describe('writeMealType', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('merges only the changed meal type into the day document without reading it first', async () => {
+    const foods = [validFood];
+
+    await expect(writeMealType('user-1', 'lunch', foods, '2026-10-16')).resolves.toBe(foods);
+
+    expect(getDoc).not.toHaveBeenCalled();
+    expect(setDoc).toHaveBeenCalledTimes(1);
+    const [, data, options] = (setDoc as jest.Mock).mock.calls[0];
+    expect(options).toEqual({ merge: true });
+    expect(data).toEqual({ uid: 'user-1', date: '2026-10-16', lunch: foods, timestamp: { seconds: 1 } });
+  });
+
+  test('writes an emptied meal type so a removal reaches the server', async () => {
+    await writeMealType('user-1', 'snacks', [], '2026-10-16');
+
+    expect((setDoc as jest.Mock).mock.calls[0][1]).toEqual(expect.objectContaining({ snacks: [] }));
   });
 });
 

@@ -74,6 +74,17 @@ test("meal access, list queries, and writes stay scoped to the user's day docume
   await assertSucceeds(meal.delete());
 });
 
+test("merge writes create a new meal day and update an existing one but cannot move or re-own it", async () => {
+  const alice = testEnv.authenticatedContext("alice").firestore();
+  const day = alice.doc("meals/alice_2026-10-18");
+
+  await assertSucceeds(day.set({ uid: "alice", date: "2026-10-18", breakfast: [] }, { merge: true }));
+  await assertSucceeds(day.set({ uid: "alice", date: "2026-10-18", lunch: [] }, { merge: true }));
+  await assertFails(day.set({ uid: "alice", date: "2026-10-17", dinner: [] }, { merge: true }));
+  await assertFails(day.set({ uid: "bob", date: "2026-10-18", dinner: [] }, { merge: true }));
+  await assertFails(alice.doc("meals/alice_2026-10-19").set({ uid: "alice", date: "2026-10-18", lunch: [] }, { merge: true }));
+});
+
 test("user-owned workout, measurement, split, template, and custom exercise records enforce ownership", async () => {
   const alice = testEnv.authenticatedContext("alice").firestore();
   const bob = testEnv.authenticatedContext("bob").firestore();

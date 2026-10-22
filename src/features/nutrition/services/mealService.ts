@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, updateDoc, Timestamp, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { doc, setDoc, getDoc, Timestamp, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../auth/services/firebaseConfigService';
 import { formatDate } from '../utils/dateUtils';
 import { mealDayConverter } from '../../../shared/firestore/converters';
@@ -68,18 +68,9 @@ const dayDocRef = (uid: string, date: string) =>
 const mealsCollection = () => collection(db, 'meals').withConverter(mealDayConverter);
 
 export const writeMealType = async (uid: string, mealType: MealType, foods: LoggedFood[], date: string): Promise<LoggedFood[]> => {
-    const ref  = dayDocRef(uid, date);
-    const snap = await getDoc(ref);
-    const now  = Timestamp.now();
-
-    if (snap.exists()) {
-        await updateDoc(ref, { [mealType]: foods, timestamp: now });
-        return foods;
-    }
-
-    const newDoc: MealDayDoc = { uid, date, breakfast: [], lunch: [], dinner: [], snacks: [], timestamp: now };
-    newDoc[mealType] = foods;
-    await setDoc(ref, newDoc);
+    const data: MealDayDoc = { uid, date, timestamp: Timestamp.now() };
+    data[mealType] = foods;
+    await setDoc(dayDocRef(uid, date), data, { merge: true });
     return foods;
 };
 
