@@ -1,5 +1,5 @@
 import { useRef, useMemo, useCallback, memo } from 'react';
-import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
+import type { AccessibilityActionEvent, StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Animated as RNAnimated } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -27,6 +27,7 @@ type FocusedInputData = {
 type NumericInputProps = {
     value?: string | number | null | undefined;
     placeholder: string;
+    accessibilityLabel: string;
     isFocused?: boolean | undefined;
     isValidated?: boolean | undefined;
     isModified?: boolean | undefined;
@@ -60,10 +61,11 @@ type SetRowProps = {
     focusedInputData?: FocusedInputData | undefined;
 };
 
+const DELETE_ACTIONS = [{ name: 'delete', label: 'Delete set' }];
 const SWIPE_THRESHOLD = -80;
 const SPRING_CONFIG = { damping: 25, stiffness: 400, mass: 0.5 };
 
-const NumericInput = memo(({ value, placeholder, isFocused, isValidated, isModified, onPress, style, textStyle }: NumericInputProps) => {
+const NumericInput = memo(({ value, placeholder, accessibilityLabel, isFocused, isValidated, isModified, onPress, style, textStyle }: NumericInputProps) => {
     const inputStyle = useMemo((): StyleProp<ViewStyle> => [
         style.neuralInput,
         isValidated ? style.neuralInputCompleted : null,
@@ -86,6 +88,8 @@ const NumericInput = memo(({ value, placeholder, isFocused, isValidated, isModif
             style={style.inputTouchable}
             activeOpacity={0.8}
             onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel={`${accessibilityLabel}, ${value ? String(value) : 'empty'}`}
         >
             <View style={inputStyle} pointerEvents="none">
                 <Text style={contentTextStyle}>
@@ -256,6 +260,10 @@ const SetRow = ({
         return { opacity: 1 - deleteProgress.value };
     }, []);
 
+    const handleAccessibilityAction = useCallback((event: AccessibilityActionEvent) => {
+        if (event.nativeEvent.actionName === 'delete') confirmDelete();
+    }, [confirmDelete]);
+
     const handleValidationPress = useCallback(() => {
         try {
             if (!setData.isValidated && !isValidWorkoutSetInput(setData.weight, setData.reps)) {
@@ -325,6 +333,7 @@ const SetRow = ({
                         <NumericInput
                             value={setData.weight}
                             placeholder="kg"
+                            accessibilityLabel={`Set ${setIndex + 1} weight`}
                             isFocused={isWeightFocused}
                             isValidated={setData.isValidated}
                             isModified={setData.weightModified}
@@ -338,6 +347,7 @@ const SetRow = ({
                         <NumericInput
                             value={setData.reps}
                             placeholder="reps"
+                            accessibilityLabel={`Set ${setIndex + 1} reps`}
                             isFocused={isRepsFocused}
                             isValidated={setData.isValidated}
                             isModified={setData.repsModified}
@@ -352,6 +362,11 @@ const SetRow = ({
                             onPress={handleValidationPress}
                             activeOpacity={0.7}
                             hitSlop={{ top: 25, bottom: 25, left: 25, right: 25 }}
+                            accessibilityRole="checkbox"
+                            accessibilityLabel={`Set ${setIndex + 1} complete`}
+                            accessibilityState={{ checked: !!setData.isValidated }}
+                            accessibilityActions={DELETE_ACTIONS}
+                            onAccessibilityAction={handleAccessibilityAction}
                         >
                             <Animated.View style={[stylesLocal.quantumCheck, checkStaticStyle, animatedCheckStyle]}>
                                 <Animated.View style={[StyleSheet.absoluteFill, stylesLocal.overlay, animatedCheckmarkStyle]}>

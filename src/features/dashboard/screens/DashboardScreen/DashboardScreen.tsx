@@ -312,6 +312,8 @@ const DashboardScreen = () => {
                             onPress={() => navigation.navigate('Profile')}
                             activeOpacity={0.7}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            accessibilityRole="button"
+                            accessibilityLabel="Open profile"
                         >
                             {userData?.profilePicture ? (
                                 <Image source={{ uri: userData.profilePicture }} style={styles.avatar} contentFit="cover" />

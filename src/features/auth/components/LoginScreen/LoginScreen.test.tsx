@@ -241,4 +241,12 @@ describe('LoginScreen', () => {
         expect(screen.UNSAFE_getByType(ScrollView).props.keyboardShouldPersistTaps).toBe('handled');
         expect(screen.UNSAFE_getByType(KeyboardAvoidingView)).toBeTruthy();
     });
+
+    it('labels the password visibility toggle with its current action', () => {
+        render(<LoginScreen />);
+
+        fireEvent.press(screen.getByRole('button', { name: 'Show password' }));
+
+        expect(screen.getByRole('button', { name: 'Hide password' })).toBeTruthy();
+    });
 });

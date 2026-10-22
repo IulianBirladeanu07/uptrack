@@ -190,7 +190,11 @@ const LoginScreen = () => {
           autoComplete="current-password"
           textContentType="password"
         />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+        <TouchableOpacity
+          onPress={() => setShowPassword(!showPassword)}
+          accessibilityRole="button"
+          accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+        >
           <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={spacing[6]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>

@@ -120,7 +120,11 @@ const RegistrationScreen = () => {
           autoComplete="new-password"
           textContentType="newPassword"
         />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+        <TouchableOpacity
+          onPress={() => setShowPassword(!showPassword)}
+          accessibilityRole="button"
+          accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+        >
           <Ionicons name={showPassword ? "eye-off" : "eye"} size={spacing[6]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
@@ -153,7 +157,11 @@ const RegistrationScreen = () => {
           autoComplete="new-password"
           textContentType="newPassword"
         />
-        <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+        <TouchableOpacity
+          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+          accessibilityRole="button"
+          accessibilityLabel={showConfirmPassword ? 'Hide confirmed password' : 'Show confirmed password'}
+        >
           <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={spacing[6]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>

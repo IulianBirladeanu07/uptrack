@@ -89,7 +89,11 @@ const ChangePasswordScreen = () => {
           placeholderTextColor={colors.text.tertiary}
           secureTextEntry={!showCurrentPassword}
         />
-        <TouchableOpacity onPress={() => setShowCurrentPassword(!showCurrentPassword)}>
+        <TouchableOpacity
+          onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+          accessibilityRole="button"
+          accessibilityLabel={showCurrentPassword ? 'Hide current password' : 'Show current password'}
+        >
           <Ionicons name={showCurrentPassword ? "eye-off" : "eye"} size={spacing[6]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
@@ -104,7 +108,11 @@ const ChangePasswordScreen = () => {
           placeholderTextColor={colors.text.tertiary}
           secureTextEntry={!showNewPassword}
         />
-        <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)}>
+        <TouchableOpacity
+          onPress={() => setShowNewPassword(!showNewPassword)}
+          accessibilityRole="button"
+          accessibilityLabel={showNewPassword ? 'Hide new password' : 'Show new password'}
+        >
           <Ionicons name={showNewPassword ? "eye-off" : "eye"} size={spacing[6]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
@@ -119,7 +127,11 @@ const ChangePasswordScreen = () => {
           placeholderTextColor={colors.text.tertiary}
           secureTextEntry={!showConfirmPassword}
         />
-        <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+        <TouchableOpacity
+          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+          accessibilityRole="button"
+          accessibilityLabel={showConfirmPassword ? 'Hide confirmed password' : 'Show confirmed password'}
+        >
           <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={spacing[6]} color={colors.text.tertiary} />
         </TouchableOpacity>
       </View>
