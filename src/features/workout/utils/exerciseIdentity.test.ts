@@ -1,4 +1,4 @@
-import { exerciseIdentityKey, isSameExercise } from './exerciseIdentity';
+import { buildExerciseRowKeys, exerciseIdentityKey, isSameExercise } from './exerciseIdentity';
 
 describe('exerciseIdentityKey', () => {
     test('uses only the exercise name and muscle group, not its list position', () => {
@@ -37,5 +37,29 @@ describe('isSameExercise', () => {
             { exerciseName: 'Press', muscleGroup: 'Chest' },
             { exerciseName: 'Row', muscleGroup: 'Chest' },
         )).toBe(false);
+    });
+});
+
+describe('buildExerciseRowKeys', () => {
+    const press = { exerciseName: 'Press', muscleGroup: 'Chest' };
+    const curl = { exerciseName: 'Curl', muscleGroup: 'Biceps' };
+    const row = { exerciseName: 'Row', muscleGroup: 'Back' };
+
+    test('keeps an exercise key when the exercises around it are moved or removed', () => {
+        const before = buildExerciseRowKeys([press, curl, row]);
+        const moved = buildExerciseRowKeys([curl, press, row]);
+        const removed = buildExerciseRowKeys([curl, row]);
+
+        expect(moved[1]).toBe(before[0]);
+        expect(moved[2]).toBe(before[2]);
+        expect(removed[0]).toBe(before[1]);
+        expect(removed[1]).toBe(before[2]);
+    });
+
+    test('gives repeated exercises distinct keys instead of colliding', () => {
+        const keys = buildExerciseRowKeys([press, curl, press]);
+
+        expect(new Set(keys).size).toBe(3);
+        expect(keys[0]).toBe(exerciseIdentityKey('Press', 'Chest'));
     });
 });

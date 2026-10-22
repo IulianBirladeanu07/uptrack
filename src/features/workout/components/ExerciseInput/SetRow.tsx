@@ -513,6 +513,7 @@ export default memo(SetRow, (prevProps, nextProps) => {
     const nextThisRowFocused = nextFocused?.exerciseIndex === nextProps.exerciseIndex &&
                              nextFocused?.index === nextProps.setIndex;
 
+    if (prevProps.exerciseIndex !== nextProps.exerciseIndex || prevProps.setIndex !== nextProps.setIndex) return false;
     if (prevThisRowFocused !== nextThisRowFocused) return false;
     if (nextThisRowFocused && prevFocused?.type !== nextFocused?.type) return false;
 

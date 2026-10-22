@@ -124,7 +124,7 @@ const WorkoutHistoryScreen = () => {
                 renderSectionHeader={({ section: { title } }) => (
                     <Text style={styles.monthDivider}>{title}</Text>
                 )}
-                keyExtractor={(item, index) => `${getWorkoutMonthYear(item['timestamp'] as WorkoutHistoryTimestamp)}_${index}`}
+                keyExtractor={(item, index) => (typeof item['id'] === 'string' && item['id'] ? item['id'] : `${getWorkoutMonthYear(item['timestamp'] as WorkoutHistoryTimestamp)}_${index}`)}
                 ListHeaderComponent={
                     <View style={styles.header}>
                         <Text style={styles.heading}>History</Text>

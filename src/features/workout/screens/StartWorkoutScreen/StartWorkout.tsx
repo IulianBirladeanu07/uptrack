@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import CustomNumericKeyboard from '../../components/CustomNumericKeyboard/CustomNumericKeyboard';
 import type { WorkoutExercise } from '../../types';
+import { buildExerciseRowKeys } from '../../utils/exerciseIdentity';
 import { useWorkoutSessionInitialization } from './useWorkoutSessionInitialization';
 import { useWorkoutExerciseSelection } from './useWorkoutExerciseSelection';
 import { useWorkoutSessionActions } from './useWorkoutSessionActions';
@@ -248,6 +249,8 @@ const StartWorkout = () => {
         [exerciseData]
     );
 
+    const rowKeys = useMemo(() => buildExerciseRowKeys(filteredExerciseData), [filteredExerciseData]);
+
     const hasNavigatedBackRef = useRef(false);
 
     const handleBackPress = useCallback(() => {
@@ -332,7 +335,7 @@ const StartWorkout = () => {
                 contentContainerStyle={contentContainerStyle}
                 data={filteredExerciseData}
                 renderItem={renderItem}
-                keyExtractor={(item, index) => `${item.exerciseName}-${index}`}
+                keyExtractor={(item, index) => rowKeys[index] ?? `${item.exerciseName}-${index}`}
                 initialNumToRender={5}
                 maxToRenderPerBatch={5}
                 windowSize={5}

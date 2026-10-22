@@ -99,3 +99,27 @@ describe('SetRow accessibility', () => {
         alertSpy.mockRestore();
     });
 });
+
+describe('SetRow when its exercise changes position', () => {
+    beforeEach(() => {
+        mockDeleteSet.mockClear();
+    });
+
+    it('acts on the new exercise index after the card is moved', () => {
+        const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+        const setData = { weight: '60', reps: '', isValidated: false };
+        const onPrevious = jest.fn();
+        const props = { setIndex: 1, totalSetsInExercise: 3, handlePreviousSetPress: onPrevious, setData };
+        const view = render(<SetRow {...props} exerciseIndex={0} />);
+
+        view.rerender(<SetRow {...props} exerciseIndex={1} />);
+        act(() => {
+            fireEvent(screen.getByRole('checkbox', { name: 'Set 2 complete' }), 'accessibilityAction', {
+                nativeEvent: { actionName: 'delete' },
+            });
+        });
+
+        expect(mockDeleteSet).toHaveBeenCalledWith(1, 1);
+        alertSpy.mockRestore();
+    });
+});
