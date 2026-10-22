@@ -721,6 +721,9 @@ describe('FoodProvider initialization', () => {
         await act(async () => {
             hook.result.current.updateDailySteps(8000, today);
         });
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 20));
+        });
         const published = hook.result.current;
         expect(published.dailySteps).toBe(8000);
 
