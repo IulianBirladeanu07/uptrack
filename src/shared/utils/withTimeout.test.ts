@@ -17,3 +17,8 @@ describe('withTimeout', () => {
     ).rejects.toMatchObject({ code: 'x', message: 'nope' });
   });
 });
+
+  test('treats a non-thenable value as already resolved', async () => {
+    await expect(withTimeout(undefined as unknown as Promise<void>, 100)).resolves.toBeUndefined();
+  });
+

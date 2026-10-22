@@ -3,7 +3,7 @@ jest.mock('firebase/firestore', () => ({
   doc: jest.fn(() => ({ withConverter: jest.fn(() => ({})) })),
   getDoc: jest.fn(),
   getDocs: jest.fn(),
-  setDoc: jest.fn(),
+  setDoc: jest.fn(() => Promise.resolve()),
   Timestamp: { now: jest.fn(() => ({ seconds: 1 })) },
   orderBy: jest.fn(() => ({})),
   query: jest.fn(() => ({})),
