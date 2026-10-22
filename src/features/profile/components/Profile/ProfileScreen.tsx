@@ -1,6 +1,6 @@
 import { useState, useContext } from 'react';
 import type { ReactNode } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Switch } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Switch, Linking } from 'react-native';
 import type { TextInputProps } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -18,6 +18,7 @@ import { createStyles } from '../../../../shared/theme/createStyles';
 import { useProfileFormState } from './useProfileFormState';
 import type { ProfileIdentityErrors } from './useProfileFormState';
 import { useProfileSave } from './useProfileSave';
+import { privacyPolicyUrl, accountDeletionUrl } from '../../../../shared/services/legalUrls';
 import type { AuthenticatedStackParamList } from '../../../../shared/navigation';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -441,6 +442,39 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
             </View>
           </>
         )}
+
+        {(privacyPolicyUrl || accountDeletionUrl) ? (
+          <>
+            <SectionTitle>Legal</SectionTitle>
+            <View style={styles.card}>
+              {privacyPolicyUrl ? (
+                <TouchableOpacity
+                  style={styles.stepperRow}
+                  onPress={() => { void Linking.openURL(privacyPolicyUrl); }}
+                  activeOpacity={0.7}
+                  accessibilityRole="link"
+                  accessibilityLabel="Privacy policy"
+                >
+                  <Text style={styles.stepperLabel}>Privacy policy</Text>
+                  <Ionicons name="open-outline" size={spacing.icon} color={colors.text.quaternary} />
+                </TouchableOpacity>
+              ) : null}
+              {privacyPolicyUrl && accountDeletionUrl ? <View style={styles.divider} /> : null}
+              {accountDeletionUrl ? (
+                <TouchableOpacity
+                  style={styles.stepperRow}
+                  onPress={() => { void Linking.openURL(accountDeletionUrl); }}
+                  activeOpacity={0.7}
+                  accessibilityRole="link"
+                  accessibilityLabel="Delete account on the web"
+                >
+                  <Text style={styles.stepperLabel}>Delete account on the web</Text>
+                  <Ionicons name="open-outline" size={spacing.icon} color={colors.text.quaternary} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </>
+        ) : null}
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
           <MaterialCommunityIcons name="logout" size={spacing.icon} color={colors.accent.error} />

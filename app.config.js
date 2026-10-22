@@ -88,6 +88,8 @@ module.exports = {
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       defaultFoodIconUri: process.env.DEFAULT_FOOD_ICON_URI,
+      privacyPolicyUrl: process.env.PRIVACY_POLICY_URL,
+      accountDeletionUrl: process.env.ACCOUNT_DELETION_URL,
       googleRedirectUri: "com.iulianbirladeanu.uptrack://auth",
       expo: {
         doctor: {
