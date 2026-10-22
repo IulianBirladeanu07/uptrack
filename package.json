@@ -46,7 +46,6 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
-    "react-native-chart-kit": "^6.12.0",
     "react-native-draggable-flatlist": "^4.0.3",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-health": "^1.19.0",
@@ -55,12 +54,9 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
-    "react-native-toast-message": "^2.3.3",
-    "react-native-vector-icons": "^10.2.0",
     "react-native-view-shot": "~4.0.3",
     "react-native-web": "^0.21.0",
-    "react-native-worklets": "0.5.1",
-    "react-redux": "^9.3.0"
+    "react-native-worklets": "0.5.1"
   },
   "expo": {
     "sdkVersion": "54.0.0",
@@ -75,7 +71,6 @@
         "exclude": [
           "lucide-react-native",
           "react-native-health",
-          "react-native-vector-icons",
           "@react-native-google-signin/google-signin"
         ],
         "listUnknownPackages": false
@@ -92,7 +87,6 @@
     "@testing-library/react-native": "13.3.3",
     "@types/jest": "^29.5.14",
     "@types/react": "~19.1.10",
-    "@welldone-software/why-did-you-render": "^10.0.1",
     "babel-jest": "29.7.0",
     "babel-preset-expo": "~54.0.10",
     "baseline-browser-mapping": "^2.9.15",
