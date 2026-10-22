@@ -1,8 +1,12 @@
 import { forwardRef, useState, useEffect, useRef, useImperativeHandle } from 'react';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuth } from 'firebase/auth';
 import type { DailySteps } from '../../types';
 import { formatLocalDateKey } from '../../utils/localDateKey';
 import type { StepsAccess } from '../../services/healthConnectSteps';
+
+const stepsConnectRequestedKey = (uid: string) => `steps_connect_requested_${uid}`;
 
 type HealthKit = typeof import('react-native-health').default;
 type HealthConnect = typeof import('../../services/healthConnectSteps');
@@ -137,6 +141,19 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
         onStepsLoading?.(true);
         try {
             if (backend.kind === 'ios') {
+                const uid = getAuth().currentUser?.uid;
+                if (!uid) throw new Error('Not signed in');
+                const flagKey = stepsConnectRequestedKey(uid);
+                if (userInitiated) {
+                    await AsyncStorage.setItem(flagKey, '1');
+                } else {
+                    const requested = await AsyncStorage.getItem(flagKey);
+                    if (requested !== '1') {
+                        onStepsError?.('permission_denied');
+                        onConnectedChange?.(false);
+                        throw new Error('HealthKit connect not requested');
+                    }
+                }
                 await initializeHealthKit(backend.kit);
             } else {
                 const access = await backend.hc.ensureStepsAccess({ request: userInitiated });

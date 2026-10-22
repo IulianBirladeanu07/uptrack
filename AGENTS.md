@@ -139,11 +139,12 @@ AsyncStorage:
 | `cached_splits`, `@food_recent_searches`, `@recent_searches` | Device-wide, removed on sign-out in `AuthContext.tsx` |
 | `exercises_cache_v3`, `exercise_images_cache` | Device-wide copy of the shared catalog. Never holds custom exercises. |
 | `activeWorkout_{uid}` | Per user. The legacy device-wide `activeWorkout` key is removed on user change (SEC-07) |
+| `steps_connect_requested_{uid}` | Per user. iOS only: set when the user taps Connect for steps; HealthKit is not prompted at launch without it |
 | `auth_token` | Holds the uid. Written, never read. |
 
 New per-user data needs the uid in its key, or an entry in the sign-out `multiRemove` in `AuthContext.tsx`.
 
-`app.config.js` copies environment variables into `extra`: the Firebase web config, the Supabase URL and anon key, the Google client IDs and `DEFAULT_FOOD_ICON_URI`. Code reads them through `Constants.expoConfig.extra`. Everything in `extra` ships inside the app, so only public values belong there.
+`app.config.js` copies environment variables into `extra`: the Firebase web config, the Supabase URL and anon key, the Google client IDs and `DEFAULT_FOOD_ICON_URI`, optional `PRIVACY_POLICY_URL` and `ACCOUNT_DELETION_URL`. Code reads them through `Constants.expoConfig.extra`. Everything in `extra` ships inside the app, so only public values belong there.
 
 ## Conventions
 
