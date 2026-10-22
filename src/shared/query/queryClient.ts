@@ -16,6 +16,7 @@ export const queryClient = new QueryClient({
 
 const USER_SCOPED_QUERY_ROOTS = new Set([
   'exercise-catalog',
+  'meal-history',
   'workout-history',
   'workout-splits',
   'workout-templates',

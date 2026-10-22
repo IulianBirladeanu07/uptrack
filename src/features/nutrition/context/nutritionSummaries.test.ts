@@ -2,6 +2,7 @@ import MealCache from './cache/MealCache';
 import {
   getCaloriesForDateRange,
   getCurrentWeekRollingStats,
+  getLoggedNutritionDays,
   getNutritionForDateRange,
   getStepsForDateRange,
 } from './nutritionSummaries';
@@ -66,6 +67,14 @@ describe('nutrition summaries', () => {
       { date: '2026-10-12', calories: 220, protein: 9, carbs: 33, fat: 6 },
       { date: '2026-10-13', calories: 200, protein: 4, carbs: 45, fat: 1 },
     ]);
+  });
+
+  it('lists only the days that have logged food, with calories and protein', () => {
+    expect(getLoggedNutritionDays(cache, new Date(2026, 9, 11), new Date(2026, 9, 15))).toEqual([
+      { date: '2026-10-12', calories: 220, protein: 9 },
+      { date: '2026-10-13', calories: 200, protein: 4 },
+    ]);
+    expect(getLoggedNutritionDays(cache, new Date(2026, 9, 14), new Date(2026, 9, 15))).toEqual([]);
   });
 
   it('returns daily steps for the inclusive date range', () => {

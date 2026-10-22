@@ -73,6 +73,21 @@ export const getNutritionForDateRange = (
     };
   });
 
+export const getLoggedNutritionDays = (
+  mealCache: MealCache,
+  startDate: DateInput,
+  endDate: DateInput,
+): { date: string; calories: number; protein: number }[] =>
+  mealCache.getDateRange(startDate, endDate).flatMap(({ date, meals }) => {
+    const foods = Object.values(meals ?? {}).flat();
+    if (foods.length === 0) return [];
+    return [{
+      date,
+      calories: foods.reduce((sum, food) => sum + (Number(food?.calories) || 0), 0),
+      protein: foods.reduce((sum, food) => sum + (Number(food?.protein) || 0), 0),
+    }];
+  });
+
 export const getStepsForDateRange = (
   mealCache: MealCache,
   startDate: DateInput,

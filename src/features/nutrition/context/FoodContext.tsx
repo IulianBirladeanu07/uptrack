@@ -8,8 +8,9 @@ import StepDisplay from '../../../shared/components/StepDisplay/StepDisplay';
 import type { StepDisplayHandle } from '../../../shared/components/StepDisplay/StepDisplay';
 
 import {
-    consolidateFoodData, buildAddUndo, applyAddUndo, fetchRawMealsForDate, fetchNutritionForDateRange as fetchNutritionHistory,
+    consolidateFoodData, buildAddUndo, applyAddUndo, fetchRawMealsForDate,
 } from '../services/mealService';
+import { invalidateNutritionHistoryForDay, loadNutritionHistory } from '../services/nutritionHistory';
 import { calculateDailyNutritionFromMeals, calculateLearningStats } from '../helpers/learningCompletionService';
 import { useLocalDayKey } from '../../../shared/hooks/useLocalDayKey';
 import useDailyNutrition from '../helpers/useDailyNutrition';
@@ -27,6 +28,7 @@ import { persistOptimisticMealWrite } from './optimisticMealWrite';
 import {
     getCaloriesForDateRange as summarizeCaloriesForDateRange,
     getCurrentWeekRollingStats,
+    getLoggedNutritionDays,
     getNutritionForDateRange as summarizeNutritionForDateRange,
     getStepsForDateRange as summarizeStepsForDateRange,
     type DayCalories,
@@ -277,8 +279,11 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     const fetchNutritionForDateRange = useCallback((startDate: DateInput, endDate: DateInput) => {
         const uid = currentUserRef.current?.uid;
         if (!uid) return Promise.reject(new Error('Cannot load nutrition history without an authenticated user.'));
-        return fetchNutritionHistory(uid, startDate, endDate);
-    }, []);
+        const readRecent = initialLoadComplete
+            ? (from: Date, to: Date) => getLoggedNutritionDays(mealCache.current, from, to)
+            : null;
+        return loadNutritionHistory(uid, startDate, endDate, readRecent);
+    }, [initialLoadComplete]);
 
     const getStepsForDateRange = useCallback((startDate: DateInput, endDate: DateInput) =>
         summarizeStepsForDateRange(mealCache.current, startDate, endDate),
@@ -323,7 +328,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         persistCache: () => { void persistMealCache(uid, serializeCacheForPersist()); },
         isCurrentRequest: () => mountedRef.current && currentUserRef.current?.uid === uid,
         rollback,
-    }), [updateMealState, serializeCacheForPersist]);
+    }).then(() => invalidateNutritionHistoryForDay(uid, dateKey)), [updateMealState, serializeCacheForPersist]);
 
     const reportMealFailure = useCallback((uid: string, context: string, error: unknown) => {
         if (currentUserRef.current?.uid !== uid) return;
