@@ -12,7 +12,10 @@ type ServingSizeSelectorProps = {
   predefinedSizes?: number[];
   maxQuantity?: number;
   onPredefinedSizePress: (size: number) => void;
+  onValidityChange?: (valid: boolean) => void;
 };
+
+const DECIMAL_PATTERN = /^(\d+\.?\d*|\.\d+)$/;
 
 const ServingSizeSelector = ({
   quantity,
@@ -22,42 +25,63 @@ const ServingSizeSelector = ({
   predefinedSizes = [],
   onPredefinedSizePress,
   maxQuantity,
+  onValidityChange,
 }: ServingSizeSelectorProps) => {
   const [inputValue, setInputValue] = useState(String(quantity));
   const [errorMessage, setErrorMessage] = useState('');
   const lastPushedValue = useRef(quantity);
+  const previousUnit = useRef(servingUnit);
 
   useEffect(() => {
-    if (quantity !== lastPushedValue.current) {
+    const unitChanged = previousUnit.current !== servingUnit;
+    previousUnit.current = servingUnit;
+    if (quantity !== lastPushedValue.current || unitChanged) {
       setInputValue(String(quantity));
+      setErrorMessage('');
       lastPushedValue.current = quantity;
+      onValidityChange?.(true);
     }
-  }, [quantity]);
+  }, [quantity, servingUnit, onValidityChange]);
+
+  const reportInvalid = useCallback((message: string) => {
+    setErrorMessage(message);
+    onValidityChange?.(false);
+  }, [onValidityChange]);
 
   const handleChangeText = useCallback((text: string) => {
     setInputValue(text);
 
     if (text === '') {
-      setErrorMessage('Quantity cannot be empty.');
+      reportInvalid('Quantity cannot be empty.');
       return;
     }
 
-    const parsedValue = parseFloat(normalizeDecimalSeparator(text));
+    const normalized = normalizeDecimalSeparator(text.trim());
+    const parsedValue = DECIMAL_PATTERN.test(normalized) ? Number(normalized) : NaN;
 
     if (isNaN(parsedValue) || parsedValue <= 0) {
-      setErrorMessage('Please enter a valid positive number.');
+      reportInvalid('Please enter a valid positive number.');
       return;
     }
 
     if (maxQuantity !== undefined && parsedValue > maxQuantity) {
-      setErrorMessage(`Quantity cannot exceed ${maxQuantity}.`);
+      reportInvalid(`Quantity cannot exceed ${maxQuantity}.`);
       return;
     }
 
     setErrorMessage('');
     lastPushedValue.current = parsedValue;
+    onValidityChange?.(true);
     onQuantityChange(parsedValue);
-  }, [onQuantityChange, maxQuantity]);
+  }, [onQuantityChange, onValidityChange, maxQuantity, reportInvalid]);
+
+  const handlePredefinedPress = useCallback((size: number) => {
+    setInputValue(String(size));
+    setErrorMessage('');
+    lastPushedValue.current = size;
+    onValidityChange?.(true);
+    onPredefinedSizePress(size);
+  }, [onPredefinedSizePress, onValidityChange]);
 
   const isQuantityPredefined = predefinedSizes.includes(quantity);
 
@@ -101,7 +125,7 @@ const ServingSizeSelector = ({
               styles.predefinedSizeButton,
               quantity === size && styles.predefinedSizeButtonSelected,
             ]}
-            onPress={() => onPredefinedSizePress(size)}
+            onPress={() => handlePredefinedPress(size)}
             accessible
             accessibilityLabel={`Select ${size} ${servingUnit}`}
             activeOpacity={0.7}

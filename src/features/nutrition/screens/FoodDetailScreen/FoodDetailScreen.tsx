@@ -39,6 +39,7 @@ const FoodDetailScreen = () => {
   const [servingQuantity, setServingQuantity] = useState(Number(food?.quantity) || DEFAULT_SERVING.quantity);
   const [servingUnit, setServingUnit] = useState(food?.unit || DEFAULT_SERVING.unit);
   const [unitPickerVisible, setUnitPickerVisible] = useState(false);
+  const [quantityValid, setQuantityValid] = useState(true);
   const [isFavorite, setIsFavorite] = useState(food?.isFavorite || false);
 
   const foods = useMemo(() => (food ? [food] : []), [food]);
@@ -74,7 +75,7 @@ const FoodDetailScreen = () => {
   }, [servingQuantity, servingUnit, baseQuantity, food?.unit]);
 
   const handleAddFood = useCallback(async () => {
-    if (!food) return;
+    if (!food || !quantityValid) return;
     const result = await handleFoodAddition({
       quantity: servingQuantity,
       unit: servingUnit,
@@ -96,6 +97,7 @@ const FoodDetailScreen = () => {
       }
     }
   }, [
+    quantityValid,
     servingQuantity,
     servingUnit,
     food,
@@ -167,6 +169,7 @@ const FoodDetailScreen = () => {
             predefinedSizes={[50, 100, 150, 200]}
             maxQuantity={MAX_QUANTITY}
             onPredefinedSizePress={handleQuantityChange}
+            onValidityChange={setQuantityValid}
           />
 
           <MacroSection
@@ -198,10 +201,12 @@ const FoodDetailScreen = () => {
 
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom || spacing[5] }]}>
         <TouchableOpacity
-          style={styles.addButton}
+          style={[styles.addButton, !quantityValid && styles.addButtonDisabled]}
           onPress={handleAddFood}
+          disabled={!quantityValid}
           accessible
           accessibilityLabel="Add food to diary"
+          accessibilityState={{ disabled: !quantityValid }}
         >
           <MaterialCommunityIcons name={update ? "check-circle" : "plus-circle"} size={spacing.iconMd} color={colors.accent.buttonText} />
           <Text style={styles.addButtonText}>

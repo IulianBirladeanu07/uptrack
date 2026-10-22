@@ -125,6 +125,9 @@ export default createStyles(() => ({
     gap: spacing[2],
     marginBottom: spacing[5],
   },
+  addButtonDisabled: {
+    opacity: 0.4,
+  },
   addButtonText: {
     color: colors.accent.buttonText,
     fontSize: fontSize[16],
