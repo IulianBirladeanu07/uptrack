@@ -21,9 +21,12 @@ jest.mock('firebase/auth', () => ({
     signOut: jest.fn(),
 }));
 
+const mockGetDoc = jest.fn(async () => ({
+    data: () => ({ profileSetupComplete: true, autoAdjustEnabled: true, weeksSinceCutStart: 0 }),
+}));
 jest.mock('firebase/firestore', () => ({
     doc: () => ({ withConverter: () => ({}) }),
-    getDoc: async () => ({ data: () => ({ profileSetupComplete: true, autoAdjustEnabled: true, weeksSinceCutStart: 0 }) }),
+    getDoc: (...args: unknown[]) => mockGetDoc(...args),
     setDoc: jest.fn(async () => undefined),
 }));
 
@@ -42,19 +45,25 @@ jest.mock('../../nutrition/helpers/useRecentSearches', () => ({ RECENT_SEARCHES_
 jest.mock('../../workout/services/splitCache', () => ({ SPLITS_CACHE_KEY: 'splits' }));
 jest.mock('../../../shared/theme/constants', () => ({ SEARCH: { STORAGE_KEY: 'search' } }));
 jest.mock('@react-native-google-signin/google-signin', () => ({ GoogleSignin: { signOut: jest.fn() } }));
+const mockStorage: Record<string, string> = {};
 jest.mock('@react-native-async-storage/async-storage', () => ({
     __esModule: true,
-    default: { setItem: jest.fn(async () => undefined), multiRemove: jest.fn(async () => undefined), removeItem: jest.fn(async () => undefined) },
+    default: {
+        getItem: jest.fn(async (key: string) => mockStorage[key] ?? null),
+        setItem: jest.fn(async (key: string, value: string) => { mockStorage[key] = value; }),
+        multiRemove: jest.fn(async (keys: string[]) => { keys.forEach(k => { delete mockStorage[k]; }); }),
+        removeItem: jest.fn(async (key: string) => { delete mockStorage[key]; }),
+    },
 }));
 
 const unverified: MockUser = { uid: 'u1', email: 'a@b.c', emailVerified: false, providerData: [{ providerId: 'password' }] };
 const verified: MockUser = { ...unverified, emailVerified: true };
 
 const renderProvider = () => {
-    const seen: { loading: boolean; authenticated: boolean }[] = [];
+    const seen: { loading: boolean; authenticated: boolean; isOffline: boolean }[] = [];
     const Probe = () => {
-        const { loading, authenticated } = useContext(AuthContext)!;
-        seen.push({ loading, authenticated });
+        const { loading, authenticated, isOffline } = useContext(AuthContext)!;
+        seen.push({ loading, authenticated, isOffline });
         return null;
     };
     render(<AuthProvider><Probe /></AuthProvider>);
@@ -81,13 +90,17 @@ describe('AuthProvider loading state', () => {
         mockAuth.currentUser = null;
         mockListener = null;
         queryClient.clear();
+        Object.keys(mockStorage).forEach(k => { delete mockStorage[k]; });
+        mockGetDoc.mockImplementation(async () => ({
+            data: () => ({ profileSetupComplete: true, autoAdjustEnabled: true, weeksSinceCutStart: 0 }),
+        }));
     });
 
     it('does not show the loading state while an unverified account is signed in and straight back out', async () => {
         const seen = renderProvider();
         await emit(null);
         const last = () => seen[seen.length - 1];
-        expect(last()).toEqual({ loading: false, authenticated: false });
+        expect(last()).toEqual({ loading: false, authenticated: false, isOffline: false });
 
         const signedIn = begin(unverified);
         expect(last()!.loading).toBe(false);
@@ -97,7 +110,7 @@ describe('AuthProvider loading state', () => {
         expect(last()!.loading).toBe(false);
         await finish(signedOut);
 
-        expect(last()).toEqual({ loading: false, authenticated: false });
+        expect(last()).toEqual({ loading: false, authenticated: false, isOffline: false });
     });
 
     it('still loads the profile for a verified account', async () => {
@@ -109,7 +122,7 @@ describe('AuthProvider loading state', () => {
         expect(last()!.loading).toBe(true);
         await finish(signedIn);
 
-        expect(last()).toEqual({ loading: false, authenticated: true });
+        expect(last()).toEqual({ loading: false, authenticated: true, isOffline: false });
     });
 
     it('stops loading when the first event is an unverified account', async () => {
@@ -117,7 +130,7 @@ describe('AuthProvider loading state', () => {
 
         await emit(unverified);
 
-        expect(seen[seen.length - 1]).toEqual({ loading: false, authenticated: false });
+        expect(seen[seen.length - 1]).toEqual({ loading: false, authenticated: false, isOffline: false });
     });
 
     it('clears cached user data when the authenticated identity changes', async () => {
@@ -132,6 +145,26 @@ describe('AuthProvider loading state', () => {
         expect(queryClient.getQueryData(['food-catalog', 'products', 'oats'])).toEqual({
             value: 'public data',
         });
-        expect(seen[seen.length - 1]).toEqual({ loading: false, authenticated: true });
+        expect(seen[seen.length - 1]).toEqual({ loading: false, authenticated: true, isOffline: false });
     });
+
+    it('stays signed in from cache when Firestore is unreachable', async () => {
+        mockStorage['user_u1'] = JSON.stringify({ profileSetupComplete: true, targetCalories: 2100 });
+        mockGetDoc.mockRejectedValue(Object.assign(new Error('offline'), { code: 'unavailable' }));
+
+        const seen = renderProvider();
+        await emit(verified);
+
+        expect(seen[seen.length - 1]).toEqual({ loading: false, authenticated: true, isOffline: true });
+    });
+
+    it('does not authenticate offline when there is no cached profile', async () => {
+        mockGetDoc.mockRejectedValue(Object.assign(new Error('offline'), { code: 'unavailable' }));
+
+        const seen = renderProvider();
+        await emit(verified);
+
+        expect(seen[seen.length - 1]).toEqual({ loading: false, authenticated: false, isOffline: false });
+    });
+
 });

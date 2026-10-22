@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
+import { AppState } from 'react-native';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { userConverter } from '../../../shared/firestore/converters';
@@ -20,6 +21,8 @@ export type AuthContextValue = {
   authenticated: boolean;
   loading: boolean;
   userData: UserData | null;
+  /** True when the session is kept from a local cache because Firestore was unreachable. */
+  isOffline: boolean;
   setAuthenticated: Dispatch<SetStateAction<boolean>>;
   profileSetupComplete: boolean;
   setProfileSetupComplete: Dispatch<SetStateAction<boolean>>;
@@ -30,8 +33,28 @@ export type AuthContextValue = {
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const PROFILE_DEFAULTS = {
-  autoAdjustEnabled:   true,
-  weeksSinceCutStart:  0,
+  autoAdjustEnabled: true,
+  weeksSinceCutStart: 0,
+};
+
+const userCacheKey = (uid: string) => `user_${uid}`;
+
+const readCachedUserData = async (uid: string): Promise<UserData | null> => {
+  try {
+    const raw = await AsyncStorage.getItem(userCacheKey(uid));
+    if (!raw) return null;
+    return JSON.parse(raw) as UserData;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedUserData = async (uid: string, data: UserData): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(userCacheKey(uid), JSON.stringify(data));
+  } catch (error) {
+    console.error('Failed to cache user profile:', error);
+  }
 };
 
 const deriveAndSaveStartWeight = async (userId: string, data: UserData): Promise<UserData> => {
@@ -60,9 +83,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [profileSetupComplete, setProfileSetupComplete] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
   const authRequestGeneration = useRef(0);
   const previousAuthUid = useRef<string | null | undefined>(undefined);
   const previousWasUnverified = useRef(false);
+
+  const applyOnlineProfile = async (
+    uid: string,
+    email: string | null,
+    isCurrent: () => boolean,
+  ): Promise<UserData | null> => {
+    const userDoc = await getDoc(doc(db, 'users', uid).withConverter(userConverter));
+    if (!isCurrent()) return null;
+    let data = await deriveAndSaveStartWeight(uid, userDoc.data() ?? {});
+    if (!isCurrent()) return null;
+    data = await applyProfileDefaults(uid, data);
+    if (!isCurrent()) return null;
+    data = await syncAuthEmail(uid, email, data);
+    if (!isCurrent()) return null;
+    await writeCachedUserData(uid, data);
+    return data;
+  };
 
   const refreshUserData = useCallback(async (): Promise<UserData | undefined> => {
     const user = auth.currentUser;
@@ -71,13 +112,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const isCurrent = () =>
       isCurrentAuthRequest(request, auth.currentUser?.uid ?? null, authRequestGeneration.current);
     try {
-      const userDoc = await getDoc(doc(db, 'users', user.uid).withConverter(userConverter));
-      if (!isCurrent()) return undefined;
-      let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() ?? {});
-      if (!isCurrent()) return undefined;
-      data = await applyProfileDefaults(user.uid, data);
-      if (!isCurrent()) return undefined;
+      const data = await applyOnlineProfile(user.uid, user.email, isCurrent);
+      if (!isCurrent() || !data) return undefined;
       setUserData(data);
+      setProfileSetupComplete(!!data.profileSetupComplete);
+      setIsOffline(false);
       return data;
     } catch (error) {
       console.error('refreshUserData error:', error);
@@ -106,24 +145,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setAuthenticated(false);
         setProfileSetupComplete(false);
         setUserData(null);
+        setIsOffline(false);
       }
       try {
         if (user && !needsEmailVerification(user)) {
-          const userDoc = await getDoc(doc(db, 'users', user.uid).withConverter(userConverter));
-          if (!isCurrent()) return;
-          let data = await deriveAndSaveStartWeight(user.uid, userDoc.data() ?? {});
-          if (!isCurrent()) return;
-          data = await applyProfileDefaults(user.uid, data);
-          if (!isCurrent()) return;
-          data = await syncAuthEmail(user.uid, user.email, data);
-          if (!isCurrent()) return;
-
-          setAuthenticated(true);
-          setProfileSetupComplete(!!data.profileSetupComplete);
-          setUserData(data);
-          await AsyncStorage.setItem('auth_token', user.uid);
+          try {
+            const data = await applyOnlineProfile(user.uid, user.email, isCurrent);
+            if (!isCurrent() || !data) return;
+            setAuthenticated(true);
+            setProfileSetupComplete(!!data.profileSetupComplete);
+            setUserData(data);
+            setIsOffline(false);
+            await AsyncStorage.setItem('auth_token', user.uid);
+          } catch (error) {
+            if (!isCurrent()) return;
+            const cached = await readCachedUserData(user.uid);
+            if (!isCurrent()) return;
+            if (cached) {
+              setAuthenticated(true);
+              setProfileSetupComplete(!!cached.profileSetupComplete);
+              setUserData(cached);
+              setIsOffline(true);
+              await AsyncStorage.setItem('auth_token', user.uid);
+              console.error('onAuthStateChanged offline fallback:', error);
+            } else {
+              console.error('onAuthStateChanged error:', error);
+            }
+          }
         } else {
           if (!isCurrent()) return;
+          setIsOffline(false);
           await AsyncStorage.multiRemove(['auth_token', SPLITS_CACHE_KEY, RECENT_SEARCHES_KEY, SEARCH.STORAGE_KEY]);
         }
       } catch (error) {
@@ -139,6 +190,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
+  useEffect(() => {
+    const onChange = (state: string) => {
+      if (state !== 'active') return;
+      const user = auth.currentUser;
+      if (!user || needsEmailVerification(user)) return;
+      void refreshUserData();
+    };
+    const sub = AppState.addEventListener('change', onChange);
+    return () => sub.remove();
+  }, [refreshUserData]);
+
   const logout = useCallback(async () => {
     try {
       await GoogleSignin.signOut();
@@ -152,6 +214,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setAuthenticated(false);
       setProfileSetupComplete(false);
       setUserData(null);
+      setIsOffline(false);
       await AsyncStorage.removeItem('auth_token');
     } catch (error) {
       console.error('logout error:', error);
@@ -162,12 +225,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     authenticated,
     loading,
     userData,
+    isOffline,
     setAuthenticated,
     profileSetupComplete,
     setProfileSetupComplete,
     logout,
     refreshUserData,
-  }), [authenticated, loading, userData, profileSetupComplete, logout, refreshUserData]);
+  }), [authenticated, loading, userData, isOffline, profileSetupComplete, logout, refreshUserData]);
 
   return (
     <AuthContext.Provider value={contextValue}>

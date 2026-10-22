@@ -7,6 +7,7 @@ import { queryClient } from './src/shared/query/queryClient';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList, AuthenticatedStackParamList } from './src/shared/navigation';
 import { AuthProvider, AuthContext } from './src/features/auth/context/AuthContext';
+import OfflineBanner from './src/shared/components/OfflineBanner/OfflineBanner';
 import { FoodProvider } from './src/features/nutrition/context/FoodContext';
 import { WorkoutProvider } from './src/features/workout/context/WorkoutContext';
 
@@ -54,6 +55,7 @@ const AppStack = createNativeStackNavigator<AuthenticatedStackParamList>();
 const AuthenticatedScreens = React.memo(() => (
   <FoodProvider>
     <WorkoutProvider>
+      <OfflineBanner />
       <AppStack.Navigator>
         <AppStack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
         <AppStack.Screen name="Workout" component={WorkoutScreen} options={{ headerShown: false }} />
