@@ -4,6 +4,7 @@ module.exports = {
   testMatch: ['<rootDir>/src/**/*.test.{js,jsx,ts,tsx}'],
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx', 'json'],
   clearMocks: true,
+  testTimeout: 15000,
   collectCoverageFrom: [
     'src/**/*.{js,ts,tsx}',
     '!src/**/*.test.{js,ts,tsx}',

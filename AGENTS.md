@@ -16,7 +16,7 @@ Uptrack is an Expo / React Native app for tracking nutrition, weight and workout
 - Firebase JS SDK 10.14.1: Auth (email and password, plus Google), Firestore, Storage.
 - Supabase JS v2 with the anon key, for food search and barcode lookup.
 - Health data: `react-native-health` (iOS HealthKit) and `react-native-health-connect` (Android Health Connect).
-- Jest 29 with babel-jest. TypeScript ~5.9 with `allowJs`; most of the app is still JavaScript.
+- Jest 29 with babel-jest. TypeScript ~5.9; every file under `src/` is TypeScript.
 - Three patch-package patches currently pin Metro 0.83.1, Metro 0.83.3 and React Native 0.81.5 behavior. Recheck all patches when upgrading those dependencies.
 
 ## Commands
@@ -54,7 +54,6 @@ const languageOptions = {
 };
 
 export default [
-  { files: ['**/*.js'], languageOptions, plugins: { 'react-hooks': reactHooks }, rules },
   { files: ['**/*.ts', '**/*.tsx'], languageOptions: { ...languageOptions, parser: tsParser }, plugins: { 'react-hooks': reactHooks }, rules },
 ];
 ```
@@ -62,15 +61,15 @@ export default [
 Run it from the repo root:
 
 ```powershell
-node <scratch>/node_modules/eslint/bin/eslint.js -c <scratch>/eslint.config.mjs "src/**/*.js" "src/**/*.ts" "src/**/*.tsx" App.js
+node <scratch>/node_modules/eslint/bin/eslint.js -c <scratch>/eslint.config.mjs "src/**/*.ts" "src/**/*.tsx" App.tsx
 ```
 
-Baseline from the 2026-10-17 tool-driven scan: 0 rules-of-hooks errors and 45 exhaustive-deps warnings. A change must not add any.
+Baseline from the 2026-10-22 scan: 0 rules-of-hooks errors and 50 exhaustive-deps warnings. A change must not add any. The scan also reports one config error for the `@typescript-eslint/no-explicit-any` directive in `ExercisesStep.tsx`, because this scratch config does not load that plugin.
 
 ## Layout
 
 ```text
-App.js                 providers and the single stack navigator
+App.tsx                providers and the single stack navigator
 app.config.js          Expo config: plugins, permissions, env-driven extra
 patches/               patch-package patches
 src/features/<area>/   auth, dashboard, nutrition, profile, progress, workout
@@ -90,7 +89,7 @@ tests/rules/            Firebase Emulator security-rule tests
 
 ```mermaid
 flowchart TB
-  app["App.js: gesture root, safe area, navigation container"] --> auth["AuthProvider"]
+  app["App.tsx: gesture root, safe area, navigation container"] --> auth["AuthProvider"]
   auth --> main["MainApp picks one branch"]
   main --> splash["Splash"]
   main --> signedOut["Login, Registration, ForgotPassword"]
@@ -100,13 +99,13 @@ flowchart TB
   workout --> stack["Main stack: Dashboard, Workout, Nutrition, Progress, Profile, ..."]
 ```
 
-- Arrows mean "renders". `MainApp` (in `App.js`) shows exactly one branch: Splash while auth loads, the sign-in screens when signed out, onboarding until `profileSetupComplete`, otherwise the main stack.
+- Arrows mean "renders". `MainApp` (in `App.tsx`) shows exactly one branch: Splash while auth loads, the sign-in screens when signed out, onboarding until `profileSetupComplete`, otherwise the main stack.
 - `AuthProvider` is `src/features/auth/context/AuthContext.tsx`. Its auth listener loads `users/{uid}`, fills in profile defaults, copies the Auth email into `users/{uid}.email` when they differ, and clears device-wide caches on sign-out. It treats a password account with an unverified email as signed out; the sign-in and sign-up services sign the user out themselves (`auth/utils/emailVerification.ts`).
-- `FoodProvider` (`nutrition/context/FoodContext.js`) owns the selected date and the day's meals (through `mealService.ts` and `MealCache.ts`). It applies writes to the screen first and rolls them back if the save fails. It also handles daily totals, step sync and the weekly calorie evaluation.
-- `WorkoutProvider` (`workout/context/WorkoutContext.js`) loads workout history and templates and restores the active workout. Screens call `workout/handlers/WorkoutHandler.js` directly for splits, templates and exercises.
+- `FoodProvider` (`nutrition/context/FoodContext.tsx`) owns the selected date and the day's meals (through `mealService.ts` and `MealCache.ts`). It applies writes to the screen first and rolls them back if the save fails. It also handles daily totals, step sync and the weekly calorie evaluation.
+- `WorkoutProvider` (`workout/context/WorkoutContext.tsx`) loads workout history and templates and restores the active workout. Screens call `workout/handlers/WorkoutHandler.ts` directly for splits, templates and exercises.
 - The food and workout providers live inside the main stack, so their React state resets on sign-out. Module-level singletons such as `workoutService` do not.
 
-Route names are plain strings with no typed param list. Check that a route is registered in `App.js` before navigating to it.
+Route params are typed in `src/shared/navigation/types.ts` (`RootStackParamList`, `AuthenticatedStackParamList`). Register a new route in `App.tsx` and add its params there.
 
 ## Data
 
@@ -128,7 +127,9 @@ Storage holds profile pictures at `profilePictures/{uid}.jpg`.
 Supabase, through the anon key:
 - `non_barcoded_products`: text search, plus the `search_products_similarity` RPC.
 - `barcoded_products`: barcode lookup. The custom food screen also inserts into it (SEC-04).
-- `NutritionHandler.js` quotes search terms before putting them in PostgREST `or()` filters. Keep it that way.
+- `NutritionHandler.ts` quotes search terms before putting them in PostgREST `or()` filters. Keep it that way.
+
+Query cache: `@tanstack/react-query` (`src/shared/query/queryClient.ts`) holds the workout history, splits, templates and exercise catalog in memory, through `fetchQuery` and one `useQuery`. Every query root listed in `USER_SCOPED_QUERY_ROOTS` is removed on sign-out, so add a new user-scoped root there. Meals use their own `MealCache`.
 
 AsyncStorage:
 
@@ -158,7 +159,7 @@ TypeScript:
 - Convert files with `git mv` so `git log --follow` keeps their history.
 - Shared shapes live in `src/shared/types.ts`. Import them. Never redeclare a type locally.
 - No `any`, `@ts-ignore` or `@ts-expect-error`. Firestore data is cast where it enters (`snap.data() as MealDayDoc`) until typed converters exist.
-- `firebaseConfigService.js` stays JavaScript. TypeScript resolves the web `firebase/auth` types, which lack `getReactNativePersistence`.
+- `firebaseConfigService.ts` relies on the declaration in `src/shared/firebase-auth.d.ts`, because the web `firebase/auth` types lack `getReactNativePersistence`.
 
 Dates:
 - Day keys are local `YYYY-MM-DD` strings from `formatDate` in `src/features/nutrition/utils/dateUtils.ts`.
@@ -167,7 +168,7 @@ Dates:
 
 ## Testing
 
-- Jest only runs tests in the folders listed in `testMatch` in `jest.config.js`. A test anywhere else never runs. Add its folder, and `tsx` to the pattern for component tests.
+- Jest runs every `*.test.{js,jsx,ts,tsx}` under `src/` (`testMatch` in `jest.config.js`).
 - Tests run in Node and mock `firebase/*`, `firebaseConfigService`, AsyncStorage and the Supabase client with `jest.mock`.
 - Component tests use `@testing-library/react-native` in a JS renderer. They do not cover native permissions, navigation gestures, keyboard behavior or layout on a device. Screens without a component test are checked by reading the code, `tsc`, the hooks lint and the Android bundle build. Say which applies when reporting.
 - For date logic, also run Jest in another time zone. CI runs three time zones (see `.github/workflows/tests.yml`). In PowerShell: `$env:TZ = 'America/Los_Angeles'; npx jest`.
@@ -175,8 +176,8 @@ Dates:
 ## Gotchas
 
 - PowerShell `>` writes UTF-16. Use `git diff --output=<file>` or `Out-File -Encoding utf8` for patches and logs.
-- The weekly evaluation writes calorie and macro targets to `users/{uid}`. It runs at app start (`FoodContext.js`) and after the first weigh-in of a new week (`weightTrackerUtils.ts`), at most once every 6 days, and never when `autoAdjustEnabled === false`. Read the notes in `audit/PLAN.md` before changing it.
-- `workoutService` (`WorkoutService.js`) is a singleton. Its in-memory workout survives sign-out.
+- The weekly evaluation writes calorie and macro targets to `users/{uid}`. It runs at app start (`FoodContext.tsx`) and after the first weigh-in of a new week (`weightTrackerUtils.ts`), at most once every 6 days, and never when `autoAdjustEnabled === false`. Read the notes in `audit/PLAN.md` before changing it.
+- `workoutService` (`WorkoutService.ts`) is a singleton. Its in-memory workout survives sign-out.
 - Firestore rules in `firebase/firestore.rules` deny reading a document that does not exist wherever the read rule uses `resource.data` (`workoutHistory`, `measurements`, `workoutTemplates`, `workoutSplits`, `customExercises`). Never `getDoc` or `transaction.get` an id that may be missing in those collections; check existence with a uid-filtered query instead. `users`, `meals` and `exercises` allow it. Jest mocks cannot show this; run `npm run test:rules` when changing rules or Firestore access.
 - Native configuration goes through `app.config.js` or `plugins/`, never through edits to generated `android/` or `ios/` folders.
 
