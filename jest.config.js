@@ -2,6 +2,7 @@ module.exports = {
   preset: 'jest-expo',
   testEnvironment: 'node',
   testMatch: [
+    '<rootDir>/src/shared/components/ErrorBoundary/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/auth/utils/**/*.test.{js,ts}',
     '<rootDir>/src/features/auth/context/**/*.test.{js,ts,tsx}',
     '<rootDir>/src/features/auth/services/**/*.test.{js,ts}',

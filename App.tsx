@@ -26,6 +26,7 @@ import CreateTemplateScreen from './src/features/workout/screens/CreateTemplateS
 import FoodSelectionScreen from './src/features/nutrition/screens/FoodSelectionScreen/FoodSelectionScreen';
 import FoodDetailScreen from './src/features/nutrition/screens/FoodDetailScreen/FoodDetailScreen';
 import SplashScreen from './src/shared/components/SplashScreen/SplashScreen';
+import ErrorBoundary from './src/shared/components/ErrorBoundary/ErrorBoundary';
 import ChangePasswordScreen from './src/features/auth/components/ChangePasswordScreen/ChangePasswordScreen';
 import OnboardingFlow from './src/features/profile/screens/OnboardingFlow';
 import PlanSummaryScreen from './src/features/profile/screens/PlanSummaryScreen';
@@ -137,11 +138,13 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
-          <NavigationContainer>
-            <AuthProvider>
-              <MainApp />
-            </AuthProvider>
-          </NavigationContainer>
+          <ErrorBoundary>
+            <NavigationContainer>
+              <AuthProvider>
+                <MainApp />
+              </AuthProvider>
+            </NavigationContainer>
+          </ErrorBoundary>
         </SafeAreaProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
