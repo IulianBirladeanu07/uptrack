@@ -10,6 +10,7 @@ import { buildWorkoutCompletionData } from './buildWorkoutCompletionData';
 import { queryClient } from '../../../shared/query/queryClient';
 import { workoutHistoryQueryKeys } from './workoutQueryKeys';
 import { workoutService } from './WorkoutService';
+import { SAVE_TIMEOUT_MS, withTimeout } from '../../../shared/utils/withTimeout';
 
 type AppNav = NativeStackNavigationProp<AuthenticatedStackParamList>;
 type MessageFn = (message: string) => void;
@@ -110,7 +111,7 @@ async function finishWorkout(
     });
 
     const workoutDocRef = doc(collection(db, 'workoutHistory'));
-    await setDoc(workoutDocRef, workoutDataToSend);
+    await withTimeout(setDoc(workoutDocRef, workoutDataToSend), SAVE_TIMEOUT_MS);
     await queryClient.invalidateQueries({
       queryKey: workoutHistoryQueryKeys.forUser(uid),
     });
@@ -136,7 +137,11 @@ async function finishWorkout(
     return true;
   } catch (error) {
     console.error('Error finishing workout:', (error as Error).message);
-    openAnimatedMessage(`Error: ${(error as Error).message}`);
+    const code = (error as { code?: string }).code;
+    const msg = code === 'deadline-exceeded'
+      ? 'Could not save. Check your connection and try again.'
+      : `Error: ${(error as Error).message}`;
+    openAnimatedMessage(msg);
     return false;
   }
 }
