@@ -1,6 +1,7 @@
 import { forwardRef, useState, useEffect, useRef, useImperativeHandle } from 'react';
 import { Platform } from 'react-native';
 import type { DailySteps } from '../../types';
+import { formatLocalDateKey } from '../../utils/localDateKey';
 import type { StepsAccess } from '../../services/healthConnectSteps';
 
 type HealthKit = typeof import('react-native-health').default;
@@ -34,9 +35,6 @@ const ACCESS_ERRORS: Record<Exclude<StepsAccess, 'ready'>, string> = {
 
 const STEPS_LOOKBACK_DAYS = 30;
 const ROLLOVER_LOOKBACK_DAYS = 3;
-
-const formatDate = (date: Date) =>
-    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUpdate, onStepsHistory, onStepsError, onStepsLoading, onConnectedChange }, ref) => {
     const [initialized, setInitialized] = useState(false);
@@ -75,7 +73,7 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
 
         try {
             const byDate = await backend.hc.readDailySteps(today, now);
-            return byDate[formatDate(today)] ?? null;
+            return byDate[formatLocalDateKey(today)] ?? null;
         } catch (err) {
             console.log('[Steps] fetchToday error:', err);
             return null;
@@ -97,7 +95,7 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
                     (err, results) => {
                         if (!err && results) {
                             results.forEach(day => {
-                                const key = formatDate(new Date(day.startDate));
+                                const key = formatLocalDateKey(new Date(day.startDate));
                                 entries[key] = Math.max(entries[key] || 0, day.value || 0);
                             });
                             Object.entries(entries).forEach(([key, value]) => onStepsUpdate?.(value, key));
@@ -123,7 +121,7 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
     };
 
     const updateTodaySteps = async () => {
-        const todayKey = formatDate(new Date());
+        const todayKey = formatLocalDateKey(new Date());
         if (lastDayKeyRef.current && lastDayKeyRef.current !== todayKey) {
             lastDayKeyRef.current = todayKey;
             await fetchRecentSteps(ROLLOVER_LOOKBACK_DAYS);
@@ -152,7 +150,7 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
 
             await new Promise(resolve => setTimeout(resolve, 500));
             await fetchRecentSteps(STEPS_LOOKBACK_DAYS);
-            lastDayKeyRef.current = formatDate(new Date());
+            lastDayKeyRef.current = formatLocalDateKey(new Date());
             await updateTodaySteps();
             setInitialized(true);
             onConnectedChange?.(true);

@@ -66,9 +66,6 @@ export const calculateWeeklyAverage = (weeklyWeights: NonNullable<WeightInWeek['
   return parseFloat((weights.reduce((a, b) => a + b, 0) / weights.length).toFixed(2));
 };
 
-export const formatDate = (date: Date): string =>
-  date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-
 const parseWeekStart = (weekStartStr: string) => {
   const [y, m, d] = weekStartStr.split('-').map(Number);
   return { y, m, d };

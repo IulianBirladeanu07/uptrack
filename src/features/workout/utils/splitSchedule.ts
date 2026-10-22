@@ -1,3 +1,5 @@
+import { formatLocalDateKey } from '../../../shared/utils/localDateKey';
+
 type ScheduleDay = {
   id?: string | undefined;
   templateId?: string | undefined;
@@ -16,10 +18,7 @@ const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'frida
 const WEEK_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_MS = 86400000;
 
-const pad = (n: number): string => String(n).padStart(2, '0');
-
-export const toDateKey = (date: Date): string =>
-  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+export const toDateKey = formatLocalDateKey;
 
 const dayNumberOf = (date: Date): number => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY_MS;
 
