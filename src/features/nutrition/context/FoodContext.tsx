@@ -10,7 +10,8 @@ import type { StepDisplayHandle } from '../../../shared/components/StepDisplay/S
 import {
     consolidateFoodData, buildAddUndo, applyAddUndo, fetchRawMealsForDate, fetchNutritionForDateRange as fetchNutritionHistory,
 } from '../services/mealService';
-import { calculateLearningStats } from '../helpers/learningCompletionService';
+import { calculateDailyNutritionFromMeals, calculateLearningStats } from '../helpers/learningCompletionService';
+import { useLocalDayKey } from '../../../shared/hooks/useLocalDayKey';
 import useDailyNutrition from '../helpers/useDailyNutrition';
 import MealCache from './cache/MealCache';
 import {
@@ -58,6 +59,7 @@ export type FoodContextValue = {
     learningData:             EnhancedLearningData;
     remainingCalories:        number;
     dailyNutrition:           NutritionTotals;
+    todayNutrition:           NutritionTotals;
     userMacros:               ReturnType<typeof useDailyNutrition>['userMacros'];
     handleAddMeal:            (mealType: MealType, foods: LoggedFood[], mealDate?: DateInput) => Promise<LoggedFood[]>;
     handleDeleteMeal:         (mealType: MealType, foodId: string) => Promise<boolean>;
@@ -152,6 +154,14 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
             averages:           learningStats.averages,
         };
     }, [nutritionHookData.hasTargets, userData, selectedDate, mealState]);
+
+    const localDayKey = useLocalDayKey();
+    const previousDayKeyRef = useRef(localDayKey);
+
+    const todayNutrition = useMemo(
+        () => calculateDailyNutritionFromMeals(mealCache.current.get(localDayKey)),
+        [cacheVersion, localDayKey],
+    );
 
     const remainingCalories = useMemo(() => {
         const target   = nutritionHookData.userMacros?.targetCalories || 2000;
@@ -440,6 +450,13 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         });
     }, [updateCurrentDayMeals, ensureDayLoaded]);
 
+    useEffect(() => {
+        const previousDayKey = previousDayKeyRef.current;
+        if (previousDayKey === localDayKey) return;
+        previousDayKeyRef.current = localDayKey;
+        if (formatDate(selectedDateRef.current) === previousDayKey) handleDateChange(new Date());
+    }, [localDayKey, handleDateChange]);
+
     const initializeAppData = useCallback(async (user: User) => {
         if (initializationRef.current || !mountedRef.current) return;
         const request = { uid: user.uid, generation: userGenerationRef.current };
@@ -545,6 +562,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         learningData:     enhancedLearningData,
         remainingCalories,
         dailyNutrition:   nutritionHookData.dailyNutrition,
+        todayNutrition,
         userMacros:       nutritionHookData.userMacros,
         handleAddMeal,
         handleDeleteMeal,
@@ -569,7 +587,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     }), [
         currentUser?.uid, mealState, selectedDate, handleDateChange, categoryData,
         nutritionHookData.hasTargets, enhancedLearningData,
-        remainingCalories, nutritionHookData.dailyNutrition, nutritionHookData.userMacros,
+        remainingCalories, nutritionHookData.dailyNutrition, todayNutrition, nutritionHookData.userMacros,
         handleAddMeal, handleDeleteMeal, updateMealInDatabase, updateMealState,
         dailySteps, updateDailySteps,
         loading, error, initialLoadComplete, initializationError, retryInitialization,

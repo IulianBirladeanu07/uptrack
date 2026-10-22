@@ -227,7 +227,7 @@ const DashboardScreen = () => {
     const navigation = useAppNavigation();
     const navInset = useBottomNavInset();
 
-    const { dailyNutrition, userMacros, hasTargets, learningData, rollingWeekStats, getCaloriesForDateRange, initialLoadComplete, stepsConnected, stepsLoading, retryStepsConnection } = useFoodContext();
+    const { todayNutrition, userMacros, hasTargets, learningData, rollingWeekStats, getCaloriesForDateRange, initialLoadComplete, stepsConnected, stepsLoading, retryStepsConnection } = useFoodContext();
     const { workoutHistory, activeWorkout } = useContext(WorkoutContext)!;
     const { userData } = useContext(AuthContext)!;
 
@@ -345,10 +345,10 @@ const DashboardScreen = () => {
                                 onPress={handleWorkoutPress}
                             />
                             <TodayNutrition
-                                calories={dailyNutrition?.calories || 0}
+                                calories={todayNutrition.calories}
                                 targetCalories={targetCalories}
                                 learningLabel={learningLabel}
-                                macros={{ carbs: dailyNutrition?.carbs || 0, protein: dailyNutrition?.protein || 0, fat: dailyNutrition?.fat || 0 }}
+                                macros={{ carbs: todayNutrition.carbs, protein: todayNutrition.protein, fat: todayNutrition.fat }}
                                 macroTargets={{ carbs: userMacros?.targetCarbs || 0, protein: userMacros?.targetProtein || 0, fat: userMacros?.targetFats || 0 }}
                                 onPress={() => navigation.navigate('Nutrition')}
                             />

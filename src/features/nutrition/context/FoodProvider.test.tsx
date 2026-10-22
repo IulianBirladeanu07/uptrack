@@ -1019,3 +1019,99 @@ describe('FoodProvider selected-date loading', () => {
         expect(alertSpy).not.toHaveBeenCalled();
     });
 });
+
+describe('FoodProvider today totals and day rollover', () => {
+    let errorSpy: jest.SpyInstance;
+    const keyOf = (year: number, month: number, day: number) => formatDate(new Date(year, month, day));
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockAuthState.callback = null;
+        mockUserData = null;
+        mockStepProps.current = {};
+        (loadPersistedMealCache as jest.Mock).mockResolvedValue(null);
+        (fetchRawMealsForDate as jest.Mock).mockImplementation(async () => ({ breakfast: [], lunch: [], dinner: [], snacks: [] }));
+        (writeMealType as jest.Mock).mockResolvedValue([]);
+        errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+        errorSpy.mockRestore();
+    });
+
+    test('today totals do not change when another day is selected', async () => {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        (fetchLast30DaysMeals as jest.Mock).mockResolvedValue([
+            { date: today, mealType: 'breakfast', foods: [oats] },
+            { date: formatDate(yesterday), mealType: 'lunch', foods: [rice] },
+        ]);
+        const { result } = await setup();
+
+        expect(result.current.todayNutrition.calories).toBe(100);
+
+        await act(async () => {
+            result.current.setSelectedDate(yesterday);
+        });
+
+        expect(result.current.dailyNutrition.calories).toBe(200);
+        expect(result.current.todayNutrition.calories).toBe(100);
+        expect(result.current.todayNutrition.protein).toBe(5);
+    });
+
+    test('a meal added to today updates the today totals', async () => {
+        (fetchLast30DaysMeals as jest.Mock).mockResolvedValue([]);
+        const { result } = await setup();
+
+        await act(async () => {
+            await result.current.handleAddMeal('lunch', [oats]);
+        });
+
+        expect(result.current.todayNutrition.calories).toBe(100);
+    });
+
+    test('the selected day follows the calendar past midnight when it was today', async () => {
+        jest.useFakeTimers({ now: new Date(2026, 9, 21, 23, 59, 30), doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+        (fetchLast30DaysMeals as jest.Mock).mockResolvedValue([
+            { date: keyOf(2026, 9, 21), mealType: 'breakfast', foods: [oats] },
+            { date: keyOf(2026, 9, 22), mealType: 'lunch', foods: [rice] },
+        ]);
+        const { result } = await setup();
+
+        expect(formatDate(result.current.selectedDate)).toBe(keyOf(2026, 9, 21));
+        expect(result.current.breakfastFoods.map(food => food.id)).toEqual(['oats']);
+        expect(result.current.todayNutrition.calories).toBe(100);
+
+        await act(async () => {
+            jest.advanceTimersByTime(31000);
+        });
+
+        expect(formatDate(result.current.selectedDate)).toBe(keyOf(2026, 9, 22));
+        expect(result.current.breakfastFoods).toEqual([]);
+        expect(result.current.lunchFoods.map(food => food.id)).toEqual(['rice']);
+        expect(result.current.todayNutrition.calories).toBe(200);
+    });
+
+    test('a day the user picked on purpose is kept past midnight while today totals roll over', async () => {
+        jest.useFakeTimers({ now: new Date(2026, 9, 21, 23, 59, 30), doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+        (fetchLast30DaysMeals as jest.Mock).mockResolvedValue([
+            { date: keyOf(2026, 9, 20), mealType: 'dinner', foods: [oats] },
+            { date: keyOf(2026, 9, 22), mealType: 'lunch', foods: [rice] },
+        ]);
+        const { result } = await setup();
+
+        await act(async () => {
+            result.current.setSelectedDate(new Date(2026, 9, 20));
+        });
+        expect(result.current.todayNutrition.calories).toBe(0);
+
+        await act(async () => {
+            jest.advanceTimersByTime(31000);
+        });
+
+        expect(formatDate(result.current.selectedDate)).toBe(keyOf(2026, 9, 20));
+        expect(result.current.dinnerFoods.map(food => food.id)).toEqual(['oats']);
+        expect(result.current.todayNutrition.calories).toBe(200);
+    });
+});
