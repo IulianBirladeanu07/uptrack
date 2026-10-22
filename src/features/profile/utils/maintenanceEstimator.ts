@@ -1,4 +1,5 @@
 import { flattenWeightInsChronological, shiftWeekStart } from './weightTrendEngine';
+import { formatLocalDateKey } from '../../../shared/utils/localDateKey';
 import { MIN_STEP_DAYS } from '../../nutrition/helpers/stepStats';
 import type { MaintenanceEstimate, WeekStats, WeightEntry, WeightInWeek } from '../../../shared/types';
 
@@ -32,7 +33,7 @@ const stepsOf = (w: WeekStats): number | null => {
 
 const isUsable = (w: MaybeWeek): w is WeekStats => !!(w && w.weekStart && w.daysLogged >= REGRESSION_MIN_LOGGED_DAYS && w.avgCalories > 0);
 
-const toKey = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const toKey = (d: Date): string => formatLocalDateKey(d);
 
 const shiftDateKey = (key: string, days: number): string => {
   const date = parseKey(key);

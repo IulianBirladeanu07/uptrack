@@ -1,3 +1,4 @@
+import { formatLocalDateKey } from '../../../../shared/utils/localDateKey';
 import type { DayKey, PlanType, WeightInWeek } from '../../../../shared/types';
 import { isGoalReached } from '../../../profile/utils/weightTrendEngine';
 
@@ -63,11 +64,7 @@ export const isComparisonInCurrentGoalPhase = (
     if (Number.isNaN(switchDate.getTime())) return false;
     const mondayOffset = (switchDate.getDay() + 6) % 7;
     switchDate.setDate(switchDate.getDate() - mondayOffset + 7);
-    const firstFullPhaseWeek = [
-        switchDate.getFullYear(),
-        String(switchDate.getMonth() + 1).padStart(2, '0'),
-        String(switchDate.getDate()).padStart(2, '0'),
-    ].join('-');
+    const firstFullPhaseWeek = formatLocalDateKey(switchDate);
 
     return weekStart >= firstFullPhaseWeek && previousWeekStart >= firstFullPhaseWeek;
 };

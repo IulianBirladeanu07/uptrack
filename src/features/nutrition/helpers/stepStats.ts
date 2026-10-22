@@ -1,4 +1,5 @@
 import type { DailySteps } from '../../../shared/types';
+import { formatLocalDateKey } from '../../../shared/utils/localDateKey';
 
 export type StepStats = { days: number; total: number; avg: number };
 
@@ -12,8 +13,7 @@ export type StepSnapshot = {
 export const MIN_VALID_STEPS = 1000;
 export const MIN_STEP_DAYS = 4;
 
-const pad = (n: number): string => String(n).padStart(2, '0');
-const toKey = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const toKey = (d: Date): string => formatLocalDateKey(d);
 
 export const weekDayKeys = (weekStart: string): string[] => {
   const [y, m, d] = String(weekStart).split('-').map(Number);

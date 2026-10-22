@@ -1,3 +1,4 @@
+import { formatLocalDateKey } from '../../../../shared/utils/localDateKey';
 import { colors } from '../../../../shared/theme';
 import type { FoodContextValue } from '../../../nutrition/context/FoodContext';
 
@@ -18,12 +19,7 @@ export type WeeklyWeightDelta = {
     fg: string;
 };
 
-const toLocalDateKey = (date: Date): string => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-};
+const toLocalDateKey = (date: Date): string => formatLocalDateKey(date);
 
 const getMonday = (date: Date): Date => {
     const monday = new Date(date);

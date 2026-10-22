@@ -1,4 +1,5 @@
 import type { DayKey, StatusBadge, TrendPoint, WeightEntry, WeightInWeek } from '../../../shared/types';
+import { formatLocalDateKey } from '../../../shared/utils/localDateKey';
 
 const EMA_ALPHA = 0.1;
 const PLATEAU_THRESHOLD_PERCENT = 0.0015;
@@ -54,7 +55,7 @@ export const getRecentAverageWeight = (weightIns: WeightInWeek[] | null | undefi
 export const shiftWeekStart = (weekStart: string, n: number): string => {
   const [y, m, d] = weekStart.split('-').map(Number);
   const date = new Date(y, m - 1, d + 7 * n);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return formatLocalDateKey(date);
 };
 
 export const getWeekAverageWeight = (weightIns: WeightInWeek[] | null | undefined, weekStart: string, minEntries = 3): number | null => {

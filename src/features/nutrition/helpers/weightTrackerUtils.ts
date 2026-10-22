@@ -1,3 +1,4 @@
+import { formatLocalDateKey } from '../../../shared/utils/localDateKey';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { userConverter } from '../../../shared/firestore/converters';
 import { Animated } from 'react-native';
@@ -52,10 +53,7 @@ export const getWeekStartDate = (date: DateInput): Date => {
 export const getLocalWeekStart = (date: DateInput): string => {
   const d = getWeekStartDate(date);
   d.setHours(0, 0, 0, 0);
-  const y   = d.getFullYear();
-  const m   = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return formatLocalDateKey(d);
 };
 
 export const getDayKey = (date: Date): DayKey => SUNDAY_FIRST[date.getDay()];

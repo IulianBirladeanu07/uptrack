@@ -4,6 +4,7 @@ import { getPhaseLabel, isGoalReached } from '../../profile/utils/weightTrendEng
 import { overlayWeekSteps } from '../../nutrition/helpers/stepStats';
 import type { StepSnapshot } from '../../nutrition/helpers/stepStats';
 import type { DailySteps, PlanType, UserData, WeekStats, WeightInWeek } from '../../../shared/types';
+import { formatLocalDateKey } from '../../../shared/utils/localDateKey';
 
 type Maybe = number | null | undefined;
 type Slot = { e: number | null; r: number | null };
@@ -202,7 +203,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 
-export const toKey = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export const toKey = (d: Date): string => formatLocalDateKey(d);
 
 const parseKey = (k: string): Date => {
   const [y, m, d] = k.split('-').map(Number);

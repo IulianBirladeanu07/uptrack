@@ -1,3 +1,5 @@
+import { formatLocalDateKey } from '../utils/localDateKey';
+
 export type DailySteps = Record<string, number>;
 
 export type StepBucket = {
@@ -7,13 +9,10 @@ export type StepBucket = {
 
 const ZONED = /(Z|[+-]\d{2}:?\d{2})$/;
 
-const pad = (n: number): string => String(n).padStart(2, '0');
-
 export const toDateKey = (startTime: string): string => {
   const timePart = startTime.split('T')[1] ?? '';
   if (!ZONED.test(timePart)) return startTime.slice(0, 10);
-  const d = new Date(startTime);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return formatLocalDateKey(new Date(startTime));
 };
 
 export const bucketsToDailySteps = (buckets: StepBucket[]): DailySteps => {

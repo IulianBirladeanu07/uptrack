@@ -3,6 +3,7 @@ import { userConverter } from '../../../shared/firestore/converters';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../auth/services/firebaseConfigService';
 import { toLocalDate } from '../utils/dateUtils';
+import { formatLocalDateKey } from '../../../shared/utils/localDateKey';
 import type { DateInput, UserData, WeightDisplayData } from '../../../shared/types';
 
 const memoryCache = new Map<string, UserData>();
@@ -18,10 +19,7 @@ export class WeightService {
     }
 
     static formatDateKey(date: Date): string {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
+        return formatLocalDateKey(date);
     }
 
     static getLocalWeekStartKey(date: DateInput): string {
