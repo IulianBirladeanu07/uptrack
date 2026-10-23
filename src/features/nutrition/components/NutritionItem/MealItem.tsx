@@ -221,6 +221,9 @@ const MealItemContent = ({
               isMealAdded && styles.addMealButtonToggled,
             ]}
             onPress={handleToggleMeal}
+            accessibilityRole="button"
+            accessibilityLabel={isMealAdded ? 'Undo add all items' : 'Add all items'}
+            accessibilityState={{ selected: isMealAdded }}
           >
             <Text style={[
               styles.addMealButtonText,
@@ -250,6 +253,8 @@ const MealItemContent = ({
           <Pressable
             style={styles.viewAllButton}
             onPress={hasMoreItems ? handleToggleExpansion : undefined}
+            accessibilityRole={hasMoreItems ? 'button' : undefined}
+            accessibilityState={hasMoreItems ? { expanded: isExpanded } : undefined}
           >
             {hasMoreItems ? (
               <>

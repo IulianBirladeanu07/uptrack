@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useContext, useCallback, useRef } from 'react';
-import { View, ScrollView, TouchableOpacity, Text, ActivityIndicator, Animated } from 'react-native';
+import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react';
+import { View, ScrollView, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
@@ -10,6 +10,7 @@ import { AuthContext } from '../../../auth/context/AuthContext';
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
 import HomeNoticeCard from '../../../../shared/components/HomeNoticeCard/HomeNoticeCard';
+import PulseDot from '../../../../shared/components/PulseDot/PulseDot';
 import { colors, spacing } from '../../../../shared/theme';
 import { useAppNavigation } from '../../../../shared/navigation';
 import type { HomeNotice } from '../../../../shared/types';
@@ -43,20 +44,6 @@ const LiveTimer = ({ startTime }: { startTime: number }) => {
     return <Text style={styles.resumeTimer}>{fmt}</Text>;
 };
 
-const PulseDot = () => {
-    const scale = useRef(new Animated.Value(1)).current;
-
-    useEffect(() => {
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(scale, { toValue: 1.4, duration: 600, useNativeDriver: true }),
-                Animated.timing(scale, { toValue: 1, duration: 600, useNativeDriver: true }),
-            ])
-        ).start();
-    }, [scale]);
-
-    return <Animated.View style={[styles.pulseDot, { transform: [{ scale }] }]} />;
-};
 
 type TodayWorkoutProps = {
     workout: ScheduledWorkout | null;
@@ -74,7 +61,7 @@ const TodayWorkout = ({ workout, activeWorkout, completed, loadError, onPress }:
                     <View style={styles.workoutInfo}>
                         <Text style={styles.workoutTitle}>{activeWorkout.templateName || 'Workout'}</Text>
                         <View style={styles.activeRow}>
-                            <PulseDot />
+                            <PulseDot style={styles.pulseDot} />
                             <Text style={styles.activeText}>In progress</Text>
                             <Text style={styles.activeTimer}>· <LiveTimer startTime={activeWorkout.startTime} /></Text>
                         </View>

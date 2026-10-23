@@ -79,7 +79,7 @@ const useSwipeToDelete = (onDelete?: () => void) => {
     };
   });
 
-  return { gesture, containerStyle, trashStyle };
+  return { gesture, containerStyle, trashStyle, confirmDelete };
 };
 
 export default useSwipeToDelete;

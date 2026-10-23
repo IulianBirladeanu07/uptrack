@@ -192,6 +192,8 @@ const StartWorkout = () => {
                         onPress={handleAddExercisePress}
                         activeOpacity={0.7}
                         hitSlop={{ top: 30, bottom: 30, left: 30, right: 30 }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Add exercise"
                     >
                         <View style={styles.addExerciseButtonContent}>
                             <Ionicons name="add" size={normalize(20)} color={styles.addExerciseButtonText.color} />
@@ -297,11 +299,11 @@ const StartWorkout = () => {
         return (
             <View style={styles.container}>
                 <View style={[styles.headerContainer, { paddingTop: insets.top + normalize(20) }]}>
-                    <TouchableOpacity style={styles.headerButton} onPress={handleExit} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+                    <TouchableOpacity style={styles.headerButton} onPress={handleExit} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }} accessibilityRole="button" accessibilityLabel="Cancel workout">
                         <Text style={styles.cancelText}>Cancel</Text>
                     </TouchableOpacity>
                     <TimerComponent />
-                    <TouchableOpacity style={[styles.headerButton, styles.finishButton]} disabled={true} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+                    <TouchableOpacity style={[styles.headerButton, styles.finishButton]} disabled={true} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }} accessibilityRole="button" accessibilityLabel="Finish workout" accessibilityState={{ disabled: true }}>
                         <Text style={[styles.finishText, styles.finishTextDisabled]}>Finish</Text>
                     </TouchableOpacity>
                 </View>
@@ -315,7 +317,7 @@ const StartWorkout = () => {
     return (
         <View style={styles.container}>
             <View style={[styles.headerContainer, { paddingTop: insets.top + normalize(20) }]}>
-                <TouchableOpacity style={styles.headerButton} onPress={handleExit} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+                <TouchableOpacity style={styles.headerButton} onPress={handleExit} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }} accessibilityRole="button" accessibilityLabel="Cancel workout">
                     <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
                 <TimerComponent />
@@ -324,6 +326,9 @@ const StartWorkout = () => {
                     onPress={handleFinishWorkout}
                     disabled={exerciseData.length === 0}
                     hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Finish workout"
+                    accessibilityState={{ disabled: exerciseData.length === 0 }}
                 >
                     <Text style={[styles.finishText, exerciseData.length === 0 && styles.finishTextDisabled]}>Finish</Text>
                 </TouchableOpacity>
@@ -362,6 +367,8 @@ const StartWorkout = () => {
                         style={styles.commandAdd}
                         onPress={handleAddExercisePress}
                         hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Add exercise"
                     >
                         <Text style={styles.commandButtonText}>+ Add Exercise</Text>
                     </TouchableOpacity>

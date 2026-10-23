@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, memo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
+import type { AccessibilityActionEvent, StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import Animated from 'react-native-reanimated';
 import { GestureDetector } from 'react-native-gesture-handler';
@@ -138,6 +138,9 @@ const PlusButton = memo(({ isChecked, onPress, showButton }: PlusButtonProps) =>
         hitSlop={styles.hitSlop}
         delayPressIn={0}
         activeOpacity={0.7}
+        accessibilityRole="checkbox"
+        accessibilityLabel="Select food"
+        accessibilityState={{ checked: isChecked }}
       >
         <Ionicons
           name={isChecked ? 'checkmark' : 'add'}
@@ -260,7 +263,7 @@ const FoodItem = memo(
       onSwipeableOpen?.(item);
     }, [item, onSwipeableOpen]);
 
-    const { gesture, containerStyle, trashStyle } = useSwipeToDelete(handleDelete);
+    const { gesture, containerStyle, trashStyle, confirmDelete } = useSwipeToDelete(handleDelete);
     const { animatePress, pressStyle } = usePressAnimation();
 
     const handlePlusPress = useCallback(() => {
@@ -273,12 +276,28 @@ const FoodItem = memo(
       onPress?.(item);
     }, [item, onPress, animatePress]);
 
+    const accessibilityActions = useMemo(() => {
+      const actions: { name: string; label: string }[] = [];
+      if (showPlusButton) actions.push({ name: 'select', label: isChecked ? 'Unselect food' : 'Select food' });
+      if (isFoodDeletable) actions.push({ name: 'delete', label: 'Delete food' });
+      return actions;
+    }, [showPlusButton, isChecked, isFoodDeletable]);
+
+    const handleAccessibilityAction = useCallback((event: AccessibilityActionEvent) => {
+      if (event.nativeEvent.actionName === 'select') handlePlusPress();
+      if (event.nativeEvent.actionName === 'delete') confirmDelete();
+    }, [handlePlusPress, confirmDelete]);
+
     const Content = (
       <TouchableOpacity
         onPress={handlePress}
         style={compact ? styles.touchableCompact : styles.touchable}
         activeOpacity={0.9}
         delayPressIn={0}
+        accessibilityRole="button"
+        accessibilityLabel={`${itemData.foodName}, ${itemData.calories} kilocalories`}
+        accessibilityActions={accessibilityActions}
+        onAccessibilityAction={handleAccessibilityAction}
       >
         <View style={resolvedStyles.item}>
           <FoodImage uri={item.image} icon={item.icon} style={resolvedStyles.image} isScrolling={isScrolling} />

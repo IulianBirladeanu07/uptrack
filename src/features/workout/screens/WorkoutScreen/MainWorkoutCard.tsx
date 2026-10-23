@@ -1,8 +1,9 @@
 import React from 'react';
-import { Animated, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { colors } from '../../../../shared/theme';
+import PulseDot from '../../../../shared/components/PulseDot/PulseDot';
 import type { PersistedWorkoutState, TemplateExercise } from '../../types';
 import type { WorkoutSummary } from './workoutHistorySummary';
 import type { WorkoutPreview } from './ComingUpCard';
@@ -61,20 +62,6 @@ const LiveTimer = ({ startTime }: { startTime: number }) => {
     return <Text style={styles.resumeTimer}>{fmt}</Text>;
 };
 
-const PulseDot = () => {
-    const scale = React.useRef(new Animated.Value(1)).current;
-
-    React.useEffect(() => {
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(scale, { toValue: 1.4, duration: 600, useNativeDriver: true }),
-                Animated.timing(scale, { toValue: 1, duration: 600, useNativeDriver: true }),
-            ])
-        ).start();
-    }, [scale]);
-
-    return <Animated.View style={[styles.pulseDot, { transform: [{ scale }] }]} />;
-};
 
 const ExerciseRow = ({ sets, name, reps, isLast }: ExerciseRowProps) => (
     <View style={[styles.exerciseRow, isLast && styles.exerciseRowLast]}>
@@ -116,7 +103,7 @@ const MainWorkoutCard = React.memo(({
             <View style={styles.workoutCard}>
                 <Text style={styles.workoutCardTitle}>{activeWorkout.templateName || 'Workout'}</Text>
                 <TouchableOpacity style={styles.resumeButton} onPress={onResume} activeOpacity={0.8}>
-                    <PulseDot />
+                    <PulseDot style={styles.pulseDot} />
                     <Text style={styles.resumeButtonText}>Resume Workout</Text>
                     <Text style={styles.resumeTimer}>· <LiveTimer startTime={activeWorkout.startTime} /></Text>
                 </TouchableOpacity>
