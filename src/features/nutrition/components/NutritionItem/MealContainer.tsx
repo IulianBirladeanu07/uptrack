@@ -5,7 +5,7 @@ import FoodItem from './FoodItem';
 import type { FoodItemData } from './FoodItem';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
-import type { LoggedFood, MealType } from '../../../../shared/types';
+import type { LoggedFood, MealType, NutritionTotals } from '../../../../shared/types';
 
 type MealContainerProps = {
   foods: LoggedFood[];
@@ -16,7 +16,10 @@ type MealContainerProps = {
   selectedMeal: MealType;
   setSelectedMeal: (meal: MealType) => void;
   onAddFood?: (() => void) | undefined;
+  mealTotals?: Record<MealType, NutritionTotals> | undefined;
 };
+
+const formatKcal = (calories: number) => `${Math.round(calories).toLocaleString('en-US')} kcal`;
 
 const MEALS: MealType[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
 
@@ -36,7 +39,9 @@ const MealContainer = ({
   selectedMeal,
   setSelectedMeal,
   onAddFood,
+  mealTotals,
 }: MealContainerProps) => {
+  const selectedTotals = mealTotals?.[selectedMeal];
   const getMealIcon = (meal: MealType) => {
     const iconColor = selectedMeal === meal ? colors.accent.primary : colors.text.quaternary;
     const iconSize = spacing[4];
@@ -78,10 +83,26 @@ const MealContainer = ({
                   {MEAL_LABELS[meal]}
                 </Text>
               </View>
+              {(mealTotals?.[meal]?.calories ?? 0) > 0 && (
+                <Text style={[styles.mealButtonKcal, selectedMeal === meal && styles.selectedMealKcal]}>
+                  {formatKcal(mealTotals![meal].calories)}
+                </Text>
+              )}
             </TouchableOpacity>
           ))}
         </View>
       </View>
+
+      {foods.length > 0 && selectedTotals && (
+        <View style={styles.summary}>
+          <Text style={styles.summaryTitle}>
+            {`${foods.length} ${foods.length === 1 ? 'item' : 'items'} · ${formatKcal(selectedTotals.calories)}`}
+          </Text>
+          <Text style={styles.summaryMacros}>
+            {`P ${Math.round(selectedTotals.protein)} g · C ${Math.round(selectedTotals.carbs)} g · F ${Math.round(selectedTotals.fat)} g`}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.listContainer}>
         {foods.length > 0 ? (
@@ -185,6 +206,35 @@ const styles = createStyles(() => ({
   selectedMealText: {
     fontWeight: fontWeight.bold,
     color: colors.accent.primary,
+  },
+  mealButtonKcal: {
+    marginTop: spacing[1] / 2,
+    textAlign: 'center',
+    fontSize: fontSize[10],
+    color: colors.text.tertiary,
+    fontWeight: fontWeight.medium,
+  },
+  selectedMealKcal: {
+    color: colors.accent.primary,
+  },
+  summary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing[2],
+    marginTop: spacing[3],
+    paddingHorizontal: spacing[1],
+  },
+  summaryTitle: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+  },
+  summaryMacros: {
+    flexShrink: 1,
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.medium,
+    color: colors.text.secondary,
   },
   listContainer: {
     flex: 1,

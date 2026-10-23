@@ -14,7 +14,8 @@ import styles from './NutritionScreenStyles';
 import type { FoodItemData } from '../../components/NutritionItem/FoodItem';
 import { useAppNavigation } from '../../../../shared/navigation';
 import { formatDate } from '../../utils/dateUtils';
-import type { FoodDetailFood, LoggedFood, MealType } from '../../../../shared/types';
+import { calculateDailyNutrition } from '../../helpers/nutritionTotals';
+import type { FoodDetailFood, LoggedFood, MealType, NutritionTotals } from '../../../../shared/types';
 
 const NutritionScreen = () => {
     const navigation = useAppNavigation();
@@ -97,6 +98,13 @@ const NutritionScreen = () => {
         return mealFoods[selectedMeal] || [];
     }, [selectedMeal, breakfastFoods, lunchFoods, dinnerFoods, snacksFoods]);
 
+    const mealTotals = useMemo<Record<MealType, NutritionTotals>>(() => ({
+        breakfast: calculateDailyNutrition(breakfastFoods),
+        lunch: calculateDailyNutrition(lunchFoods),
+        dinner: calculateDailyNutrition(dinnerFoods),
+        snacks: calculateDailyNutrition(snacksFoods),
+    }), [breakfastFoods, lunchFoods, dinnerFoods, snacksFoods]);
+
     const statsComponent = useMemo(() => (
         <NutritionStats
             weightData={weightData}
@@ -152,6 +160,7 @@ const NutritionScreen = () => {
                         selectedMeal={selectedMeal}
                         setSelectedMeal={setSelectedMeal}
                         onAddFood={handleAddFood}
+                        mealTotals={mealTotals}
                     />
                 </View>
                 <BottomNav />
