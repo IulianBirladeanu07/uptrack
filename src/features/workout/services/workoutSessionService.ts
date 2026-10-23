@@ -12,6 +12,20 @@ import { workoutHistoryQueryKeys } from './workoutQueryKeys';
 import { workoutService } from './WorkoutService';
 import { SAVE_TIMEOUT_MS, withTimeout } from '../../../shared/utils/withTimeout';
 
+const pendingWorkoutDocIds = new Map<string, string>();
+
+const workoutDocIdForAttempt = (uid: string): { id: string; release: () => void } => {
+  const startTime = workoutService.workoutStartTime;
+  if (startTime == null) return { id: doc(collection(db, 'workoutHistory')).id, release: () => undefined };
+  const sessionKey = `${uid}:${startTime}`;
+  let id = pendingWorkoutDocIds.get(sessionKey);
+  if (!id) {
+    id = doc(collection(db, 'workoutHistory')).id;
+    pendingWorkoutDocIds.set(sessionKey, id);
+  }
+  return { id, release: () => { pendingWorkoutDocIds.delete(sessionKey); } };
+};
+
 type AppNav = NativeStackNavigationProp<AuthenticatedStackParamList>;
 type MessageFn = (message: string) => void;
 type FormatTimeFn = (seconds: number) => string;
@@ -110,8 +124,10 @@ async function finishWorkout(
       workoutName: templateName || null,
     });
 
-    const workoutDocRef = doc(collection(db, 'workoutHistory'));
+    const attempt = workoutDocIdForAttempt(uid);
+    const workoutDocRef = doc(db, 'workoutHistory', attempt.id);
     await withTimeout(setDoc(workoutDocRef, workoutDataToSend), SAVE_TIMEOUT_MS);
+    attempt.release();
     await queryClient.invalidateQueries({
       queryKey: workoutHistoryQueryKeys.forUser(uid),
     });
