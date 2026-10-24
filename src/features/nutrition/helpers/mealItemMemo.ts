@@ -61,6 +61,7 @@ export const mealItemPropsEqual = (
     showPlusButton?: boolean | undefined;
     isFoodDeletable?: boolean | undefined;
     meal?: unknown;
+    isFoodSelected?: unknown;
   },
   next: {
     item?: MealItemLike;
@@ -69,6 +70,7 @@ export const mealItemPropsEqual = (
     showPlusButton?: boolean | undefined;
     isFoodDeletable?: boolean | undefined;
     meal?: unknown;
+    isFoodSelected?: unknown;
   },
 ): boolean => {
   const prevItem = prev.item;
@@ -79,7 +81,8 @@ export const mealItemPropsEqual = (
       prev.onPlusPress === next.onPlusPress &&
       prev.showPlusButton === next.showPlusButton &&
       prev.isFoodDeletable === next.isFoodDeletable &&
-      prev.meal === next.meal
+      prev.meal === next.meal &&
+      prev.isFoodSelected === next.isFoodSelected
     );
   }
   if (!prevItem || !nextItem) return false;
@@ -92,7 +95,8 @@ export const mealItemPropsEqual = (
     prev.onPlusPress === next.onPlusPress &&
     prev.showPlusButton === next.showPlusButton &&
     prev.isFoodDeletable === next.isFoodDeletable &&
-    prev.meal === next.meal
+    prev.meal === next.meal &&
+    prev.isFoodSelected === next.isFoodSelected
   );
 };
 

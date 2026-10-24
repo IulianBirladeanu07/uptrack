@@ -3,6 +3,7 @@ export const colors = {
     primary: '#0A0E13',
     secondary: '#151B23',
     tertiary: '#1F2937',
+    track: '#2B3544',
     overlay: 'rgba(10, 14, 19, 0.85)',
     overlayLight: 'rgba(0, 0, 0, 0.2)',
     selectedCard: 'rgba(22, 25, 28, 0.99)',

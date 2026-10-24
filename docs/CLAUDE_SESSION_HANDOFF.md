@@ -1,6 +1,6 @@
 # Claude session handoff
 
-Updated 2026-10-17. Start with this handoff, then read `AGENTS.md` before changing code.
+Updated 2026-10-24. Start with this handoff, then read `AGENTS.md` before changing code.
 
 ## Repository snapshot
 
@@ -31,6 +31,19 @@ Do not combine the ongoing refactor with the separate app-flow/security audit. I
 ## Work completed in the recent modularity/refactoring sequence
 
 The work below records completed batches. Use `git status --short` and `git log --oneline` to distinguish the current uncommitted changes from committed work; do not redo a batch without a concrete reason.
+
+### Nutrition meal calorie display
+
+- Removed the meal summary row and per-meal calorie labels from `MealContainer`; removed the totals calculation that only fed those labels. Compared the unified segmented-control variant against the existing compact pill buttons and restored the pill layout. Kept the orange selected state and lifted inactive icon/label contrast to the theme's tertiary text color.
+- Updated the existing component assertions for the selector. Tests and device preview were not run in this batch; `git diff --check` is the only validation performed.
+- Tried a compact-height meal card for short food lists, but the owner rejected the resulting empty-screen layout; reverted that experiment. The original card sizing and scrolling behavior are restored.
+- Added `colors.background.track` (`#2B3544`) for the unfilled Nutrition calorie ring and macro bars, making progress tracks consistent and visible without competing with their fills. A lighter trial was rejected. Added a contrast assertion; tests and device preview were not run.
+- Slightly reduced CircularProgress's main value size and added vertical breathing room between its center lines. Tests and device preview were not run.
+- CircularProgress now closes fully at 100%; progress remains capped at a full ring above the target, while the center text reports calories over. Tests and device preview were not run.
+- Added a “Meal total” footer below the logged-food list, summing calories and macros with the same orange calorie and C/P/F chip colors as the food rows. It stays visible while long meal lists scroll and is hidden when the selected meal is empty. Increased the total calorie size slightly and brightened its divider for clearer hierarchy. Tests and device preview were not run.
+- Nutrition now selects a default meal from local time on first mount (breakfast 05:00–10:59, lunch 11:00–15:59, dinner 16:00–21:59, snacks otherwise). The selected meal remains in screen state when navigating away and back while the screen stays mounted. Tests and device preview were not run.
+- Fixed Food Selection interactions: the inactive search overlay leaves room for the barcode action; food row checkmarks now reflect the selected-food state across lists and detail returns; recent-meal Add All applies an explicit add/remove state instead of toggling every item. Tests and device preview were not run.
+- Restored the Progress screen's compact range options beside the Nutrition/Training tabs, removing the newer full-width segmented-control placement. Progress data calculations and range behavior remain unchanged. Tests and device preview were not run.
 
 ### Nutrition and shared data logic
 
@@ -120,6 +133,7 @@ The work below records completed batches. Use `git status --short` and `git log 
 - Added 20 component tests to `src/features/nutrition/components/NutritionItem/FoodSearchResults.test.tsx` (React Native Testing Library, already in the repo) covering the filter pills and their counts, each filter's results and best match, the result count wording, the Add to Log button, results without a query, and the loading, error and retry, no-results and create, empty prompt and recent searches states. They were written first and passed against the unchanged component, and a deliberate threshold change made them fail.
 - Moved the two result filters into `foodSearchFilters.ts` (`applyFoodFilter`, `LOW_CALORIE_LIMIT`, `HIGH_PROTEIN_MIN`) so the pill counts and the filtered list share one definition instead of repeating the 200 calorie and 10 g protein rules. Added 6 unit tests. `FoodSearchResults.tsx` changes by about 10 lines; its JSX, the inline styles and its props are unchanged.
 - Not covered by the new tests: removing a single recent search (the close icon has no label or test id) and the visual layout.
+- UI follow-up (2026-10-24): grouped the non-best search results into one themed card with row dividers, reduced the best-match border to the standard one-pixel treatment, and replaced the No Image text fallback with the themed food icon. No behavior or search callbacks changed. No tests or device preview were run for this visual-only pass.
 
 ### Food context meal writes
 
@@ -296,7 +310,23 @@ The work below records completed batches. Use `git status --short` and `git log 
 - The full audit decreased from 84 findings (55 high, 29 moderate) to 53 (47 high, 6 moderate), with zero critical findings. The production dependency graph reports 28 (22 high, 6 moderate), also with zero criticals.
 - Remaining distinct upstream/tooling findings are `node-forge`, `braces`, and `sprintf-js`; many audit rows are affected dependency paths, not separate vulnerabilities. The registry has no patched releases newer than `node-forge@1.4.0`, `braces@3.0.3`, or `sprintf-js@1.1.3`. Expo's node-forge use is in Node-based code-signing/configuration that reads local project PEM files, not an app-runtime path found in this review. The braces finding propagates through toolchain glob matching. Jest 30 contains fixes for some toolchain advisories, but `jest-expo@54.0.18` depends on Jest 29 internals and `jest-watch-typeahead@2.2.1` declares Jest 29 as its highest supported major; do not force an unaligned major upgrade. No safe compatible upstream fixes were available for the remaining findings at review time; recheck before release and when upstream updates land.
 
-Latest validation for the Workout History card projection:
+### Nutrition data research and verified updates
+
+- Added `scripts/research-nutrients.mjs` to query only `non_barcoded_products`, search product names in Romanian and English through Open Food Facts Search-a-licious, compare candidates with existing macros, and write a review-only JSON report. It never updates Supabase.
+- The 25-row dairy pilot found 7 rows with no candidate and 18 requiring manual review; zero met the exact-name, brand, and macro-agreement gate. Do not import Open Food Facts values until ODbL attribution and share-alike terms are reviewed for the shared database.
+- Applied 40 source-backed nutrient-field updates across 31 non-barcoded dairy products. The latest additions include saturated fat for Alba 0% kefir and fiber for Albalact 0.1% cow cheese, both with exact macro agreement. The latest batch added saturated fat for five Albalact products from official Albalact labels (25% sour cream, 3.5% milk, 12% and 18% sour cream, and 40% butter). Every write targeted a known row ID and a field that was null. Source/value/match notes are recorded in `verified-nutrient-updates.csv` in the current task outputs. Barcode products were not queried or changed.
+- Post-update counts for `non_barcoded_products` (21,054 rows): fiber missing 13,421; sugar missing 5,788; salt missing 5,722; saturated fats missing 21,031. This batch is a start, not full database completion.
+- USDA FoodData Central is a potential scalable source for generic foods: USDA describes the data as public domain under CC0 1.0 and asks users to cite FoodData Central. The April 2026 Foundation Foods archive is small; branded-data downloads are much larger. Direct archive downloads failed in this environment, so no USDA data was imported.
+
+Latest validation for the nutrient data work:
+
+- `node --input-type=module --check -` with the research script piped on stdin: passed.
+- One-row smoke run and 25-row dairy pilot completed; the pilot made no database writes.
+- The 40 live database values were verified with read-back queries. The provenance CSV parses as 40 rows grouped by field: 11 fiber, 3 sugar, 3 salt, and 23 saturated-fat values.
+- `git diff --check`: passed.
+
+Next data candidate: retrieve the official USDA Foundation Foods archive and build a review-only matcher for generic products. Keep branded products on a separate source path and check exact product/macro agreement before writes.
+Previous validation for the Workout History card projection:
 
 - `npx jest --runInBand --ci`: 126 suites / 1,044 tests passed.
 - `npx jest --runInBand --ci src/features/workout/screens/WorkoutHistoryScreen`: 4 suites / 9 tests passed.

@@ -134,8 +134,8 @@ describe('FoodSearchResults filters', () => {
         render(<FoodSearchResults searchResults={mixed} searchQuery="x" />);
 
         expect(screen.getByText('All')).toBeTruthy();
-        expect(screen.getByText('Low Cal')).toBeTruthy();
-        expect(screen.getByText('Protein')).toBeTruthy();
+        expect(screen.getByText('Under 200 kcal')).toBeTruthy();
+        expect(screen.getByText('10g+ protein')).toBeTruthy();
         expect(pillCounts()).toEqual([6, 3, 3]);
     });
 
@@ -151,7 +151,7 @@ describe('FoodSearchResults filters', () => {
     it('keeps only foods under 200 calories for the low calorie filter', () => {
         render(<FoodSearchResults searchResults={mixed} searchQuery="x" showPlusButton />);
 
-        fireEvent.press(screen.getByText('Low Cal'));
+        fireEvent.press(screen.getByText('Under 200 kcal'));
 
         expect(visibleIds()).toEqual(['a', 'b', 'd']);
         expect(screen.getByText('3 results')).toBeTruthy();
@@ -160,7 +160,7 @@ describe('FoodSearchResults filters', () => {
     it('keeps foods with at least 10 g of protein for the protein filter', () => {
         render(<FoodSearchResults searchResults={mixed} searchQuery="x" showPlusButton />);
 
-        fireEvent.press(screen.getByText('Protein'));
+        fireEvent.press(screen.getByText('10g+ protein'));
 
         expect(visibleIds()).toEqual(['d', 'e', 'f']);
     });
@@ -168,7 +168,7 @@ describe('FoodSearchResults filters', () => {
     it('makes the first filtered result the best match without a plus button', () => {
         render(<FoodSearchResults searchResults={mixed} searchQuery="x" showPlusButton />);
 
-        fireEvent.press(screen.getByText('Protein'));
+        fireEvent.press(screen.getByText('10g+ protein'));
 
         expect(screen.queryByTestId('add-d')).toBeNull();
         expect(screen.getByTestId('add-e')).toBeTruthy();
@@ -179,7 +179,7 @@ describe('FoodSearchResults filters', () => {
     it('returns to every result when All is pressed again', () => {
         render(<FoodSearchResults searchResults={mixed} searchQuery="x" showPlusButton />);
 
-        fireEvent.press(screen.getByText('Low Cal'));
+        fireEvent.press(screen.getByText('Under 200 kcal'));
         fireEvent.press(screen.getByText('All'));
 
         expect(visibleIds()).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
@@ -195,11 +195,11 @@ describe('FoodSearchResults filters', () => {
     it('shows no best match when the active filter excludes everything', () => {
         render(<FoodSearchResults searchResults={[mixed[2] as FoodSearchItem]} searchQuery="x" />);
 
-        fireEvent.press(screen.getByText('Low Cal'));
+        fireEvent.press(screen.getByText('Under 200 kcal'));
 
         expect(screen.queryByText('BEST MATCH')).toBeNull();
         expect(visibleIds()).toEqual([]);
-        expect(screen.getByText('Low Cal')).toBeTruthy();
+        expect(screen.getByText('Under 200 kcal')).toBeTruthy();
     });
 
     it('adds the best match with the original search item from the Add to Log button', () => {
@@ -215,7 +215,7 @@ describe('FoodSearchResults filters', () => {
     it('shows results without filter pills when there is no query', () => {
         render(<FoodSearchResults searchResults={mixed} searchQuery="" showPlusButton />);
 
-        expect(screen.queryByText('Low Cal')).toBeNull();
+        expect(screen.queryByText('Under 200 kcal')).toBeNull();
         expect(visibleIds()).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
     });
 });

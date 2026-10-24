@@ -34,8 +34,27 @@ const styles = createStyles(() => ({
     viewTextActive: {
         color: colors.text.primary,
     },
-    rangeBar: {
-        marginBottom: spacing[3],
+    rangeSelector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexShrink: 1,
+    },
+    rangeOption: {
+        minHeight: spacing[12],
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: spacing[3],
+        borderRadius: radius[2],
+    },
+    rangeText: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.quaternary,
+        textAlign: 'center',
+    },
+    rangeTextActive: {
+        color: colors.text.primary,
+        fontWeight: fontWeight.bold,
     },
 
     card: {

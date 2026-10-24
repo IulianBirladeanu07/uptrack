@@ -98,6 +98,14 @@ const FoodSelectionScreen = () => {
 
     const currentCalories = useMemo(() => Math.round(dailyNutrition?.calories || 0), [dailyNutrition?.calories]);
     const targetCalories = useMemo(() => resolveCalorieTarget(hasTargets, userMacros?.targetCalories), [hasTargets, userMacros?.targetCalories]);
+    const selectedFoodIdentities = useMemo(
+        () => new Set(selectedFoods.map(getFoodSelectionIdentity)),
+        [selectedFoods]
+    );
+
+    const isFoodSelected = useCallback((food: FoodItemData) => (
+        selectedFoodIdentities.has(getFoodSelectionIdentity(food))
+    ), [selectedFoodIdentities]);
 
     useEffect(() => {
         if (!selectedFoodDetail) return;
@@ -148,13 +156,15 @@ const FoodSelectionScreen = () => {
         navigation.navigate('CustomFood', { type: 'foodWithoutBarcode', meal, selectedDate });
     }, [navigation, meal, selectedDate]);
 
-    const toggleFoodSelection = useCallback(async (item: FoodItemData) => {
+    const toggleFoodSelection = useCallback(async (item: FoodItemData, toggleToAdd?: boolean) => {
         if (isSearching && searchQuery && searchQuery.trim().length >= 3) {
             await handleSearchComplete(searchQuery);
         }
         setSelectedFoods(prev => {
             const itemIdentity = getFoodSelectionIdentity(item);
             const isSelected = prev.some(food => getFoodSelectionIdentity(food) === itemIdentity);
+            if (toggleToAdd === true) return isSelected ? prev : [...prev, item];
+            if (toggleToAdd === false) return isSelected ? prev.filter(food => getFoodSelectionIdentity(food) !== itemIdentity) : prev;
             return isSelected
                 ? prev.filter(food => getFoodSelectionIdentity(food) !== itemIdentity)
                 : [...prev, item];
@@ -296,6 +306,7 @@ const FoodSelectionScreen = () => {
                     searchQuery={searchQuery}
                     handleNavigateToFoodDetail={handleNavigateToFoodDetail}
                     handlePlusPress={toggleFoodSelection}
+                    isFoodSelected={isFoodSelected}
                     onCreateFood={handleCreateFood}
                     meal={meal}
                     recentSearches={recentSearches}

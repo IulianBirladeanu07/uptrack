@@ -5,7 +5,8 @@ import FoodItem from './FoodItem';
 import type { FoodItemData } from './FoodItem';
 import { createStyles } from '../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
-import type { LoggedFood, MealType, NutritionTotals } from '../../../../shared/types';
+import type { LoggedFood, MealType } from '../../../../shared/types';
+import { calculateDailyNutrition } from '../../helpers/nutritionTotals';
 
 type MealContainerProps = {
   foods: LoggedFood[];
@@ -16,10 +17,7 @@ type MealContainerProps = {
   selectedMeal: MealType;
   setSelectedMeal: (meal: MealType) => void;
   onAddFood?: (() => void) | undefined;
-  mealTotals?: Record<MealType, NutritionTotals> | undefined;
 };
-
-const formatKcal = (calories: number) => `${Math.round(calories).toLocaleString('en-US')} kcal`;
 
 const MEALS: MealType[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
 
@@ -39,11 +37,11 @@ const MealContainer = ({
   selectedMeal,
   setSelectedMeal,
   onAddFood,
-  mealTotals,
 }: MealContainerProps) => {
-  const selectedTotals = mealTotals?.[selectedMeal];
+  const mealTotals = calculateDailyNutrition(foods);
+
   const getMealIcon = (meal: MealType) => {
-    const iconColor = selectedMeal === meal ? colors.accent.primary : colors.text.quaternary;
+    const iconColor = selectedMeal === meal ? colors.accent.primary : colors.text.tertiary;
     const iconSize = spacing[4];
 
     switch (meal) {
@@ -68,6 +66,9 @@ const MealContainer = ({
             <TouchableOpacity
               key={meal}
               onPress={() => setSelectedMeal(meal)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedMeal === meal }}
+              accessibilityLabel={MEAL_LABELS[meal]}
               style={[
                 styles.mealButton,
                 selectedMeal === meal && styles.selectedMealButton
@@ -79,30 +80,18 @@ const MealContainer = ({
                 <Text style={[
                   styles.mealButtonText,
                   selectedMeal === meal && styles.selectedMealText
-                ]}>
+                ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  maxFontSizeMultiplier={1.3}
+                >
                   {MEAL_LABELS[meal]}
                 </Text>
               </View>
-              {(mealTotals?.[meal]?.calories ?? 0) > 0 && (
-                <Text style={[styles.mealButtonKcal, selectedMeal === meal && styles.selectedMealKcal]}>
-                  {formatKcal(mealTotals![meal].calories)}
-                </Text>
-              )}
             </TouchableOpacity>
           ))}
         </View>
       </View>
-
-      {foods.length > 0 && selectedTotals && (
-        <View style={styles.summary}>
-          <Text style={styles.summaryTitle}>
-            {`${foods.length} ${foods.length === 1 ? 'item' : 'items'} · ${formatKcal(selectedTotals.calories)}`}
-          </Text>
-          <Text style={styles.summaryMacros}>
-            {`P ${Math.round(selectedTotals.protein)} g · C ${Math.round(selectedTotals.carbs)} g · F ${Math.round(selectedTotals.fat)} g`}
-          </Text>
-        </View>
-      )}
 
       <View style={styles.listContainer}>
         {foods.length > 0 ? (
@@ -149,6 +138,34 @@ const MealContainer = ({
             </Text>
           </View>
         )}
+
+        {foods.length > 0 && (
+          <>
+            <View style={styles.mealTotalDivider} />
+            <View style={styles.mealTotalRow} accessibilityLabel="Meal total">
+              <View style={styles.mealTotalDetails}>
+                <Text style={styles.mealTotalTitle}>Meal total</Text>
+                <View style={styles.mealTotalMacros}>
+                  {mealTotals.carbs > 0 && (
+                    <Text style={[styles.macroLabel, styles.macroCarbs]}>{Math.round(mealTotals.carbs)}C</Text>
+                  )}
+                  {mealTotals.protein > 0 && (
+                    <Text style={[styles.macroLabel, styles.macroProtein]}>{Math.round(mealTotals.protein)}P</Text>
+                  )}
+                  {mealTotals.fat > 0 && (
+                    <Text style={[styles.macroLabel, styles.macroFat]}>{Math.round(mealTotals.fat)}F</Text>
+                  )}
+                </View>
+              </View>
+              <View style={styles.mealTotalCalories}>
+                <Text style={styles.mealTotalCaloriesValue}>{Math.round(mealTotals.calories).toLocaleString('en-US')}</Text>
+                <Text style={styles.mealTotalCaloriesUnit}>kcal</Text>
+              </View>
+            </View>
+          </>
+        )}
+
+        {foods.length > 0 && <View style={styles.listSpacer} />}
 
         <TouchableOpacity style={styles.addButton} onPress={onAddFood}>
           <Text style={styles.addButtonText}>+ Add Food</Text>
@@ -200,53 +217,25 @@ const styles = createStyles(() => ({
   },
   mealButtonText: {
     fontSize: fontSize[10],
-    color: colors.text.quaternary,
+    color: colors.text.tertiary,
     fontWeight: fontWeight.semibold,
   },
   selectedMealText: {
     fontWeight: fontWeight.bold,
     color: colors.accent.primary,
   },
-  mealButtonKcal: {
-    marginTop: spacing[1] / 2,
-    textAlign: 'center',
-    fontSize: fontSize[10],
-    color: colors.text.tertiary,
-    fontWeight: fontWeight.medium,
-  },
-  selectedMealKcal: {
-    color: colors.accent.primary,
-  },
-  summary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing[2],
-    marginTop: spacing[3],
-    paddingHorizontal: spacing[1],
-  },
-  summaryTitle: {
-    fontSize: fontSize[12],
-    fontWeight: fontWeight.bold,
-    color: colors.text.primary,
-  },
-  summaryMacros: {
-    flexShrink: 1,
-    fontSize: fontSize[12],
-    fontWeight: fontWeight.medium,
-    color: colors.text.secondary,
-  },
   listContainer: {
     flex: 1,
     marginTop: spacing[3],
   },
   scrollView: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 1,
+    maxHeight: spacing[40],
     backgroundColor: 'transparent',
     overflow: 'hidden',
   },
   scrollContent: {
-    flexGrow: 1,
     paddingHorizontal: spacing[1],
     paddingVertical: spacing[1],
     backgroundColor: 'transparent',
@@ -257,7 +246,10 @@ const styles = createStyles(() => ({
     backgroundColor: 'transparent',
   },
   scrollBottomPadding: {
-    height: spacing[5],
+    height: spacing[2],
+  },
+  listSpacer: {
+    flex: 1,
   },
   emptyStateContainer: {
     flex: 1,
@@ -294,6 +286,64 @@ const styles = createStyles(() => ({
     height: 1,
     marginVertical: spacing[1],
     backgroundColor: colors.border.light,
+  },
+  mealTotalDivider: {
+    height: 1,
+    marginVertical: spacing[1],
+    backgroundColor: colors.border.default,
+  },
+  mealTotalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing[1],
+    paddingVertical: spacing[1],
+  },
+  mealTotalDetails: {
+    flex: 1,
+    gap: spacing[1],
+  },
+  mealTotalTitle: {
+    color: colors.text.primary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
+  },
+  mealTotalMacros: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    flexWrap: 'wrap',
+  },
+  macroCarbs: {
+    backgroundColor: colors.faded.green,
+    color: colors.accent.greenLight,
+  },
+  macroProtein: {
+    backgroundColor: colors.faded.purpleAlt,
+    color: colors.accent.purpleLight,
+  },
+  macroFat: {
+    backgroundColor: colors.faded.cyanAlt,
+    color: colors.accent.cyanLight,
+  },
+  mealTotalCalories: {
+    minWidth: spacing[10],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing[2],
+  },
+  mealTotalCaloriesValue: {
+    color: colors.accent.primaryLight,
+    fontSize: fontSize[16],
+    fontWeight: fontWeight.extrabold,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  mealTotalCaloriesUnit: {
+    color: colors.text.secondary,
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
   },
   foodContainer: {
     marginBottom: spacing[1],

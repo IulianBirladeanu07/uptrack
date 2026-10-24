@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { View, StyleSheet, Text, Animated, TouchableOpacity } from "react-native";
 import { Circle, Svg } from "react-native-svg";
 import { normalize } from "../../hooks/useResponsive";
+import { colors } from "../../theme";
 
 type CircularProgressProps = {
   value: number;
@@ -26,7 +27,7 @@ const CircularProgress = ({
   size = 100,
   strokeWidth = 10,
   color = "#FF7043",
-  trailColor = "#D3D3D3",
+  trailColor = colors.background.track,
   duration = 1400,
   measure = "KCAL",
   hasTargets = false,
@@ -80,7 +81,7 @@ const CircularProgress = ({
 
   const strokeDashoffset = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [circumference, Math.max(0, circumference * 0.02)],
+    outputRange: [circumference, 0],
   });
 
   const changeView = () => {
@@ -103,7 +104,7 @@ const CircularProgress = ({
   };
 
   const dynamicStyles = {
-    mainValue: { fontSize: size / 5 },
+    mainValue: { fontSize: size / 5.5, marginBottom: normalize(2) },
     statusText: { fontSize: size / 11 },
     statusTextAlt: { fontSize: size / 12 },
     progressText: { fontSize: size / 14 },
@@ -294,7 +295,7 @@ const styles = StyleSheet.create({
     color: "#BDBDBD",
     textAlign: "center",
     fontWeight: "600",
-    marginBottom: normalize(5),
+    marginBottom: normalize(7),
   },
   progressText: {
     color: "#E0E0E0",

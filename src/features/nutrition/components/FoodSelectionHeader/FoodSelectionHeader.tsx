@@ -158,14 +158,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[2],
     marginTop: spacing[1],
     borderWidth: 1,
-    backgroundColor: colors.faded.successAlt,
-    borderColor: colors.border.successAlt,
-    shadowColor: colors.accent.success,
+    backgroundColor: colors.faded.primary,
+    borderColor: colors.border.primary,
   },
   badgeText: {
     fontSize: fontSize[10],
     fontWeight: fontWeight.bold,
-    color: colors.accent.success,
+    color: colors.accent.primary,
     letterSpacing: 0.2,
   },
   createButton: {
@@ -223,7 +222,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     flex: 1,
     height: spacing[2],
-    backgroundColor: colors.background.tertiary,
+    backgroundColor: colors.background.track,
     borderRadius: radius[1],
     overflow: 'hidden',
   },

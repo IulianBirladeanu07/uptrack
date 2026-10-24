@@ -32,3 +32,13 @@ describe('navigation label contrast', () => {
     expect(contrast(colors.text.quaternary, colors.background.secondary)).toBeLessThan(4.5);
   });
 });
+
+describe('progress ring track', () => {
+  it('is visible against the card without competing with the progress arc', () => {
+    const onCard = contrast(colors.background.track, colors.background.secondary);
+
+    expect(onCard).toBeGreaterThanOrEqual(1.3);
+    expect(onCard).toBeLessThanOrEqual(2);
+    expect(contrast(colors.accent.primary, colors.background.secondary)).toBeGreaterThan(onCard * 3);
+  });
+});

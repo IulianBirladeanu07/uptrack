@@ -39,6 +39,7 @@ type FoodItemProps = {
   isFoodDeletable?: boolean | undefined;
   onPlusPress?: ((item: FoodItemData) => void) | undefined;
   showPlusButton?: boolean | undefined;
+  isSelected?: boolean | undefined;
   isScrolling?: boolean | undefined;
   compact?: boolean | undefined;
   foodContainer?: StyleProp<ViewStyle>;
@@ -85,7 +86,11 @@ const FoodImage = memo(({ uri, icon, isScrolling, style }: FoodImageProps) => (
         cachePolicy="memory-disk"
       />
     ) : (
-      <Text style={styles.imagePlaceholder}>{icon || 'No Image'}</Text>
+      icon ? (
+        <Text style={styles.imagePlaceholder}>{icon}</Text>
+      ) : (
+        <MaterialCommunityIcons name="food-apple" size={spacing[6]} color={colors.text.tertiary} />
+      )
     )}
   </View>
 ));
@@ -139,13 +144,13 @@ const PlusButton = memo(({ isChecked, onPress, showButton }: PlusButtonProps) =>
         delayPressIn={0}
         activeOpacity={0.7}
         accessibilityRole="checkbox"
-        accessibilityLabel="Select food"
+        accessibilityLabel={isChecked ? 'Remove food from selection' : 'Add food to selection'}
         accessibilityState={{ checked: isChecked }}
       >
         <Ionicons
           name={isChecked ? 'checkmark' : 'add'}
           size={spacing[4]}
-          color={isChecked ? colors.accent.success : colors.text.tertiary}
+          color={isChecked ? colors.accent.primary : colors.text.tertiary}
         />
       </TouchableOpacity>
     </View>
@@ -225,6 +230,7 @@ const FoodItem = memo(
     isFoodDeletable = false,
     onPlusPress,
     showPlusButton = false,
+    isSelected,
     isScrolling = false,
     compact = false,
     foodContainer,
@@ -237,7 +243,8 @@ const FoodItem = memo(
     quantityLabelText: quantityLabelTextStyle,
     macroLabel: macroLabelStyle,
   }: FoodItemProps) => {
-    const [isChecked, setIsChecked] = useState(false);
+    const [isLocallyChecked, setIsLocallyChecked] = useState(false);
+    const isChecked = isSelected ?? isLocallyChecked;
 
     const itemData = useMemo(
       () => ({
@@ -267,9 +274,11 @@ const FoodItem = memo(
     const { animatePress, pressStyle } = usePressAnimation();
 
     const handlePlusPress = useCallback(() => {
-      setIsChecked((prev) => !prev);
+      if (isSelected === undefined) {
+        setIsLocallyChecked((prev) => !prev);
+      }
       onPlusPress?.(item);
-    }, [item, onPlusPress]);
+    }, [item, isSelected, onPlusPress]);
 
     const handlePress = useCallback(() => {
       animatePress();
@@ -509,10 +518,10 @@ const styles = createStyles(() => ({
   },
 
   plusButtonSelected: {
-    backgroundColor: colors.faded.successAlt,
+    backgroundColor: colors.faded.primary,
     borderWidth: 1,
-    borderColor: colors.border.successAlt,
-    shadowColor: colors.accent.success,
+    borderColor: colors.border.primary,
+    shadowColor: colors.accent.primary,
   },
 
   deleteButtonContainer: {

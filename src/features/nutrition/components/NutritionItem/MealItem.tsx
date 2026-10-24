@@ -24,6 +24,7 @@ type MealItemProps = {
   showPlusButton?: boolean | undefined;
   isFoodDeletable?: boolean | undefined;
   meal?: string | undefined;
+  isFoodSelected?: ((food: LoggedFood) => boolean) | undefined;
 };
 
 type MealItemContentProps = {
@@ -32,6 +33,7 @@ type MealItemContentProps = {
   onPlusPress?: PlusPressHandler | undefined;
   showPlusButton: boolean;
   isFoodDeletable: boolean;
+  isFoodSelected?: ((food: LoggedFood) => boolean) | undefined;
 };
 
 type MemoizedFoodItemProps = {
@@ -99,7 +101,7 @@ const formatMealTitle = (date: DateInput, mealType: string) => {
   return `${fullDate} ${mealName}`;
 };
 
-const MemoizedFoodItem = memo(({ food, onPress, onPlusPress, showPlusButton, isFoodDeletable }: MemoizedFoodItemProps) => (
+const MemoizedFoodItem = memo(({ food, onPress, onPlusPress, isChecked, showPlusButton, isFoodDeletable }: MemoizedFoodItemProps) => (
   <FoodItem
     item={{
       ...food,
@@ -108,6 +110,7 @@ const MemoizedFoodItem = memo(({ food, onPress, onPlusPress, showPlusButton, isF
     onPress={() => onPress?.(food)}
     onPlusPress={() => onPlusPress?.(food)}
     showPlusButton={showPlusButton}
+    isSelected={isChecked}
     isFoodDeletable={isFoodDeletable}
     foodContainer={styles.foodItemContainer}
   />
@@ -132,6 +135,7 @@ const MealItemContent = ({
   onPlusPress,
   showPlusButton,
   isFoodDeletable,
+  isFoodSelected,
 }: MealItemContentProps) => {
   const containerScale = useSharedValue(1);
 
@@ -243,7 +247,7 @@ const MealItemContent = ({
                 food={food}
                 onPress={handleNavigateToFoodDetail}
                 onPlusPress={handlePlusPressInternal}
-                isChecked={checkedFoods[food.id] || false}
+                isChecked={isFoodSelected?.(food) ?? checkedFoods[food.id] ?? false}
                 showPlusButton={!isMealAdded && showPlusButton}
                 isFoodDeletable={isFoodDeletable}
               />
@@ -294,6 +298,7 @@ const MealItem = memo(({
   showPlusButton = true,
   isFoodDeletable = false,
   meal,
+  isFoodSelected,
 }: MealItemProps) => {
   if (!hasFoods(item)) {
     return (
@@ -314,6 +319,7 @@ const MealItem = memo(({
       onPlusPress={onPlusPress}
       showPlusButton={showPlusButton}
       isFoodDeletable={isFoodDeletable}
+      isFoodSelected={isFoodSelected}
     />
   );
 }, mealItemPropsEqual);

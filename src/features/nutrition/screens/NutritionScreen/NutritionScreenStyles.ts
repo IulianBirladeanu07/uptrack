@@ -187,7 +187,7 @@ const styles = createStyles(() => ({
     position: 'relative',
     height: spacing[2],
     width: '100%',
-    backgroundColor: colors.background.tertiary,
+    backgroundColor: colors.background.track,
     borderRadius: radius[2],
     overflow: 'hidden',
     marginBottom: spacing[2],

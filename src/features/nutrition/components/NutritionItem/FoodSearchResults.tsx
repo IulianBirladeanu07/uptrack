@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Text, View, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import FoodItem from './FoodItem';
@@ -14,7 +14,6 @@ type Filter = {
   key: string;
   label: string;
   count: number;
-  icon: IconName;
 };
 
 type FoodSearchResultsProps = {
@@ -24,7 +23,8 @@ type FoodSearchResultsProps = {
   searchError?: string | null | undefined;
   onRetrySearch?: (() => void) | undefined;
   onItemPress?: ((item: FoodItemData) => void) | undefined;
-  onPlusPress?: ((item: FoodItemData) => void) | undefined;
+  onPlusPress?: ((item: FoodItemData, toggleToAdd?: boolean) => void) | undefined;
+  isFoodSelected?: ((item: FoodItemData) => boolean) | undefined;
   showPlusButton?: boolean | undefined;
   onCreateFood?: (() => void) | undefined;
   recentSearches?: string[] | undefined;
@@ -42,6 +42,7 @@ const FoodSearchResults = memo(({
   onRetrySearch,
   onItemPress,
   onPlusPress,
+  isFoodSelected,
   showPlusButton = false,
   onCreateFood,
   recentSearches = [],
@@ -50,12 +51,16 @@ const FoodSearchResults = memo(({
   onClearAllRecentSearches,
   recentSearchesLoading = false,
 }: FoodSearchResultsProps) => {
-  const [selectedFilter, setSelectedFilter] = React.useState('all');
+  const [selectedFilter, setSelectedFilter] = useState('all');
+
+  useEffect(() => {
+    setSelectedFilter('all');
+  }, [searchQuery]);
 
   const filters = useMemo<Filter[]>(() => [
-    { key: 'all', label: 'All', count: searchResults.length, icon: 'grid-outline' },
-    { key: 'under200', label: 'Low Cal', count: applyFoodFilter(searchResults, 'under200').length, icon: 'flame-outline' },
-    { key: 'high-protein', label: 'Protein', count: applyFoodFilter(searchResults, 'high-protein').length, icon: 'fitness-outline' },
+    { key: 'all', label: 'All', count: searchResults.length },
+    { key: 'under200', label: 'Under 200 kcal', count: applyFoodFilter(searchResults, 'under200').length },
+    { key: 'high-protein', label: '10g+ protein', count: applyFoodFilter(searchResults, 'high-protein').length },
   ], [searchResults]);
 
   const filteredResults = useMemo(
@@ -72,14 +77,17 @@ const FoodSearchResults = memo(({
     unit: item.servingSize?.unit,
   }), []);
 
+  const bestMatchItem = bestMatch ? transformItem(bestMatch) : undefined;
+  const isBestMatchSelected = bestMatch ? isFoodSelected?.(bestMatch) ?? false : false;
+
   const handleItemPress = useCallback((item: FoodItemData) => {
     const originalItem = searchResults.find(result => result.id === item.id);
     onItemPress?.(originalItem || item);
   }, [searchResults, onItemPress]);
 
-  const handlePlusPress = useCallback((item: FoodItemData) => {
+  const handlePlusPress = useCallback((item: FoodItemData, toggleToAdd?: boolean) => {
     const originalItem = searchResults.find(result => result.id === item.id);
-    onPlusPress?.(originalItem || item);
+    onPlusPress?.(originalItem || item, toggleToAdd);
   }, [searchResults, onPlusPress]);
 
   const quickSuggestions: { label: string; icon: IconName }[] = [
@@ -99,7 +107,7 @@ const FoodSearchResults = memo(({
     );
   }
 
-  if (!searchQuery && !searchResults.length) {
+  if (!searchQuery.trim() && !searchResults.length) {
     return (
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {recentSearches.length > 0 && (
@@ -165,6 +173,18 @@ const FoodSearchResults = memo(({
 
   if (searchQuery && searchLoading) return null;
 
+  if (searchQuery.trim().length < 2) {
+    return (
+      <View style={styles.emptyResults}>
+        <View style={styles.emptyIcon}>
+          <MaterialCommunityIcons name="magnify" size={spacing[14]} color={colors.accent.primary} />
+        </View>
+        <Text style={styles.emptyTitle}>Keep typing</Text>
+        <Text style={styles.emptySubtitle}>Enter at least 2 characters to search foods.</Text>
+      </View>
+    );
+  }
+
   if (searchQuery && searchError) {
     return (
       <View style={styles.emptyResults}>
@@ -204,13 +224,11 @@ const FoodSearchResults = memo(({
             <TouchableOpacity
               key={filter.key}
               onPress={() => setSelectedFilter(filter.key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedFilter === filter.key }}
+              accessibilityLabel={`${filter.label}, ${filter.count} results`}
               style={[styles.filterPill, selectedFilter === filter.key && styles.filterPillActive]}
             >
-              <Ionicons 
-                name={filter.icon} 
-                size={spacing[4]} 
-                color={selectedFilter === filter.key ? colors.accent.primary : colors.text.secondary} 
-              />
               <Text style={[styles.filterText, selectedFilter === filter.key && styles.filterTextActive]}>
                 {filter.label}
               </Text>
@@ -224,64 +242,79 @@ const FoodSearchResults = memo(({
         </ScrollView>
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {bestMatch && (
-          <View style={styles.bestMatchSection}>
-            <View style={styles.bestMatchHeader}>
-              <View style={styles.bestMatchBadge}>
-                <Ionicons name="star" size={spacing[3]} color={colors.accent.primary} />
-                <Text style={styles.badgeText}>BEST MATCH</Text>
+      {filteredResults.length === 0 ? (
+        <View style={styles.emptyFilterResults}>
+          <Text style={styles.emptyFilterTitle}>No foods match this filter</Text>
+          <TouchableOpacity
+            style={styles.showAllButton}
+            onPress={() => setSelectedFilter('all')}
+            accessibilityRole="button"
+            accessibilityLabel="Show all search results"
+          >
+            <Text style={styles.showAllText}>Show all results</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {bestMatch && (
+            <View style={styles.bestMatchSection}>
+              <View style={styles.bestMatchHeader}>
+                <View style={styles.bestMatchBadge}>
+                  <Ionicons name="star" size={spacing[3]} color={colors.accent.primary} />
+                  <Text style={styles.bestMatchTitle}>BEST MATCH</Text>
+                </View>
+                <Text style={styles.resultsCount}>
+                  {filteredResults.length} result{filteredResults.length !== 1 ? 's' : ''}
+                </Text>
               </View>
-              <Text style={styles.resultsCount}>
-                {filteredResults.length} result{filteredResults.length !== 1 ? 's' : ''}
-              </Text>
-            </View>
-            
-            <View style={styles.bestMatchCard}>
-              <FoodItem
-                item={transformItem(bestMatch)}
-                onPress={handleItemPress}
-                showPlusButton={false}
-                isFoodDeletable={false}
-                isScrolling={false}
-                foodContainer={styles.bestMatchItemContainer}
-              />
-              
-              <View style={styles.actions}>
-                <TouchableOpacity style={styles.primaryBtn} onPress={() => handlePlusPress(transformItem(bestMatch))}>
-                  <Ionicons name="add" size={spacing[5]} color={colors.background.primary} />
-                  <Text style={styles.primaryBtnText}>Add to Log</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryBtn} onPress={() => handleItemPress(transformItem(bestMatch))}>
-                  <Ionicons name="information-circle-outline" size={spacing[5]} color={colors.text.secondary} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
 
-        {otherResults.length > 0 && (
-          <View>
-            <View style={styles.otherBadge}>
-              <MaterialCommunityIcons name="format-list-bulleted" size={spacing[3]} color={colors.text.secondary} />
-              <Text style={styles.badgeText}>MORE OPTIONS ({otherResults.length})</Text>
-            </View>
-            
-            {otherResults.map((item, index) => (
-              <View key={item.id || index}>
+              <View style={styles.bestMatchCard}>
                 <FoodItem
+                  item={bestMatchItem!}
+                  onPress={handleItemPress}
+                  showPlusButton={false}
+                  isSelected={isBestMatchSelected}
+                  isFoodDeletable={false}
+                  isScrolling={false}
+                  foodContainer={styles.bestMatchItemContainer}
+                />
+
+                <View style={styles.actions}>
+                  <TouchableOpacity style={styles.primaryBtn} onPress={() => handlePlusPress(bestMatchItem!, !isBestMatchSelected)}>
+                    <Ionicons name={isBestMatchSelected ? 'checkmark' : 'add'} size={spacing[5]} color={colors.background.primary} />
+                    <Text style={styles.primaryBtnText}>{isBestMatchSelected ? 'Remove' : 'Add to Log'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.secondaryBtn} onPress={() => handleItemPress(transformItem(bestMatch))}>
+                    <Ionicons name="information-circle-outline" size={spacing[5]} color={colors.text.secondary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {otherResults.length > 0 && (
+            <View>
+              <View style={styles.otherBadge}>
+                <MaterialCommunityIcons name="format-list-bulleted" size={spacing[3]} color={colors.text.secondary} />
+                <Text style={styles.otherResultsTitle}>MORE OPTIONS ({otherResults.length})</Text>
+              </View>
+
+              {otherResults.map((item, index) => (
+                <FoodItem
+                  key={item.id || index}
                   item={transformItem(item)}
                   onPress={handleItemPress}
                   showPlusButton={showPlusButton}
+                  isSelected={isFoodSelected?.(item)}
                   onPlusPress={handlePlusPress}
                   isFoodDeletable={false}
                   isScrolling={false}
                 />
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 });
@@ -465,6 +498,32 @@ const styles = createStyles(() => ({
     alignItems: 'center',
     paddingHorizontal: spacing[10],
   },
+  emptyFilterResults: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing[6],
+  },
+  emptyFilterTitle: {
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    textAlign: 'center',
+  },
+  showAllButton: {
+    marginTop: spacing[3],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+    borderRadius: radius[3],
+    backgroundColor: colors.faded.primary,
+    borderWidth: 1,
+    borderColor: colors.border.primary,
+  },
+  showAllText: {
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
+    color: colors.accent.primary,
+  },
   createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -492,14 +551,14 @@ const styles = createStyles(() => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
-    paddingHorizontal: spacing[2],
+    paddingHorizontal: spacing[3],
     paddingVertical: spacing[2],
     backgroundColor: colors.background.secondary,
-    borderRadius: radius[2],
+    borderRadius: radius[3],
     borderWidth: 1,
     borderColor: colors.border.default,
     marginRight: spacing[2],
-    height: spacing[9],
+    minHeight: spacing[9],
   },
   filterPillActive: {
     backgroundColor: colors.faded.primary,
@@ -548,8 +607,14 @@ const styles = createStyles(() => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    backgroundColor: colors.faded.primary,
+    borderRadius: radius[2],
+    borderWidth: 1,
+    borderColor: colors.border.primaryAlt,
   },
-  badgeText: {
+  bestMatchTitle: {
     fontSize: fontSize[10],
     fontWeight: fontWeight.bold,
     color: colors.accent.primary,
@@ -564,8 +629,8 @@ const styles = createStyles(() => ({
     backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
     padding: spacing[4],
-    borderWidth: 2,
-    borderColor: colors.border.primary,
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
   bestMatchItemContainer: {
     marginBottom: spacing[3],
@@ -607,6 +672,12 @@ const styles = createStyles(() => ({
     alignItems: 'center',
     gap: spacing[2],
     marginBottom: spacing[3],
+  },
+  otherResultsTitle: {
+    fontSize: fontSize[10],
+    fontWeight: fontWeight.bold,
+    color: colors.accent.primary,
+    letterSpacing: 1,
   },
 }));
 

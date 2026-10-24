@@ -1,6 +1,7 @@
 import { useCallback, memo, useRef, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Keyboard } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { ScanBarcode } from 'lucide-react-native';
 import { useAppNavigation } from '../../../../shared/navigation/hooks';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
@@ -66,13 +67,15 @@ const SearchBar = memo(({
   }, [navigation, meal, selectedDate]);
 
   return (
-    <View style={styles.searchContainer}>
+    <View style={[styles.searchContainer, isSearching && styles.searchContainerSearching]}>
       <View style={[styles.searchBar, isSearching && styles.searchBarFocused]}>
         {!isSearching && (
           <TouchableOpacity
             style={styles.searchBarOverlay}
             onPress={() => onFocus?.()}
             activeOpacity={1}
+            accessibilityRole="button"
+            accessibilityLabel="Search foods"
           />
         )}
 
@@ -102,47 +105,46 @@ const SearchBar = memo(({
           editable={isSearching}
         />
 
-        <View style={styles.actionsContainer}>
-          {isSearching && (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={handleBackPress}
-              hitSlop={{ top: spacing[2], bottom: spacing[2], left: spacing[2], right: spacing[2] }}
-            >
-              <MaterialCommunityIcons
-                name="arrow-left"
-                size={spacing.icon}
-                color={colors.text.secondary}
-              />
-            </TouchableOpacity>
-          )}
-
+        {searchQuery?.length > 0 && (
           <TouchableOpacity
-            onPress={handleBarcodePress}
+            style={styles.clearButton}
+            onPress={handleClearPress}
             hitSlop={{ top: spacing[2], bottom: spacing[2], left: spacing[2], right: spacing[2] }}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
           >
             <MaterialCommunityIcons
-              name="barcode-scan"
+              name="close-circle"
               size={spacing.icon}
               color={colors.text.secondary}
             />
           </TouchableOpacity>
-
-          {searchQuery?.length > 0 && (
-            <TouchableOpacity
-              style={styles.clearButton}
-              onPress={handleClearPress}
-              hitSlop={{ top: spacing[2], bottom: spacing[2], left: spacing[2], right: spacing[2] }}
-            >
-              <MaterialCommunityIcons
-                name="close-circle"
-                size={spacing.icon}
-                color={colors.text.secondary}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
+        )}
       </View>
+
+      {isSearching ? (
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={handleBackPress}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel search"
+          hitSlop={{ top: spacing[2], bottom: spacing[2], left: spacing[2], right: spacing[2] }}
+        >
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={styles.scannerButton}
+          onPress={handleBarcodePress}
+          accessibilityRole="button"
+          accessibilityLabel="Scan barcode"
+          accessibilityHint="Opens the barcode scanner"
+          activeOpacity={0.7}
+        >
+          <ScanBarcode size={spacing[5]} color={colors.accent.primary} strokeWidth={2} />
+          <Text style={styles.scannerButtonText}>Scan</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 });
@@ -150,8 +152,15 @@ const SearchBar = memo(({
 const styles = createStyles(() => ({
   searchContainer: {
     marginTop: spacing[3],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  searchContainerSearching: {
+    gap: spacing[1],
   },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     height: spacing.inputHeight,
     backgroundColor: colors.background.secondary,
@@ -171,11 +180,6 @@ const styles = createStyles(() => ({
   },
   searchBarFocused: {
     borderColor: colors.accent.primary,
-    shadowColor: colors.accent.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 0,
-    elevation: 100,
   },
   iconContainer: {
     paddingLeft: spacing[4],
@@ -190,20 +194,33 @@ const styles = createStyles(() => ({
     fontWeight: fontWeight.medium,
     lineHeight: 20,
   },
-  actionsContainer: {
+  scannerButton: {
+    height: spacing[12],
+    paddingHorizontal: spacing[3],
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: spacing[3],
-    gap: spacing[1],
-  },
-  backButton: {
-    width: spacing[9],
-    height: spacing[9],
-    backgroundColor: colors.faded.surfaceMedium,
-    borderRadius: radius[2],
+    gap: spacing[2],
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[4],
+    borderWidth: 1,
+    borderColor: colors.border.default,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing[1],
+  },
+  scannerButtonText: {
+    color: colors.text.secondary,
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+  },
+  cancelButton: {
+    minHeight: spacing[12],
+    paddingHorizontal: spacing[1],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelText: {
+    color: colors.text.secondary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
   },
   clearButton: {
     padding: spacing[2],

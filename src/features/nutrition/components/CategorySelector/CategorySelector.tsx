@@ -90,6 +90,9 @@ const CategorySelector = memo(({ selectedCategory, setSelectedCategory, loading 
                                 onPress={() => handlePress(category, index)}
                                 onPressIn={() => handlePressIn(index)}
                                 onPressOut={() => handlePressOut(index)}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: isSelected }}
+                                accessibilityLabel={category}
                                 activeOpacity={0.9}
                                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             >

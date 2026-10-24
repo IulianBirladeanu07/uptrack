@@ -1,0 +1,1574 @@
+[
+  {
+    "path": "nutrition_images/beverages/alcoholic/beer.png",
+    "folder": "nutrition_images/beverages/alcoholic",
+    "file": "beer.png",
+    "stem": "beer"
+  },
+  {
+    "path": "nutrition_images/beverages/alcoholic/champagne.png",
+    "folder": "nutrition_images/beverages/alcoholic",
+    "file": "champagne.png",
+    "stem": "champagne"
+  },
+  {
+    "path": "nutrition_images/beverages/alcoholic/cocktail.png",
+    "folder": "nutrition_images/beverages/alcoholic",
+    "file": "cocktail.png",
+    "stem": "cocktail"
+  },
+  {
+    "path": "nutrition_images/beverages/alcoholic/gin.png",
+    "folder": "nutrition_images/beverages/alcoholic",
+    "file": "gin.png",
+    "stem": "gin"
+  },
+  {
+    "path": "nutrition_images/beverages/alcoholic/rum.png",
+    "folder": "nutrition_images/beverages/alcoholic",
+    "file": "rum.png",
+    "stem": "rum"
+  },
+  {
+    "path": "nutrition_images/beverages/alcoholic/tequila.png",
+    "folder": "nutrition_images/beverages/alcoholic",
+    "file": "tequila.png",
+    "stem": "tequila"
+  },
+  {
+    "path": "nutrition_images/beverages/alcoholic/vodka.png",
+    "folder": "nutrition_images/beverages/alcoholic",
+    "file": "vodka.png",
+    "stem": "vodka"
+  },
+  {
+    "path": "nutrition_images/beverages/alcoholic/whiskey.png",
+    "folder": "nutrition_images/beverages/alcoholic",
+    "file": "whiskey.png",
+    "stem": "whiskey"
+  },
+  {
+    "path": "nutrition_images/beverages/alcoholic/wine.png",
+    "folder": "nutrition_images/beverages/alcoholic",
+    "file": "wine.png",
+    "stem": "wine"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/apple_juice.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "apple_juice.png",
+    "stem": "apple_juice"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/coffee.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "coffee.png",
+    "stem": "coffee"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/energy_drink.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "energy_drink.png",
+    "stem": "energy_drink"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/hot_chocolate.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "hot_chocolate.png",
+    "stem": "hot_chocolate"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/ice_tea.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "ice_tea.png",
+    "stem": "ice_tea"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/juice.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "juice.png",
+    "stem": "juice"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/lemonade.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "lemonade.png",
+    "stem": "lemonade"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/matcha.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "matcha.png",
+    "stem": "matcha"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/milkshake.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "milkshake.png",
+    "stem": "milkshake"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/orange_juice.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "orange_juice.png",
+    "stem": "orange_juice"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/smoothie.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "smoothie.png",
+    "stem": "smoothie"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/soda.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "soda.png",
+    "stem": "soda"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/tea.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "tea.png",
+    "stem": "tea"
+  },
+  {
+    "path": "nutrition_images/beverages/non_alcoholic/water.png",
+    "folder": "nutrition_images/beverages/non_alcoholic",
+    "file": "water.png",
+    "stem": "water"
+  },
+  {
+    "path": "nutrition_images/condiments_and_sauces/sauces/barbecue_sauce.png",
+    "folder": "nutrition_images/condiments_and_sauces/sauces",
+    "file": "barbecue_sauce.png",
+    "stem": "barbecue_sauce"
+  },
+  {
+    "path": "nutrition_images/condiments_and_sauces/sauces/dip_sauce.png",
+    "folder": "nutrition_images/condiments_and_sauces/sauces",
+    "file": "dip_sauce.png",
+    "stem": "dip_sauce"
+  },
+  {
+    "path": "nutrition_images/condiments_and_sauces/sauces/garlic_sauce.png",
+    "folder": "nutrition_images/condiments_and_sauces/sauces",
+    "file": "garlic_sauce.png",
+    "stem": "garlic_sauce"
+  },
+  {
+    "path": "nutrition_images/condiments_and_sauces/sauces/hot_sauce.png",
+    "folder": "nutrition_images/condiments_and_sauces/sauces",
+    "file": "hot_sauce.png",
+    "stem": "hot_sauce"
+  },
+  {
+    "path": "nutrition_images/condiments_and_sauces/sauces/hummus.png",
+    "folder": "nutrition_images/condiments_and_sauces/sauces",
+    "file": "hummus.png",
+    "stem": "hummus"
+  },
+  {
+    "path": "nutrition_images/condiments_and_sauces/sauces/ketchup.png",
+    "folder": "nutrition_images/condiments_and_sauces/sauces",
+    "file": "ketchup.png",
+    "stem": "ketchup"
+  },
+  {
+    "path": "nutrition_images/condiments_and_sauces/sauces/mayonnaise.png",
+    "folder": "nutrition_images/condiments_and_sauces/sauces",
+    "file": "mayonnaise.png",
+    "stem": "mayonnaise"
+  },
+  {
+    "path": "nutrition_images/condiments_and_sauces/sauces/mustard.png",
+    "folder": "nutrition_images/condiments_and_sauces/sauces",
+    "file": "mustard.png",
+    "stem": "mustard"
+  },
+  {
+    "path": "nutrition_images/condiments_and_sauces/sauces/pesto.png",
+    "folder": "nutrition_images/condiments_and_sauces/sauces",
+    "file": "pesto.png",
+    "stem": "pesto"
+  },
+  {
+    "path": "nutrition_images/condiments_and_sauces/sauces/ranch_dressing.png",
+    "folder": "nutrition_images/condiments_and_sauces/sauces",
+    "file": "ranch_dressing.png",
+    "stem": "ranch_dressing"
+  },
+  {
+    "path": "nutrition_images/condiments_and_sauces/sauces/sauces.png",
+    "folder": "nutrition_images/condiments_and_sauces/sauces",
+    "file": "sauces.png",
+    "stem": "sauces"
+  },
+  {
+    "path": "nutrition_images/condiments_and_sauces/sauces/soy_sauce.png",
+    "folder": "nutrition_images/condiments_and_sauces/sauces",
+    "file": "soy_sauce.png",
+    "stem": "soy_sauce"
+  },
+  {
+    "path": "nutrition_images/dairy/cheese/cheese.png",
+    "folder": "nutrition_images/dairy/cheese",
+    "file": "cheese.png",
+    "stem": "cheese"
+  },
+  {
+    "path": "nutrition_images/dairy/cheese/cottage_cheese.png",
+    "folder": "nutrition_images/dairy/cheese",
+    "file": "cottage_cheese.png",
+    "stem": "cottage_cheese"
+  },
+  {
+    "path": "nutrition_images/dairy/cheese/cream_cheese.png",
+    "folder": "nutrition_images/dairy/cheese",
+    "file": "cream_cheese.png",
+    "stem": "cream_cheese"
+  },
+  {
+    "path": "nutrition_images/dairy/cheese/mozzarella.png",
+    "folder": "nutrition_images/dairy/cheese",
+    "file": "mozzarella.png",
+    "stem": "mozzarella"
+  },
+  {
+    "path": "nutrition_images/dairy/cheese/parmesan_cheese.png",
+    "folder": "nutrition_images/dairy/cheese",
+    "file": "parmesan_cheese.png",
+    "stem": "parmesan_cheese"
+  },
+  {
+    "path": "nutrition_images/dairy/cheese/ricotta.png",
+    "folder": "nutrition_images/dairy/cheese",
+    "file": "ricotta.png",
+    "stem": "ricotta"
+  },
+  {
+    "path": "nutrition_images/dairy/milk/almond_milk.png",
+    "folder": "nutrition_images/dairy/milk",
+    "file": "almond_milk.png",
+    "stem": "almond_milk"
+  },
+  {
+    "path": "nutrition_images/dairy/milk/milk.png",
+    "folder": "nutrition_images/dairy/milk",
+    "file": "milk.png",
+    "stem": "milk"
+  },
+  {
+    "path": "nutrition_images/dairy/milk/oat_milk.png",
+    "folder": "nutrition_images/dairy/milk",
+    "file": "oat_milk.png",
+    "stem": "oat_milk"
+  },
+  {
+    "path": "nutrition_images/dairy/milk/soy_milk.png",
+    "folder": "nutrition_images/dairy/milk",
+    "file": "soy_milk.png",
+    "stem": "soy_milk"
+  },
+  {
+    "path": "nutrition_images/dairy/yogurt/kefir.png",
+    "folder": "nutrition_images/dairy/yogurt",
+    "file": "kefir.png",
+    "stem": "kefir"
+  },
+  {
+    "path": "nutrition_images/dairy/yogurt/skyr.png",
+    "folder": "nutrition_images/dairy/yogurt",
+    "file": "skyr.png",
+    "stem": "skyr"
+  },
+  {
+    "path": "nutrition_images/dairy/yogurt/sour_cream.png",
+    "folder": "nutrition_images/dairy/yogurt",
+    "file": "sour_cream.png",
+    "stem": "sour_cream"
+  },
+  {
+    "path": "nutrition_images/dairy/yogurt/yogurt.png",
+    "folder": "nutrition_images/dairy/yogurt",
+    "file": "yogurt.png",
+    "stem": "yogurt"
+  },
+  {
+    "path": "nutrition_images/fats_and_oils/butter.png",
+    "folder": "nutrition_images/fats_and_oils",
+    "file": "butter.png",
+    "stem": "butter"
+  },
+  {
+    "path": "nutrition_images/fats_and_oils/olive_oil.png",
+    "folder": "nutrition_images/fats_and_oils",
+    "file": "olive_oil.png",
+    "stem": "olive_oil"
+  },
+  {
+    "path": "nutrition_images/fats_and_oils/peanut_butter.png",
+    "folder": "nutrition_images/fats_and_oils",
+    "file": "peanut_butter.png",
+    "stem": "peanut_butter"
+  },
+  {
+    "path": "nutrition_images/fats_and_oils/sunflower_oil.png",
+    "folder": "nutrition_images/fats_and_oils",
+    "file": "sunflower_oil.png",
+    "stem": "sunflower_oil"
+  },
+  {
+    "path": "nutrition_images/fruits/berries/blackberry.png",
+    "folder": "nutrition_images/fruits/berries",
+    "file": "blackberry.png",
+    "stem": "blackberry"
+  },
+  {
+    "path": "nutrition_images/fruits/berries/blueberry.png",
+    "folder": "nutrition_images/fruits/berries",
+    "file": "blueberry.png",
+    "stem": "blueberry"
+  },
+  {
+    "path": "nutrition_images/fruits/berries/cranberry.png",
+    "folder": "nutrition_images/fruits/berries",
+    "file": "cranberry.png",
+    "stem": "cranberry"
+  },
+  {
+    "path": "nutrition_images/fruits/berries/raspberry.png",
+    "folder": "nutrition_images/fruits/berries",
+    "file": "raspberry.png",
+    "stem": "raspberry"
+  },
+  {
+    "path": "nutrition_images/fruits/berries/strawberry.png",
+    "folder": "nutrition_images/fruits/berries",
+    "file": "strawberry.png",
+    "stem": "strawberry"
+  },
+  {
+    "path": "nutrition_images/fruits/citrus_fruits/clementine.png",
+    "folder": "nutrition_images/fruits/citrus_fruits",
+    "file": "clementine.png",
+    "stem": "clementine"
+  },
+  {
+    "path": "nutrition_images/fruits/citrus_fruits/grapefruit.png",
+    "folder": "nutrition_images/fruits/citrus_fruits",
+    "file": "grapefruit.png",
+    "stem": "grapefruit"
+  },
+  {
+    "path": "nutrition_images/fruits/citrus_fruits/lemon.png",
+    "folder": "nutrition_images/fruits/citrus_fruits",
+    "file": "lemon.png",
+    "stem": "lemon"
+  },
+  {
+    "path": "nutrition_images/fruits/citrus_fruits/lime.png",
+    "folder": "nutrition_images/fruits/citrus_fruits",
+    "file": "lime.png",
+    "stem": "lime"
+  },
+  {
+    "path": "nutrition_images/fruits/citrus_fruits/orange.png",
+    "folder": "nutrition_images/fruits/citrus_fruits",
+    "file": "orange.png",
+    "stem": "orange"
+  },
+  {
+    "path": "nutrition_images/fruits/citrus_fruits/tangerine.png",
+    "folder": "nutrition_images/fruits/citrus_fruits",
+    "file": "tangerine.png",
+    "stem": "tangerine"
+  },
+  {
+    "path": "nutrition_images/fruits/common_fruits/apple.png",
+    "folder": "nutrition_images/fruits/common_fruits",
+    "file": "apple.png",
+    "stem": "apple"
+  },
+  {
+    "path": "nutrition_images/fruits/common_fruits/avocado.png",
+    "folder": "nutrition_images/fruits/common_fruits",
+    "file": "avocado.png",
+    "stem": "avocado"
+  },
+  {
+    "path": "nutrition_images/fruits/common_fruits/cantaloupe.png",
+    "folder": "nutrition_images/fruits/common_fruits",
+    "file": "cantaloupe.png",
+    "stem": "cantaloupe"
+  },
+  {
+    "path": "nutrition_images/fruits/common_fruits/coconut.png",
+    "folder": "nutrition_images/fruits/common_fruits",
+    "file": "coconut.png",
+    "stem": "coconut"
+  },
+  {
+    "path": "nutrition_images/fruits/common_fruits/fruit_mix.png",
+    "folder": "nutrition_images/fruits/common_fruits",
+    "file": "fruit_mix.png",
+    "stem": "fruit_mix"
+  },
+  {
+    "path": "nutrition_images/fruits/common_fruits/grape.png",
+    "folder": "nutrition_images/fruits/common_fruits",
+    "file": "grape.png",
+    "stem": "grape"
+  },
+  {
+    "path": "nutrition_images/fruits/common_fruits/green_apple.png",
+    "folder": "nutrition_images/fruits/common_fruits",
+    "file": "green_apple.png",
+    "stem": "green_apple"
+  },
+  {
+    "path": "nutrition_images/fruits/common_fruits/green_grape.png",
+    "folder": "nutrition_images/fruits/common_fruits",
+    "file": "green_grape.png",
+    "stem": "green_grape"
+  },
+  {
+    "path": "nutrition_images/fruits/common_fruits/pear.png",
+    "folder": "nutrition_images/fruits/common_fruits",
+    "file": "pear.png",
+    "stem": "pear"
+  },
+  {
+    "path": "nutrition_images/fruits/common_fruits/pomegranate.png",
+    "folder": "nutrition_images/fruits/common_fruits",
+    "file": "pomegranate.png",
+    "stem": "pomegranate"
+  },
+  {
+    "path": "nutrition_images/fruits/common_fruits/watermelon.png",
+    "folder": "nutrition_images/fruits/common_fruits",
+    "file": "watermelon.png",
+    "stem": "watermelon"
+  },
+  {
+    "path": "nutrition_images/fruits/stone_fruits/apricot.png",
+    "folder": "nutrition_images/fruits/stone_fruits",
+    "file": "apricot.png",
+    "stem": "apricot"
+  },
+  {
+    "path": "nutrition_images/fruits/stone_fruits/cherries.png",
+    "folder": "nutrition_images/fruits/stone_fruits",
+    "file": "cherries.png",
+    "stem": "cherries"
+  },
+  {
+    "path": "nutrition_images/fruits/stone_fruits/nectarine.png",
+    "folder": "nutrition_images/fruits/stone_fruits",
+    "file": "nectarine.png",
+    "stem": "nectarine"
+  },
+  {
+    "path": "nutrition_images/fruits/stone_fruits/olive.png",
+    "folder": "nutrition_images/fruits/stone_fruits",
+    "file": "olive.png",
+    "stem": "olive"
+  },
+  {
+    "path": "nutrition_images/fruits/stone_fruits/peach.png",
+    "folder": "nutrition_images/fruits/stone_fruits",
+    "file": "peach.png",
+    "stem": "peach"
+  },
+  {
+    "path": "nutrition_images/fruits/stone_fruits/plum.png",
+    "folder": "nutrition_images/fruits/stone_fruits",
+    "file": "plum.png",
+    "stem": "plum"
+  },
+  {
+    "path": "nutrition_images/fruits/stone_fruits/raisins.png",
+    "folder": "nutrition_images/fruits/stone_fruits",
+    "file": "raisins.png",
+    "stem": "raisins"
+  },
+  {
+    "path": "nutrition_images/fruits/stone_fruits/wolfberry.png",
+    "folder": "nutrition_images/fruits/stone_fruits",
+    "file": "wolfberry.png",
+    "stem": "wolfberry"
+  },
+  {
+    "path": "nutrition_images/fruits/tropical_fruits/banana.png",
+    "folder": "nutrition_images/fruits/tropical_fruits",
+    "file": "banana.png",
+    "stem": "banana"
+  },
+  {
+    "path": "nutrition_images/fruits/tropical_fruits/kiwi.png",
+    "folder": "nutrition_images/fruits/tropical_fruits",
+    "file": "kiwi.png",
+    "stem": "kiwi"
+  },
+  {
+    "path": "nutrition_images/fruits/tropical_fruits/mango.png",
+    "folder": "nutrition_images/fruits/tropical_fruits",
+    "file": "mango.png",
+    "stem": "mango"
+  },
+  {
+    "path": "nutrition_images/fruits/tropical_fruits/papaya.png",
+    "folder": "nutrition_images/fruits/tropical_fruits",
+    "file": "papaya.png",
+    "stem": "papaya"
+  },
+  {
+    "path": "nutrition_images/fruits/tropical_fruits/pineapple.png",
+    "folder": "nutrition_images/fruits/tropical_fruits",
+    "file": "pineapple.png",
+    "stem": "pineapple"
+  },
+  {
+    "path": "nutrition_images/grains/cereal/cereal_bar.png",
+    "folder": "nutrition_images/grains/cereal",
+    "file": "cereal_bar.png",
+    "stem": "cereal_bar"
+  },
+  {
+    "path": "nutrition_images/grains/cereal/cereals.png",
+    "folder": "nutrition_images/grains/cereal",
+    "file": "cereals.png",
+    "stem": "cereals"
+  },
+  {
+    "path": "nutrition_images/grains/cereal/muesli.png",
+    "folder": "nutrition_images/grains/cereal",
+    "file": "muesli.png",
+    "stem": "muesli"
+  },
+  {
+    "path": "nutrition_images/grains/cereal/oatmeal.png",
+    "folder": "nutrition_images/grains/cereal",
+    "file": "oatmeal.png",
+    "stem": "oatmeal"
+  },
+  {
+    "path": "nutrition_images/grains/pasta/macaroni.png",
+    "folder": "nutrition_images/grains/pasta",
+    "file": "macaroni.png",
+    "stem": "macaroni"
+  },
+  {
+    "path": "nutrition_images/grains/pasta/penne.png",
+    "folder": "nutrition_images/grains/pasta",
+    "file": "penne.png",
+    "stem": "penne"
+  },
+  {
+    "path": "nutrition_images/grains/pasta/spaghetti.png",
+    "folder": "nutrition_images/grains/pasta",
+    "file": "spaghetti.png",
+    "stem": "spaghetti"
+  },
+  {
+    "path": "nutrition_images/grains/refined_grains/baguette.png",
+    "folder": "nutrition_images/grains/refined_grains",
+    "file": "baguette.png",
+    "stem": "baguette"
+  },
+  {
+    "path": "nutrition_images/grains/refined_grains/bread.png",
+    "folder": "nutrition_images/grains/refined_grains",
+    "file": "bread.png",
+    "stem": "bread"
+  },
+  {
+    "path": "nutrition_images/grains/refined_grains/buns.png",
+    "folder": "nutrition_images/grains/refined_grains",
+    "file": "buns.png",
+    "stem": "buns"
+  },
+  {
+    "path": "nutrition_images/grains/refined_grains/pasta.png",
+    "folder": "nutrition_images/grains/refined_grains",
+    "file": "pasta.png",
+    "stem": "pasta"
+  },
+  {
+    "path": "nutrition_images/grains/refined_grains/rice.png",
+    "folder": "nutrition_images/grains/refined_grains",
+    "file": "rice.png",
+    "stem": "rice"
+  },
+  {
+    "path": "nutrition_images/grains/refined_grains/slice_of_bread.png",
+    "folder": "nutrition_images/grains/refined_grains",
+    "file": "slice_of_bread.png",
+    "stem": "slice_of_bread"
+  },
+  {
+    "path": "nutrition_images/grains/refined_grains/toast.png",
+    "folder": "nutrition_images/grains/refined_grains",
+    "file": "toast.png",
+    "stem": "toast"
+  },
+  {
+    "path": "nutrition_images/grains/refined_grains/tortillas.png",
+    "folder": "nutrition_images/grains/refined_grains",
+    "file": "tortillas.png",
+    "stem": "tortillas"
+  },
+  {
+    "path": "nutrition_images/grains/refined_grains/wheat_bread.png",
+    "folder": "nutrition_images/grains/refined_grains",
+    "file": "wheat_bread.png",
+    "stem": "wheat_bread"
+  },
+  {
+    "path": "nutrition_images/grains/whole_grains/oats.png",
+    "folder": "nutrition_images/grains/whole_grains",
+    "file": "oats.png",
+    "stem": "oats"
+  },
+  {
+    "path": "nutrition_images/grains/whole_grains/quinoa.png",
+    "folder": "nutrition_images/grains/whole_grains",
+    "file": "quinoa.png",
+    "stem": "quinoa"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/interface/age.png",
+    "folder": "nutrition_images/icons_and_ui/interface",
+    "file": "age.png",
+    "stem": "age"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/interface/barcode.png",
+    "folder": "nutrition_images/icons_and_ui/interface",
+    "file": "barcode.png",
+    "stem": "barcode"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/interface/food.png",
+    "folder": "nutrition_images/icons_and_ui/interface",
+    "file": "food.png",
+    "stem": "food"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/interface/profile.png",
+    "folder": "nutrition_images/icons_and_ui/interface",
+    "file": "profile.png",
+    "stem": "profile"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/interface/user.png",
+    "folder": "nutrition_images/icons_and_ui/interface",
+    "file": "user.png",
+    "stem": "user"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/interface/user_profile.png",
+    "folder": "nutrition_images/icons_and_ui/interface",
+    "file": "user_profile.png",
+    "stem": "user_profile"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/nutrition_and_golas/calories.png",
+    "folder": "nutrition_images/icons_and_ui/nutrition_and_golas",
+    "file": "calories.png",
+    "stem": "calories"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/nutrition_and_golas/carbs.png",
+    "folder": "nutrition_images/icons_and_ui/nutrition_and_golas",
+    "file": "carbs.png",
+    "stem": "carbs"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/nutrition_and_golas/fats.png",
+    "folder": "nutrition_images/icons_and_ui/nutrition_and_golas",
+    "file": "fats.png",
+    "stem": "fats"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/nutrition_and_golas/fiber.png",
+    "folder": "nutrition_images/icons_and_ui/nutrition_and_golas",
+    "file": "fiber.png",
+    "stem": "fiber"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/nutrition_and_golas/goal.png",
+    "folder": "nutrition_images/icons_and_ui/nutrition_and_golas",
+    "file": "goal.png",
+    "stem": "goal"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/nutrition_and_golas/growth.png",
+    "folder": "nutrition_images/icons_and_ui/nutrition_and_golas",
+    "file": "growth.png",
+    "stem": "growth"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/nutrition_and_golas/nutrition_section.png",
+    "folder": "nutrition_images/icons_and_ui/nutrition_and_golas",
+    "file": "nutrition_section.png",
+    "stem": "nutrition_section"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/nutrition_and_golas/nutritional_value.png",
+    "folder": "nutrition_images/icons_and_ui/nutrition_and_golas",
+    "file": "nutritional_value.png",
+    "stem": "nutritional_value"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/nutrition_and_golas/protein.png",
+    "folder": "nutrition_images/icons_and_ui/nutrition_and_golas",
+    "file": "protein.png",
+    "stem": "protein"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/nutrition_and_golas/saturated_fats.png",
+    "folder": "nutrition_images/icons_and_ui/nutrition_and_golas",
+    "file": "saturated_fats.png",
+    "stem": "saturated_fats"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/nutrition_and_golas/task.png",
+    "folder": "nutrition_images/icons_and_ui/nutrition_and_golas",
+    "file": "task.png",
+    "stem": "task"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/nutrition_and_golas/weight.png",
+    "folder": "nutrition_images/icons_and_ui/nutrition_and_golas",
+    "file": "weight.png",
+    "stem": "weight"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/planning_and_progress/chronometer.png",
+    "folder": "nutrition_images/icons_and_ui/planning_and_progress",
+    "file": "chronometer.png",
+    "stem": "chronometer"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/planning_and_progress/height.png",
+    "folder": "nutrition_images/icons_and_ui/planning_and_progress",
+    "file": "height.png",
+    "stem": "height"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/planning_and_progress/measurement.png",
+    "folder": "nutrition_images/icons_and_ui/planning_and_progress",
+    "file": "measurement.png",
+    "stem": "measurement"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/planning_and_progress/notepad.png",
+    "folder": "nutrition_images/icons_and_ui/planning_and_progress",
+    "file": "notepad.png",
+    "stem": "notepad"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/planning_and_progress/plan.png",
+    "folder": "nutrition_images/icons_and_ui/planning_and_progress",
+    "file": "plan.png",
+    "stem": "plan"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/planning_and_progress/product_name.png",
+    "folder": "nutrition_images/icons_and_ui/planning_and_progress",
+    "file": "product_name.png",
+    "stem": "product_name"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/planning_and_progress/progress.png",
+    "folder": "nutrition_images/icons_and_ui/planning_and_progress",
+    "file": "progress.png",
+    "stem": "progress"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/planning_and_progress/schedule.png",
+    "folder": "nutrition_images/icons_and_ui/planning_and_progress",
+    "file": "schedule.png",
+    "stem": "schedule"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/planning_and_progress/sticky_note.png",
+    "folder": "nutrition_images/icons_and_ui/planning_and_progress",
+    "file": "sticky_note.png",
+    "stem": "sticky_note"
+  },
+  {
+    "path": "nutrition_images/icons_and_ui/planning_and_progress/time_planning.png",
+    "folder": "nutrition_images/icons_and_ui/planning_and_progress",
+    "file": "time_planning.png",
+    "stem": "time_planning"
+  },
+  {
+    "path": "nutrition_images/miscellaneous/cinnamon.png",
+    "folder": "nutrition_images/miscellaneous",
+    "file": "cinnamon.png",
+    "stem": "cinnamon"
+  },
+  {
+    "path": "nutrition_images/miscellaneous/cooked_meal.png",
+    "folder": "nutrition_images/miscellaneous",
+    "file": "cooked_meal.png",
+    "stem": "cooked_meal"
+  },
+  {
+    "path": "nutrition_images/miscellaneous/default_food_icon.png",
+    "folder": "nutrition_images/miscellaneous",
+    "file": "default_food_icon.png",
+    "stem": "default_food_icon"
+  },
+  {
+    "path": "nutrition_images/miscellaneous/honey.png",
+    "folder": "nutrition_images/miscellaneous",
+    "file": "honey.png",
+    "stem": "honey"
+  },
+  {
+    "path": "nutrition_images/miscellaneous/salt.png",
+    "folder": "nutrition_images/miscellaneous",
+    "file": "salt.png",
+    "stem": "salt"
+  },
+  {
+    "path": "nutrition_images/miscellaneous/sugar.png",
+    "folder": "nutrition_images/miscellaneous",
+    "file": "sugar.png",
+    "stem": "sugar"
+  },
+  {
+    "path": "nutrition_images/nuts_and_seeds/nuts/almond.png",
+    "folder": "nutrition_images/nuts_and_seeds/nuts",
+    "file": "almond.png",
+    "stem": "almond"
+  },
+  {
+    "path": "nutrition_images/nuts_and_seeds/nuts/cashew.png",
+    "folder": "nutrition_images/nuts_and_seeds/nuts",
+    "file": "cashew.png",
+    "stem": "cashew"
+  },
+  {
+    "path": "nutrition_images/nuts_and_seeds/nuts/chestnut.png",
+    "folder": "nutrition_images/nuts_and_seeds/nuts",
+    "file": "chestnut.png",
+    "stem": "chestnut"
+  },
+  {
+    "path": "nutrition_images/nuts_and_seeds/nuts/hazelnuts.png",
+    "folder": "nutrition_images/nuts_and_seeds/nuts",
+    "file": "hazelnuts.png",
+    "stem": "hazelnuts"
+  },
+  {
+    "path": "nutrition_images/nuts_and_seeds/nuts/peanuts.png",
+    "folder": "nutrition_images/nuts_and_seeds/nuts",
+    "file": "peanuts.png",
+    "stem": "peanuts"
+  },
+  {
+    "path": "nutrition_images/nuts_and_seeds/nuts/pecan.png",
+    "folder": "nutrition_images/nuts_and_seeds/nuts",
+    "file": "pecan.png",
+    "stem": "pecan"
+  },
+  {
+    "path": "nutrition_images/nuts_and_seeds/nuts/pistachio.png",
+    "folder": "nutrition_images/nuts_and_seeds/nuts",
+    "file": "pistachio.png",
+    "stem": "pistachio"
+  },
+  {
+    "path": "nutrition_images/nuts_and_seeds/nuts/walnut.png",
+    "folder": "nutrition_images/nuts_and_seeds/nuts",
+    "file": "walnut.png",
+    "stem": "walnut"
+  },
+  {
+    "path": "nutrition_images/nuts_and_seeds/seeds/chia_seeds.png",
+    "folder": "nutrition_images/nuts_and_seeds/seeds",
+    "file": "chia_seeds.png",
+    "stem": "chia_seeds"
+  },
+  {
+    "path": "nutrition_images/nuts_and_seeds/seeds/pumpkin_seeds.png",
+    "folder": "nutrition_images/nuts_and_seeds/seeds",
+    "file": "pumpkin_seeds.png",
+    "stem": "pumpkin_seeds"
+  },
+  {
+    "path": "nutrition_images/nuts_and_seeds/seeds/sesame_seeds.png",
+    "folder": "nutrition_images/nuts_and_seeds/seeds",
+    "file": "sesame_seeds.png",
+    "stem": "sesame_seeds"
+  },
+  {
+    "path": "nutrition_images/nuts_and_seeds/seeds/sunflower_seeds.png",
+    "folder": "nutrition_images/nuts_and_seeds/seeds",
+    "file": "sunflower_seeds.png",
+    "stem": "sunflower_seeds"
+  },
+  {
+    "path": "nutrition_images/proteins/eggs/boiled_egg.png",
+    "folder": "nutrition_images/proteins/eggs",
+    "file": "boiled_egg.png",
+    "stem": "boiled_egg"
+  },
+  {
+    "path": "nutrition_images/proteins/eggs/fried_egg.png",
+    "folder": "nutrition_images/proteins/eggs",
+    "file": "fried_egg.png",
+    "stem": "fried_egg"
+  },
+  {
+    "path": "nutrition_images/proteins/eggs/omelette.png",
+    "folder": "nutrition_images/proteins/eggs",
+    "file": "omelette.png",
+    "stem": "omelette"
+  },
+  {
+    "path": "nutrition_images/proteins/fish_and_seafood/fish/mackerel.png",
+    "folder": "nutrition_images/proteins/fish_and_seafood/fish",
+    "file": "mackerel.png",
+    "stem": "mackerel"
+  },
+  {
+    "path": "nutrition_images/proteins/fish_and_seafood/fish/salmon.png",
+    "folder": "nutrition_images/proteins/fish_and_seafood/fish",
+    "file": "salmon.png",
+    "stem": "salmon"
+  },
+  {
+    "path": "nutrition_images/proteins/fish_and_seafood/fish/sardines.png",
+    "folder": "nutrition_images/proteins/fish_and_seafood/fish",
+    "file": "sardines.png",
+    "stem": "sardines"
+  },
+  {
+    "path": "nutrition_images/proteins/fish_and_seafood/fish/surimi.png",
+    "folder": "nutrition_images/proteins/fish_and_seafood/fish",
+    "file": "surimi.png",
+    "stem": "surimi"
+  },
+  {
+    "path": "nutrition_images/proteins/fish_and_seafood/fish/tuna.png",
+    "folder": "nutrition_images/proteins/fish_and_seafood/fish",
+    "file": "tuna.png",
+    "stem": "tuna"
+  },
+  {
+    "path": "nutrition_images/proteins/fish_and_seafood/seafood/lobster.png",
+    "folder": "nutrition_images/proteins/fish_and_seafood/seafood",
+    "file": "lobster.png",
+    "stem": "lobster"
+  },
+  {
+    "path": "nutrition_images/proteins/fish_and_seafood/seafood/shrimp.png",
+    "folder": "nutrition_images/proteins/fish_and_seafood/seafood",
+    "file": "shrimp.png",
+    "stem": "shrimp"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/beef/beef_brisket.png",
+    "folder": "nutrition_images/proteins/meat/beef",
+    "file": "beef_brisket.png",
+    "stem": "beef_brisket"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/beef/beef_steak.png",
+    "folder": "nutrition_images/proteins/meat/beef",
+    "file": "beef_steak.png",
+    "stem": "beef_steak"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/beef/ground_beef.png",
+    "folder": "nutrition_images/proteins/meat/beef",
+    "file": "ground_beef.png",
+    "stem": "ground_beef"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/beef/roast_beef.png",
+    "folder": "nutrition_images/proteins/meat/beef",
+    "file": "roast_beef.png",
+    "stem": "roast_beef"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/chicken/chicken_breast.png",
+    "folder": "nutrition_images/proteins/meat/chicken",
+    "file": "chicken_breast.png",
+    "stem": "chicken_breast"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/chicken/chicken_strips.png",
+    "folder": "nutrition_images/proteins/meat/chicken",
+    "file": "chicken_strips.png",
+    "stem": "chicken_strips"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/chicken/chicken_thigh.png",
+    "folder": "nutrition_images/proteins/meat/chicken",
+    "file": "chicken_thigh.png",
+    "stem": "chicken_thigh"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/chicken/chicken_wings.png",
+    "folder": "nutrition_images/proteins/meat/chicken",
+    "file": "chicken_wings.png",
+    "stem": "chicken_wings"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/pork/bacon.png",
+    "folder": "nutrition_images/proteins/meat/pork",
+    "file": "bacon.png",
+    "stem": "bacon"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/pork/ham.png",
+    "folder": "nutrition_images/proteins/meat/pork",
+    "file": "ham.png",
+    "stem": "ham"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/pork/pork_chops.png",
+    "folder": "nutrition_images/proteins/meat/pork",
+    "file": "pork_chops.png",
+    "stem": "pork_chops"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/pork/prosciutto.png",
+    "folder": "nutrition_images/proteins/meat/pork",
+    "file": "prosciutto.png",
+    "stem": "prosciutto"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/pork/ribs.png",
+    "folder": "nutrition_images/proteins/meat/pork",
+    "file": "ribs.png",
+    "stem": "ribs"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/pork/salami.png",
+    "folder": "nutrition_images/proteins/meat/pork",
+    "file": "salami.png",
+    "stem": "salami"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/pork/sausage.png",
+    "folder": "nutrition_images/proteins/meat/pork",
+    "file": "sausage.png",
+    "stem": "sausage"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/turkey/roasted_turkey.png",
+    "folder": "nutrition_images/proteins/meat/turkey",
+    "file": "roasted_turkey.png",
+    "stem": "roasted_turkey"
+  },
+  {
+    "path": "nutrition_images/proteins/meat/turkey/turkey_breast.png",
+    "folder": "nutrition_images/proteins/meat/turkey",
+    "file": "turkey_breast.png",
+    "stem": "turkey_breast"
+  },
+  {
+    "path": "nutrition_images/proteins/plant_based_proteins/chickpeas.png",
+    "folder": "nutrition_images/proteins/plant_based_proteins",
+    "file": "chickpeas.png",
+    "stem": "chickpeas"
+  },
+  {
+    "path": "nutrition_images/proteins/plant_based_proteins/lentils.png",
+    "folder": "nutrition_images/proteins/plant_based_proteins",
+    "file": "lentils.png",
+    "stem": "lentils"
+  },
+  {
+    "path": "nutrition_images/proteins/plant_based_proteins/soybean.png",
+    "folder": "nutrition_images/proteins/plant_based_proteins",
+    "file": "soybean.png",
+    "stem": "soybean"
+  },
+  {
+    "path": "nutrition_images/proteins/plant_based_proteins/stinky_tofu.png",
+    "folder": "nutrition_images/proteins/plant_based_proteins",
+    "file": "stinky_tofu.png",
+    "stem": "stinky_tofu"
+  },
+  {
+    "path": "nutrition_images/proteins/plant_based_proteins/tofu.png",
+    "folder": "nutrition_images/proteins/plant_based_proteins",
+    "file": "tofu.png",
+    "stem": "tofu"
+  },
+  {
+    "path": "nutrition_images/proteins/protein_supplements/protein_bar.png",
+    "folder": "nutrition_images/proteins/protein_supplements",
+    "file": "protein_bar.png",
+    "stem": "protein_bar"
+  },
+  {
+    "path": "nutrition_images/proteins/protein_supplements/whey_protein.png",
+    "folder": "nutrition_images/proteins/protein_supplements",
+    "file": "whey_protein.png",
+    "stem": "whey_protein"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/snacks/bagel.png",
+    "folder": "nutrition_images/snacks_and_sweets/snacks",
+    "file": "bagel.png",
+    "stem": "bagel"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/snacks/corn_flakes.png",
+    "folder": "nutrition_images/snacks_and_sweets/snacks",
+    "file": "corn_flakes.png",
+    "stem": "corn_flakes"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/snacks/crackers.png",
+    "folder": "nutrition_images/snacks_and_sweets/snacks",
+    "file": "crackers.png",
+    "stem": "crackers"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/snacks/crispbread.png",
+    "folder": "nutrition_images/snacks_and_sweets/snacks",
+    "file": "crispbread.png",
+    "stem": "crispbread"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/snacks/dried_fruits.png",
+    "folder": "nutrition_images/snacks_and_sweets/snacks",
+    "file": "dried_fruits.png",
+    "stem": "dried_fruits"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/snacks/granola_bar.png",
+    "folder": "nutrition_images/snacks_and_sweets/snacks",
+    "file": "granola_bar.png",
+    "stem": "granola_bar"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/snacks/popcorn.png",
+    "folder": "nutrition_images/snacks_and_sweets/snacks",
+    "file": "popcorn.png",
+    "stem": "popcorn"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/snacks/potato_chips.png",
+    "folder": "nutrition_images/snacks_and_sweets/snacks",
+    "file": "potato_chips.png",
+    "stem": "potato_chips"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/snacks/pretzel.png",
+    "folder": "nutrition_images/snacks_and_sweets/snacks",
+    "file": "pretzel.png",
+    "stem": "pretzel"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/snacks/tortilla_chips.png",
+    "folder": "nutrition_images/snacks_and_sweets/snacks",
+    "file": "tortilla_chips.png",
+    "stem": "tortilla_chips"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/brownie.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "brownie.png",
+    "stem": "brownie"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/cake.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "cake.png",
+    "stem": "cake"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/candy.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "candy.png",
+    "stem": "candy"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/caramel.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "caramel.png",
+    "stem": "caramel"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/cheese_cake.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "cheese_cake.png",
+    "stem": "cheese_cake"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/chocolate.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "chocolate.png",
+    "stem": "chocolate"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/chocolate_balls.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "chocolate_balls.png",
+    "stem": "chocolate_balls"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/chocolate_spread.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "chocolate_spread.png",
+    "stem": "chocolate_spread"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/cookie.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "cookie.png",
+    "stem": "cookie"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/croissant.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "croissant.png",
+    "stem": "croissant"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/dark_chocolate.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "dark_chocolate.png",
+    "stem": "dark_chocolate"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/doughnut.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "doughnut.png",
+    "stem": "doughnut"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/gummies.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "gummies.png",
+    "stem": "gummies"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/ice_cream.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "ice_cream.png",
+    "stem": "ice_cream"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/lollipop.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "lollipop.png",
+    "stem": "lollipop"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/muffin.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "muffin.png",
+    "stem": "muffin"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/pancake.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "pancake.png",
+    "stem": "pancake"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/pudding.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "pudding.png",
+    "stem": "pudding"
+  },
+  {
+    "path": "nutrition_images/snacks_and_sweets/sweets/waffles.png",
+    "folder": "nutrition_images/snacks_and_sweets/sweets",
+    "file": "waffles.png",
+    "stem": "waffles"
+  },
+  {
+    "path": "nutrition_images/takeout/burger.png",
+    "folder": "nutrition_images/takeout",
+    "file": "burger.png",
+    "stem": "burger"
+  },
+  {
+    "path": "nutrition_images/takeout/burrito.png",
+    "folder": "nutrition_images/takeout",
+    "file": "burrito.png",
+    "stem": "burrito"
+  },
+  {
+    "path": "nutrition_images/takeout/cheeseburger.png",
+    "folder": "nutrition_images/takeout",
+    "file": "cheeseburger.png",
+    "stem": "cheeseburger"
+  },
+  {
+    "path": "nutrition_images/takeout/french_fries.png",
+    "folder": "nutrition_images/takeout",
+    "file": "french_fries.png",
+    "stem": "french_fries"
+  },
+  {
+    "path": "nutrition_images/takeout/fried_chicken.png",
+    "folder": "nutrition_images/takeout",
+    "file": "fried_chicken.png",
+    "stem": "fried_chicken"
+  },
+  {
+    "path": "nutrition_images/takeout/fried_rice.png",
+    "folder": "nutrition_images/takeout",
+    "file": "fried_rice.png",
+    "stem": "fried_rice"
+  },
+  {
+    "path": "nutrition_images/takeout/hot-dog.png",
+    "folder": "nutrition_images/takeout",
+    "file": "hot-dog.png",
+    "stem": "hot-dog"
+  },
+  {
+    "path": "nutrition_images/takeout/hot_dog.png",
+    "folder": "nutrition_images/takeout",
+    "file": "hot_dog.png",
+    "stem": "hot_dog"
+  },
+  {
+    "path": "nutrition_images/takeout/indian_food.png",
+    "folder": "nutrition_images/takeout",
+    "file": "indian_food.png",
+    "stem": "indian_food"
+  },
+  {
+    "path": "nutrition_images/takeout/lasagna.png",
+    "folder": "nutrition_images/takeout",
+    "file": "lasagna.png",
+    "stem": "lasagna"
+  },
+  {
+    "path": "nutrition_images/takeout/meatballs.png",
+    "folder": "nutrition_images/takeout",
+    "file": "meatballs.png",
+    "stem": "meatballs"
+  },
+  {
+    "path": "nutrition_images/takeout/onion_rings.png",
+    "folder": "nutrition_images/takeout",
+    "file": "onion_rings.png",
+    "stem": "onion_rings"
+  },
+  {
+    "path": "nutrition_images/takeout/orange_chicken.png",
+    "folder": "nutrition_images/takeout",
+    "file": "orange_chicken.png",
+    "stem": "orange_chicken"
+  },
+  {
+    "path": "nutrition_images/takeout/pizza.png",
+    "folder": "nutrition_images/takeout",
+    "file": "pizza.png",
+    "stem": "pizza"
+  },
+  {
+    "path": "nutrition_images/takeout/ramen.png",
+    "folder": "nutrition_images/takeout",
+    "file": "ramen.png",
+    "stem": "ramen"
+  },
+  {
+    "path": "nutrition_images/takeout/sandwiches.png",
+    "folder": "nutrition_images/takeout",
+    "file": "sandwiches.png",
+    "stem": "sandwiches"
+  },
+  {
+    "path": "nutrition_images/takeout/soup.png",
+    "folder": "nutrition_images/takeout",
+    "file": "soup.png",
+    "stem": "soup"
+  },
+  {
+    "path": "nutrition_images/takeout/sushi.png",
+    "folder": "nutrition_images/takeout",
+    "file": "sushi.png",
+    "stem": "sushi"
+  },
+  {
+    "path": "nutrition_images/takeout/taco.png",
+    "folder": "nutrition_images/takeout",
+    "file": "taco.png",
+    "stem": "taco"
+  },
+  {
+    "path": "nutrition_images/takeout/tempura.png",
+    "folder": "nutrition_images/takeout",
+    "file": "tempura.png",
+    "stem": "tempura"
+  },
+  {
+    "path": "nutrition_images/vegetables/common_vegetables/beans.png",
+    "folder": "nutrition_images/vegetables/common_vegetables",
+    "file": "beans.png",
+    "stem": "beans"
+  },
+  {
+    "path": "nutrition_images/vegetables/common_vegetables/cucumber.png",
+    "folder": "nutrition_images/vegetables/common_vegetables",
+    "file": "cucumber.png",
+    "stem": "cucumber"
+  },
+  {
+    "path": "nutrition_images/vegetables/common_vegetables/eggplant.png",
+    "folder": "nutrition_images/vegetables/common_vegetables",
+    "file": "eggplant.png",
+    "stem": "eggplant"
+  },
+  {
+    "path": "nutrition_images/vegetables/common_vegetables/frozen_vegetables.png",
+    "folder": "nutrition_images/vegetables/common_vegetables",
+    "file": "frozen_vegetables.png",
+    "stem": "frozen_vegetables"
+  },
+  {
+    "path": "nutrition_images/vegetables/common_vegetables/green_beans.png",
+    "folder": "nutrition_images/vegetables/common_vegetables",
+    "file": "green_beans.png",
+    "stem": "green_beans"
+  },
+  {
+    "path": "nutrition_images/vegetables/common_vegetables/mushroom.png",
+    "folder": "nutrition_images/vegetables/common_vegetables",
+    "file": "mushroom.png",
+    "stem": "mushroom"
+  },
+  {
+    "path": "nutrition_images/vegetables/common_vegetables/onion.png",
+    "folder": "nutrition_images/vegetables/common_vegetables",
+    "file": "onion.png",
+    "stem": "onion"
+  },
+  {
+    "path": "nutrition_images/vegetables/common_vegetables/paprika.png",
+    "folder": "nutrition_images/vegetables/common_vegetables",
+    "file": "paprika.png",
+    "stem": "paprika"
+  },
+  {
+    "path": "nutrition_images/vegetables/common_vegetables/peas.png",
+    "folder": "nutrition_images/vegetables/common_vegetables",
+    "file": "peas.png",
+    "stem": "peas"
+  },
+  {
+    "path": "nutrition_images/vegetables/common_vegetables/pickle.png",
+    "folder": "nutrition_images/vegetables/common_vegetables",
+    "file": "pickle.png",
+    "stem": "pickle"
+  },
+  {
+    "path": "nutrition_images/vegetables/common_vegetables/tomato.png",
+    "folder": "nutrition_images/vegetables/common_vegetables",
+    "file": "tomato.png",
+    "stem": "tomato"
+  },
+  {
+    "path": "nutrition_images/vegetables/common_vegetables/zucchini.png",
+    "folder": "nutrition_images/vegetables/common_vegetables",
+    "file": "zucchini.png",
+    "stem": "zucchini"
+  },
+  {
+    "path": "nutrition_images/vegetables/cruciferous_vegetables/broccoli.png",
+    "folder": "nutrition_images/vegetables/cruciferous_vegetables",
+    "file": "broccoli.png",
+    "stem": "broccoli"
+  },
+  {
+    "path": "nutrition_images/vegetables/cruciferous_vegetables/brussels_sprouts.png",
+    "folder": "nutrition_images/vegetables/cruciferous_vegetables",
+    "file": "brussels_sprouts.png",
+    "stem": "brussels_sprouts"
+  },
+  {
+    "path": "nutrition_images/vegetables/cruciferous_vegetables/cauliflower.png",
+    "folder": "nutrition_images/vegetables/cruciferous_vegetables",
+    "file": "cauliflower.png",
+    "stem": "cauliflower"
+  },
+  {
+    "path": "nutrition_images/vegetables/leafy_greens/cabbage.png",
+    "folder": "nutrition_images/vegetables/leafy_greens",
+    "file": "cabbage.png",
+    "stem": "cabbage"
+  },
+  {
+    "path": "nutrition_images/vegetables/leafy_greens/iceberg_lettuce.png",
+    "folder": "nutrition_images/vegetables/leafy_greens",
+    "file": "iceberg_lettuce.png",
+    "stem": "iceberg_lettuce"
+  },
+  {
+    "path": "nutrition_images/vegetables/leafy_greens/kale.png",
+    "folder": "nutrition_images/vegetables/leafy_greens",
+    "file": "kale.png",
+    "stem": "kale"
+  },
+  {
+    "path": "nutrition_images/vegetables/leafy_greens/lettuce.png",
+    "folder": "nutrition_images/vegetables/leafy_greens",
+    "file": "lettuce.png",
+    "stem": "lettuce"
+  },
+  {
+    "path": "nutrition_images/vegetables/leafy_greens/spinach.png",
+    "folder": "nutrition_images/vegetables/leafy_greens",
+    "file": "spinach.png",
+    "stem": "spinach"
+  },
+  {
+    "path": "nutrition_images/vegetables/root_vegetables/beetroot.png",
+    "folder": "nutrition_images/vegetables/root_vegetables",
+    "file": "beetroot.png",
+    "stem": "beetroot"
+  },
+  {
+    "path": "nutrition_images/vegetables/root_vegetables/carrot.png",
+    "folder": "nutrition_images/vegetables/root_vegetables",
+    "file": "carrot.png",
+    "stem": "carrot"
+  },
+  {
+    "path": "nutrition_images/vegetables/root_vegetables/potato.png",
+    "folder": "nutrition_images/vegetables/root_vegetables",
+    "file": "potato.png",
+    "stem": "potato"
+  },
+  {
+    "path": "nutrition_images/vegetables/root_vegetables/radish.png",
+    "folder": "nutrition_images/vegetables/root_vegetables",
+    "file": "radish.png",
+    "stem": "radish"
+  },
+  {
+    "path": "nutrition_images/vegetables/root_vegetables/sweet_potato.png",
+    "folder": "nutrition_images/vegetables/root_vegetables",
+    "file": "sweet_potato.png",
+    "stem": "sweet_potato"
+  },
+  {
+    "path": "nutrition_images/vegetables/starchy_vegetables/butternut_squash.png",
+    "folder": "nutrition_images/vegetables/starchy_vegetables",
+    "file": "butternut_squash.png",
+    "stem": "butternut_squash"
+  },
+  {
+    "path": "nutrition_images/vegetables/starchy_vegetables/corn.png",
+    "folder": "nutrition_images/vegetables/starchy_vegetables",
+    "file": "corn.png",
+    "stem": "corn"
+  }
+]

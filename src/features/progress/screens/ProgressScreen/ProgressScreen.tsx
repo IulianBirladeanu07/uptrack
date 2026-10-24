@@ -27,7 +27,6 @@ import {
     kfmt,
 } from '../../utils/progressEngine';
 import type { EnergyModel, MonthRow as MonthData, NutritionDay, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
-import RangeSegmentedControl from './RangeSegmentedControl';
 import { useProgressScreenModel } from './useProgressScreenModel';
 import { useMaintenanceSwitch } from './useMaintenanceSwitch';
 import { usePlannedWorkouts } from './usePlannedWorkouts';
@@ -658,11 +657,6 @@ const ProgressScreen = () => {
     const openProfile = useCallback(() => navigation.navigate('Profile'), [navigation]);
 
     const { switching, onSwitch } = useMaintenanceSwitch({ recap, userData, refreshUserData });
-    const rangeControl = (
-        <View style={styles.rangeBar}>
-            <RangeSegmentedControl options={ranges} selectedKey={range.key} onSelect={setRangeKey} />
-        </View>
-    );
     return (
         <ApplicationCustomScreen>
             <ScrollView
@@ -691,6 +685,24 @@ const ProgressScreen = () => {
                             );
                         })}
                     </View>
+                    {weeks.length >= 2 && (
+                        <View style={styles.rangeSelector}>
+                            {ranges.map(r => (
+                                <TouchableOpacity
+                                    key={r.key}
+                                    style={styles.rangeOption}
+                                    onPress={() => setRangeKey(r.key)}
+                                    activeOpacity={0.7}
+                                    accessibilityRole="button"
+                                    accessibilityState={{ selected: range.key === r.key }}
+                                >
+                                    <Text style={[styles.rangeText, range.key === r.key && styles.rangeTextActive]}>
+                                        {r.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
                 </View>
                 {workoutHistoryLoadMoreError && hasMoreWorkoutHistory && (
                     <TouchableOpacity onPress={() => void loadMoreWorkoutHistory()}>
@@ -721,7 +733,6 @@ const ProgressScreen = () => {
                                         Could not load historical food logs. Showing saved weekly summaries instead.
                                     </Text>
                                 )}
-                                {rangeControl}
                                 <PaceCard m={pace} info={info} n={n} />
                                 <EnergyCard m={energy} info={info} n={n} />
                                 <MonthsCard
@@ -736,7 +747,6 @@ const ProgressScreen = () => {
                             </>
                         ) : (
                             <>
-                                {rangeControl}
                                 <StrengthCard m={strength} lifts={lifts} info={info} onLift={openLift} />
                                 <SetsCard m={sets} />
                                 <MonthsCard

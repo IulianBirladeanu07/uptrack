@@ -14,8 +14,15 @@ import styles from './NutritionScreenStyles';
 import type { FoodItemData } from '../../components/NutritionItem/FoodItem';
 import { useAppNavigation } from '../../../../shared/navigation';
 import { formatDate } from '../../utils/dateUtils';
-import { calculateDailyNutrition } from '../../helpers/nutritionTotals';
-import type { FoodDetailFood, LoggedFood, MealType, NutritionTotals } from '../../../../shared/types';
+import type { FoodDetailFood, LoggedFood, MealType } from '../../../../shared/types';
+
+const getMealForLocalTime = (): MealType => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 11) return 'breakfast';
+    if (hour >= 11 && hour < 16) return 'lunch';
+    if (hour >= 16 && hour < 22) return 'dinner';
+    return 'snacks';
+};
 
 const NutritionScreen = () => {
     const navigation = useAppNavigation();
@@ -39,7 +46,7 @@ const NutritionScreen = () => {
         dailySteps,
     } = useFoodContext();
 
-    const [selectedMeal, setSelectedMeal] = useState<MealType>('breakfast');
+    const [selectedMeal, setSelectedMeal] = useState<MealType>(getMealForLocalTime);
     const [userId] = useState<string | null>(() => getAuth().currentUser?.uid || null);
     const [isReady, setIsReady] = useState(false);
 
@@ -98,13 +105,6 @@ const NutritionScreen = () => {
         return mealFoods[selectedMeal] || [];
     }, [selectedMeal, breakfastFoods, lunchFoods, dinnerFoods, snacksFoods]);
 
-    const mealTotals = useMemo<Record<MealType, NutritionTotals>>(() => ({
-        breakfast: calculateDailyNutrition(breakfastFoods),
-        lunch: calculateDailyNutrition(lunchFoods),
-        dinner: calculateDailyNutrition(dinnerFoods),
-        snacks: calculateDailyNutrition(snacksFoods),
-    }), [breakfastFoods, lunchFoods, dinnerFoods, snacksFoods]);
-
     const statsComponent = useMemo(() => (
         <NutritionStats
             weightData={weightData}
@@ -160,7 +160,6 @@ const NutritionScreen = () => {
                         selectedMeal={selectedMeal}
                         setSelectedMeal={setSelectedMeal}
                         onAddFood={handleAddFood}
-                        mealTotals={mealTotals}
                     />
                 </View>
                 <BottomNav />

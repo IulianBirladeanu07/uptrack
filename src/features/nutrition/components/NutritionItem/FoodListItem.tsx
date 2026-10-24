@@ -12,7 +12,8 @@ import type { CategoryFood, FoodSearchItem, LoggedFood, MealType, RecentMeal } f
 
 type MealStyle = { background: string; border: string };
 
-type PressHandler = ((food: FoodItemData) => void) | undefined;
+type PressHandler = ((food: FoodItemData, toggleToAdd?: boolean) => void) | undefined;
+type SelectionCheck = ((food: FoodItemData) => boolean) | undefined;
 
 type HeaderRow = {
     type: 'header';
@@ -46,6 +47,7 @@ type FoodListItemProps = {
     onRetrySearch?: (() => void) | undefined;
     handleNavigateToFoodDetail?: PressHandler;
     handlePlusPress?: PressHandler;
+    isFoodSelected?: SelectionCheck;
     onCreateFood?: (() => void) | undefined;
     meal?: string | undefined;
     maxItemsToShow?: number | undefined;
@@ -81,7 +83,7 @@ const getMealIcon = (mealType?: string, size: number = spacing[5]) => {
     }
 };
 
-const renderMealItem = (item: RecentMeal, meal: string | undefined, onPress: PressHandler, onPlusPress: PressHandler) => (
+const renderMealItem = (item: RecentMeal, meal: string | undefined, onPress: PressHandler, onPlusPress: PressHandler, isFoodSelected: SelectionCheck) => (
     <MealItem
         key={item.id}
         item={item}
@@ -89,16 +91,18 @@ const renderMealItem = (item: RecentMeal, meal: string | undefined, onPress: Pre
         onPress={onPress}
         onPlusPress={onPlusPress}
         showPlusButton={true}
+        isFoodSelected={isFoodSelected}
     />
 );
 
-const renderFoodItem = (item: LoggedFood, onPress: PressHandler, onPlusPress: PressHandler) => (
+const renderFoodItem = (item: LoggedFood, onPress: PressHandler, onPlusPress: PressHandler, isFoodSelected: SelectionCheck) => (
     <FoodItem
         key={item.id || item.productName}
         item={item}
         onPress={onPress}
         onPlusPress={onPlusPress}
         showPlusButton={true}
+        isSelected={isFoodSelected?.(item)}
     />
 );
 
@@ -232,6 +236,7 @@ const FoodListItem = memo(({
     onRetrySearch,
     handleNavigateToFoodDetail,
     handlePlusPress,
+    isFoodSelected,
     onCreateFood,
     meal,
     maxItemsToShow = LIST.INITIAL_ITEMS_COUNT,
@@ -265,8 +270,8 @@ const FoodListItem = memo(({
                 />
             );
         }
-        return renderFoodItem(item.food, handleNavigateToFoodDetail, handlePlusPress);
-    }, [maxItemsToShow, handleToggleExpand, handleNavigateToFoodDetail, handlePlusPress]);
+        return renderFoodItem(item.food, handleNavigateToFoodDetail, handlePlusPress, isFoodSelected);
+    }, [maxItemsToShow, handleToggleExpand, handleNavigateToFoodDetail, handlePlusPress, isFoodSelected]);
 
     const flatListProps = useMemo(() => ({
         initialNumToRender: 6,
@@ -314,6 +319,7 @@ const FoodListItem = memo(({
                 onRetrySearch={onRetrySearch}
                 onItemPress={handleNavigateToFoodDetail}
                 onPlusPress={handlePlusPress}
+                isFoodSelected={isFoodSelected}
                 showPlusButton={true}
                 onCreateFood={onCreateFood}
                 recentSearches={recentSearches}
@@ -334,7 +340,7 @@ const FoodListItem = memo(({
                     keyExtractor={getFlatKey}
                     getItemLayout={getItemLayout}
                     ListEmptyComponent={<EmptyComponent text="No frequent foods found" />}
-                    extraData={`${expandedMealType}_${flatData.length}`}
+                    extraData={isFoodSelected}
                 />
             );
         case 'Recent':
@@ -342,7 +348,7 @@ const FoodListItem = memo(({
                 <FlatList
                     {...flatListProps}
                     data={categoryFoods as RecentMeal[]}
-                    renderItem={({ item }) => renderMealItem(item, meal, handleNavigateToFoodDetail, handlePlusPress)}
+                    renderItem={({ item }) => renderMealItem(item, meal, handleNavigateToFoodDetail, handlePlusPress, isFoodSelected)}
                     keyExtractor={getItemKey}
                     ListEmptyComponent={<EmptyComponent text="No recent meals found" mealType={meal} />}
                     getItemLayout={(_, index) => ({
@@ -350,7 +356,7 @@ const FoodListItem = memo(({
                         offset: LIST.ITEM_HEIGHT * index,
                         index,
                     })}
-                    extraData={categoryFoods.length}
+                    extraData={isFoodSelected}
                 />
             );
         case 'Favorites':
