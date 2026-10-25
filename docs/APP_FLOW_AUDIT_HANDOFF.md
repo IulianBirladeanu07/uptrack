@@ -296,3 +296,18 @@ The audit plan's Nutrition candidates include unit changes, macro bars without t
 - Never print environment values or secrets.
 - Keep fixes surgical, follow `AGENTS.md`, and avoid treating UI paths as tested when only unit tests and bundle export have run.
 - The next agent should report confirmed fixes, exact validation results, unverified device scenarios, and remaining product decisions.
+
+## Audit checkpoint (2026-10-24)
+
+After `71f729f` (`Update nutrition UI and food search`) reached `origin/master`, a follow-up code review of the Nutrition food-search flow confirmed two defects:
+
+- Recent-search rows used a `TouchableOpacity` around another `TouchableOpacity`. The row and its remove action are now sibling controls, each with an accessible label; the Clear action also has a label.
+- Selecting a recent search dispatched the search both from `FoodListItem` and its parent screen. When the parent callback is supplied, the child now delegates only to that callback; its local fallback remains for standalone use.
+
+The fixes and focused regressions are currently uncommitted in `FoodSearchResults.tsx`, `FoodListItem.tsx`, and their component tests. The first full run exposed stale tests for the pushed two-character search minimum, selection accessibility labels, and the meal total; those expectations now match the current UI. Final validation: Jest **158 suites / 1,250 tests passed** (`--forceExit`, needed because existing async handles keep Jest alive); `npx tsc --noEmit` passed; Android Expo export passed with a 9.49 MB Hermes bundle; `git diff --check` passed. The documented scratch hooks scan reported 50 existing exhaustive-deps warnings and its known config error for the unavailable `@typescript-eslint/no-explicit-any` rule; there were no hook warnings in the changed implementation files.
+
+Recent-search interactions still need a device check, including that tapping remove does not launch the search. This checkpoint does not complete the broader app-flow audit; FUP-005, FUP-007, FUP-009 and the owner/device checks above remain open or intentionally unverified.
+
+### FUP-007 recheck (2026-10-24)
+
+Ran `npx jest --detectOpenHandles --runInBand --silent` for `LoginScreen.test.tsx` and `RegistrationScreen.test.tsx`: **2 suites / 18 tests passed**, with no open-handle report. The Login suite took about 49 seconds, but the previously noted individual 5-second test timeouts did not recur. Treat FUP-007 as not reproduced in this run; continue monitoring CI under load instead of changing test timeouts without evidence.

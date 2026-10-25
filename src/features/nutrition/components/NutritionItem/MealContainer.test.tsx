@@ -39,15 +39,27 @@ const setup = (over: Partial<React.ComponentProps<typeof MealContainer>> = {}) =
     );
 
 describe('MealContainer meal selector', () => {
-    it('shows meal names without calorie totals', () => {
+    it('shows meal names and a separate total for the selected meal', () => {
         setup();
 
         expect(screen.getByText('Breakfast')).toBeTruthy();
         expect(screen.getByText('Lunch')).toBeTruthy();
         expect(screen.getByText('Dinner')).toBeTruthy();
         expect(screen.getByText('Snacks')).toBeTruthy();
-        expect(screen.queryByText(/kcal$/)).toBeNull();
+        expect(screen.getByText('Meal total')).toBeTruthy();
+        expect(screen.getByText('520')).toBeTruthy();
+        expect(screen.getByText('kcal')).toBeTruthy();
     });
+
+    it.each(['breakfast', 'lunch', 'dinner', 'snacks'] as const)(
+        'shows the selected meal total for %s',
+        meal => {
+            setup({ foods: [food(`${meal}-food`, 1_100)], selectedMeal: meal });
+
+            expect(screen.getByText('Meal total')).toBeTruthy();
+            expect(screen.getByText('1,100')).toBeTruthy();
+        },
+    );
 
     it('shows the empty state for the selected meal', () => {
         setup({ foods: [], selectedMeal: 'lunch' });

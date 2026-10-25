@@ -119,22 +119,37 @@ const FoodSearchResults = memo(({
                 </View>
                 <Text style={styles.sectionTitle}>Recent Searches</Text>
               </View>
-              <TouchableOpacity style={styles.clearBtn} onPress={onClearAllRecentSearches}>
+              <TouchableOpacity
+                style={styles.clearBtn}
+                onPress={onClearAllRecentSearches}
+                accessibilityRole="button"
+                accessibilityLabel="Clear recent searches"
+              >
                 <MaterialCommunityIcons name="delete-sweep" size={spacing[4]} color={colors.accent.error} />
                 <Text style={styles.clearBtnText}>Clear</Text>
               </TouchableOpacity>
             </View>
 
-            {recentSearches.map((item, index) => (
-              <TouchableOpacity key={index} style={styles.recentItem} onPress={() => onRecentSearchPress?.(item)}>
-                <View style={styles.recentLeft}>
+            {recentSearches.map(item => (
+              <View key={item} style={styles.recentItem}>
+                <TouchableOpacity
+                  style={styles.recentLeft}
+                  onPress={() => onRecentSearchPress?.(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Search for ${item}`}
+                >
                   <MaterialCommunityIcons name="history" size={spacing[4]} color={colors.accent.primary} />
                   <Text style={styles.recentText} numberOfLines={1}>{item}</Text>
-                </View>
-                <TouchableOpacity onPress={() => onRemoveRecentSearch?.(item)} hitSlop={styles.hitSlop}>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => onRemoveRecentSearch?.(item)}
+                  hitSlop={styles.hitSlop}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${item} from recent searches`}
+                >
                   <Ionicons name="close-circle" size={spacing[5]} color={colors.text.tertiary} />
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </View>
             ))}
 
             <View style={styles.divider}>

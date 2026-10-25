@@ -85,7 +85,7 @@ function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets,
                         <MaterialCommunityIcons name="run-fast" size={20} color={colors.accent.stepsRed} />
                     </View>
                     <Text style={styles.metricValue}>
-                        {dailySteps > 0 ? dailySteps.toLocaleString() : '--'}
+                        {dailySteps.toLocaleString()}
                     </Text>
                     <Text style={styles.metricLabel}>
                         {dailySteps >= 10000 ? 'Goal reached!' : '10,000 goal'}

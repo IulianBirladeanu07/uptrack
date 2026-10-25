@@ -69,11 +69,11 @@ describe('FoodItem accessibility', () => {
     it('marks the plus button as a checkbox that follows the selection', () => {
         render(<FoodItem item={item} showPlusButton />);
 
-        const box = screen.getByRole('checkbox', { name: 'Select food' });
+        const box = screen.getByRole('checkbox', { name: 'Add food to selection' });
         expect(box.props.accessibilityState).toEqual({ checked: false });
 
         fireEvent.press(box);
 
-        expect(screen.getByRole('checkbox', { name: 'Select food' }).props.accessibilityState).toEqual({ checked: true });
+        expect(screen.getByRole('checkbox', { name: 'Remove food from selection' }).props.accessibilityState).toEqual({ checked: true });
     });
 });

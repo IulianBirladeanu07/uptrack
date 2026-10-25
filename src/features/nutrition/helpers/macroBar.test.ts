@@ -10,7 +10,7 @@ describe('getMacroBarState', () => {
     });
   });
 
-  it('caps the fill at 100', () => {
+  it('caps the fill at 100 when the value is above target', () => {
     expect(getMacroBarState(300, 200, true).fillPercentage).toBe(100);
   });
 

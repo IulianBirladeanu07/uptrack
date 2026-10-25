@@ -150,7 +150,7 @@ const PlusButton = memo(({ isChecked, onPress, showButton }: PlusButtonProps) =>
         <Ionicons
           name={isChecked ? 'checkmark' : 'add'}
           size={spacing[4]}
-          color={isChecked ? colors.accent.primary : colors.text.tertiary}
+          color={isChecked ? colors.accent.success : colors.text.tertiary}
         />
       </TouchableOpacity>
     </View>
@@ -518,10 +518,10 @@ const styles = createStyles(() => ({
   },
 
   plusButtonSelected: {
-    backgroundColor: colors.faded.primary,
+    backgroundColor: colors.faded.successAlt,
     borderWidth: 1,
-    borderColor: colors.border.primary,
-    shadowColor: colors.accent.primary,
+    borderColor: colors.border.successAlt,
+    shadowColor: colors.accent.success,
   },
 
   deleteButtonContainer: {

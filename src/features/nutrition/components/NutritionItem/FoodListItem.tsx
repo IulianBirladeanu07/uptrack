@@ -304,9 +304,12 @@ const FoodListItem = memo(({
     }, []);
 
     const handleRecentSearchPress = useCallback((searchTerm: string) => {
+        if (onRecentSearchPress) {
+            onRecentSearchPress(searchTerm);
+            return;
+        }
         setSearchQuery?.(searchTerm);
         handleSearch?.(searchTerm);
-        onRecentSearchPress?.(searchTerm);
     }, [setSearchQuery, handleSearch, onRecentSearchPress]);
 
     if (isSearching) {
