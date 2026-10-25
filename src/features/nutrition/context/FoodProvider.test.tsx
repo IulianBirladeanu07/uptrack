@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 const mockAuthState: { callback: ((user: { uid: string } | null) => void) | null } = { callback: null };
+const mockAsyncStorage = new Map<string, string>();
 
 jest.mock('firebase/auth', () => ({
     onAuthStateChanged: jest.fn((_auth: unknown, callback: (user: { uid: string } | null) => void) => {
@@ -27,8 +28,8 @@ jest.mock('firebase/firestore', () => ({
 jest.mock('@react-native-async-storage/async-storage', () => ({
     __esModule: true,
     default: {
-        getItem: jest.fn().mockResolvedValue(null),
-        setItem: jest.fn().mockResolvedValue(undefined),
+        getItem: jest.fn(async (key: string) => mockAsyncStorage.get(key) ?? null),
+        setItem: jest.fn(async (key: string, value: string) => { mockAsyncStorage.set(key, value); }),
         removeItem: jest.fn().mockResolvedValue(undefined),
         multiRemove: jest.fn().mockResolvedValue(undefined),
     },
@@ -149,6 +150,7 @@ describe('FoodProvider meal writes', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        mockAsyncStorage.clear();
         mockAuthState.callback = null;
         mockUserData = null;
         mockStepProps.current = {};
@@ -213,20 +215,20 @@ describe('FoodProvider meal writes', () => {
         expect(lastWrite()[2].map((f: LoggedFood) => f.id)).toEqual(['oats', 'rice']);
     });
 
-    test('a failed add rolls back, alerts, and sets the error message', async () => {
+    test('a rejected backend add stays visible and is retained for retry', async () => {
         const { result } = await setup();
         (writeMealType as jest.Mock).mockRejectedValueOnce(new Error('offline'));
 
         await act(async () => {
-            await expect(result.current.handleAddMeal('lunch', [oats])).rejects.toThrow('offline');
+            await result.current.handleAddMeal('lunch', [oats]);
         });
 
-        expect(result.current.lunchFoods).toEqual([]);
-        expect(alertSpy).toHaveBeenCalledWith("Couldn't save", 'Check your connection and try again.');
-        expect(result.current.error).toBe('Failed to add meal. Please try again.');
+        expect(result.current.lunchFoods).toHaveLength(1);
+        expect(result.current.pendingMealWriteCount).toBe(1);
+        expect(alertSpy).not.toHaveBeenCalled();
     });
 
-    test('a failed add on top of an existing food restores the previous entry', async () => {
+    test('a rejected add on top of an existing food keeps the latest optimistic result', async () => {
         const { result } = await setup();
         await act(async () => {
             await result.current.handleAddMeal('lunch', [oats]);
@@ -235,10 +237,12 @@ describe('FoodProvider meal writes', () => {
         (writeMealType as jest.Mock).mockRejectedValueOnce(new Error('offline'));
 
         await act(async () => {
-            await expect(result.current.handleAddMeal('lunch', [oats, rice])).rejects.toThrow('offline');
+            await result.current.handleAddMeal('lunch', [oats, rice]);
         });
 
-        expect(result.current.lunchFoods).toEqual(before);
+        expect(result.current.lunchFoods).not.toEqual(before);
+        expect(result.current.lunchFoods.map(food => food.id)).toEqual(['oats', 'rice']);
+        expect(result.current.pendingMealWriteCount).toBe(1);
     });
 
     test('add rejects invalid parameters without alerting or writing', async () => {
@@ -301,7 +305,7 @@ describe('FoodProvider meal writes', () => {
         expect(alertSpy).not.toHaveBeenCalled();
     });
 
-    test('a failed delete restores the food, alerts, and returns false', async () => {
+    test('a rejected delete stays applied locally and is retained for retry', async () => {
         const { result } = await setup();
         await act(async () => {
             await result.current.handleAddMeal('lunch', [oats]);
@@ -313,10 +317,10 @@ describe('FoodProvider meal writes', () => {
             deleted = await result.current.handleDeleteMeal('lunch', 'oats');
         });
 
-        expect(deleted).toBe(false);
-        expect(result.current.lunchFoods.map(f => f.id)).toEqual(['oats']);
-        expect(alertSpy).toHaveBeenCalledWith("Couldn't save", 'Check your connection and try again.');
-        expect(result.current.error).toBe('Failed to delete meal item. Please try again.');
+        expect(deleted).toBe(true);
+        expect(result.current.lunchFoods).toEqual([]);
+        expect(result.current.pendingMealWriteCount).toBe(1);
+        expect(alertSpy).not.toHaveBeenCalled();
     });
 
     test('updating a food replaces its details, keeps its id and usage count, and writes', async () => {
@@ -349,7 +353,7 @@ describe('FoodProvider meal writes', () => {
         expect(result.current.error).toBe('Failed to update meal item. Please try again.');
     });
 
-    test('a failed update restores the previous food', async () => {
+    test('a rejected update stays applied locally and is retained for retry', async () => {
         const { result } = await setup();
         await act(async () => {
             await result.current.handleAddMeal('lunch', [oats]);
@@ -358,10 +362,12 @@ describe('FoodProvider meal writes', () => {
         (writeMealType as jest.Mock).mockRejectedValueOnce(new Error('offline'));
 
         await act(async () => {
-            await expect(result.current.updateMealInDatabase('lunch', 'oats', { ...oats, calories: 999 })).rejects.toThrow('offline');
+            await result.current.updateMealInDatabase('lunch', 'oats', { ...oats, calories: 999 });
         });
 
-        expect(result.current.lunchFoods).toEqual(before);
+        expect(result.current.lunchFoods).not.toEqual(before);
+        expect(result.current.lunchFoods[0].calories).toBe(999);
+        expect(result.current.pendingMealWriteCount).toBe(1);
     });
 
     test('a write that fails after the account changed does not alert or set an error for the new account', async () => {
@@ -402,6 +408,7 @@ describe('FoodProvider step history writes', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        mockAsyncStorage.clear();
         mockAuthState.callback = null;
         mockUserData = { uid: 'user-1', dailySteps: {} };
         mockStepProps.current = {};
@@ -530,6 +537,7 @@ describe('FoodProvider initialization', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        mockAsyncStorage.clear();
         mockAuthState.callback = null;
         mockUserData = null;
         mockStepProps.current = {};
@@ -767,10 +775,7 @@ describe('FoodProvider initialization', () => {
             await hook.result.current.handleAddMeal('breakfast', [oats]);
             hook.result.current.updateDailySteps(8000, today);
         });
-        (writeMealType as jest.Mock).mockRejectedValueOnce(new Error('offline'));
-        await act(async () => {
-            await expect(hook.result.current.handleAddMeal('lunch', [rice])).rejects.toThrow('offline');
-        });
+        await act(async () => { await hook.result.current.handleAddMeal('lunch', [rice]); });
 
         await signIn(null);
 
@@ -781,6 +786,7 @@ describe('FoodProvider initialization', () => {
         expect(hook.result.current.loading).toBe(false);
         expect(hook.result.current.error).toBeNull();
         expect(hook.result.current.initializationError).toBeNull();
+        expect(hook.result.current.pendingMealWriteCount).toBe(0);
         expect(clearPersistedMealCache).toHaveBeenCalledWith('user-1');
     });
 

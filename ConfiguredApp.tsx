@@ -8,6 +8,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList, AuthenticatedStackParamList } from './src/shared/navigation';
 import { AuthProvider, AuthContext } from './src/features/auth/context/AuthContext';
 import OfflineBanner from './src/shared/components/OfflineBanner/OfflineBanner';
+import PendingMealWritesBanner from './src/shared/components/PendingMealWritesBanner/PendingMealWritesBanner';
 import { FoodProvider } from './src/features/nutrition/context/FoodContext';
 import { WorkoutProvider } from './src/features/workout/context/WorkoutContext';
 
@@ -56,6 +57,7 @@ const AuthenticatedScreens = React.memo(() => (
   <FoodProvider>
     <WorkoutProvider>
       <OfflineBanner />
+      <PendingMealWritesBanner />
       <AppStack.Navigator>
         <AppStack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
         <AppStack.Screen name="Workout" component={WorkoutScreen} options={{ headerShown: false }} />

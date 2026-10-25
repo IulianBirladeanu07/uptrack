@@ -1,5 +1,4 @@
 import { doc, setDoc, getDoc, Timestamp, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
-import { SAVE_TIMEOUT_MS, withTimeout } from '../../../shared/utils/withTimeout';
 import { db } from '../../auth/services/firebaseConfigService';
 import { formatDate } from '../utils/dateUtils';
 import { mealDayConverter } from '../../../shared/firestore/converters';
@@ -71,7 +70,7 @@ const mealsCollection = () => collection(db, 'meals').withConverter(mealDayConve
 export const writeMealType = async (uid: string, mealType: MealType, foods: LoggedFood[], date: string): Promise<LoggedFood[]> => {
     const data: MealDayDoc = { uid, date, timestamp: Timestamp.now() };
     data[mealType] = foods;
-    await withTimeout(setDoc(dayDocRef(uid, date), data, { merge: true }), SAVE_TIMEOUT_MS);
+    await setDoc(dayDocRef(uid, date), data, { merge: true });
     return foods;
 };
 

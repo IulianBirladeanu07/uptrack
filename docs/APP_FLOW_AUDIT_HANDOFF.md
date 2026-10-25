@@ -1,5 +1,13 @@
 # App flow audit handoff
 
+## Nutrition meal-save durability follow-up (2026-10-25)
+
+Confirmed that the meal service wrapped Firestore `setDoc` in a 12-second UI timeout, while `persistOptimisticMealWrite` rolled back local cache/state on any timeout or rejection. Firestore offline writes can remain queued and later sync, so that rollback could leave the visible app and Firestore out of agreement.
+
+The save flow now stores the latest full snapshot per user/date/meal in a versioned AsyncStorage outbox before attempting Firestore. A delayed or rejected Firestore write leaves the meal visible and queued; the queue is removed only after Firestore acknowledges the write. Account initialization overlays queued snapshots over both cached and fetched meals, and starts a background retry without blocking app startup. A neutral authenticated-app banner reports pending meal changes and offers manual retry. Queue persistence failure still rolls back and reports a save failure because the app cannot safely promise durability without a saved outbox entry. The existing account-deletion cleanup removes the outbox key because it is uid-suffixed.
+
+Validation for this follow-up: Jest passed all 165 suites / 1,274 tests; `npx tsc --noEmit` passed; Android `npx expo export --platform android` passed. Jest still prints the repository's existing React `act(...)` and open-handle warnings, but exited successfully. No native rebuild was run; the user asked to defer rebuilds until needed. This change is local and uncommitted unless the user later requests a commit.
+
 Updated 2026-10-17 for the next coding agent. Read `AGENTS.md` before making changes.
 
 ## Current state

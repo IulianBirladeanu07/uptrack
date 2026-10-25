@@ -23,6 +23,7 @@ const createOperations = () => ({
   setInitializationError: jest.fn(),
   setFreshMealsLoaded: jest.fn(),
   setLoading: jest.fn(),
+  setPendingMealWriteCount: jest.fn(),
 });
 
 describe('resetFoodAccountState', () => {
@@ -66,6 +67,7 @@ describe('resetFoodAccountState', () => {
     expect(operations.setInitializationError).toHaveBeenCalledWith(null);
     expect(operations.setFreshMealsLoaded).toHaveBeenCalledWith(false);
     expect(operations.setLoading).toHaveBeenCalledWith(true);
+    expect(operations.setPendingMealWriteCount).toHaveBeenCalledWith(0);
   });
 
   it('leaves loading false when the account is signed out', () => {

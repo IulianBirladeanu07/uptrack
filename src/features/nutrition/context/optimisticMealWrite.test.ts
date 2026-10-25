@@ -1,17 +1,22 @@
-jest.mock('../services/mealService', () => ({
-  writeMealType: jest.fn(),
+jest.mock('../services/pendingMealWrites', () => ({
+  enqueuePendingMealWrite: jest.fn(),
+  flushPendingMealWrites: jest.fn(),
 }));
 
-import { writeMealType } from '../services/mealService';
+import { enqueuePendingMealWrite, flushPendingMealWrites } from '../services/pendingMealWrites';
 import type { LoggedFood } from '../../../shared/types';
 import { persistOptimisticMealWrite } from './optimisticMealWrite';
 
 const makeFood = (id: string): LoggedFood => ({ id, calories: 100 });
 
 describe('persistOptimisticMealWrite', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (enqueuePendingMealWrite as jest.Mock).mockResolvedValue([{ id: 'pending' }]);
+    (flushPendingMealWrites as jest.Mock).mockResolvedValue([]);
+  });
 
-  it('keeps the optimistic result when the server write succeeds', async () => {
+  it('persists a durable snapshot before attempting to flush it', async () => {
     const updateFoods = jest.fn();
     const persistCache = jest.fn();
 
@@ -27,14 +32,15 @@ describe('persistOptimisticMealWrite', () => {
       rollback: () => [],
     })).resolves.toBeUndefined();
 
-    expect(writeMealType).toHaveBeenCalledWith('user-1', 'lunch', [makeFood('new')], '2026-10-17');
+    expect(enqueuePendingMealWrite).toHaveBeenCalledWith('user-1', '2026-10-17', 'lunch', [makeFood('new')]);
+    expect(flushPendingMealWrites).toHaveBeenCalledWith('user-1');
     expect(updateFoods).toHaveBeenCalledTimes(1);
     expect(persistCache).toHaveBeenCalledTimes(1);
   });
 
-  it('rolls back and persists the restored foods after a current-user write failure', async () => {
-    const error = new Error('write failed');
-    (writeMealType as jest.Mock).mockRejectedValueOnce(error);
+  it('rolls back when the durable queue cannot be persisted', async () => {
+    const error = new Error('storage failed');
+    (enqueuePendingMealWrite as jest.Mock).mockRejectedValueOnce(error);
     const updateFoods = jest.fn();
     const persistCache = jest.fn();
     const previousFoods = [makeFood('previous')];
@@ -54,13 +60,15 @@ describe('persistOptimisticMealWrite', () => {
     expect(updateFoods).toHaveBeenNthCalledWith(1, [makeFood('optimistic')]);
     expect(updateFoods).toHaveBeenNthCalledWith(2, previousFoods);
     expect(persistCache).toHaveBeenCalledTimes(2);
+    expect(flushPendingMealWrites).not.toHaveBeenCalled();
   });
 
-  it('does not roll back state after the active user changes', async () => {
-    (writeMealType as jest.Mock).mockRejectedValueOnce(new Error('write failed'));
+  it('keeps a durable optimistic write visible while the backend is unavailable', async () => {
+    (flushPendingMealWrites as jest.Mock).mockResolvedValueOnce([{ id: 'pending' }]);
     const updateFoods = jest.fn();
     const persistCache = jest.fn();
     const rollback = jest.fn(() => []);
+    const onPendingWritesChanged = jest.fn();
 
     await expect(persistOptimisticMealWrite({
       uid: 'user-1',
@@ -72,33 +80,12 @@ describe('persistOptimisticMealWrite', () => {
       persistCache,
       isCurrentRequest: () => false,
       rollback,
-    })).rejects.toThrow('write failed');
+      onPendingWritesChanged,
+    })).resolves.toBeUndefined();
 
     expect(updateFoods).toHaveBeenCalledTimes(1);
     expect(persistCache).toHaveBeenCalledTimes(1);
     expect(rollback).not.toHaveBeenCalled();
-  });
-
-  it('allows an operation-specific rollback guard to skip stale item rollback', async () => {
-    (writeMealType as jest.Mock).mockRejectedValueOnce(new Error('write failed'));
-    const updateFoods = jest.fn();
-    const persistCache = jest.fn();
-    const rollback = jest.fn(() => null);
-
-    await expect(persistOptimisticMealWrite({
-      uid: 'user-1',
-      mealType: 'breakfast',
-      dateKey: '2026-10-17',
-      nextFoods: [makeFood('optimistic')],
-      getCurrentFoods: () => [makeFood('optimistic')],
-      updateFoods,
-      persistCache,
-      isCurrentRequest: () => true,
-      rollback,
-    })).rejects.toThrow('write failed');
-
-    expect(rollback).toHaveBeenCalled();
-    expect(updateFoods).toHaveBeenCalledTimes(1);
-    expect(persistCache).toHaveBeenCalledTimes(1);
+    expect(onPendingWritesChanged).toHaveBeenLastCalledWith(1);
   });
 });

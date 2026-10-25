@@ -1,4 +1,4 @@
-import { writeMealType } from '../services/mealService';
+import { enqueuePendingMealWrite, flushPendingMealWrites } from '../services/pendingMealWrites';
 import type { LoggedFood, MealType } from '../../../shared/types';
 
 type OptimisticMealWriteOptions = {
@@ -11,6 +11,7 @@ type OptimisticMealWriteOptions = {
   persistCache: () => void;
   isCurrentRequest: () => boolean;
   rollback: (currentFoods: LoggedFood[]) => LoggedFood[] | null;
+  onPendingWritesChanged?: (count: number) => void;
 };
 
 export const persistOptimisticMealWrite = async ({
@@ -23,12 +24,14 @@ export const persistOptimisticMealWrite = async ({
   persistCache,
   isCurrentRequest,
   rollback,
+  onPendingWritesChanged,
 }: OptimisticMealWriteOptions): Promise<void> => {
   updateFoods(nextFoods);
   persistCache();
 
   try {
-    await writeMealType(uid, mealType, nextFoods, dateKey);
+    const pending = await enqueuePendingMealWrite(uid, dateKey, mealType, nextFoods);
+    onPendingWritesChanged?.(pending.length);
   } catch (error) {
     if (isCurrentRequest()) {
       const previousFoods = rollback(getCurrentFoods());
@@ -39,4 +42,7 @@ export const persistOptimisticMealWrite = async ({
     }
     throw error;
   }
+
+  const pending = await flushPendingMealWrites(uid);
+  onPendingWritesChanged?.(pending.length);
 };

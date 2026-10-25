@@ -25,6 +25,7 @@ import { resetFoodAccountState } from './resetFoodAccountState';
 import { AsyncOperationQueue } from './AsyncOperationQueue';
 import { buildCategoryData } from './categoryData';
 import { persistOptimisticMealWrite } from './optimisticMealWrite';
+import { flushPendingMealWrites } from '../services/pendingMealWrites';
 import {
     getCaloriesForDateRange as summarizeCaloriesForDateRange,
     getCurrentWeekRollingStats,
@@ -48,6 +49,8 @@ export const REQUIRED_LEARNING_DAYS = 7;
 
 export type FoodContextValue = {
     currentUserId:            string | null;
+    pendingMealWriteCount:    number;
+    retryPendingMealWrites:   () => Promise<void>;
     breakfastFoods:           LoggedFood[];
     lunchFoods:               LoggedFood[];
     dinnerFoods:              LoggedFood[];
@@ -100,6 +103,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     const [initialLoadComplete, setInitialLoadComplete] = useState(false);
     const [initializationError, setInitializationError] = useState<string | null>(null);
     const [freshMealsLoaded,    setFreshMealsLoaded]    = useState(false);
+    const [pendingMealWriteCount, setPendingMealWriteCount] = useState(0);
     const [dailySteps,          setDailySteps]          = useState(0);
     const [stepsVersion,        setStepsVersion]        = useState(0);
     const [stepsLoading,        setStepsLoading]        = useState(false);
@@ -328,7 +332,17 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         persistCache: () => { void persistMealCache(uid, serializeCacheForPersist()); },
         isCurrentRequest: () => mountedRef.current && currentUserRef.current?.uid === uid,
         rollback,
+        onPendingWritesChanged: count => {
+            if (mountedRef.current && currentUserRef.current?.uid === uid) setPendingMealWriteCount(count);
+        },
     }).then(() => invalidateNutritionHistoryForDay(uid, dateKey)), [updateMealState, serializeCacheForPersist]);
+
+    const retryPendingMealWrites = useCallback(async () => {
+        const uid = currentUserRef.current?.uid;
+        if (!uid) return;
+        const pending = await flushPendingMealWrites(uid);
+        if (mountedRef.current && currentUserRef.current?.uid === uid) setPendingMealWriteCount(pending.length);
+    }, []);
 
     const reportMealFailure = useCallback((uid: string, context: string, error: unknown) => {
         if (currentUserRef.current?.uid !== uid) return;
@@ -483,6 +497,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                     setCacheVersion(v => v + 1);
                     setInitialLoadComplete(true);
                 },
+                onPendingWritesChanged: setPendingMealWriteCount,
                 onFreshMeals: (freshMeals, hadCachedMeals) => {
                     mealCache.current.buildFromMeals(freshMeals);
                     setFreshMealsLoaded(true);
@@ -535,6 +550,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                     setInitializationError,
                     setFreshMealsLoaded,
                     setLoading,
+                    setPendingMealWriteCount,
                 }),
                 setCurrentUserRef: currentUser => { currentUserRef.current = currentUser; },
                 setCurrentUser,
@@ -548,6 +564,8 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
 
     const contextValue = useMemo<FoodContextValue>(() => ({
         currentUserId:    currentUser?.uid ?? null,
+        pendingMealWriteCount,
+        retryPendingMealWrites,
         breakfastFoods:   mealState.breakfast,
         lunchFoods:       mealState.lunch,
         dinnerFoods:      mealState.dinner,
@@ -583,7 +601,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         stepsConnected,
         retryStepsConnection,
     }), [
-        currentUser?.uid, mealState, selectedDate, handleDateChange, categoryData,
+        currentUser?.uid, pendingMealWriteCount, retryPendingMealWrites, mealState, selectedDate, handleDateChange, categoryData,
         nutritionHookData.hasTargets, enhancedLearningData,
         nutritionHookData.dailyNutrition, todayNutrition, nutritionHookData.userMacros,
         handleAddMeal, handleDeleteMeal, updateMealInDatabase, updateMealState,

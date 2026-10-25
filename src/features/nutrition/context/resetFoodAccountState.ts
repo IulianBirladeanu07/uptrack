@@ -22,6 +22,7 @@ type ResetFoodAccountStateOperations = {
   setInitializationError: Dispatch<SetStateAction<string | null>>;
   setFreshMealsLoaded: Dispatch<SetStateAction<boolean>>;
   setLoading: Dispatch<SetStateAction<boolean>>;
+  setPendingMealWriteCount: Dispatch<SetStateAction<number>>;
 };
 
 export const resetFoodAccountState = (
@@ -46,4 +47,5 @@ export const resetFoodAccountState = (
   operations.setInitializationError(null);
   operations.setFreshMealsLoaded(false);
   operations.setLoading(!!user);
+  operations.setPendingMealWriteCount(0);
 };
