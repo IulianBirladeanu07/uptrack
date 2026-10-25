@@ -77,3 +77,19 @@ describe('FoodItem accessibility', () => {
         expect(screen.getByRole('checkbox', { name: 'Remove food from selection' }).props.accessibilityState).toEqual({ checked: true });
     });
 });
+
+describe('FoodItem macro labels', () => {
+    it('shows positive sub-gram nutrients without rounding them down to zero', () => {
+        render(<FoodItem item={{ ...item, carbohydrates: null, protein: 0.4, fats: 0.2 }} />);
+
+        expect(screen.getByText('<1P')).toBeTruthy();
+        expect(screen.getByText('<1F')).toBeTruthy();
+        expect(screen.queryByText(/^(?:\d+|<1)C$/)).toBeNull();
+    });
+
+    it('omits macro chips when the nutrient value is actually zero', () => {
+        render(<FoodItem item={{ ...item, carbohydrates: 0, protein: 0, fats: 0 }} />);
+
+        expect(screen.queryByText(/^(?:\d+|<1)[CPF]$/)).toBeNull();
+    });
+});

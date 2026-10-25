@@ -78,17 +78,21 @@ function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets,
                     <View style={[
                         styles.stepIconContainer,
                         {
-                            backgroundColor: dailySteps >= 10000 ? colors.faded.success  : colors.faded.stepsRed,
-                            borderColor:     dailySteps >= 10000 ? colors.border.success : colors.border.stepsRed,
+                            backgroundColor: dailySteps >= 10000 ? colors.faded.success : colors.faded.stepsRed,
+                            borderColor: dailySteps >= 10000 ? colors.border.success : colors.border.stepsRed,
                         }
                     ]}>
-                        <MaterialCommunityIcons name="run-fast" size={20} color={colors.accent.stepsRed} />
+                        <MaterialCommunityIcons
+                            name="run-fast"
+                            size={20}
+                            color={dailySteps >= 10000 ? colors.accent.success : colors.accent.stepsRed}
+                        />
                     </View>
                     <Text style={styles.metricValue}>
                         {dailySteps.toLocaleString()}
                     </Text>
                     <Text style={styles.metricLabel}>
-                        {dailySteps >= 10000 ? 'Goal reached!' : '10,000 goal'}
+                        10,000 goal
                     </Text>
                 </View>
             </View>

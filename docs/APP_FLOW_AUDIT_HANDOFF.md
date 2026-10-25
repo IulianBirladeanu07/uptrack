@@ -311,3 +311,24 @@ Recent-search interactions still need a device check, including that tapping rem
 ### FUP-007 recheck (2026-10-24)
 
 Ran `npx jest --detectOpenHandles --runInBand --silent` for `LoginScreen.test.tsx` and `RegistrationScreen.test.tsx`: **2 suites / 18 tests passed**, with no open-handle report. The Login suite took about 49 seconds, but the previously noted individual 5-second test timeouts did not recur. Treat FUP-007 as not reproduced in this run; continue monitoring CI under load instead of changing test timeouts without evidence.
+
+### Nutrition and Food Selection follow-up (2026-10-25)
+
+Rechecked the currently requested summary and food-selection states before the production build:
+
+- The Nutrition steps widget showed `0` before the goal but kept the red icon after reaching 10,000; its reached-state icon is now green. The `10,000 goal` label remains visible in both states.
+- Food Selection capped its bar at full but also displayed `100%` above target. It now keeps the visual fill capped and replaces that misleading percentage with a concise remaining/over/on-target status. The current-versus-target calorie figure remains visible.
+- Food Selection now shows a compact C/P/F daily balance row based on current totals plus selected foods, so users can see macro room while choosing foods.
+- Positive macro values below 0.5 g were rounded to a `0` chip because the render condition used the raw value while the label used rounded values. Such values now display as `<1`; true zeros and missing fields remain omitted.
+- The Food Selection title now names the meal being added to when that route parameter is available.
+- `MealContainer` renders the meal-total row for every non-empty meal. The reported Snacks discrepancy is not present in the current code. Macro bars remain capped at the target; the actual/target values already show over-target amounts, so no over-warning color or extra percentage label was added.
+
+Validation on 2026-10-25: focused Jest **3 suites / 14 tests passed**; full Jest **161 suites / 1,267 tests passed** (`--runInBand --ci --forceExit --silent`); `tsc --noEmit` passed; Android Expo export passed with a **9.5 MB Hermes bundle**. These checks do not replace a physical-device review. Device checks for the changed Nutrition and Food Selection states and the previously listed Play release blockers remain outstanding. The owner’s uncommitted `app.config.js` version/runtime change was preserved.
+
+### App bootstrap resilience follow-up (2026-10-25)
+
+Reproduced the open REV-003 failure path in the current code: Firebase and Supabase configuration modules threw during static import, before `App` could render. The Expo entry now validates required public runtime config before lazily loading the configured app tree. Missing values produce a plain recovery screen without evaluating Firebase/Supabase-backed modules. Added pure validation tests and a bootstrap regression that deliberately fails if the configured app module loads without config.
+
+The Expo root and Android window background are set to UpTrack's `#0A0E13` so Android edge-to-edge navigation surfaces do not expose Expo's default white root background. This native configuration needs a new development binary to take effect; no native build was started.
+
+Validation on 2026-10-25: focused Jest **2 suites / 4 tests passed**; full Jest **163 suites / 1,271 tests passed**; `npx tsc --noEmit` passed; Android Expo export passed with a **9.5 MB Hermes bundle**; `git diff --check` passed. Expo export verifies JavaScript bundling only. The bootstrap screen and Android system-bar appearance still need device review.

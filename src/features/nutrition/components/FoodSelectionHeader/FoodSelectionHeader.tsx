@@ -2,38 +2,43 @@ import { memo, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, StatusBar, Animated, Easing, TouchableOpacity } from 'react-native';
 import { Flame } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
-import type { FoodItem } from '../../../../shared/types';
+import type { FoodItem, NutritionTotals } from '../../../../shared/types';
+import { getFoodSelectionCalorieProgress, getFoodSelectionMacroBalances } from '../../helpers/foodSelectionCalorieProgress';
 
 type FoodSelectionHeaderProps = {
   date?: string | undefined;
   selectedFoods?: FoodItem[] | undefined;
+  meal?: string | undefined;
   currentCalories?: number | undefined;
   targetCalories?: number | undefined;
+  currentMacros?: NutritionTotals | undefined;
+  targetMacros?: { carbs?: number; protein?: number; fat?: number } | undefined;
   onQuickActionsPress: () => void;
 };
 
 const FoodSelectionHeader = ({
   date,
   selectedFoods = [],
+  meal,
   currentCalories = 0,
   targetCalories,
+  currentMacros,
+  targetMacros,
   onQuickActionsPress,
 }: FoodSelectionHeaderProps) => {
-  const { calculatedCurrentCalories, foodCount, calorieProgress } = useMemo(() => {
+  const { calculatedCurrentCalories, foodCount } = useMemo(() => {
     const selectedFoodsCalories = Math.round(
       selectedFoods.reduce((total, food) => total + (Number(food.calories) || 0), 0)
     );
     const totalCurrentCalories = Math.round((currentCalories || 0) + selectedFoodsCalories);
-    const calculatedCalorieProgress = targetCalories
-      ? Math.min((totalCurrentCalories / targetCalories) * 100, 100)
-      : 0;
 
     return {
       calculatedCurrentCalories: totalCurrentCalories,
       foodCount: selectedFoods.length,
-      calorieProgress: calculatedCalorieProgress,
     };
-  }, [selectedFoods, currentCalories, targetCalories]);
+  }, [selectedFoods, currentCalories]);
+  const calorieProgress = getFoodSelectionCalorieProgress(calculatedCurrentCalories, targetCalories);
+  const macroBalances = getFoodSelectionMacroBalances(currentMacros ?? {}, targetMacros ?? {}, selectedFoods);
 
   const formattedDate = useMemo(() => {
     return date || new Date().toLocaleDateString('en-US', {
@@ -47,12 +52,12 @@ const FoodSelectionHeader = ({
 
   useEffect(() => {
     Animated.timing(animatedProgress, {
-      toValue: calorieProgress / 100,
+      toValue: calorieProgress.fillRatio,
       duration: 750,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start();
-  }, [calorieProgress]);
+  }, [calorieProgress.fillRatio]);
 
   return (
     <View>
@@ -61,7 +66,9 @@ const FoodSelectionHeader = ({
       <View style={styles.topRow}>
         <View style={styles.titleContainer}>
           <View style={styles.titleRow}>
-            <Text style={styles.title}>Food Selection</Text>
+            <Text style={styles.title}>
+              {meal ? `Add to ${meal.charAt(0).toUpperCase()}${meal.slice(1)}` : 'Food Selection'}
+            </Text>
             {foodCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
@@ -100,22 +107,33 @@ const FoodSelectionHeader = ({
         </View>
 
         {!!targetCalories && (
-          <View style={styles.progressRow}>
-            <View style={styles.progressTrack}>
-              <Animated.View
-                style={[
-                  styles.progressFill,
-                  {
-                    backgroundColor: colors.accent.primary,
-                    transform: [{ scaleX: animatedProgress }],
-                  },
-                ]}
-              />
+          <>
+            <View style={styles.progressRow}>
+              <View style={styles.progressTrack}>
+                <Animated.View
+                  style={[
+                    styles.progressFill,
+                    {
+                      backgroundColor: colors.accent.primary,
+                      transform: [{ scaleX: animatedProgress }],
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.progressStatus}>
+                {calorieProgress.status}
+              </Text>
             </View>
-            <Text style={styles.progressPercent}>
-              {Math.round(calorieProgress)}%
-            </Text>
-          </View>
+            {macroBalances.length > 0 && (
+              <View style={styles.macroBalanceRow} accessibilityLabel="Daily macro balance">
+                {macroBalances.map(({ key, label, status }) => (
+                  <Text key={key} style={[styles.macroBalance, { color: colors.macro[key] }]}>
+                    {label} · {status}
+                  </Text>
+                ))}
+              </View>
+            )}
+          </>
         )}
       </View>
     </View>
@@ -233,12 +251,24 @@ const styles = StyleSheet.create({
     borderRadius: radius[1],
     transformOrigin: 'left',
   },
-  progressPercent: {
+  progressStatus: {
     fontSize: fontSize[12],
     fontWeight: fontWeight.bold,
     color: colors.text.secondary,
     minWidth: spacing[10],
     textAlign: 'right',
+  },
+  macroBalanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing[2],
+    gap: spacing[1],
+  },
+  macroBalance: {
+    flex: 1,
+    fontSize: fontSize[10],
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
   },
 });
 

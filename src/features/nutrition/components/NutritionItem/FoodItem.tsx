@@ -27,7 +27,7 @@ export type FoodItemData = {
 };
 
 type Macro = {
-  value: number;
+  value: string;
   label: string;
   style: StyleProp<TextStyle>[];
 };
@@ -56,14 +56,15 @@ type FoodItemProps = {
 const getMacros = (item: FoodItemData, macroLabelStyle: StyleProp<TextStyle>): Macro[] => {
   const baseStyle = macroLabelStyle || styles.macroLabel;
   const macros: Macro[] = [];
+  const formatAmount = (value: number) => value < 0.5 ? '<1' : String(Math.round(value));
   if (Number(item.carbohydrates) > 0) {
-    macros.push({ value: Math.round(Number(item.carbohydrates)), label: 'C', style: [baseStyle, styles.macroCarbs] });
+    macros.push({ value: formatAmount(Number(item.carbohydrates)), label: 'C', style: [baseStyle, styles.macroCarbs] });
   }
   if (Number(item.protein) > 0) {
-    macros.push({ value: Math.round(Number(item.protein)), label: 'P', style: [baseStyle, styles.macroProtein] });
+    macros.push({ value: formatAmount(Number(item.protein)), label: 'P', style: [baseStyle, styles.macroProtein] });
   }
   if (Number(item.fats) > 0) {
-    macros.push({ value: Math.round(Number(item.fats)), label: 'F', style: [baseStyle, styles.macroFat] });
+    macros.push({ value: formatAmount(Number(item.fats)), label: 'F', style: [baseStyle, styles.macroFat] });
   }
   return macros;
 };

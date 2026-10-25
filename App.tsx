@@ -1,154 +1,54 @@
-import React, { useContext, useMemo } from 'react';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { queryClient } from './src/shared/query/queryClient';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import type { RootStackParamList, AuthenticatedStackParamList } from './src/shared/navigation';
-import { AuthProvider, AuthContext } from './src/features/auth/context/AuthContext';
-import OfflineBanner from './src/shared/components/OfflineBanner/OfflineBanner';
-import { FoodProvider } from './src/features/nutrition/context/FoodContext';
-import { WorkoutProvider } from './src/features/workout/context/WorkoutContext';
+import React, { Suspense, lazy } from 'react';
+import Constants from 'expo-constants';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { getMissingRequiredAppConfig } from './src/shared/config/appConfigStatus';
+import { colors, spacing, fontSize, fontWeight } from './src/shared/theme';
 
-import WorkoutScreen from './src/features/workout/screens/WorkoutScreen/WorkoutScreen';
-import LoginScreen from './src/features/auth/components/LoginScreen/LoginScreen';
-import RegistrationScreen from './src/features/auth/components/RegistrationScreen/RegistrationScreen';
-import DashboardScreen from './src/features/dashboard/screens/DashboardScreen/DashboardScreen';
-import NutritionScreen from './src/features/nutrition/screens/NutritionScreen/NutritionScreen';
-import ProgressScreen from './src/features/progress/screens/ProgressScreen/ProgressScreen';
-import ProfileScreen from './src/features/profile/components/Profile/ProfileScreen';
-import WorkoutHistory from './src/features/workout/screens/WorkoutHistoryScreen/WorkoutHistory';
-import WorkoutDetails from './src/features/workout/screens/WorkoutDetailsScreen/WorkoutDetails';
-import StartWorkout from './src/features/workout/screens/StartWorkoutScreen/StartWorkout';
-import ExerciseSelectionScreen from './src/features/workout/screens/ExerciseSelectionScreen/ExerciseSelectionScreen';
-import WorkoutLibraryScreen from './src/features/workout/screens/WorkoutLibraryScreen/WorkoutLibraryScreen';
-import CreateTemplateScreen from './src/features/workout/screens/CreateTemplateScreen/CreateTemplateScreen';
-import FoodSelectionScreen from './src/features/nutrition/screens/FoodSelectionScreen/FoodSelectionScreen';
-import FoodDetailScreen from './src/features/nutrition/screens/FoodDetailScreen/FoodDetailScreen';
-import SplashScreen from './src/shared/components/SplashScreen/SplashScreen';
-import ErrorBoundary from './src/shared/components/ErrorBoundary/ErrorBoundary';
-import ChangePasswordScreen from './src/features/auth/components/ChangePasswordScreen/ChangePasswordScreen';
-import OnboardingFlow from './src/features/profile/screens/OnboardingFlow';
-import PlanSummaryScreen from './src/features/profile/screens/PlanSummaryScreen';
-import ForgotPasswordScreen from './src/features/auth/components/ForgotPasswordScreen/ForgotPasswordScreen';
-import CustomFoodScreen from './src/features/nutrition/screens/FoodSelectionScreen/CustomFoodScreen';
-import BarcodeScannerScreen from './src/features/nutrition/screens/BarcodeScannerScreen/BarcodeScannerScreen';
-import CreateSplitScreen from './src/features/workout/screens/CreateSplitScreen/CreateSplitScreen'; 
-import WeightTracker from './src/features/nutrition/components/WeightTracker/WeightTracker';
-import PreviewSplitScreen from './src/features/workout/screens/CreateSplitScreen/components/PreviewSplitScreen';
-import CreateExerciseScreen from './src/features/workout/screens/CreateExerciseScreen/CreateExerciseScreen';
-import WeightHistoryScreen from './src/features/nutrition/components/WeightTracker/WeightHistoryScreen';
-import ExerciseHistoryScreen from './src/features/workout/components/ExerciseHistoryScreen/ExerciseHistoryScreen';
-
-if (typeof ErrorUtils !== 'undefined') {
-  const defaultHandler = ErrorUtils.getGlobalHandler();
-  ErrorUtils.setGlobalHandler((error, isFatal) => {
-    console.error('FULL_JS_STACK:', error?.stack);
-    defaultHandler(error, isFatal);
-  });
-}
-
-const RootStack = createNativeStackNavigator<RootStackParamList>();
-const AppStack = createNativeStackNavigator<AuthenticatedStackParamList>();
-
-const AuthenticatedScreens = React.memo(() => (
-  <FoodProvider>
-    <WorkoutProvider>
-      <OfflineBanner />
-      <AppStack.Navigator>
-        <AppStack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="Workout" component={WorkoutScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="Nutrition" component={NutritionScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="Progress" component={ProgressScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="CustomFood" component={CustomFoodScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="WorkoutHistory" component={WorkoutHistory} options={{ headerShown: false }} />
-        <AppStack.Screen name="WorkoutDetails" component={WorkoutDetails} options={{ headerShown: false, gestureEnabled: false }} />
-        <AppStack.Screen name="StartWorkout" component={StartWorkout} options={{ headerShown: false }} />
-        <AppStack.Screen name="ExerciseSelection" component={ExerciseSelectionScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="WorkoutLibrary" component={WorkoutLibraryScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="CreateTemplate" component={CreateTemplateScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="FoodSelection" component={FoodSelectionScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="FoodDetail" component={FoodDetailScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="CreateSplit" component={CreateSplitScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="WeightTracker" component={WeightTracker} options={{ headerShown: false }} />
-        <AppStack.Screen name="PreviewSplit" component={PreviewSplitScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="CreateExercise" component={CreateExerciseScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="WeightHistory" component={WeightHistoryScreen} options= {{ headerShown: false}} />
-        <AppStack.Screen name="ExerciseHistory" component={ExerciseHistoryScreen} options= {{ headerShown: false}} />
-      </AppStack.Navigator>
-    </WorkoutProvider>
-  </FoodProvider>
-));
-
-const MainApp = () => {
-  const { authenticated, loading, profileSetupComplete } = useContext(AuthContext)!;
-  
-  const routes = useMemo(() => {
-    if (loading) {
-      return (
-        <RootStack.Screen
-          name="Splash"
-          component={SplashScreen}
-          options={{ headerShown: false }}
-        />
-      );
-    }
-
-    if (!authenticated) {
-      return (
-        <>
-          <RootStack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-          <RootStack.Screen name="Registration" component={RegistrationScreen} options={{ headerShown: false }} />
-          <RootStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false }} />
-        </>
-      );
-    }
-    if (profileSetupComplete) {
-      return (
-        <RootStack.Screen
-          name="AuthenticatedScreens"
-          component={AuthenticatedScreens}
-          options={{ headerShown: false }}
-        />
-      );
-    }
-    return (
-      <>
-        <RootStack.Screen
-          name="OnboardingFlow"
-          component={OnboardingFlow}
-          options={{ headerShown: false }}
-        />
-        <RootStack.Screen
-          name="PlanSummary"
-          component={PlanSummaryScreen}
-          options={{ headerShown: false }}
-        />
-      </>
-    );
-  }, [authenticated, loading, profileSetupComplete]);
-
-  return <RootStack.Navigator>{routes}</RootStack.Navigator>;
-};
+const ConfiguredApp = lazy(() => import('./ConfiguredApp'));
+const missingConfig = getMissingRequiredAppConfig(Constants.expoConfig?.extra);
 
 export default function App() {
+  if (missingConfig.length > 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>UpTrack is unavailable</Text>
+        <Text style={styles.message}>
+          This app installation is missing required setup. Please install an updated build or contact support.
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <ErrorBoundary>
-            <NavigationContainer>
-              <AuthProvider>
-                <MainApp />
-              </AuthProvider>
-            </NavigationContainer>
-          </ErrorBoundary>
-        </SafeAreaProvider>
-      </QueryClientProvider>
-    </GestureHandlerRootView>
+    <Suspense fallback={<View style={styles.loading}><ActivityIndicator color={colors.accent.primary} /></View>}>
+      <ConfiguredApp />
+    </Suspense>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing[6],
+    backgroundColor: colors.background.primary,
+  },
+  title: {
+    color: colors.text.primary,
+    fontSize: fontSize[24],
+    fontWeight: fontWeight.bold,
+    textAlign: 'center',
+  },
+  message: {
+    color: colors.text.secondary,
+    fontSize: fontSize[16],
+    lineHeight: 24,
+    marginTop: spacing[3],
+    textAlign: 'center',
+  },
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: colors.background.primary,
+  },
+});

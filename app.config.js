@@ -3,10 +3,11 @@ module.exports = {
     name: "uptrack",
     slug: "uptrack",
     platforms: ["ios", "android"],
-    version: "2.0.5",
+    version: "2.0.6",
     orientation: "portrait",
     icon: "./assets/uptrack-icon.png",
     userInterfaceStyle: "light",
+    backgroundColor: "#0A0E13",
     plugins: [
       "expo-font",
       "expo-system-ui",
@@ -50,6 +51,7 @@ module.exports = {
       googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST,
     },
     android: {
+      backgroundColor: "#0A0E13",
       jsEngine: "hermes",
       permissions: ["CAMERA", "android.permission.health.READ_STEPS"],
       blockedPermissions: [
@@ -64,7 +66,7 @@ module.exports = {
       },
       package: "com.iulianbirladeanu.uptrack",
       allowBackup: false,
-      versionCode: 3,
+      versionCode: 4,
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
     },
     web: {
@@ -102,7 +104,7 @@ module.exports = {
     },
     owner: "iulian_birladeanu",
     runtimeVersion: {
-      policy: "fingerprint",
+      policy: "appVersion",
     },
     updates: {
       url: "https://u.expo.dev/2512a7a0-ae42-4736-9b5a-03ce8ad42d13",

@@ -38,6 +38,6 @@ describe('NutritionStats steps display', () => {
     renderStats(11416);
 
     expect(screen.getByText('11,416')).toBeTruthy();
-    expect(screen.getByText('Goal reached!')).toBeTruthy();
+    expect(screen.getByText('10,000 goal')).toBeTruthy();
   });
 });
