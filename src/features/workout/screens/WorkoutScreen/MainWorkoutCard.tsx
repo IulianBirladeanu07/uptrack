@@ -99,9 +99,12 @@ const MainWorkoutCard = React.memo(({
     allExercises, isRestDay, activeWorkout, isToday, lastWorkoutStats, todayCompletedStats,
 }: MainWorkoutCardProps) => {
     if (activeWorkout) {
+        const activeName = activeWorkout.templateName && activeWorkout.templateName !== 'Workout'
+            ? activeWorkout.templateName
+            : workoutData?.name ?? 'Workout';
         return (
             <View style={styles.workoutCard}>
-                <Text style={styles.workoutCardTitle}>{activeWorkout.templateName || 'Workout'}</Text>
+                <Text style={styles.workoutCardTitle}>{activeName}</Text>
                 <TouchableOpacity style={styles.resumeButton} onPress={onResume} activeOpacity={0.8}>
                     <PulseDot style={styles.pulseDot} />
                     <Text style={styles.resumeButtonText}>Resume Workout</Text>
@@ -113,12 +116,15 @@ const MainWorkoutCard = React.memo(({
 
     if (isToday && todayCompletedStats) {
         const stats = todayCompletedStats;
+        const completedName = stats.name && stats.name !== 'Workout'
+            ? stats.name
+            : workoutData?.name ?? 'Workout';
         const extraCount = (stats.exercises?.length ?? 0) - 3;
 
         return (
             <View style={styles.workoutCard}>
                 <View style={styles.workoutTitleRow}>
-                    <Text style={styles.workoutCardTitle}>{stats.name ?? 'Workout'}</Text>
+                    <Text style={styles.workoutCardTitle}>{completedName}</Text>
                     <View style={styles.doneBadge}>
                         <Ionicons name="checkmark" size={11} color={colors.accent.success} />
                         <Text style={styles.doneBadgeText}>Done</Text>
@@ -145,7 +151,7 @@ const MainWorkoutCard = React.memo(({
                 {extraCount > 0 && (
                     <TouchableOpacity
                         onPress={() => onPreview({
-                            name: stats.name ?? 'Workout',
+                            name: completedName,
                             duration: stats.duration,
                             exercises: stats.exercises.map(ex => ({
                                 exerciseName: ex.name,

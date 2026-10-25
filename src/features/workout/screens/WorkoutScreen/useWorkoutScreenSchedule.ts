@@ -1,5 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useMemo } from 'react';
 import type { SplitLike } from '../../utils/splitSchedule';
 import type { UpcomingWorkout } from './ComingUpCard';
 import type { WorkoutDisplayData } from './MainWorkoutCard';
@@ -22,16 +21,8 @@ export const useWorkoutScreenSchedule = (
     rotationStartDate?: unknown,
     uid?: string | null,
 ): WorkoutScreenScheduleState => {
-    const [focused, setFocused] = useState(false);
     const localDayKey = useLocalDayKey();
-    const splitsQuery = useWorkoutSplits(uid, focused);
-
-    useFocusEffect(
-        useCallback(() => {
-            setFocused(true);
-            return () => setFocused(false);
-        }, []),
-    );
+    const splitsQuery = useWorkoutSplits(uid);
 
     const activeSplit = useMemo(
         () => selectActiveWorkoutSplit(splitsQuery.data ?? [], activeSplitId),

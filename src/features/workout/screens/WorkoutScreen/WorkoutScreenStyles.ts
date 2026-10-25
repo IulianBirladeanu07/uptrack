@@ -250,6 +250,24 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.semibold,
         color: colors.accent.primary,
     },
+    noPlanDescription: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.medium,
+        color: colors.text.secondary,
+        marginBottom: spacing[3],
+    },
+    noPlanAction: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        gap: spacing[2],
+        paddingVertical: spacing[1],
+    },
+    noPlanActionText: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.accent.primary,
+    },
     weekRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',

@@ -2,6 +2,8 @@
 
 Use this runbook for the Uptrack preview APK and again for the production candidate from Google Play internal testing. A sideloaded preview is useful for app behavior, but it does not verify Play App Signing, Play installation/update behavior, or Play Console declarations.
 
+For a broader phone-first pass covering all registered feature routes, ADB evidence capture, offline recovery, account isolation, and release criteria, use the [full Android workflow smoke guide](./ANDROID_FULL_WORKFLOW_SMOKE_GUIDE.md). Keep this shorter checklist for a focused device/release pass.
+
 The non-destructive auth form/navigation smoke test can also run in GitHub Actions with Maestro using `.github/workflows/android-ui-smoke.yml`. It does not replace the end-to-end checks below.
 
 ## Before starting

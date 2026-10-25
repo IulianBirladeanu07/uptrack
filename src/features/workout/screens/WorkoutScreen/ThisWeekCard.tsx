@@ -22,12 +22,15 @@ const ThisWeekCard = React.memo(({ completedDays, schedule, onDayPress }: ThisWe
     const days = useMemo(() => buildWeekDayDisplay(completedDays, schedule), [completedDays, schedule]);
     const doneCount = countCompletedScheduledDays(days);
     const totalCount = countScheduledWorkoutDays(days);
+    const weekSummary = totalCount > 0
+        ? `${doneCount} / ${totalCount}`
+        : `${days.filter(day => day.done).length} logged`;
 
     return (
         <View style={styles.card}>
             <View style={styles.cardRow}>
                 <Text style={styles.cardTitle}>This Week</Text>
-                <Text style={styles.cardTitleRight}>{doneCount} / {totalCount}</Text>
+                <Text style={styles.cardTitleRight}>{weekSummary}</Text>
             </View>
             <View style={styles.weekRow}>
                 {days.map(day => {

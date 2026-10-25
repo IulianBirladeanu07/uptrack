@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { getAuth } from 'firebase/auth';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
@@ -34,6 +35,7 @@ const WorkoutScreen = () => {
     const [previewWorkout, setPreviewWorkout] = useState<WorkoutPreview | null>(null);
     const { activeWorkout, workoutHistory } = useContext(WorkoutContext)!;
     const { userData } = useContext(AuthContext)!;
+    const uid = getAuth().currentUser?.uid ?? null;
     const {
         activeSplit,
         todayWorkout,
@@ -41,7 +43,7 @@ const WorkoutScreen = () => {
         loading,
         loadError,
         loadActiveSplit,
-    } = useWorkoutScreenSchedule(userData?.activeSplitId, userData?.rotationStartDate, userData?.uid);
+    } = useWorkoutScreenSchedule(userData?.activeSplitId, userData?.rotationStartDate, uid);
 
     const userStats = useMemo(
         () => getWorkoutHistorySummary(workoutHistory),
@@ -107,6 +109,10 @@ const WorkoutScreen = () => {
     }, [activeWorkout, navigation, previewWorkout]);
 
     const handleLibraryPress = useCallback(() => navigation.navigate('WorkoutLibrary'), [navigation]);
+    const handlePlansPress = useCallback(
+        () => navigation.navigate('WorkoutLibrary', { initialSegment: 'Splits' }),
+        [navigation],
+    );
     const handleHistoryPress = useCallback(() => navigation.navigate('WorkoutHistory'), [navigation]);
 
     if (loading) {
@@ -169,11 +175,30 @@ const WorkoutScreen = () => {
                     onDayPress={handlePreviewWorkout}
                 />
 
-                <ComingUpCard
-                    upcomingWorkouts={comingUpWorkouts}
-                    onPreview={handlePreviewWorkout}
-                    onViewAll={handleLibraryPress}
-                />
+                {activeSplit ? (
+                    <ComingUpCard
+                        upcomingWorkouts={comingUpWorkouts}
+                        onPreview={handlePreviewWorkout}
+                        onViewAll={handleLibraryPress}
+                    />
+                ) : (
+                    <View style={styles.card}>
+                        <View style={styles.cardRow}>
+                            <Text style={styles.cardTitle}>No active workout plan</Text>
+                        </View>
+                        <Text style={styles.noPlanDescription}>
+                            Choose a workout split to see your upcoming sessions here.
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.noPlanAction}
+                            onPress={handlePlansPress}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.noPlanActionText}>Choose a plan</Text>
+                            <Ionicons name="arrow-forward" size={spacing.iconSm} color={colors.accent.primary} />
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 <View style={styles.quickActionsRow}>
                     <TouchableOpacity style={styles.quickActionButton} onPress={handleLibraryPress} activeOpacity={0.7}>
