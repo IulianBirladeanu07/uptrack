@@ -90,11 +90,14 @@ test("user-owned workout, measurement, split, template, and custom exercise reco
   const bob = testEnv.authenticatedContext("bob").firestore();
   const ownedDocs = [
     ["workoutHistory/workout-1", { uid: "alice", date: "2026-10-16" }],
-    ["measurements/measurement-1", { uid: "alice", weight: 70 }],
     ["workoutTemplates/push_alice", { uid: "alice", name: "Push" }],
     ["workoutSplits/split-1", { uid: "alice", name: "Upper Lower" }],
     ["customExercises/exercise-1", { uid: "alice", name: "Cable Row" }],
   ];
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("measurements/measurement-1").set({ uid: "alice", weight: 70 });
+  });
 
   for (const [documentPath, data] of ownedDocs) {
     await assertSucceeds(alice.doc(documentPath).set(data));
@@ -102,6 +105,11 @@ test("user-owned workout, measurement, split, template, and custom exercise reco
     await assertFails(bob.doc(documentPath).get());
     await assertFails(bob.doc(documentPath).delete());
   }
+
+  await assertSucceeds(alice.doc("measurements/measurement-1").get());
+  await assertFails(bob.doc("measurements/measurement-1").get());
+  await assertFails(bob.doc("measurements/measurement-1").delete());
+  await assertSucceeds(alice.doc("measurements/measurement-1").delete());
 
   await assertSucceeds(alice.doc("workoutSplits/split-1").update({ name: "Updated" }));
   await assertFails(alice.doc("workoutSplits/split-1").update({ uid: "bob" }));
