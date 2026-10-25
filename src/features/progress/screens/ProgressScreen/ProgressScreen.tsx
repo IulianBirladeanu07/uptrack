@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import type { ComponentProps, Dispatch, ReactNode, SetStateAction } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
@@ -30,6 +30,7 @@ import type { EnergyModel, MonthRow as MonthData, NutritionDay, PaceModel, PaceS
 import { useProgressScreenModel } from './useProgressScreenModel';
 import { useMaintenanceSwitch } from './useMaintenanceSwitch';
 import { usePlannedWorkouts } from './usePlannedWorkouts';
+import { getProgressChartWidth } from './progressChartWidth';
 import styles from './ProgressScreenStyles';
 
 type TabKey = 'nutrition' | 'training';
@@ -129,14 +130,9 @@ const MaintenanceNote = ({ recap }: { recap: PhaseRecap }) => {
     );
 };
 
-const ChartBox = ({ children }: { children: (w: number) => ReactNode }) => {
-    const [w, setW] = useState(0);
-    return (
-        <View onLayout={e => setW(Math.floor(e.nativeEvent.layout.width))}>
-            {w > 0 && children(w)}
-        </View>
-    );
-};
+const ChartBox = ({ width, children }: { width: number; children: (w: number) => ReactNode }) => (
+    <View>{width > 0 && children(width)}</View>
+);
 
 const EmptyCard = ({ cap, text }: { cap: string; text: string }) => (
     <View style={styles.card}>
@@ -194,7 +190,7 @@ const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: bool
     );
 };
 
-const PaceCard = ({ m, info, n }: { m: PaceModel | null; info: PhaseInfo; n: number }) => {
+const PaceCard = ({ m, info, n, chartWidth }: { m: PaceModel | null; info: PhaseInfo; n: number; chartWidth: number }) => {
     const [sel, setSel] = useState<number | null>(null);
     useEffect(() => {
         setSel(null);
@@ -247,7 +243,7 @@ const PaceCard = ({ m, info, n }: { m: PaceModel | null; info: PhaseInfo; n: num
                 {!picked && pill ? <Delta {...pill} /> : null}
             </Hero>
             {!picked && <Text style={styles.heroNote}>{`last ${m.recentWeeks}-week average`}</Text>}
-            <ChartBox>
+            <ChartBox width={chartWidth}>
                 {w => <PaceChart slots={m.slots} plan={m.plan} width={w} sel={sel} onSelect={setSel} />}
             </ChartBox>
             {trendShown && (
@@ -270,7 +266,7 @@ const PaceCard = ({ m, info, n }: { m: PaceModel | null; info: PhaseInfo; n: num
     );
 };
 
-const EnergyCard = ({ m, info, n }: { m: EnergyModel | null; info: PhaseInfo; n: number }) => {
+const EnergyCard = ({ m, info, n, chartWidth }: { m: EnergyModel | null; info: PhaseInfo; n: number; chartWidth: number }) => {
     const [sel, setSel] = useState<number | null>(null);
     useEffect(() => {
         setSel(null);
@@ -293,7 +289,7 @@ const EnergyCard = ({ m, info, n }: { m: EnergyModel | null; info: PhaseInfo; n:
             </View>
             <Hero value={heroText} unit={unit} />
             <Text style={styles.heroNote}>{picked != null ? `week of ${shortDate(m.slots[picked].monday)}` : m.balNote}</Text>
-            <ChartBox>
+            <ChartBox width={chartWidth}>
                 {w => <BalanceChart bal={bars} target={goal} slots={m.slots} width={w} sel={sel} onSelect={setSel} />}
             </ChartBox>
             <Stats
@@ -308,7 +304,7 @@ const EnergyCard = ({ m, info, n }: { m: EnergyModel | null; info: PhaseInfo; n:
     );
 };
 
-const StrengthCard = ({ m, lifts, info, onLift }: { m: StrengthModel | null; lifts: ReturnType<typeof liftStats>; info: PhaseInfo; onLift: (name: string, muscleGroup?: string) => void }) => {
+const StrengthCard = ({ m, lifts, info, onLift, chartWidth }: { m: StrengthModel | null; lifts: ReturnType<typeof liftStats>; info: PhaseInfo; onLift: (name: string, muscleGroup?: string) => void; chartWidth: number }) => {
     if (!m) return <EmptyCard cap="Strength vs weight" text="Train at least two lifts across a few weeks to see how your strength moves with your weight." />;
 
     const more = lifts.stalled.length - 1;
@@ -333,7 +329,7 @@ const StrengthCard = ({ m, lifts, info, onLift }: { m: StrengthModel | null; lif
             <Hero value={perKgPill ? sg(m.perKg!, 0) : sg(m.sNow as number, 1)} unit={perKgPill ? '% per kg' : '%'}>
                 {!perKgPill && m.wNow != null && <Delta tone="purple" text={`weight ${sg(m.wNow, 1)}%`} />}
             </Hero>
-            <ChartBox>
+            <ChartBox width={chartWidth}>
                 {w => <StrengthChart strength={m.strength} weight={m.weight} slots={m.slots} width={w} />}
             </ChartBox>
             {anyLift && (
@@ -549,6 +545,8 @@ const ProgressScreen = () => {
     } = useContext(WorkoutContext)!;
     const { currentUserId, getNutritionForDateRange, fetchNutritionForDateRange, getStepsForDateRange, rollingWeekStats } = useFoodContext();
     const [tab, setTab] = useState<TabKey>('nutrition');
+    const [screenWidth, setScreenWidth] = useState(0);
+    const chartWidth = getProgressChartWidth(screenWidth);
     const [rangeKey, setRangeKey] = useState<string | null>(null);
     const [open, setOpen] = useState<Record<string, boolean>>({});
     const [all, setAll] = useState({ n: false, t: false });
@@ -661,6 +659,10 @@ const ProgressScreen = () => {
         <ApplicationCustomScreen>
             <ScrollView
                 style={styles.container}
+                onLayout={event => {
+                    const width = Math.floor(event.nativeEvent.layout.width);
+                    setScreenWidth(previous => previous === width ? previous : width);
+                }}
                 contentContainerStyle={{
                     paddingBottom: navInset + spacing[4],
                     paddingHorizontal: spacing[4],
@@ -733,8 +735,8 @@ const ProgressScreen = () => {
                                         Could not load historical food logs. Showing saved weekly summaries instead.
                                     </Text>
                                 )}
-                                <PaceCard m={pace} info={info} n={n} />
-                                <EnergyCard m={energy} info={info} n={n} />
+                                <PaceCard m={pace} info={info} n={n} chartWidth={chartWidth} />
+                                <EnergyCard m={energy} info={info} n={n} chartWidth={chartWidth} />
                                 <MonthsCard
                                     months={months}
                                     kind="n"
@@ -747,7 +749,7 @@ const ProgressScreen = () => {
                             </>
                         ) : (
                             <>
-                                <StrengthCard m={strength} lifts={lifts} info={info} onLift={openLift} />
+                                <StrengthCard m={strength} lifts={lifts} info={info} onLift={openLift} chartWidth={chartWidth} />
                                 <SetsCard m={sets} />
                                 <MonthsCard
                                     months={months}

@@ -24,7 +24,8 @@ jest.mock('../../../../shared/hooks/usePressAnimation', () => ({
 
 jest.mock('expo-image', () => ({ Image: () => null }));
 
-jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null, MaterialCommunityIcons: () => null }));
+jest.mock('@expo/vector-icons/Ionicons', () => ({ __esModule: true, default: () => null }));
+jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => ({ __esModule: true, default: () => null }));
 
 const item = { id: 'f1', productName: 'Greek yogurt', calories: 120, protein: 10, carbohydrates: 6, fats: 4, quantity: 150, unit: 'g' };
 

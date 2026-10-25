@@ -26,7 +26,7 @@ jest.mock('react-native-gesture-handler', () => {
     };
 });
 
-jest.mock('@expo/vector-icons', () => ({ MaterialCommunityIcons: () => null }));
+jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => ({ __esModule: true, default: () => null }));
 jest.mock('expo-haptics', () => ({ ImpactFeedbackStyle: { Light: 'light' } }));
 jest.mock('../../../../shared/services/hapticFeedback', () => ({ triggerImpactFeedback: jest.fn() }));
 jest.mock('./PreviousSetDisplay', () => ({ __esModule: true, default: () => null }));

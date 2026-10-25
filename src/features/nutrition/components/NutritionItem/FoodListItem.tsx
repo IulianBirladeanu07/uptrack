@@ -21,17 +21,12 @@ type HeaderRow = {
     itemCount: number;
     isExpanded: boolean;
     id: string;
-    height: number;
-    offset: number;
 };
 
 type FoodRow = {
     type: 'food';
     food: LoggedFood;
     id: string;
-    height: number;
-    index: number;
-    offset: number;
 };
 
 type FlatRow = HeaderRow | FoodRow;
@@ -187,8 +182,6 @@ const createOptimizedFlatData = (foods: LoggedFood[], expandedMealType: string |
     }
 
     const flatData: FlatRow[] = [];
-    let offset = 0;
-
     for (let j = 0; j < MEAL_ORDER.length; j++) {
         const mealType = MEAL_ORDER[j];
         const mealFoods = grouped[mealType];
@@ -203,10 +196,7 @@ const createOptimizedFlatData = (foods: LoggedFood[], expandedMealType: string |
             itemCount: mealFoods.length,
             isExpanded,
             id: `header_${mealType}`,
-            height: LIST.HEADER_HEIGHT,
-            offset,
         });
-        offset += LIST.HEADER_HEIGHT;
 
         for (let k = 0; k < itemsToShow.length; k++) {
             const food = itemsToShow[k];
@@ -214,12 +204,9 @@ const createOptimizedFlatData = (foods: LoggedFood[], expandedMealType: string |
                 type: 'food',
                 food,
                 id: `${mealType}_${k}_${food.id || food.productName}`,
-                height: LIST.ITEM_HEIGHT,
-                index: k,
-                offset,
             });
-            offset += LIST.ITEM_HEIGHT;
         }
+
     }
 
     return flatData;
@@ -296,13 +283,6 @@ const FoodListItem = memo(({
 
     const getFlatKey = useCallback((item: FlatRow) => item.id, []);
 
-    const getItemLayout = useCallback((data: ArrayLike<FlatRow> | null | undefined, index: number) => {
-        const item = data?.[index];
-        const height = item?.height ?? LIST.ITEM_HEIGHT;
-        const offset = item?.offset ?? index * LIST.ITEM_HEIGHT;
-        return { length: height, offset, index };
-    }, []);
-
     const handleRecentSearchPress = useCallback((searchTerm: string) => {
         if (onRecentSearchPress) {
             onRecentSearchPress(searchTerm);
@@ -341,7 +321,6 @@ const FoodListItem = memo(({
                     data={flatData}
                     renderItem={renderFrequentItem}
                     keyExtractor={getFlatKey}
-                    getItemLayout={getItemLayout}
                     ListEmptyComponent={<EmptyComponent text="No frequent foods found" />}
                     extraData={isFoodSelected}
                 />
@@ -354,11 +333,6 @@ const FoodListItem = memo(({
                     renderItem={({ item }) => renderMealItem(item, meal, handleNavigateToFoodDetail, handlePlusPress, isFoodSelected)}
                     keyExtractor={getItemKey}
                     ListEmptyComponent={<EmptyComponent text="No recent meals found" mealType={meal} />}
-                    getItemLayout={(_, index) => ({
-                        length: LIST.ITEM_HEIGHT,
-                        offset: LIST.ITEM_HEIGHT * index,
-                        index,
-                    })}
                     extraData={isFoodSelected}
                 />
             );

@@ -5,7 +5,7 @@ import type { ListRenderItem, ListRenderItemInfo } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppNavigation } from '../../../../shared/navigation';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, spacing } from '../../../../shared/theme';
 import { styles } from './ExerciseSelectionScreenStyle';
 import { useExerciseCatalog } from './useExerciseCatalog';

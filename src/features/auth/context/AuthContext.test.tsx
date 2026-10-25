@@ -12,6 +12,7 @@ type MockUser = {
 
 const mockAuth: { currentUser: MockUser | null } = { currentUser: null };
 let mockListener: ((user: MockUser | null) => Promise<void>) | null = null;
+let mockNetworkListener: ((state: { isConnected?: boolean; isInternetReachable?: boolean }) => void) | null = null;
 
 jest.mock('firebase/auth', () => ({
     onAuthStateChanged: (_auth: unknown, cb: (user: MockUser | null) => Promise<void>) => {
@@ -19,6 +20,13 @@ jest.mock('firebase/auth', () => ({
         return jest.fn();
     },
     signOut: jest.fn(),
+}));
+
+jest.mock('expo-network', () => ({
+    addNetworkStateListener: (listener: typeof mockNetworkListener) => {
+        mockNetworkListener = listener;
+        return { remove: jest.fn() };
+    },
 }));
 
 const mockGetDoc = jest.fn(async () => ({
@@ -89,6 +97,7 @@ describe('AuthProvider loading state', () => {
     beforeEach(() => {
         mockAuth.currentUser = null;
         mockListener = null;
+        mockNetworkListener = null;
         queryClient.clear();
         Object.keys(mockStorage).forEach(k => { delete mockStorage[k]; });
         mockGetDoc.mockImplementation(async () => ({
@@ -156,6 +165,27 @@ describe('AuthProvider loading state', () => {
         await emit(verified);
 
         expect(seen[seen.length - 1]).toEqual({ loading: false, authenticated: true, isOffline: true });
+    });
+
+    it('refreshes the cached profile when internet connectivity returns', async () => {
+        mockStorage['user_u1'] = JSON.stringify({ profileSetupComplete: true, targetCalories: 2100 });
+        mockGetDoc.mockRejectedValueOnce(Object.assign(new Error('offline'), { code: 'unavailable' }));
+
+        const seen = renderProvider();
+        await emit(verified);
+        expect(seen[seen.length - 1]?.isOffline).toBe(true);
+
+        mockGetDoc.mockResolvedValueOnce({
+            data: () => ({ profileSetupComplete: true, autoAdjustEnabled: true, weeksSinceCutStart: 0 }),
+        });
+        act(() => mockNetworkListener?.({ isConnected: true, isInternetReachable: true }));
+
+        await waitFor(() => expect(seen[seen.length - 1]).toEqual({
+            loading: false,
+            authenticated: true,
+            isOffline: false,
+        }));
+        expect(mockGetDoc).toHaveBeenCalledTimes(2);
     });
 
     it('does not authenticate offline when there is no cached profile', async () => {

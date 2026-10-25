@@ -12,7 +12,7 @@ import {
   Easing,
   FlatList,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import styles, { COLORS } from './CreateExerciseScreenStyle';
 import {
   EXERCISE_DATA,

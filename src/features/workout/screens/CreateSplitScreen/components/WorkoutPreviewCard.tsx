@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, useRef, memo } from 'react';
 import { View, Text, TouchableOpacity, Animated, LayoutAnimation } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { triggerImpactFeedback, triggerSelectionFeedback } from '../../../../../shared/services/hapticFeedback';
 import { colors, spacing } from '../../../../../shared/theme';
 import styles from './WorkoutPreviewCardStyles';

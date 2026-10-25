@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import CircularProgress from '../../../../shared/components/CircularProgress/CircularProgress';
 import MacroProgressBar from '../MacroProgresBar/MacroProgressBar';
 import { colors } from '../../../../shared/theme';

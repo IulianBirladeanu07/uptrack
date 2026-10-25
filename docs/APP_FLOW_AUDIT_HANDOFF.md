@@ -1,5 +1,23 @@
 # App flow audit handoff
 
+## Health Connect rationale follow-up (2026-10-25)
+
+The audit found that the Health Connect rationale intent and Android 14+ permission-usage alias both opened `MainActivity`, so neither presented an explanation or the privacy policy. Added a dedicated native `HealthConnectRationaleActivity`, routed both manifest entry points to it, and configured it to display the public privacy policy alongside the app's step-data use explanation. The config plugin uses the existing public privacy URL by default and accepts `PRIVACY_POLICY_URL` as an override.
+
+Validation: focused plugin tests, TypeScript check, and Android Expo export passed. An isolated Expo Prebuild confirmed the generated manifest routes each entry point to the dedicated activity and generates its Java source without touching the repository's existing `android/` tree. Native Java compilation could not run because `JAVA_HOME` points to a missing Android Studio JBR and no other Java installation was found. No device is attached; Health Connect UI entry points and Android 13/14+ behavior remain unverified on-device.
+
+## Offline profile reconnect follow-up (2026-10-25)
+
+The existing cached-profile fallback kept verified users signed in while Firestore was unreachable, but its profile stayed stale until the app returned to foreground. Added `expo-network` and a guarded connectivity listener that refreshes the profile when internet access returns. The foreground refresh remains a fallback, and duplicate reconnect/foreground attempts are coalesced while a retry is running.
+
+Validation: `AuthContext.test.tsx` passed all 7 tests, including reconnection restoring the online profile; `npx tsc --noEmit` passed; Android Expo export passed. The new native module requires a rebuilt development/production binary before device verification; no build was started, consistent with the owner's preference to defer rebuilds.
+
+## Icon font bundle follow-up (2026-10-25)
+
+The audit's bundle export included all 19 `@expo/vector-icons` font families even though production code used only Ionicons, MaterialCommunityIcons, MaterialIcons and Feather. Replaced barrel imports with direct family imports and updated the affected test mocks. Expo now exports only those four fonts.
+
+Validation: the five affected Jest suites passed (31 tests), `npx tsc --noEmit` passed, and Android Expo export passed. Export assets decreased from 26 to 11 and the Hermes bundle from 9.51 MB to 9.38 MB; about 2 MB of unused font assets are no longer included. These are JS bundle/export results, not a final APK measurement.
+
 ## Nutrition meal-save durability follow-up (2026-10-25)
 
 Confirmed that the meal service wrapped Firestore `setDoc` in a 12-second UI timeout, while `persistOptimisticMealWrite` rolled back local cache/state on any timeout or rejection. Firestore offline writes can remain queued and later sync, so that rollback could leave the visible app and Firestore out of agreement.
@@ -326,12 +344,23 @@ Rechecked the currently requested summary and food-selection states before the p
 
 - The Nutrition steps widget showed `0` before the goal but kept the red icon after reaching 10,000; its reached-state icon is now green. The `10,000 goal` label remains visible in both states.
 - Food Selection capped its bar at full but also displayed `100%` above target. It now keeps the visual fill capped and replaces that misleading percentage with a concise remaining/over/on-target status. The current-versus-target calorie figure remains visible.
-- Food Selection now shows a compact C/P/F daily balance row based on current totals plus selected foods, so users can see macro room while choosing foods.
+- A compact C/P/F daily balance row was tried in Food Selection and then removed after review: it repeated information from the Nutrition screen and competed with the food list. The selection header retains its calorie total and remaining/over status.
 - Positive macro values below 0.5 g were rounded to a `0` chip because the render condition used the raw value while the label used rounded values. Such values now display as `<1`; true zeros and missing fields remain omitted.
 - The Food Selection title now names the meal being added to when that route parameter is available.
 - `MealContainer` renders the meal-total row for every non-empty meal. The reported Snacks discrepancy is not present in the current code. Macro bars remain capped at the target; the actual/target values already show over-target amounts, so no over-warning color or extra percentage label was added.
 
 Validation on 2026-10-25: focused Jest **3 suites / 14 tests passed**; full Jest **161 suites / 1,267 tests passed** (`--runInBand --ci --forceExit --silent`); `tsc --noEmit` passed; Android Expo export passed with a **9.5 MB Hermes bundle**. These checks do not replace a physical-device review. Device checks for the changed Nutrition and Food Selection states and the previously listed Play release blockers remain outstanding. The owner’s uncommitted `app.config.js` version/runtime change was preserved.
+
+### Audit candidate recheck (2026-10-25)
+
+Re-read candidate findings against the current working tree before treating them as defects:
+
+- FUP-003, FUP-005, FUP-006 and FUP-008 are already addressed in current code. FUP-007's auth-test timeout did not reproduce in its 2026-10-24 rerun. FUP-004 is an intentional dependency in a cache-busting memo, not a runtime issue. FUP-009 needs an Android device check; no device is attached, so no speculative keyboard change was made.
+- REV-019's uncached full-history read is already addressed by `nutritionHistory.ts`: closed history is cached per user and phase start, only new closed days are fetched, and the recent window comes from the meal cache.
+- REV-020 was reviewed and accepted: Progress uses up to 104 weeks for rolling trends and PR baselines. Loaded pages persist across screen visits, and completion invalidates them because cursor boundaries shift; only reopen if measurements show material latency or cost.
+- REV-018 was reviewed and accepted as meal planning: the selected date carries through food search, barcode scan, and custom-food logging, so future dates remain selectable.
+
+This candidate review was code inspection only; no application changes or new tests were made. No Android device/emulator was attached to verify keyboard behavior or read counts in Firebase.
 
 ### App bootstrap resilience follow-up (2026-10-25)
 

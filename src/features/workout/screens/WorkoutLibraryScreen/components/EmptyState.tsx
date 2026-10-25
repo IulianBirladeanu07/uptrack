@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 import { colors } from '../../../../../shared/theme';
 import styles from '../WorkoutLibraryScreenStyle';

@@ -15,6 +15,7 @@ module.exports = {
       "expo-apple-authentication",
       "@react-native-google-signin/google-signin",
       "react-native-health",
+      ["./plugins/withHealthConnectRationale", { privacyPolicyUrl: process.env.PRIVACY_POLICY_URL }],
       "react-native-health-connect",
       [
         "expo-build-properties",
@@ -34,7 +35,7 @@ module.exports = {
     splash: {
       image: "./assets/uptrack-icon.png",
       resizeMode: "contain",
-      backgroundColor: "#ffffff",
+      backgroundColor: "#0A0E13",
     },
     assetBundlePatterns: ["**/*"],
     ios: {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, useContext, memo } f
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import { View, Text, TouchableOpacity, FlatList, BackHandler, ActivityIndicator } from 'react-native';
 import type { FlatList as FlatListType, ListRenderItemInfo, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import AnimatedMessage from '../../../../shared/components/AnimatedMessage/AnimatedMessage';
 import ExerciseInput from '../../components/ExerciseInput/ExerciseInput';

@@ -10,6 +10,15 @@ Updated 2026-10-24. Start with this handoff, then read `AGENTS.md` before changi
 - Three patch files mentioned in an earlier handoff (`0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`) are not present in this checkout at the current base commit.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
+## Latest batch: Progress chart sizing and Food Selection refinements
+
+- `ProgressScreen.tsx` now measures the persistent screen width once and derives chart width from the existing screen/card spacing and border tokens. The chart cards no longer keep their own width state, so changing Nutrition/Training tabs does not remount charts into a temporary empty measurement state.
+- `FoodListItem.tsx` no longer gives the Frequent and Recent `FlatList`s fixed row sizes even though their rows/cards can have different heights. This prevents incorrect offsets during list scrolling; visual styles and ordering are unchanged.
+- `FoodSelectionHeader.tsx` keeps the calorie progress summary and removes the macro-balance row, which competed with food browsing and repeated macro information already visible on food rows and the Nutrition screen.
+- The Food Selection calorie card is labeled “Calories today”; its remaining/over amount includes `kcal` for clarity. The calorie number, flame, and progress fill use the existing orange accent. The Scan button matches the search field's 52-point height.
+- Added `progressChartWidth.test.ts` for inset calculations and narrow/unmeasured widths, FoodListItem checks that both lists use measured layouts, and FoodSelectionHeader rendering/helper checks for the calorie card.
+- Validation: focused Jest passed (2 suites / 5 tests); `npx tsc --noEmit`, Android Expo export and `git diff --check` passed. The full Jest suite passed earlier in this batch (167 suites / 1,279 tests), before the last Food Selection refinements. No device preview was run.
+
 ## How to continue
 
 The owner's recent workflow has been one small, behavior-preserving refactor at a time. The owner reviews, commits, and pushes each batch; do not commit or push unless explicitly asked. If commit commands are requested, omit a `Co-authored-by` trailer.
@@ -351,7 +360,7 @@ This is a ranked starting point based on the current source inventory, not a man
 1. **FoodContext:** meal writes, step flushing, cache-then-fresh initialization loading, selected-date orchestration, auth callback sequencing, background evaluations, and account reset are extracted and tested. Avoid broadening into the separate Nutrition audit.
 2. **Profile follow-ups:** the Profile form/save and onboarding plan-confirmation lifecycles are isolated and tested. `OnboardingFlow` and `OnboardingStepScreen` were inspected; their current orchestration/presentation split has no additional cohesive seam.
 3. **Dashboard follow-ups:** weekly overview, scheduled-workout loading, and notice dismissal state are isolated and tested. The remaining Dashboard view composition was inspected; its active-workout, scheduled-workout, and nutrition cards are already distinct components. Avoid further splits unless a new responsibility emerges.
-4. **Progress follow-ups:** screen model, maintenance-phase switch, and focused planned-workout loading are isolated and tested. Remaining screen content is presentation and model wiring; avoid splitting presentational fragments without a cohesive state or behavior boundary.
+4. **Progress follow-ups:** screen model, maintenance-phase switch, focused planned-workout loading, and chart sizing are isolated and tested. Remaining screen content is presentation and model wiring; avoid splitting presentational fragments without a cohesive state or behavior boundary.
 5. **Workout follow-ups:** `WorkoutService` template-to-session mapping and in-memory exercise updates, workout completion payload projection, template-name policy, exercise image prefetch, split schedule hydration/sanitization, `CreateSplitScreen` preview statistics and editing transitions, `ExerciseSelectionScreen` catalog modeling/loading, `CreateTemplateScreen` selection and list updates, `ExerciseItem` swipe intent, `WorkoutHistoryScreen` grouping/payload/date labels/card projection, `CreateSplitScreen` review summaries, WorkoutDetails card stats, WorkoutScreen preview summaries/scheduled-day mapping and deterministic WorkoutTemplateLibrary keys are covered by tests. Any further extraction should begin with inspection and characterization; do not refactor solely for file size.
 6. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 

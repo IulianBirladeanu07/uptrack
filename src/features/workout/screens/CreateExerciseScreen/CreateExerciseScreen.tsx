@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import styles, { COLORS } from './CreateExerciseScreenStyle';
 import { createCustomExercise } from '../../services/exerciseCatalogService';
 import { ModalPicker, type ModalPickerHandle } from './ExerciseModalPicker';

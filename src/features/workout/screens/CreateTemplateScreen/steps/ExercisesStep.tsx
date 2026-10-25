@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import ExerciseItemJS from '../../../components/ExerciseItem/ExerciseItem';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,7 +1,7 @@
 import { memo, useRef, useCallback, useMemo, useEffect, useState } from 'react';
 import type { ComponentProps } from 'react';
 import { View, TouchableOpacity, Text, Animated, Easing, StyleSheet } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import type { AppNavigationProp } from '../../../../shared/navigation';

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import Slider from '../../../../../shared/components/Slider/CustomSlider';
 import { createStyles } from '../../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../../shared/theme';

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Linking, Alert } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import styles from './BarcodeScannerScreenStyle';
 import { useBarcodeScanner } from '../../helpers/useBarcodeScanner';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';

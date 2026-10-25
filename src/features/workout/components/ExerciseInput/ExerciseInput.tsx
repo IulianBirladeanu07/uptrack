@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo, useCallback, useState, memo } from 'react';
 import type { TextInput as TextInputType } from 'react-native';
 import { View, Text, TouchableWithoutFeedback, Animated, TouchableOpacity, Keyboard, TextInput } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { workoutService } from '../../services/WorkoutService';
 import ExerciseHeader from './ExerciseHeader';
 import SetRow from './SetRow';

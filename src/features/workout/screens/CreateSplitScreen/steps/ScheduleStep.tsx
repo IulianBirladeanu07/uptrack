@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import styles from './ScheduleStepStyles';
 import { colors, spacing } from '../../../../../shared/theme';

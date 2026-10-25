@@ -2,9 +2,7 @@ import { render, screen } from '@testing-library/react-native';
 import NutritionStats from './NutritionStats';
 import type useDailyNutrition from '../../helpers/useDailyNutrition';
 
-jest.mock('@expo/vector-icons', () => ({
-  MaterialCommunityIcons: () => null,
-}));
+jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => ({ __esModule: true, default: () => null }));
 
 jest.mock('../../../../shared/components/CircularProgress/CircularProgress', () => () => null);
 

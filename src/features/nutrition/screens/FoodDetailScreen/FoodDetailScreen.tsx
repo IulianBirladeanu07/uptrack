@@ -1,7 +1,7 @@
 import { memo, useState, useRef, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFoodContext } from '../../context/FoodContext';
 import { colors, spacing } from '../../../../shared/theme';

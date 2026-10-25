@@ -261,12 +261,6 @@ const FoodSelectionScreen = () => {
                     selectedFoods={selectedFoods}
                     currentCalories={currentCalories}
                     targetCalories={targetCalories ?? undefined}
-                    currentMacros={dailyNutrition}
-                    targetMacros={{
-                        carbs: userMacros?.targetCarbs,
-                        protein: userMacros?.targetProtein,
-                        fat: userMacros?.targetFats,
-                    }}
                     onQuickActionsPress={handleQuickActionsPress}
                 />
             )}

@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { AppState } from 'react-native';
+import * as Network from 'expo-network';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { userConverter } from '../../../shared/firestore/converters';
@@ -84,6 +85,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profileSetupComplete, setProfileSetupComplete] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isOffline, setIsOffline] = useState(false);
+  const isOfflineRef = useRef(false);
+  const offlineRefreshInFlight = useRef(false);
   const authRequestGeneration = useRef(0);
   const previousAuthUid = useRef<string | null | undefined>(undefined);
   const previousWasUnverified = useRef(false);
@@ -116,6 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!isCurrent() || !data) return undefined;
       setUserData(data);
       setProfileSetupComplete(!!data.profileSetupComplete);
+      isOfflineRef.current = false;
       setIsOffline(false);
       return data;
     } catch (error) {
@@ -123,6 +127,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return undefined;
     }
   }, []);
+
+  const refreshOfflineProfile = useCallback(async () => {
+    if (!isOfflineRef.current || offlineRefreshInFlight.current) return;
+    const user = auth.currentUser;
+    if (!user || needsEmailVerification(user)) return;
+    offlineRefreshInFlight.current = true;
+    try {
+      await refreshUserData();
+    } finally {
+      offlineRefreshInFlight.current = false;
+    }
+  }, [refreshUserData]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -145,6 +161,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setAuthenticated(false);
         setProfileSetupComplete(false);
         setUserData(null);
+        isOfflineRef.current = false;
         setIsOffline(false);
       }
       try {
@@ -155,6 +172,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setAuthenticated(true);
             setProfileSetupComplete(!!data.profileSetupComplete);
             setUserData(data);
+            isOfflineRef.current = false;
             setIsOffline(false);
             await AsyncStorage.setItem('auth_token', user.uid);
           } catch (error) {
@@ -165,6 +183,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setAuthenticated(true);
               setProfileSetupComplete(!!cached.profileSetupComplete);
               setUserData(cached);
+              isOfflineRef.current = true;
               setIsOffline(true);
               await AsyncStorage.setItem('auth_token', user.uid);
               console.error('onAuthStateChanged offline fallback:', error);
@@ -174,6 +193,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } else {
           if (!isCurrent()) return;
+          isOfflineRef.current = false;
           setIsOffline(false);
           await AsyncStorage.multiRemove(['auth_token', SPLITS_CACHE_KEY, RECENT_SEARCHES_KEY, SEARCH.STORAGE_KEY]);
         }
@@ -195,11 +215,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (state !== 'active') return;
       const user = auth.currentUser;
       if (!user || needsEmailVerification(user)) return;
-      void refreshUserData();
+      if (isOfflineRef.current) void refreshOfflineProfile();
+      else void refreshUserData();
     };
     const sub = AppState.addEventListener('change', onChange);
     return () => sub.remove();
-  }, [refreshUserData]);
+  }, [refreshOfflineProfile, refreshUserData]);
+
+  useEffect(() => {
+    const subscription = Network.addNetworkStateListener(state => {
+      if (state.isConnected === true && state.isInternetReachable !== false) {
+        void refreshOfflineProfile();
+      }
+    });
+    return () => subscription.remove();
+  }, [refreshOfflineProfile]);
 
   const logout = useCallback(async () => {
     try {
@@ -214,6 +244,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setAuthenticated(false);
       setProfileSetupComplete(false);
       setUserData(null);
+      isOfflineRef.current = false;
       setIsOffline(false);
       await AsyncStorage.removeItem('auth_token');
     } catch (error) {

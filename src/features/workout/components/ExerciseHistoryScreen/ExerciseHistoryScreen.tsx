@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path, Circle, Text as SvgText, G } from 'react-native-svg';
 import { getExerciseHistory } from '../../services/exerciseHistoryService';
 import { calculate1RM, formatBestSet } from '../../utils/workoutMetrics';

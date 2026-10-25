@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, spacing } from '../../../../shared/theme';
 import type { FoodContextValue } from '../../../nutrition/context/FoodContext';
 import { styles } from './DashboardScreenStyles';

@@ -2,8 +2,8 @@ import { memo, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, StatusBar, Animated, Easing, TouchableOpacity } from 'react-native';
 import { Flame } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
-import type { FoodItem, NutritionTotals } from '../../../../shared/types';
-import { getFoodSelectionCalorieProgress, getFoodSelectionMacroBalances } from '../../helpers/foodSelectionCalorieProgress';
+import type { FoodItem } from '../../../../shared/types';
+import { getFoodSelectionCalorieProgress } from '../../helpers/foodSelectionCalorieProgress';
 
 type FoodSelectionHeaderProps = {
   date?: string | undefined;
@@ -11,8 +11,6 @@ type FoodSelectionHeaderProps = {
   meal?: string | undefined;
   currentCalories?: number | undefined;
   targetCalories?: number | undefined;
-  currentMacros?: NutritionTotals | undefined;
-  targetMacros?: { carbs?: number; protein?: number; fat?: number } | undefined;
   onQuickActionsPress: () => void;
 };
 
@@ -22,8 +20,6 @@ const FoodSelectionHeader = ({
   meal,
   currentCalories = 0,
   targetCalories,
-  currentMacros,
-  targetMacros,
   onQuickActionsPress,
 }: FoodSelectionHeaderProps) => {
   const { calculatedCurrentCalories, foodCount } = useMemo(() => {
@@ -38,7 +34,6 @@ const FoodSelectionHeader = ({
     };
   }, [selectedFoods, currentCalories]);
   const calorieProgress = getFoodSelectionCalorieProgress(calculatedCurrentCalories, targetCalories);
-  const macroBalances = getFoodSelectionMacroBalances(currentMacros ?? {}, targetMacros ?? {}, selectedFoods);
 
   const formattedDate = useMemo(() => {
     return date || new Date().toLocaleDateString('en-US', {
@@ -91,7 +86,7 @@ const FoodSelectionHeader = ({
 
       <View style={styles.calorieCard}>
         <View style={styles.calorieHeader}>
-          <Text style={styles.calorieLabel}>Daily Progress</Text>
+          <Text style={styles.calorieLabel}>Calories today</Text>
           <View style={styles.calorieValueContainer}>
             <Flame
               size={spacing.iconSm}
@@ -124,15 +119,6 @@ const FoodSelectionHeader = ({
                 {calorieProgress.status}
               </Text>
             </View>
-            {macroBalances.length > 0 && (
-              <View style={styles.macroBalanceRow} accessibilityLabel="Daily macro balance">
-                {macroBalances.map(({ key, label, status }) => (
-                  <Text key={key} style={[styles.macroBalance, { color: colors.macro[key] }]}>
-                    {label} · {status}
-                  </Text>
-                ))}
-              </View>
-            )}
           </>
         )}
       </View>
@@ -257,18 +243,6 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     minWidth: spacing[10],
     textAlign: 'right',
-  },
-  macroBalanceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing[2],
-    gap: spacing[1],
-  },
-  macroBalance: {
-    flex: 1,
-    fontSize: fontSize[10],
-    fontWeight: fontWeight.semibold,
-    textAlign: 'center',
   },
 });
 

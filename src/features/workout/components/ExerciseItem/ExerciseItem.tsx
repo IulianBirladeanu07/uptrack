@@ -20,7 +20,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import styles, { COLORS } from './ExerciseItemStyle';
 import { CustomButton, ModalWrapper, Chip } from './ExerciseItemControls';
 import { RestTimeModal, RestTimeSelector } from './RestTimeControls';

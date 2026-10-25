@@ -1,6 +1,6 @@
 import { useCallback, memo, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Keyboard } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { ScanBarcode } from 'lucide-react-native';
 import { useAppNavigation } from '../../../../shared/navigation/hooks';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
@@ -195,7 +195,7 @@ const styles = createStyles(() => ({
     lineHeight: 20,
   },
   scannerButton: {
-    height: spacing[12],
+    height: spacing.inputHeight,
     paddingHorizontal: spacing[3],
     flexDirection: 'row',
     gap: spacing[2],

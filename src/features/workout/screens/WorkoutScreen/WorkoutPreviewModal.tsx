@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { colors } from '../../../../shared/theme';
 import { ExercisePreviewList } from '../../components/WorkoutExercisePreview/WorkoutExercisePreview';

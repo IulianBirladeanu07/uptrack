@@ -161,17 +161,7 @@ const performEnhancedSearch = async (
       return scoredResults;
     }
 
-    const { data: looseResults, error: looseError } = await supabase
-      .from('non_barcoded_products')
-      .select('*')
-      .or(ilikeNames(searchQuery.charAt(0)))
-      .limit(20);
-
-    if (looseError) {
-      throw new Error(`Loose search error: ${looseError.message}`);
-    }
-
-    return looseResults || [];
+    return [];
 
   } catch (error) {
     console.error('Enhanced search failed:', error);

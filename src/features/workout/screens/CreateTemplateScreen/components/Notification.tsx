@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Animated } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { createStyles } from '../../../../../shared/theme/createStyles';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../../shared/theme';
 

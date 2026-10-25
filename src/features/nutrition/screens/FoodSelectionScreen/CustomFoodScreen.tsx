@@ -15,7 +15,7 @@ import type { DimensionValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from './CustomFoodScreenStyle';
 import { colors } from '../../../../shared/theme';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useCustomFood } from '../../helpers/useCustomFood';
 import type { FieldHandle } from '../../helpers/useCustomFood';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';

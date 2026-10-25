@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { createStyles } from '../../theme/createStyles';
 import type { HomeNotice } from '../../types';

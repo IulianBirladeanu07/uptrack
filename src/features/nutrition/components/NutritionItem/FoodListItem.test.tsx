@@ -1,4 +1,5 @@
 import React from 'react';
+import { FlatList } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import FoodListItem from './FoodListItem';
 
@@ -25,4 +26,18 @@ describe('FoodListItem recent searches', () => {
     expect(setSearchQuery).not.toHaveBeenCalled();
     expect(handleSearch).not.toHaveBeenCalled();
   });
+});
+
+describe('FoodListItem list layout', () => {
+  it.each(['Frequent', 'Recent'])('%s uses measured row layouts', category => {
+    const view = render(
+      <FoodListItem
+        selectedCategory={category}
+        categoryFoods={[]}
+      />,
+    );
+
+    expect(view.UNSAFE_getByType(FlatList).props.getItemLayout).toBeUndefined();
+  });
+
 });

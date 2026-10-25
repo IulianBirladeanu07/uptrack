@@ -56,13 +56,13 @@ describe('fetchNonBarcodedProducts text search', () => {
 
   test('quotes every term so commas and parentheses cannot break the PostgREST or() filter', async () => {
     await fetchNonBarcodedProducts([], null, 50, null, 'Milk (1.5%), whole');
-    const [terms, loose] = orFilters();
+    const [terms] = orFilters();
     expect(terms).toBe(
       'product_name_en.ilike."%milk%",product_name_ro.ilike."%milk%",' +
       'product_name_en.ilike."%(1.5%),%",product_name_ro.ilike."%(1.5%),%",' +
       'product_name_en.ilike."%whole%",product_name_ro.ilike."%whole%"'
     );
-    expect(loose).toBe('product_name_en.ilike."%M%",product_name_ro.ilike."%M%"');
+    expect(orFilters()).toHaveLength(1);
   });
 
   test('escapes double quotes and backslashes inside a term', async () => {
@@ -140,16 +140,12 @@ describe('fetchNonBarcodedProducts text search', () => {
     });
   });
 
-  test('uses a loose first-character search when ILIKE returns no products', async () => {
+  test('returns no results instead of broadening to unrelated first-character matches', async () => {
     mockLimitResult({ data: [], error: null });
-    mockLimitResult({ data: [{ id: 3 }], error: null });
 
-    await expect(fetchNonBarcodedProducts([], null, 10, null, 'Oats')).resolves.toEqual([{ id: 3 }]);
-    expect(orFilters()).toEqual([
-      'product_name_en.ilike."%oats%",product_name_ro.ilike."%oats%"',
-      'product_name_en.ilike."%O%",product_name_ro.ilike."%O%"',
-    ]);
-    expect(supabase.builder.limit).toHaveBeenNthCalledWith(2, 20);
+    await expect(fetchNonBarcodedProducts([], null, 10, null, 'Oats')).resolves.toEqual([]);
+    expect(orFilters()).toEqual(['product_name_en.ilike."%oats%",product_name_ro.ilike."%oats%"']);
+    expect(supabase.builder.limit).toHaveBeenCalledTimes(1);
   });
 
   test('rejects when the fallback ILIKE query fails', async () => {

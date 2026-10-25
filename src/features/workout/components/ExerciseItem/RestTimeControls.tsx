@@ -11,7 +11,7 @@ import {
   Vibration,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import styles, { COLORS } from './ExerciseItemStyle';
 import { BUTTON_HIT_SLOP, CustomButton } from './ExerciseItemControls';
 import {

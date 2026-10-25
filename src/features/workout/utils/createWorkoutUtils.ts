@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react';
 import { Platform, Alert, ToastAndroid } from 'react-native';
-import type { Ionicons } from '@expo/vector-icons';
+import type Ionicons from '@expo/vector-icons/Ionicons';
 import type { CatalogExercise } from '../../../shared/types';
 import type { TemplateExercise } from '../types';
 

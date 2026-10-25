@@ -7,7 +7,7 @@ import Animated, {
     Easing,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { createStyles } from '../../theme/createStyles';
 import { normalize } from '../../hooks/useResponsive';

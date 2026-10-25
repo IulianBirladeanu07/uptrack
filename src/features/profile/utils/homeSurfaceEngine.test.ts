@@ -41,6 +41,11 @@ describe('getCalorieAdjustmentNotice', () => {
     expect(n.title).toBe('Calories adjusted to 3638');
   });
 
+  test('describes the plan limit without making a safety claim', () => {
+    const n = getCalorieAdjustmentNotice(cutUser({ reason: 'plateau_at_min_calories' }));
+    expect(n.body).toBe('Progress has stalled and calories are already at the lowest target in your plan.');
+  });
+
   test('returns null for goal_reached, stale and dismissed adjustments', () => {
     expect(getCalorieAdjustmentNotice(cutUser({ reason: 'goal_reached' }))).toBeNull();
     expect(getCalorieAdjustmentNotice(cutUser({ adjustedAt: '2020-01-01T00:00:00.000Z' }))).toBeNull();

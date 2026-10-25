@@ -34,7 +34,8 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
     statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
 }));
 
-jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null, MaterialIcons: () => null }));
+jest.mock('@expo/vector-icons/Ionicons', () => ({ __esModule: true, default: () => null }));
+jest.mock('@expo/vector-icons/MaterialIcons', () => ({ __esModule: true, default: () => null }));
 
 jest.mock('../../services/firebaseAuthService', () => ({
     __esModule: true,

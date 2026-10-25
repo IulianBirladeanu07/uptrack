@@ -13,7 +13,8 @@ jest.mock('../../../../shared/navigation', () => ({
   useRootNavigation: () => ({ navigate: jest.fn() }),
 }));
 
-jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null, MaterialIcons: () => null }));
+jest.mock('@expo/vector-icons/Ionicons', () => ({ __esModule: true, default: () => null }));
+jest.mock('@expo/vector-icons/MaterialIcons', () => ({ __esModule: true, default: () => null }));
 
 describe('RegistrationScreen', () => {
   beforeEach(() => {

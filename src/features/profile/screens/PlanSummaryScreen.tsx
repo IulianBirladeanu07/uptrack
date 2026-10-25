@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthContext } from '../../auth/context/AuthContext';
 import { calculateWeightChangePlan, deriveFitnessGoal } from '../utils/nutritionPlanEngine';

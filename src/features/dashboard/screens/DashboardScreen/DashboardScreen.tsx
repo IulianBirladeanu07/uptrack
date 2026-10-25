@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react';
 import { View, ScrollView, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { getAuth } from 'firebase/auth';
 import { REQUIRED_LEARNING_DAYS, useFoodContext } from '../../../nutrition/context/FoodContext';
 import { learningProgressLabel, resolveCalorieTarget } from '../../../nutrition/helpers/calorieTarget';

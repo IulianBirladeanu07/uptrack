@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors } from '../../../../shared/theme';
 import styles from './WorkoutScreenStyles';
 import type { WorkoutPreview } from './ComingUpCard';

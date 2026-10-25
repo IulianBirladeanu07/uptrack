@@ -4,7 +4,7 @@ import {
     ActivityIndicator, Platform, Vibration, Animated, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { getAuth } from 'firebase/auth';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
