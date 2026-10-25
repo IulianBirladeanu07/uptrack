@@ -4,6 +4,8 @@ export const workoutHistoryQueryKeys = {
     [...workoutHistoryQueryKeys.forUser(uid), maxResults] as const,
   page: (uid: string, pageSize: number, pageIndex: number) =>
     [...workoutHistoryQueryKeys.forUser(uid), 'page', pageSize, pageIndex] as const,
+  infinite: (uid: string, pageSize: number) =>
+    [...workoutHistoryQueryKeys.forUser(uid), 'infinite', pageSize] as const,
   range: (uid: string, start: Date, end: Date) =>
     [...workoutHistoryQueryKeys.forUser(uid), 'range', start.toISOString(), end.toISOString()] as const,
 };

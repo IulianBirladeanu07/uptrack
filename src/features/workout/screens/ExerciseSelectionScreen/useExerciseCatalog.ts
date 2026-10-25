@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getAuth } from 'firebase/auth';
-import { fetchExercises } from '../../services/exerciseCatalogService';
+import { loadExercisesForQuery } from '../../services/exerciseCatalogService';
 
 const EXERCISE_CATALOG_STALE_TIME = 12 * 60 * 60 * 1000;
 
@@ -16,7 +16,10 @@ export const useExerciseCatalog = () => {
     refetch,
   } = useQuery({
     queryKey,
-    queryFn: () => fetchExercises(false),
+    queryFn: () => {
+      if (!uid) throw new Error('User not authenticated.');
+      return loadExercisesForQuery(uid);
+    },
     enabled: uid !== null,
     staleTime: EXERCISE_CATALOG_STALE_TIME,
   });

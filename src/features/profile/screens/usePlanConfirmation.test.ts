@@ -1,9 +1,13 @@
+import { createElement, type ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react-native';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Alert } from 'react-native';
 import type { Auth, User } from 'firebase/auth';
 import { getAuth } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import type { OnboardingFormData, PlanType, UserData, WeightChangePlan } from '../../../shared/types';
+import { queryClient } from '../../../shared/query/queryClient';
+import { userProfileQueryKey } from '../../auth/services/userProfileQuery';
 import { usePlanConfirmation } from './usePlanConfirmation';
 
 jest.mock('react-native', () => ({
@@ -16,6 +20,7 @@ jest.mock('firebase/firestore', () => ({
   doc: jest.fn(),
   setDoc: jest.fn(),
 }));
+jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 jest.mock('../../auth/services/firebaseConfigService', () => ({
   db: {},
 }));
@@ -24,6 +29,8 @@ const alert = jest.mocked(Alert.alert);
 const auth = jest.mocked(getAuth);
 const getDocument = jest.mocked(doc);
 const saveDocument = jest.mocked(setDoc);
+const wrapper = ({ children }: { children: ReactNode }) =>
+  createElement(QueryClientProvider, { client: queryClient }, children);
 
 const formData: OnboardingFormData = {
   gender: 'female',
@@ -60,14 +67,16 @@ const createParams = (overrides: Partial<Parameters<typeof usePlanConfirmation>[
 describe('usePlanConfirmation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    queryClient.clear();
     auth.mockReturnValue({ currentUser: user } as Auth);
     getDocument.mockReturnValue({} as ReturnType<typeof doc>);
     saveDocument.mockResolvedValue(undefined);
   });
 
   it('saves the calculated plan, refreshes the profile, and completes onboarding', async () => {
+    queryClient.setQueryData(userProfileQueryKey(user.uid), { profileSetupComplete: false });
     const params = createParams();
-    const { result } = renderHook(() => usePlanConfirmation(params));
+    const { result } = renderHook(() => usePlanConfirmation(params), { wrapper });
 
     await act(async () => {
       await result.current.handleConfirm();
@@ -97,13 +106,14 @@ describe('usePlanConfirmation', () => {
       { merge: true },
     );
     expect(params.refreshUserData).toHaveBeenCalledTimes(1);
+    expect(queryClient.getQueryState(userProfileQueryKey(user.uid))?.isInvalidated).toBe(true);
     expect(params.setProfileSetupComplete).toHaveBeenCalledWith(true);
     expect(result.current.saving).toBe(true);
   });
 
   it('reports a missing authenticated user without writing', async () => {
     auth.mockReturnValue({ currentUser: null } as Auth);
-    const { result } = renderHook(() => usePlanConfirmation(createParams()));
+    const { result } = renderHook(() => usePlanConfirmation(createParams()), { wrapper });
 
     await act(async () => {
       await result.current.handleConfirm();
@@ -118,7 +128,7 @@ describe('usePlanConfirmation', () => {
     saveDocument.mockRejectedValue(new Error('write failed'));
     const logError = jest.spyOn(console, 'error').mockImplementation(() => {});
     const params = createParams();
-    const { result } = renderHook(() => usePlanConfirmation(params));
+    const { result } = renderHook(() => usePlanConfirmation(params), { wrapper });
 
     try {
       await act(async () => {
@@ -137,7 +147,7 @@ describe('usePlanConfirmation', () => {
 
   it('reports when the saved profile cannot be refreshed', async () => {
     const params = createParams({ refreshUserData: jest.fn().mockResolvedValue(undefined) });
-    const { result } = renderHook(() => usePlanConfirmation(params));
+    const { result } = renderHook(() => usePlanConfirmation(params), { wrapper });
 
     await act(async () => {
       await result.current.handleConfirm();
@@ -155,7 +165,7 @@ describe('usePlanConfirmation', () => {
     const refreshError = new Error('refresh failed');
     const params = createParams({ refreshUserData: jest.fn().mockRejectedValue(refreshError) });
     const logError = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const { result } = renderHook(() => usePlanConfirmation(params));
+    const { result } = renderHook(() => usePlanConfirmation(params), { wrapper });
 
     try {
       await act(async () => {

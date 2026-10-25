@@ -1,12 +1,17 @@
 import { signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, signOut, GoogleAuthProvider, OAuthProvider, signInWithCredential, sendPasswordResetEmail as firebaseSendPasswordResetEmail } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../../auth/services/firebaseConfigService';
+import { serverTimestamp } from 'firebase/firestore';
+import { auth } from '../../auth/services/firebaseConfigService';
 import Constants from 'expo-constants';
 import { needsEmailVerification } from '../utils/emailVerification';
 import type { FirebaseError } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { UserData } from '../../../shared/types';
 import { getAuthErrorMessage } from '../utils/authErrorMessage';
+import {
+  fetchUserProfileDocument,
+  mergeUserProfile,
+  updateUserProfile,
+} from './userProfileQuery';
 
 type SetFlag = (value: boolean) => void;
 
@@ -27,8 +32,7 @@ const signInWithEmailAndPassword = async (
     );
   }
 
-  const userDoc = await getDoc(doc(db, 'users', user.uid));
-  const userData = (userDoc.data() || {}) as UserData;
+  const userData = await fetchUserProfileDocument(user.uid) ?? {};
 
   setAuthenticated(true);
   setProfileSetupComplete(userData.profileSetupComplete || false);
@@ -46,7 +50,7 @@ const signUpWithEmailAndPassword = async (rawEmail: string, password: string): P
 
   try {
     try {
-      await setDoc(doc(db, 'users', user.uid), {
+      await mergeUserProfile(user.uid, {
         email,
         profileSetupComplete: false,
         createdAt: serverTimestamp(),
@@ -98,19 +102,17 @@ const signInWithGoogle = async (
   const user = userCredential.user;
 
   const { uid, email, displayName, photoURL } = user;
-  const userDocRef = doc(db, 'users', uid);
-  const userDoc = await getDoc(userDocRef);
+  const existing = await fetchUserProfileDocument(uid);
 
-  if (userDoc.exists()) {
-    const existing = userDoc.data() as UserData;
+  if (existing) {
     const update: Record<string, unknown> = { lastLogin: serverTimestamp() };
     const nextName = displayName || existing.displayName;
     const nextPhoto = photoURL || existing.photoURL;
     if (nextName) update['displayName'] = nextName;
     if (nextPhoto) update['photoURL'] = nextPhoto;
-    await updateDoc(userDocRef, update);
+    await updateUserProfile(uid, update);
   } else {
-    await setDoc(userDocRef, {
+    await mergeUserProfile(uid, {
       email,
       displayName,
       photoURL,
@@ -119,7 +121,7 @@ const signInWithGoogle = async (
     });
   }
 
-  const userData = (await getDoc(userDocRef)).data() as UserData;
+  const userData = await fetchUserProfileDocument(uid) ?? {};
   setAuthenticated(true);
   setProfileSetupComplete(userData.profileSetupComplete || false);
 };
@@ -147,17 +149,15 @@ const signInWithApple = async (
       .join(' ')
     : '';
   const displayName = user.displayName || appleName || undefined;
-  const userDocRef = doc(db, 'users', user.uid);
-  const userDoc = await getDoc(userDocRef);
+  const existing = await fetchUserProfileDocument(user.uid);
 
-  if (userDoc.exists()) {
-    const existing = userDoc.data() as UserData;
+  if (existing) {
     const update: Record<string, unknown> = { lastLogin: serverTimestamp() };
     if (!existing.displayName && displayName) update['displayName'] = displayName;
     if (!existing.email && (user.email || appleProfile.email)) {
       update['email'] = user.email || appleProfile.email;
     }
-    await updateDoc(userDocRef, update);
+    await updateUserProfile(user.uid, update);
   } else {
     const newUser: Record<string, unknown> = {
       profileSetupComplete: false,
@@ -166,10 +166,10 @@ const signInWithApple = async (
     const email = user.email || appleProfile.email;
     if (email) newUser['email'] = email;
     if (displayName) newUser['displayName'] = displayName;
-    await setDoc(userDocRef, newUser);
+    await mergeUserProfile(user.uid, newUser);
   }
 
-  const userData = (await getDoc(userDocRef)).data() as UserData;
+  const userData = await fetchUserProfileDocument(user.uid) ?? {};
   setAuthenticated(true);
   setProfileSetupComplete(userData.profileSetupComplete || false);
 };
@@ -194,8 +194,7 @@ const getGoogleWebClientId = () => {
 };
 
 export const fetchUserProfile = async (uid: string): Promise<UserData | null> => {
-  const userDoc = await getDoc(doc(db, 'users', uid));
-  return userDoc.exists() ? (userDoc.data() as UserData) : null;
+  return fetchUserProfileDocument(uid);
 };
 
 export const getCurrentUser = (): User => {

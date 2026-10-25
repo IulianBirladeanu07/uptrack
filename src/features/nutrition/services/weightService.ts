@@ -1,12 +1,9 @@
-import { doc, getDoc } from 'firebase/firestore';
-import { userConverter } from '../../../shared/firestore/converters';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db } from '../../auth/services/firebaseConfigService';
+import { queryClient } from '../../../shared/query/queryClient';
+import { fetchUserProfileQuery, loadUserProfileDocument, userProfileQueryKey } from '../../auth/services/userProfileQuery';
 import { toLocalDate } from '../utils/dateUtils';
 import { formatLocalDateKey } from '../../../shared/utils/localDateKey';
 import type { DateInput, UserData, WeightDisplayData } from '../../../shared/types';
-
-const memoryCache = new Map<string, UserData>();
 
 export class WeightService {
     static getWeekStartDate(date: DateInput): Date {
@@ -27,7 +24,7 @@ export class WeightService {
     }
 
     static async invalidateCache(userId: string): Promise<void> {
-        memoryCache.delete(userId);
+        queryClient.removeQueries({ queryKey: userProfileQueryKey(userId), exact: true });
         try {
             await AsyncStorage.removeItem(`user_${userId}`);
         } catch (error) {
@@ -45,9 +42,8 @@ export class WeightService {
 
     static async getUserWeightData(userId: string): Promise<UserData | null> {
         try {
-            const cached = memoryCache.get(userId);
+            const cached = queryClient.getQueryData<UserData>(userProfileQueryKey(userId));
             if (cached && this.isFresh(cached)) return cached;
-            if (cached) memoryCache.delete(userId);
 
             const cacheKey = `user_${userId}`;
             const cachedData = await AsyncStorage.getItem(cacheKey);
@@ -55,22 +51,17 @@ export class WeightService {
             if (cachedData) {
                 const parsed: UserData = JSON.parse(cachedData);
                 if (this.isFresh(parsed)) {
-                    memoryCache.set(userId, parsed);
+                    queryClient.setQueryData(userProfileQueryKey(userId), parsed);
                     return parsed;
                 }
             }
 
-            const userDocRef = doc(db, 'users', userId).withConverter(userConverter);
-            const userDoc = await getDoc(userDocRef);
-
-            if (userDoc.exists()) {
-                const userData = userDoc.data();
-                memoryCache.set(userId, userData);
-                await AsyncStorage.setItem(cacheKey, JSON.stringify(userData));
-                return userData;
-            }
-
-            return null;
+            return await fetchUserProfileQuery(userId, async () => {
+                    const userData = await loadUserProfileDocument(userId);
+                    if (!userData) return null;
+                    await AsyncStorage.setItem(cacheKey, JSON.stringify(userData));
+                    return userData;
+            });
         } catch (error) {
             console.error('Error fetching user weight data:', error);
             throw error;
@@ -80,7 +71,7 @@ export class WeightService {
     /** Push freshly written user data into both caches so readers see it immediately. */
     static async setCachedUserData(userId: string, userData: UserData | null | undefined): Promise<void> {
         if (!userId || !userData) return;
-        memoryCache.set(userId, userData);
+        queryClient.setQueryData(userProfileQueryKey(userId), userData);
         try {
             await AsyncStorage.setItem(`user_${userId}`, JSON.stringify(userData));
         } catch (error) {

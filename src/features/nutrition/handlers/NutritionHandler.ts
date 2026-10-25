@@ -29,17 +29,11 @@ export const fetchNonBarcodedProducts = async (
   }
 
   return queryClient.fetchQuery({
-    queryKey: ['food-catalog', 'products', {
-      filters,
-      order,
-      limitCount,
-      lastVisibleDoc,
-      searchQuery: normalizedSearch?.toLowerCase() ?? null,
-    }],
+    queryKey: nonBarcodedProductsQueryKey(filters, order, limitCount, lastVisibleDoc, normalizedSearch),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     retry: false,
-    queryFn: () => fetchNonBarcodedProductsFromSupabase(
+    queryFn: () => loadNonBarcodedProducts(
       filters,
       order,
       limitCount,
@@ -48,6 +42,34 @@ export const fetchNonBarcodedProducts = async (
     ),
   });
 };
+
+export const nonBarcodedProductsQueryKey = (
+  filters: ProductFilter[] = [],
+  order: keyof NonBarcodedProduct | null = null,
+  limitCount = 20000,
+  lastVisibleDoc: string | null = null,
+  searchQuery: string | null = null,
+) => ['food-catalog', 'products', {
+  filters,
+  order,
+  limitCount,
+  lastVisibleDoc,
+  searchQuery: searchQuery?.trim().toLowerCase() ?? null,
+}] as const;
+
+export const loadNonBarcodedProducts = (
+  filters: ProductFilter[] = [],
+  order: keyof NonBarcodedProduct | null = null,
+  limitCount = 20000,
+  lastVisibleDoc: string | null = null,
+  searchQuery: string | null = null,
+): Promise<ProductSearchResult[]> => fetchNonBarcodedProductsFromSupabase(
+  filters,
+  order,
+  limitCount,
+  lastVisibleDoc,
+  searchQuery?.trim() || null,
+);
 
 export const clearFoodCatalogQueryCache = (): void => {
   queryClient.removeQueries({ queryKey: ['food-catalog', 'products'] });

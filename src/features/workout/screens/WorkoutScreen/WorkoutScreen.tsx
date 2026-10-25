@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
@@ -39,16 +39,15 @@ const WorkoutScreen = () => {
         todayWorkout,
         upcomingWorkouts,
         loading,
+        loadError,
         loadActiveSplit,
-    } = useWorkoutScreenSchedule(userData?.activeSplitId, userData?.rotationStartDate);
+    } = useWorkoutScreenSchedule(userData?.activeSplitId, userData?.rotationStartDate, userData?.uid);
 
     const userStats = useMemo(
         () => getWorkoutHistorySummary(workoutHistory),
         [workoutHistory],
     );
     const todayCompletedStats = userStats.todayCompletedStats;
-
-    useFocusEffect(useCallback(() => { loadActiveSplit(); }, [loadActiveSplit]));
 
     const weekSchedule = useMemo(
         () => (activeSplit
@@ -115,6 +114,22 @@ const WorkoutScreen = () => {
             <ApplicationCustomScreen>
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={colors.accent.primary} />
+                </View>
+                <BottomNav />
+            </ApplicationCustomScreen>
+        );
+    }
+
+    if (loadError) {
+        return (
+            <ApplicationCustomScreen>
+                <View style={styles.loadingContainer}>
+                    <Text style={{ color: colors.text.primary, marginBottom: spacing[2] }}>
+                        Couldn’t load your workout schedule.
+                    </Text>
+                    <TouchableOpacity onPress={() => void loadActiveSplit()}>
+                        <Text style={{ color: colors.accent.primary }}>Tap to retry</Text>
+                    </TouchableOpacity>
                 </View>
                 <BottomNav />
             </ApplicationCustomScreen>

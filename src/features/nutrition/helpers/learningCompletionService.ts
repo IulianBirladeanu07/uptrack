@@ -1,6 +1,4 @@
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { userConverter } from '../../../shared/firestore/converters';
-import { db } from '../../auth/services/firebaseConfigService';
+import { fetchUserProfileDocument, mergeUserProfile } from '../../auth/services/userProfileQuery';
 import {
   calculatePlanAdjustment,
   calculateWeightChangePlan,
@@ -115,9 +113,7 @@ export const snapshotPreviousWeek = async (
   };
 
   try {
-    const userDocRef = doc(db, 'users', userId).withConverter(userConverter);
-    const userDoc    = await getDoc(userDocRef);
-    const stored     = userDoc.data();
+    const stored = await fetchUserProfileDocument(userId);
     const existing: WeeklySnapshot[] = stored?.weeklyNutrition || [];
     const st = weekStepStats(stored?.dailySteps, weekStart, k => cacheSteps.get(k), todayKey);
     snapshot.daysLoggedSteps = st.days;
@@ -147,7 +143,7 @@ export const snapshotPreviousWeek = async (
       ...(isWeightLoss ? { weeksSinceCutStart } : {}),
     };
 
-    await setDoc(userDocRef, firestoreUpdate, { merge: true });
+    await mergeUserProfile(userId, firestoreUpdate);
     return { ...snapshot, weeksSinceCutStart };
   } catch (error) {
     console.error('snapshotPreviousWeek error:', error);
@@ -202,7 +198,7 @@ const refreshMaintenanceOnly = async (userId: string, userData: UserData, weekly
   if (weightChangePlan) updateData.weightChangePlan = weightChangePlan;
 
   try {
-    await setDoc(doc(db, 'users', userId), updateData, { merge: true });
+    await mergeUserProfile(userId, updateData);
     return { suggestion: 'maintenance_refresh', ...updateData };
   } catch (error) {
     console.error('refreshMaintenanceOnly error:', error);
@@ -281,7 +277,7 @@ export const evaluateWeeklyProgress = async (
   if (weightChangePlan) updateData.weightChangePlan = weightChangePlan;
 
   try {
-    await setDoc(doc(db, 'users', userId), updateData, { merge: true });
+    await mergeUserProfile(userId, updateData);
     return { suggestion: adjustment.suggestion, ...updateData };
   } catch (error) {
     console.error('evaluateWeeklyProgress error:', error);
@@ -323,7 +319,7 @@ export const initializeUserTargets = async (userId: string, weightChangePlan: We
     weeksSinceCutStart:   0,
   };
 
-  await setDoc(doc(db, 'users', userId), targets, { merge: true });
+  await mergeUserProfile(userId, targets);
   return targets;
 };
 
@@ -403,7 +399,7 @@ export const checkAndBackfillStepsBonus = async (
   };
 
   try {
-    await setDoc(doc(db, 'users', userId), targets, { merge: true });
+    await mergeUserProfile(userId, targets);
     return targets;
   } catch (error) {
     console.error('checkAndBackfillStepsBonus error:', error);
@@ -428,7 +424,7 @@ export const checkAndCompleteLearning = async (userId: string, mealCache: MealCa
   };
 
   try {
-    await setDoc(doc(db, 'users', userId), targets, { merge: true });
+    await mergeUserProfile(userId, targets);
     return targets;
   } catch (error) {
     console.error('checkAndCompleteLearning error:', error);

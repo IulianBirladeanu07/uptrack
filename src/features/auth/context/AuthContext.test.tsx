@@ -1,6 +1,8 @@
 import React, { useContext } from 'react';
 import { act, render, waitFor } from '@testing-library/react-native';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../../../shared/query/queryClient';
+import { userProfileQueryKey } from '../services/userProfileQuery';
 import { AuthContext, AuthProvider } from './AuthContext';
 
 type MockUser = {
@@ -30,6 +32,7 @@ jest.mock('expo-network', () => ({
 }));
 
 const mockGetDoc = jest.fn(async () => ({
+    exists: () => true,
     data: () => ({ profileSetupComplete: true, autoAdjustEnabled: true, weeksSinceCutStart: 0 }),
 }));
 jest.mock('firebase/firestore', () => ({
@@ -74,7 +77,7 @@ const renderProvider = () => {
         seen.push({ loading, authenticated, isOffline });
         return null;
     };
-    render(<AuthProvider><Probe /></AuthProvider>);
+    render(<QueryClientProvider client={queryClient}><AuthProvider><Probe /></AuthProvider></QueryClientProvider>);
     return seen;
 };
 
@@ -101,6 +104,7 @@ describe('AuthProvider loading state', () => {
         queryClient.clear();
         Object.keys(mockStorage).forEach(k => { delete mockStorage[k]; });
         mockGetDoc.mockImplementation(async () => ({
+            exists: () => true,
             data: () => ({ profileSetupComplete: true, autoAdjustEnabled: true, weeksSinceCutStart: 0 }),
         }));
     });
@@ -132,6 +136,11 @@ describe('AuthProvider loading state', () => {
         await finish(signedIn);
 
         expect(last()).toEqual({ loading: false, authenticated: true, isOffline: false });
+        expect(queryClient.getQueryData(userProfileQueryKey(verified.uid))).toEqual({
+            profileSetupComplete: true,
+            autoAdjustEnabled: true,
+            weeksSinceCutStart: 0,
+        });
     });
 
     it('stops loading when the first event is an unverified account', async () => {
@@ -151,6 +160,12 @@ describe('AuthProvider loading state', () => {
         await emit({ ...verified, uid: 'user-2' });
 
         expect(queryClient.getQueryData(['workout-history', verified.uid, 50])).toBeUndefined();
+        expect(queryClient.getQueryData(userProfileQueryKey(verified.uid))).toBeUndefined();
+        expect(queryClient.getQueryData(userProfileQueryKey('user-2'))).toEqual({
+            profileSetupComplete: true,
+            autoAdjustEnabled: true,
+            weeksSinceCutStart: 0,
+        });
         expect(queryClient.getQueryData(['food-catalog', 'products', 'oats'])).toEqual({
             value: 'public data',
         });
@@ -165,6 +180,10 @@ describe('AuthProvider loading state', () => {
         await emit(verified);
 
         expect(seen[seen.length - 1]).toEqual({ loading: false, authenticated: true, isOffline: true });
+        expect(queryClient.getQueryData(userProfileQueryKey(verified.uid))).toEqual({
+            profileSetupComplete: true,
+            targetCalories: 2100,
+        });
     });
 
     it('refreshes the cached profile when internet connectivity returns', async () => {
@@ -176,6 +195,7 @@ describe('AuthProvider loading state', () => {
         expect(seen[seen.length - 1]?.isOffline).toBe(true);
 
         mockGetDoc.mockResolvedValueOnce({
+            exists: () => true,
             data: () => ({ profileSetupComplete: true, autoAdjustEnabled: true, weeksSinceCutStart: 0 }),
         });
         act(() => mockNetworkListener?.({ isConnected: true, isInternetReachable: true }));

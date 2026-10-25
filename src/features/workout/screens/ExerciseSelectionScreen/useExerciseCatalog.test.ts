@@ -3,11 +3,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import type { ExerciseGroup } from '../../../../shared/types';
-import { fetchExercises } from '../../services/exerciseCatalogService';
+import { loadExercisesForQuery } from '../../services/exerciseCatalogService';
 import { useExerciseCatalog } from './useExerciseCatalog';
 
 jest.mock('../../services/exerciseCatalogService', () => ({
-  fetchExercises: jest.fn(),
+  loadExercisesForQuery: jest.fn(),
 }));
 jest.mock('firebase/auth', () => ({
   getAuth: () => ({ currentUser: { uid: 'user-1' } }),
@@ -31,7 +31,7 @@ describe('useExerciseCatalog', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(fetchExercises).mockResolvedValue(groups);
+    jest.mocked(loadExercisesForQuery).mockResolvedValue(groups);
     queryClient = new QueryClient({
       defaultOptions: { queries: { gcTime: 0, retry: false } },
     });
@@ -45,8 +45,8 @@ describe('useExerciseCatalog', () => {
 
     await waitFor(() => expect(result.current.exerciseGroups).toEqual(groups));
 
-    expect(fetchExercises).toHaveBeenCalledTimes(1);
-    expect(fetchExercises).toHaveBeenCalledWith(false);
+    expect(loadExercisesForQuery).toHaveBeenCalledTimes(1);
+    expect(loadExercisesForQuery).toHaveBeenCalledWith('user-1');
     expect(queryClient.getQueryData(['exercise-catalog', 'user-1'])).toEqual(groups);
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
@@ -61,11 +61,11 @@ describe('useExerciseCatalog', () => {
       expect(second.result.current.exerciseGroups).toEqual(groups);
     });
 
-    expect(fetchExercises).toHaveBeenCalledTimes(1);
+    expect(loadExercisesForQuery).toHaveBeenCalledTimes(1);
   });
 
   it('retries a failed load and reports the original error message', async () => {
-    jest.mocked(fetchExercises)
+    jest.mocked(loadExercisesForQuery)
       .mockRejectedValueOnce(new Error('catalog unavailable'))
       .mockResolvedValueOnce(groups);
     const { result } = renderHook(() => useExerciseCatalog(), { wrapper });
@@ -81,11 +81,11 @@ describe('useExerciseCatalog', () => {
       expect(result.current.exerciseGroups).toEqual(groups);
       expect(result.current.error).toBeNull();
     });
-    expect(fetchExercises).toHaveBeenNthCalledWith(2, false);
+    expect(loadExercisesForQuery).toHaveBeenNthCalledWith(2, 'user-1');
   });
 
   it('uses a fallback message when a load fails with a non-Error value', async () => {
-    jest.mocked(fetchExercises).mockRejectedValue('offline');
+    jest.mocked(loadExercisesForQuery).mockRejectedValue('offline');
     const { result } = renderHook(() => useExerciseCatalog(), { wrapper });
 
     await waitFor(() => expect(result.current.error).toBe('Failed to load exercises'));

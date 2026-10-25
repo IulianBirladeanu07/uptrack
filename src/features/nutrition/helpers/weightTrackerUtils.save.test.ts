@@ -54,7 +54,7 @@ describe('handleSaveLogic persistence', () => {
     jest.useFakeTimers();
     jest.setSystemTime(NOW);
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    (doc as jest.Mock).mockReturnValue({ withConverter: jest.fn(() => userRef) });
+    (doc as jest.Mock).mockReturnValue(userRef);
     (setDoc as jest.Mock).mockResolvedValue(undefined);
     (deriveStartWeight as jest.Mock).mockReturnValue(85);
     (snapshotPreviousWeek as jest.Mock).mockResolvedValue(null);

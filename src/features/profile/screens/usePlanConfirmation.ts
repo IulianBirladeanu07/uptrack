@@ -2,9 +2,8 @@ import { useCallback, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { Alert } from 'react-native';
 import { getAuth } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 import type { OnboardingFormData, PlanType, UserData, WeightChangePlan } from '../../../shared/types';
-import { db } from '../../auth/services/firebaseConfigService';
+import { useSaveUserProfile } from '../../auth/services/useSaveUserProfile';
 
 type PlanConfirmationParams = {
   formData: OnboardingFormData;
@@ -22,6 +21,7 @@ export const usePlanConfirmation = ({
   setProfileSetupComplete,
 }: PlanConfirmationParams) => {
   const [saving, setSaving] = useState(false);
+  const saveUserProfile = useSaveUserProfile();
 
   const handleConfirm = useCallback(async () => {
     setSaving(true);
@@ -55,7 +55,7 @@ export const usePlanConfirmation = ({
     };
 
     try {
-      await setDoc(doc(db, 'users', user.uid), userData, { merge: true });
+      await saveUserProfile.mutateAsync({ uid: user.uid, data: userData });
     } catch (error) {
       console.error('PlanSummaryScreen save error:', error);
       Alert.alert('Error', 'Failed to save your plan. Please try again.');
@@ -78,7 +78,7 @@ export const usePlanConfirmation = ({
     }
 
     setProfileSetupComplete(true);
-  }, [derivedGoal, formData, plan, refreshUserData, setProfileSetupComplete]);
+  }, [derivedGoal, formData, plan, refreshUserData, saveUserProfile, setProfileSetupComplete]);
 
   return { saving, handleConfirm };
 };

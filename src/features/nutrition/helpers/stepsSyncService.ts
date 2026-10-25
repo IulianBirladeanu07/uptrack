@@ -1,5 +1,4 @@
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../../auth/services/firebaseConfigService';
+import { mergeUserProfile } from '../../auth/services/userProfileQuery';
 import { diffPastSteps } from './stepStats';
 import type { DailySteps, DateInput } from '../../../shared/types';
 
@@ -34,13 +33,9 @@ export const persistDailySteps = async (
 ): Promise<boolean> => {
   const has = entries && Object.keys(entries).length > 0;
   if (!uid || (!has && !markBackfilled)) return false;
-  await setDoc(
-    doc(db, 'users', uid),
-    {
+  await mergeUserProfile(uid, {
       ...(has ? { dailySteps: entries } : {}),
       ...(markBackfilled ? { stepsBackfilledAt: new Date().toISOString() } : {}),
-    },
-    { merge: true }
-  );
+    });
   return true;
 };

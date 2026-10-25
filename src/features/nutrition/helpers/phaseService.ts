@@ -1,5 +1,5 @@
-import { doc, setDoc, arrayUnion } from 'firebase/firestore';
-import { db } from '../../auth/services/firebaseConfigService';
+import { arrayUnion } from 'firebase/firestore';
+import { mergeUserProfile } from '../../auth/services/userProfileQuery';
 import { calculateWeightChangePlan, calculateMacros } from '../../profile/utils/nutritionPlanEngine';
 import type { PhaseHistoryEntry, UserData, WeightChangePlan } from '../../../shared/types';
 
@@ -18,9 +18,7 @@ export const switchToMaintenance = async (userId: string, userData: UserData, { 
   const macros = calculateMacros('maintenance', kcal, w);
   const plan: WeightChangePlan = { ...base, tdee: kcal, goalCalories: kcal, macros, isEstimate: false };
 
-  await setDoc(
-    doc(db, 'users', userId),
-    {
+  await mergeUserProfile(userId, {
       currentWeight: w,
       targetWeight: w,
       fitnessGoals: 'maintenance',
@@ -40,7 +38,5 @@ export const switchToMaintenance = async (userId: string, userData: UserData, { 
       weeksSinceCutStart: 0,
       startWeight: w,
       phaseHistory: arrayUnion(entry),
-    },
-    { merge: true },
-  );
+    }, true);
 };

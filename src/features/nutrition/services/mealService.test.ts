@@ -12,6 +12,7 @@ jest.mock('firebase/firestore', () => ({
 jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 
 import { getDoc, getDocs, setDoc, where } from 'firebase/firestore';
+import { queryClient } from '../../../shared/query/queryClient';
 import {
   consolidateFoodData,
   buildAddUndo,
@@ -21,6 +22,7 @@ import {
   fetchRawMealsForDate,
   fetchLast30DaysMeals,
   fetchNutritionForDateRange,
+  mealHistoryQueryKey,
 } from './mealService';
 
 const validFood = { id: 'food-1', productName: 'Oats', calories: 100 };
@@ -35,6 +37,7 @@ describe('normalizeLoggedFoods', () => {
 describe('writeMealType', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    queryClient.clear();
   });
 
   test('merges only the changed meal type into the day document without reading it first', async () => {
@@ -54,6 +57,16 @@ describe('writeMealType', () => {
 
     expect((setDoc as jest.Mock).mock.calls[0][1]).toEqual(expect.objectContaining({ snacks: [] }));
   });
+
+  test('invalidates only the signed-in user meal query tree after a successful write', async () => {
+    queryClient.setQueryData(mealHistoryQueryKey.day('user-1', '2026-10-16'), { breakfast: [] });
+    queryClient.setQueryData(mealHistoryQueryKey.day('user-2', '2026-10-16'), { breakfast: [] });
+
+    await writeMealType('user-1', 'lunch', [validFood], '2026-10-16');
+
+    expect(queryClient.getQueryState(mealHistoryQueryKey.day('user-1', '2026-10-16'))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(mealHistoryQueryKey.day('user-2', '2026-10-16'))?.isInvalidated).toBe(false);
+  });
 });
 
 describe('meal reads', () => {
@@ -70,6 +83,23 @@ describe('meal reads', () => {
       dinner: [],
       snacks: [],
     });
+    expect(queryClient.getQueryData(mealHistoryQueryKey.day('user-1', '2026-10-16'))).toEqual({
+      breakfast: [], lunch: [], dinner: [], snacks: [],
+    });
+  });
+
+  test('deduplicates concurrent reads for the same user and day', async () => {
+    let resolveRead: ((snapshot: { exists: () => boolean; data: () => Record<string, unknown> }) => void) | undefined;
+    (getDoc as jest.Mock).mockImplementationOnce(() => new Promise(resolve => { resolveRead = resolve; }));
+    const first = fetchRawMealsForDate('user-1', '2026-10-16');
+    const second = fetchRawMealsForDate('user-1', '2026-10-16');
+
+    expect(getDoc).toHaveBeenCalledTimes(1);
+    resolveRead?.({ exists: () => true, data: () => ({ breakfast: [validFood] }) });
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      { breakfast: [validFood], lunch: [], dinner: [], snacks: [] },
+      { breakfast: [validFood], lunch: [], dinner: [], snacks: [] },
+    ]);
   });
 
   test('fetchLast30DaysMeals only returns meal groups containing valid foods', async () => {

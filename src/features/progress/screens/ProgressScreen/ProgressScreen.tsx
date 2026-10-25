@@ -553,7 +553,7 @@ const ProgressScreen = () => {
     const [phaseNutritionHistory, setPhaseNutritionHistory] = useState<NutritionDay[] | null>(null);
     const [phaseNutritionHistoryLoading, setPhaseNutritionHistoryLoading] = useState(false);
     const [phaseNutritionHistoryError, setPhaseNutritionHistoryError] = useState(false);
-    const planned = usePlannedWorkouts(userData?.activeSplitId);
+    const planned = usePlannedWorkouts(userData?.activeSplitId, userData?.uid);
     const phaseStartDate = userData?.goalSwitchDate ?? null;
     const phaseNutritionStart = phaseStartDate ? new Date(phaseStartDate) : null;
 

@@ -1,10 +1,14 @@
+import { createElement, type ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react-native';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Alert } from 'react-native';
 import type { Auth, User } from 'firebase/auth';
 import { verifyBeforeUpdateEmail } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import type { UserData } from '../../../../shared/types';
+import { queryClient } from '../../../../shared/query/queryClient';
+import { userProfileQueryKey } from '../../../auth/services/userProfileQuery';
 import type { ProfileFormSeed, ProfileIdentitySeed } from '../../utils/profileSeed';
 import { useProfileSave } from './useProfileSave';
 
@@ -36,6 +40,8 @@ const getDownload = jest.mocked(getDownloadURL);
 const storage = jest.mocked(getStorage);
 const storageRef = jest.mocked(ref);
 const upload = jest.mocked(uploadBytes);
+const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: queryClient }, children);
 
 const form: ProfileFormSeed = {
     age: 30,
@@ -81,6 +87,7 @@ const createParams = (overrides: Partial<Parameters<typeof useProfileSave>[0]> =
 describe('useProfileSave', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        queryClient.clear();
         getDocument.mockReturnValue({} as ReturnType<typeof doc>);
         saveDocument.mockResolvedValue(undefined);
         verifyEmail.mockResolvedValue(undefined);
@@ -91,8 +98,9 @@ describe('useProfileSave', () => {
     });
 
     it('writes profile identity, refreshes data, and commits the saved form state', async () => {
+        queryClient.setQueryData(userProfileQueryKey(authenticatedUser.uid), userData);
         const params = createParams();
-        const { result } = renderHook(() => useProfileSave(params));
+        const { result } = renderHook(() => useProfileSave(params), { wrapper });
 
         await act(async () => {
             await result.current.persist();
@@ -100,6 +108,7 @@ describe('useProfileSave', () => {
 
         expect(getDocument).toHaveBeenCalledWith(expect.anything(), 'users', 'user-1');
         expect(saveDocument).toHaveBeenCalledWith(expect.anything(), { username: 'New name' }, { merge: true });
+        expect(queryClient.getQueryState(userProfileQueryKey(authenticatedUser.uid))?.isInvalidated).toBe(true);
         expect(params.refreshUserData).toHaveBeenCalledTimes(1);
         expect(params.setOriginal).toHaveBeenCalledWith({ ...form });
         expect(params.setIdentity).toHaveBeenCalledWith({ username: 'New name', email: 'new@example.com' });
@@ -112,7 +121,7 @@ describe('useProfileSave', () => {
     it('does not save when there is no authenticated user', async () => {
         const { result } = renderHook(() => useProfileSave(createParams({
             auth: { currentUser: null } as Auth,
-        })));
+        })), { wrapper });
 
         await act(async () => {
             await result.current.persist();
@@ -125,7 +134,7 @@ describe('useProfileSave', () => {
 
     it('stops after recent-login email verification failures', async () => {
         verifyEmail.mockRejectedValue({ code: 'auth/requires-recent-login' });
-        const { result } = renderHook(() => useProfileSave(createParams({ isPasswordAccount: true })));
+        const { result } = renderHook(() => useProfileSave(createParams({ isPasswordAccount: true })), { wrapper });
 
         await act(async () => {
             await result.current.persist();
@@ -145,7 +154,7 @@ describe('useProfileSave', () => {
             isPasswordAccount: true,
             refreshUserData: jest.fn().mockResolvedValue(undefined),
         });
-        const { result } = renderHook(() => useProfileSave(params));
+        const { result } = renderHook(() => useProfileSave(params), { wrapper });
 
         await act(async () => {
             await result.current.persist();
@@ -164,7 +173,7 @@ describe('useProfileSave', () => {
         const fetchResponse = new Response('image', { headers: { 'Content-Type': 'image/png' } });
         const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(fetchResponse);
         const params = createParams({ pendingUri: 'file://profile.png' });
-        const { result } = renderHook(() => useProfileSave(params));
+        const { result } = renderHook(() => useProfileSave(params), { wrapper });
 
         try {
             await act(async () => {
@@ -193,7 +202,7 @@ describe('useProfileSave', () => {
     it('reports save failures and clears the busy state', async () => {
         saveDocument.mockRejectedValue(new Error('write failed'));
         const logError = jest.spyOn(console, 'error').mockImplementation(() => {});
-        const { result } = renderHook(() => useProfileSave(createParams()));
+        const { result } = renderHook(() => useProfileSave(createParams()), { wrapper });
 
         try {
             await act(async () => {

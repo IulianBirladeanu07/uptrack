@@ -224,7 +224,7 @@ const DashboardScreen = () => {
     const goalDir = dirOf(userData?.weightChangePlan?.type);
     const uid = getAuth().currentUser?.uid;
     const { workout: todayScheduledWorkout, loading: workoutLoading, loadError: workoutLoadError } =
-        useDashboardScheduledWorkout(userData?.activeSplitId, userData?.rotationStartDate);
+        useDashboardScheduledWorkout(userData?.activeSplitId, userData?.rotationStartDate, userData?.uid);
     const {
         dismissedAdjustments,
         goalReachedDismissed,

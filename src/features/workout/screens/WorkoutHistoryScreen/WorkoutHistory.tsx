@@ -89,6 +89,10 @@ const WorkoutHistoryScreen = () => {
     const navigation = useAppNavigation();
     const {
         workoutHistory,
+        workoutHistoryLoading,
+        workoutHistoryRefreshing,
+        workoutHistoryError,
+        retryWorkoutHistory,
         activeWorkout,
         hasMoreWorkoutHistory,
         loadingMoreWorkoutHistory,
@@ -128,18 +132,30 @@ const WorkoutHistoryScreen = () => {
                 ListHeaderComponent={
                     <View style={styles.header}>
                         <Text style={styles.heading}>History</Text>
+                        {workoutHistoryRefreshing && <ActivityIndicator color={colors.accent.primary} />}
                     </View>
                 }
                 ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <View style={styles.emptyIconContainer}>
-                            <Ionicons name="time-outline" size={48} color={colors.text.quaternary} />
+                    workoutHistoryLoading ? (
+                        <View style={styles.emptyContainer}>
+                            <ActivityIndicator color={colors.accent.primary} />
                         </View>
-                        <Text style={styles.emptyTitle}>No workout history yet</Text>
-                        <Text style={styles.emptySubtitle}>
-                            Your completed workouts will appear here.{'\n'}Start your first workout to track your progress!
-                        </Text>
-                    </View>
+                    ) : workoutHistoryError ? (
+                        <TouchableOpacity style={styles.emptyContainer} onPress={() => void retryWorkoutHistory()}>
+                            <Text style={styles.emptyTitle}>Couldn’t load workout history</Text>
+                            <Text style={styles.emptySubtitle}>Tap to retry.</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.emptyContainer}>
+                            <View style={styles.emptyIconContainer}>
+                                <Ionicons name="time-outline" size={48} color={colors.text.quaternary} />
+                            </View>
+                            <Text style={styles.emptyTitle}>No workout history yet</Text>
+                            <Text style={styles.emptySubtitle}>
+                                Your completed workouts will appear here.{'\n'}Start your first workout to track your progress!
+                            </Text>
+                        </View>
+                    )
                 }
                 contentContainerStyle={styles.contentWrapper}
                 showsVerticalScrollIndicator={false}

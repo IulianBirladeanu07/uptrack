@@ -23,29 +23,11 @@ import type { CatalogExercise, ExerciseGroup } from '../../../shared/types';
 const CACHE_KEY = 'exercises_cache_v3';
 const CACHE_DURATION = 12 * 60 * 60 * 1000;
 
-type MemoryCache = {
-  data: ExerciseGroup[] | null;
-  timestamp: number;
-  isLoading: boolean;
-  loadPromise: Promise<ExerciseGroup[]> | null;
-};
-
-let memoryCache: MemoryCache = {
-  data: null,
-  timestamp: 0,
-  isLoading: false,
-  loadPromise: null,
-};
-
-let customCache: { uid: string | null; data: CatalogExercise[] | null } = { uid: null, data: null };
-
-const fetchCustomExercises = async (uid: string, forceRefresh = false): Promise<CatalogExercise[]> => {
-  if (!forceRefresh && customCache.uid === uid && customCache.data) return customCache.data;
+const fetchCustomExercises = async (uid: string): Promise<CatalogExercise[]> => {
   const customQuery = query(collection(db, 'customExercises'), where('uid', '==', uid));
   const snap = await getDocs(customQuery);
   const data = snap.docs.map(document => customDocToExercise(document.data()))
     .filter((exercise): exercise is CatalogExercise => exercise != null);
-  customCache = { uid, data };
   return data;
 };
 
@@ -54,9 +36,18 @@ export const fetchExercises = async (forceRefresh = false): Promise<ExerciseGrou
   if (!user) {
     throw new Error('User not authenticated.');
   }
+  const queryKey = ['exercise-catalog', user.uid] as const;
+  return queryClient.fetchQuery({
+    queryKey,
+    staleTime: forceRefresh ? 0 : CACHE_DURATION,
+    queryFn: () => loadExercisesForQuery(user.uid, forceRefresh),
+  });
+};
+
+export const loadExercisesForQuery = async (uid: string, forceRefresh = false): Promise<ExerciseGroup[]> => {
   const [catalog, custom] = await Promise.all([
     loadCatalog(forceRefresh),
-    fetchCustomExercises(user.uid, forceRefresh).catch(error => {
+    fetchCustomExercises(uid).catch(error => {
       console.warn('Failed to load custom exercises:', (error as Error).message);
       return [];
     }),
@@ -66,38 +57,12 @@ export const fetchExercises = async (forceRefresh = false): Promise<ExerciseGrou
 
 const loadCatalog = async (forceRefresh = false): Promise<ExerciseGroup[]> => {
   try {
-    const user = getAuth().currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-
-    if (
-      !forceRefresh &&
-      memoryCache.data &&
-      memoryCache.data.length > 0 &&
-      Date.now() - memoryCache.timestamp < CACHE_DURATION
-    ) {
-      setTimeout(() => prefetchExerciseImages(memoryCache.data), 0);
-      return memoryCache.data;
-    }
-
-    if (memoryCache.isLoading && memoryCache.loadPromise && !forceRefresh) {
-      return await memoryCache.loadPromise;
-    }
-
     if (!forceRefresh) {
       try {
         const cachedData = await AsyncStorage.getItem(CACHE_KEY);
         if (cachedData) {
           const { data, timestamp, version = 1 } = JSON.parse(cachedData);
-          if (
-            version === 3 &&
-            Date.now() - timestamp < CACHE_DURATION &&
-            data &&
-            data.length > 0
-          ) {
-            memoryCache.data = data;
-            memoryCache.timestamp = timestamp;
+          if (version === 3 && Date.now() - timestamp < CACHE_DURATION && data?.length > 0) {
             setTimeout(() => prefetchExerciseImages(data), 0);
             return data;
           }
@@ -107,39 +72,26 @@ const loadCatalog = async (forceRefresh = false): Promise<ExerciseGroup[]> => {
       }
     }
 
-    memoryCache.isLoading = true;
-    memoryCache.loadPromise = fetchExercisesFromFirestore();
-
-    try {
-      const exercisesArray = await memoryCache.loadPromise;
-      if (exercisesArray && exercisesArray.length > 0) {
-        const timestamp = Date.now();
-        memoryCache.data = exercisesArray;
-        memoryCache.timestamp = timestamp;
-
-        try {
-          await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
-            data: exercisesArray,
-            timestamp,
-            version: 3,
-          }));
-        } catch (storageError) {
-          console.warn('Failed to save cache to storage:', storageError);
-        }
-
-        setTimeout(() => prefetchExerciseImages(exercisesArray), 0);
-        return exercisesArray;
+    const exercisesArray = await fetchExercisesFromFirestore();
+    if (exercisesArray && exercisesArray.length > 0) {
+      const timestamp = Date.now();
+      try {
+        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
+          data: exercisesArray,
+          timestamp,
+          version: 3,
+        }));
+      } catch (storageError) {
+        console.warn('Failed to save cache to storage:', storageError);
       }
 
-      throw new Error('No exercises data received');
-    } finally {
-      memoryCache.isLoading = false;
-      memoryCache.loadPromise = null;
+      setTimeout(() => prefetchExerciseImages(exercisesArray), 0);
+      return exercisesArray;
     }
+
+    throw new Error('No exercises data received');
   } catch (error) {
     console.error('Error retrieving exercises:', (error as Error).message);
-    memoryCache.isLoading = false;
-    memoryCache.loadPromise = null;
     throw error;
   }
 };
@@ -186,10 +138,7 @@ const fetchExercisesFromFirestore = async (): Promise<ExerciseGroup[]> => {
 };
 
 export const clearExercisesCache = async (clearImages = false): Promise<void> => {
-  memoryCache.data = null;
-  memoryCache.timestamp = 0;
-  memoryCache.isLoading = false;
-  memoryCache.loadPromise = null;
+  queryClient.removeQueries({ queryKey: ['exercise-catalog'] });
 
   try {
     await AsyncStorage.removeItem(CACHE_KEY);
@@ -202,15 +151,20 @@ export const clearExercisesCache = async (clearImages = false): Promise<void> =>
   }
 };
 
-export const getCacheStatus = (): CacheStatus => ({
-  hasMemoryCache: !!memoryCache.data,
-  cacheAge: memoryCache.timestamp ? Date.now() - memoryCache.timestamp : 0,
-  isLoading: memoryCache.isLoading,
-  exerciseCount: memoryCache.data
-    ? memoryCache.data.reduce((count, group) => count + group.exercises.length, 0)
-    : 0,
-  imagesPrefetched: getPrefetchedExerciseImageCount(),
-});
+export const getCacheStatus = (): CacheStatus => {
+  const uid = getAuth().currentUser?.uid;
+  const query = uid ? queryClient.getQueryState<ExerciseGroup[]>(['exercise-catalog', uid]) : undefined;
+  const data = queryClient.getQueryData<ExerciseGroup[]>(['exercise-catalog', uid]);
+  return {
+    hasMemoryCache: !!data,
+    cacheAge: query?.dataUpdatedAt ? Date.now() - query.dataUpdatedAt : 0,
+    isLoading: query?.fetchStatus === 'fetching',
+    exerciseCount: data
+      ? data.reduce((count, group) => count + group.exercises.length, 0)
+      : 0,
+    imagesPrefetched: getPrefetchedExerciseImageCount(),
+  };
+};
 
 export const createCustomExercise = async (
   exerciseData: CatalogExercise & { uid?: string },
@@ -230,7 +184,7 @@ export const createCustomExercise = async (
     const lower = trimmed.toLowerCase();
     const [catalog, custom] = await Promise.all([
       loadCatalog(false),
-      fetchCustomExercises(user.uid, true),
+      fetchCustomExercises(user.uid),
     ]);
 
     const exerciseExists =
@@ -255,7 +209,6 @@ export const createCustomExercise = async (
     };
 
     await setDoc(doc(collection(db, 'customExercises')), newExercise);
-    customCache = { uid: null, data: null };
     await queryClient.invalidateQueries({ queryKey: ['exercise-catalog', user.uid] });
     return { success: true, exercise: newExercise };
   } catch (error) {

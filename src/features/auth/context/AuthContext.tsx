@@ -3,9 +3,8 @@ import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { AppState } from 'react-native';
 import * as Network from 'expo-network';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { userConverter } from '../../../shared/firestore/converters';
-import { auth, db } from '../services/firebaseConfigService';
+import { useQuery } from '@tanstack/react-query';
+import { auth } from '../services/firebaseConfigService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { deriveStartWeight } from '../../nutrition/helpers/learningCompletionService';
 import { RECENT_SEARCHES_KEY } from '../../nutrition/helpers/useRecentSearches';
@@ -16,7 +15,13 @@ import type { UserData } from '../../../shared/types';
 import { needsEmailVerification } from '../utils/emailVerification';
 import { isCurrentAuthRequest, isSameAuthIdentity } from '../utils/authRequest';
 import { syncAuthEmail } from '../services/emailSyncService';
-import { clearUserScopedQueries } from '../../../shared/query/queryClient';
+import { clearUserScopedQueries, queryClient } from '../../../shared/query/queryClient';
+import {
+  fetchUserProfileQuery,
+  loadUserProfileDocument,
+  mergeUserProfile,
+  userProfileQueryKey,
+} from '../services/userProfileQuery';
 
 export type AuthContextValue = {
   authenticated: boolean;
@@ -64,7 +69,7 @@ const deriveAndSaveStartWeight = async (userId: string, data: UserData): Promise
   const startWeight = deriveStartWeight(data.weightIns);
   if (!startWeight) return data;
 
-  await setDoc(doc(db, 'users', userId), { startWeight }, { merge: true });
+  await mergeUserProfile(userId, { startWeight });
   return { ...data, startWeight };
 };
 
@@ -75,7 +80,7 @@ const applyProfileDefaults = async (userId: string, data: UserData): Promise<Use
   });
   if (!Object.keys(missing).length) return data;
 
-  await setDoc(doc(db, 'users', userId), missing, { merge: true });
+  await mergeUserProfile(userId, missing);
   return { ...data, ...missing };
 };
 
@@ -83,22 +88,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profileSetupComplete, setProfileSetupComplete] = useState(false);
-  const [userData, setUserData] = useState<UserData | null>(null);
+  const [profileUid, setProfileUid] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const isOfflineRef = useRef(false);
   const offlineRefreshInFlight = useRef(false);
   const authRequestGeneration = useRef(0);
   const previousAuthUid = useRef<string | null | undefined>(undefined);
   const previousWasUnverified = useRef(false);
+  const profileQuery = useQuery<UserData | null>({
+    queryKey: profileUid ? userProfileQueryKey(profileUid) : ['user-profile', 'signed-out'],
+    queryFn: async () => {
+      const user = auth.currentUser;
+      if (!user || user.uid !== profileUid || needsEmailVerification(user)) return null;
+      const request = { uid: user.uid, generation: authRequestGeneration.current };
+      const isCurrent = () =>
+        isCurrentAuthRequest(request, auth.currentUser?.uid ?? null, authRequestGeneration.current);
+      return applyOnlineProfile(user.uid, user.email, isCurrent);
+    },
+    enabled: Boolean(profileUid),
+    staleTime: 0,
+    retry: false,
+  });
+  const userData = profileQuery.data ?? null;
 
   const applyOnlineProfile = async (
     uid: string,
     email: string | null,
     isCurrent: () => boolean,
   ): Promise<UserData | null> => {
-    const userDoc = await getDoc(doc(db, 'users', uid).withConverter(userConverter));
+    const userData = await loadUserProfileDocument(uid);
     if (!isCurrent()) return null;
-    let data = await deriveAndSaveStartWeight(uid, userDoc.data() ?? {});
+    let data = await deriveAndSaveStartWeight(uid, userData ?? {});
     if (!isCurrent()) return null;
     data = await applyProfileDefaults(uid, data);
     if (!isCurrent()) return null;
@@ -115,9 +135,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const isCurrent = () =>
       isCurrentAuthRequest(request, auth.currentUser?.uid ?? null, authRequestGeneration.current);
     try {
-      const data = await applyOnlineProfile(user.uid, user.email, isCurrent);
+      const data = await fetchUserProfileQuery(
+        user.uid,
+        () => applyOnlineProfile(user.uid, user.email, isCurrent),
+      );
       if (!isCurrent() || !data) return undefined;
-      setUserData(data);
       setProfileSetupComplete(!!data.profileSetupComplete);
       isOfflineRef.current = false;
       setIsOffline(false);
@@ -143,8 +165,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       const nextUid = user?.uid ?? null;
+      const nextProfileUid = user && !needsEmailVerification(user) ? user.uid : null;
       const preserveCurrentState = isSameAuthIdentity(previousAuthUid.current, nextUid);
       previousAuthUid.current = nextUid;
+      setProfileUid(nextProfileUid);
       const unverified = needsEmailVerification(user);
       const keepScreen = unverified || (user === null && previousWasUnverified.current);
       previousWasUnverified.current = unverified;
@@ -160,18 +184,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!keepScreen) setLoading(true);
         setAuthenticated(false);
         setProfileSetupComplete(false);
-        setUserData(null);
         isOfflineRef.current = false;
         setIsOffline(false);
       }
       try {
         if (user && !needsEmailVerification(user)) {
           try {
-            const data = await applyOnlineProfile(user.uid, user.email, isCurrent);
+            const data = await fetchUserProfileQuery(
+              user.uid,
+              () => applyOnlineProfile(user.uid, user.email, isCurrent),
+            );
             if (!isCurrent() || !data) return;
             setAuthenticated(true);
             setProfileSetupComplete(!!data.profileSetupComplete);
-            setUserData(data);
             isOfflineRef.current = false;
             setIsOffline(false);
             await AsyncStorage.setItem('auth_token', user.uid);
@@ -180,9 +205,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const cached = await readCachedUserData(user.uid);
             if (!isCurrent()) return;
             if (cached) {
+              queryClient.setQueryData(userProfileQueryKey(user.uid), cached);
               setAuthenticated(true);
               setProfileSetupComplete(!!cached.profileSetupComplete);
-              setUserData(cached);
               isOfflineRef.current = true;
               setIsOffline(true);
               await AsyncStorage.setItem('auth_token', user.uid);
@@ -243,7 +268,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       clearUserScopedQueries();
       setAuthenticated(false);
       setProfileSetupComplete(false);
-      setUserData(null);
+      setProfileUid(null);
       isOfflineRef.current = false;
       setIsOffline(false);
       await AsyncStorage.removeItem('auth_token');

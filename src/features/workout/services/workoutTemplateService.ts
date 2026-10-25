@@ -88,32 +88,27 @@ export const addTemplateToFirestore = async (
   }
 };
 
-export const fetchTemplatesFromFirestore = async (): Promise<WorkoutTemplate[]> => {
+export const loadTemplatesFromFirestore = async (uid: string): Promise<WorkoutTemplate[]> => {
   try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User not authenticated.');
-    }
-
-    return await queryClient.fetchQuery({
-      queryKey: workoutTemplateQueryKey(user.uid),
-      staleTime: 5 * 60 * 1000,
-      queryFn: async () => {
-        const templatesCollectionRef = collection(db, 'workoutTemplates');
-        const templatesQuery = query(templatesCollectionRef, where('uid', '==', user.uid));
-        const querySnapshot = await getDocs(templatesQuery);
-        return querySnapshot.docs.map(docSnap => ({
-          ...(docSnap.data() as WorkoutTemplate),
-          id: docSnap.id,
-        }));
-      },
-    });
+    const templatesCollectionRef = collection(db, 'workoutTemplates');
+    const templatesQuery = query(templatesCollectionRef, where('uid', '==', uid));
+    const querySnapshot = await getDocs(templatesQuery);
+    return querySnapshot.docs.map(docSnap => ({
+      ...(docSnap.data() as WorkoutTemplate),
+      id: docSnap.id,
+    }));
   } catch (error) {
     console.error('Error retrieving user templates from Firestore:', (error as Error).message);
     throw error;
   }
 };
+
+export const fetchTemplatesFromFirestore = async (uid: string): Promise<WorkoutTemplate[]> =>
+  queryClient.fetchQuery({
+    queryKey: workoutTemplateQueryKey(uid),
+    staleTime: 5 * 60 * 1000,
+    queryFn: () => loadTemplatesFromFirestore(uid),
+  });
 
 export const deleteTemplateFromFirestore = async (templateId: string): Promise<boolean> => {
   try {

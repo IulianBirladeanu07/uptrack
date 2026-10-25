@@ -1,8 +1,6 @@
 import { formatLocalDateKey } from '../../../shared/utils/localDateKey';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { userConverter } from '../../../shared/firestore/converters';
 import { Animated } from 'react-native';
-import { db } from '../../auth/services/firebaseConfigService';
+import { fetchUserProfileDocument, mergeUserProfile } from '../../auth/services/userProfileQuery';
 import {
   evaluateWeeklyProgress,
   snapshotPreviousWeek,
@@ -143,9 +141,7 @@ export const handleSaveLogic = async (
     const weekStartDate = getLocalWeekStart(today);
     const dayKey        = getDayKey(today);
 
-    const userDocRef  = doc(db, 'users', userId).withConverter(userConverter);
-    const userDoc     = await getDoc(userDocRef);
-    const currentData = userDoc.exists() ? userDoc.data()! : ({} as UserData);
+    const currentData = (await fetchUserProfileDocument(userId)) ?? {};
 
     const weightIns: WeightInWeek[] = Array.isArray(currentData.weightIns) ? [...currentData.weightIns] : [];
 
@@ -207,7 +203,7 @@ export const handleSaveLogic = async (
       ...(startWeight && !currentData.startWeight ? { startWeight } : {}),
     };
 
-    await setDoc(userDocRef, updateData, { merge: true });
+    await mergeUserProfile(userId, updateData);
 
     let updatedUserData: UserData = { ...currentData, ...updateData };
 
@@ -222,7 +218,7 @@ export const handleSaveLogic = async (
             snapshot,
           ].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
 
-          await setDoc(userDocRef, { lastSnapshotWeek: prevWeekEntry.weekStart }, { merge: true });
+          await mergeUserProfile(userId, { lastSnapshotWeek: prevWeekEntry.weekStart });
 
           updatedUserData = {
             ...updatedUserData,

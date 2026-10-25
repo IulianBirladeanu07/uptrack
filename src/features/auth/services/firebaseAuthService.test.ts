@@ -242,6 +242,7 @@ describe('signInWithApple', () => {
         displayName: 'Ana Pop',
         profileSetupComplete: false,
       }),
+      { merge: true },
     );
     expect(setAuthenticated).toHaveBeenCalledWith(true);
     expect(setProfileSetupComplete).toHaveBeenCalledWith(false);
@@ -291,7 +292,11 @@ describe('email normalisation', () => {
     await firebaseAuthService.signUpWithEmailAndPassword('a@b.co ', 'pw');
 
     expect(createUserWithEmailAndPassword).toHaveBeenLastCalledWith({}, 'a@b.co', 'pw');
-    expect(setDoc).toHaveBeenLastCalledWith({ name: 'users', id: 'u1' }, expect.objectContaining({ email: 'a@b.co' }));
+    expect(setDoc).toHaveBeenLastCalledWith(
+      { name: 'users', id: 'u1' },
+      expect.objectContaining({ email: 'a@b.co' }),
+      { merge: true },
+    );
   });
 
   it('resends the verification email to a trimmed address', async () => {

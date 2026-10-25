@@ -14,6 +14,8 @@ jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { queryClient } from '../../../shared/query/queryClient';
+import { userProfileQueryKey } from '../../auth/services/userProfileQuery';
 import { WeightService } from './weightService';
 
 const freshUserData = (overrides = {}) => ({
@@ -26,6 +28,7 @@ const freshUserData = (overrides = {}) => ({
 describe('WeightService cache', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    queryClient.clear();
   });
 
   it('rejects future-dated cache entries', () => {
@@ -34,7 +37,7 @@ describe('WeightService cache', () => {
     }))).toBe(false);
   });
 
-  it('uses a fresh in-memory user entry without reading storage or Firestore', async () => {
+  it('uses the shared profile query cache without reading storage or Firestore', async () => {
     const userData = freshUserData();
     await WeightService.setCachedUserData('memory-user', userData);
     jest.clearAllMocks();
@@ -42,6 +45,7 @@ describe('WeightService cache', () => {
     await expect(WeightService.getUserWeightData('memory-user')).resolves.toBe(userData);
     expect(AsyncStorage.getItem).not.toHaveBeenCalled();
     expect(getDoc).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(userProfileQueryKey('memory-user'))).toBe(userData);
   });
 
   it('loads and caches a fresh persistent entry', async () => {
@@ -51,6 +55,7 @@ describe('WeightService cache', () => {
     await expect(WeightService.getUserWeightData('storage-user')).resolves.toEqual(userData);
     expect(AsyncStorage.getItem).toHaveBeenCalledWith('user_storage-user');
     expect(getDoc).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(userProfileQueryKey('storage-user'))).toEqual(userData);
   });
 
   it('falls back to Firestore when persistent data is stale', async () => {
@@ -68,6 +73,7 @@ describe('WeightService cache', () => {
     await expect(WeightService.getUserWeightData('stale-user')).resolves.toEqual(userData);
     expect(doc).toHaveBeenCalledWith({}, 'users', 'stale-user');
     expect(AsyncStorage.setItem).toHaveBeenCalledWith('user_stale-user', JSON.stringify(userData));
+    expect(queryClient.getQueryData(userProfileQueryKey('stale-user'))).toEqual(userData);
   });
 
   it('falls back to Firestore instead of accepting future-dated persistent data', async () => {

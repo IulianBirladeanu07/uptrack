@@ -162,7 +162,7 @@ describe('snapshotPreviousWeek', () => {
   });
 
   test('builds a snapshot from logged days, excluding today, and merges it into existing weeklyNutrition', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ weeklyNutrition: [{ weekStart: '2026-01-19', avgCalories: 2100 }] }) });
+    getDoc.mockResolvedValueOnce({ exists: () => true, data: () => ({ weeklyNutrition: [{ weekStart: '2026-01-19', avgCalories: 2100 }] }) });
 
     const mealCache = new MealCache();
     const weekStart = new Date(2026, 0, 26);
@@ -188,7 +188,7 @@ describe('snapshotPreviousWeek', () => {
   });
 
   test('reads the local Monday-Sunday week named by weekStart, not the UTC one', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({}) });
+    getDoc.mockResolvedValueOnce({ exists: () => true, data: () => ({}) });
     const mealCache = new MealCache();
     const range = jest.spyOn(mealCache, 'getDateRange');
     putDay(mealCache, new Date(2026, 0, 25), { calories: 9000 });
@@ -206,7 +206,7 @@ describe('snapshotPreviousWeek', () => {
   });
 
   test('counts full local weeks since the goal switch across daylight-saving changes', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({}) });
+    getDoc.mockResolvedValueOnce({ exists: () => true, data: () => ({}) });
     const mealCache = new MealCache();
     putDay(mealCache, '2026-03-16', { calories: 2000 });
 

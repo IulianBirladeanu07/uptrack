@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { getAuth } from 'firebase/auth';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import {
   filterSplitSchedule,
@@ -32,7 +33,7 @@ import { ProgressSteps } from '../CreateTemplateScreen/components/ProgressSteps'
 import { NavigationButtons } from '../CreateTemplateScreen/components/NavigationButtons';
 import { Header } from '../CreateTemplateScreen/components/Header';
 
-import { fetchTemplatesFromFirestore } from '../../../workout/services/workoutTemplateService';
+import { useWorkoutTemplates } from '../../../workout/hooks/useWorkoutTemplates';
 import { addSplitToFirestore, updateSplitInFirestore } from '../../../workout/services/workoutSplitService';
 import { STEPS } from './constants/CreateSplitScreenConstants';
 import { SPLIT_STEPS } from '../../utils/createWorkoutUtils';
@@ -65,7 +66,14 @@ const CreateSplitScreen = () => {
         }
   );
 
-  const [workouts, setWorkouts] = useState<any[]>([]);
+  const uid = getAuth().currentUser?.uid ?? null;
+  const templatesQuery = useWorkoutTemplates(uid);
+  const workouts = useMemo(() => (templatesQuery.data ?? []).map((template, index) => ({
+    id: template.id || `workout_${index}`,
+    templateName: template.templateName || `Workout ${index + 1}`,
+    duration: template.duration || 0,
+    exercises: Array.isArray(template.exercises) ? template.exercises : [],
+  })), [templatesQuery.data]);
   const [loading, setLoading] = useState(false);
   const [selectedDay, setSelectedDay] = useState(
     isEditing
@@ -73,36 +81,16 @@ const CreateSplitScreen = () => {
       : 'monday'
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      let isFocused = true;
-      const loadWorkouts = async () => {
-        setLoading(true);
-        try {
-          const templates = await fetchTemplatesFromFirestore();
-          const normalizedWorkouts = templates.map((template, index) => ({
-            id: template.id || `workout_${Date.now()}_${index}`,
-            templateName: template.templateName || `Workout ${index + 1}`,
-            duration: template.duration || 0,
-            exercises: Array.isArray(template.exercises) ? template.exercises : [],
-          }));
-          if (isFocused) setWorkouts(normalizedWorkouts);
-        } catch (error) {
-          console.error('Error loading workouts:', error);
-          if (isFocused) {
-            Alert.alert('Error', 'Failed to load workout templates.');
-            setWorkouts([]);
-          }
-        } finally {
-          if (isFocused) setLoading(false);
-        }
-      };
-      void loadWorkouts();
-      return () => {
-        isFocused = false;
-      };
-    }, [])
-  );
+  useFocusEffect(useCallback(() => {
+    if (templatesQuery.data !== undefined && templatesQuery.isStale) void templatesQuery.refetch();
+  }, [templatesQuery.data, templatesQuery.isStale, templatesQuery.refetch]));
+
+  useEffect(() => {
+    if (templatesQuery.error) {
+      console.error('Error loading workouts:', templatesQuery.error);
+      Alert.alert('Error', 'Failed to load workout templates.');
+    }
+  }, [templatesQuery.error]);
 
   useEffect(() => {
     if (splitData.type === 'weekly') {
@@ -273,7 +261,7 @@ const CreateSplitScreen = () => {
         handleBackPress={goToPreviousStep}
       />
       <ProgressSteps currentStep={currentStep} steps={SPLIT_STEPS as any} />
-      {loading && <ActivityIndicator size="large" color={colors.accent.primary} style={styles.loadingIndicator} />}
+      {(loading || templatesQuery.isLoading) && <ActivityIndicator size="large" color={colors.accent.primary} style={styles.loadingIndicator} />}
 
       {currentStep === 0 && (
         <BasicInfoStep
@@ -308,7 +296,7 @@ const CreateSplitScreen = () => {
         goToPreviousStep={goToPreviousStep}
         goToNextStep={goToNextStep}
         handleCreateSplit={handleSaveSplit}
-        loading={loading}
+        loading={loading || templatesQuery.isLoading}
         validateForm={validateForm}
         creationType="split"
         isEditing={isEditing}

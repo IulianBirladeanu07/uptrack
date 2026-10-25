@@ -27,31 +27,33 @@ const invalidateWorkoutSplits = async (uid: string): Promise<void> => {
   await queryClient.invalidateQueries({ queryKey: workoutSplitQueryKey(uid) });
 };
 
-export const fetchSplitsFromFirestore = async (): Promise<WorkoutSplit[]> => {
+export const loadSplitsFromFirestore = async (uid: string): Promise<WorkoutSplit[]> => {
+  const splitsQuery = query(
+    collection(db, 'workoutSplits'),
+    where('uid', '==', uid),
+    orderBy('createdAt', 'desc'),
+  );
+  const querySnapshot = await getDocs(splitsQuery);
+  if (querySnapshot.empty) return [];
+  const splits: WorkoutSplit[] = querySnapshot.docs.map(docSnap => ({
+    ...(docSnap.data() as WorkoutSplit),
+    id: docSnap.id,
+  }));
+  const templates = await fetchTemplatesFromFirestore(uid);
+  return hydrateSplitSchedules(splits, templates);
+};
+
+export const fetchSplitsFromFirestore = async (requestedUid?: string): Promise<WorkoutSplit[]> => {
   try {
-    const user = getAuth().currentUser;
-    if (!user) {
+    const uid = requestedUid ?? getAuth().currentUser?.uid;
+    if (!uid) {
       throw new Error('User not authenticated.');
     }
 
     return await queryClient.fetchQuery({
-      queryKey: workoutSplitQueryKey(user.uid),
+      queryKey: workoutSplitQueryKey(uid),
       staleTime: 5 * 60 * 1000,
-      queryFn: async () => {
-        const splitsQuery = query(
-          collection(db, 'workoutSplits'),
-          where('uid', '==', user.uid),
-          orderBy('createdAt', 'desc'),
-        );
-        const querySnapshot = await getDocs(splitsQuery);
-        if (querySnapshot.empty) return [];
-        const splits: WorkoutSplit[] = querySnapshot.docs.map(docSnap => ({
-          ...(docSnap.data() as WorkoutSplit),
-          id: docSnap.id,
-        }));
-        const templates = await fetchTemplatesFromFirestore();
-        return hydrateSplitSchedules(splits, templates);
-      },
+      queryFn: () => loadSplitsFromFirestore(uid),
     });
   } catch (error) {
     console.error('Error fetching user splits from Firestore:', (error as Error).message);

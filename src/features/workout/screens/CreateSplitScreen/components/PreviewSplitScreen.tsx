@@ -16,9 +16,8 @@ import { useAppNavigation, useAppRoute } from '../../../../../shared/navigation'
 import type { WorkoutSplit } from '../../../types';
 import type { PreviewDayWorkout } from './previewSplitData';
 import { getAuth } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { mergeUserProfile } from '../../../../auth/services/userProfileQuery';
 import { colors, spacing } from '../../../../../shared/theme';
-import { db } from '../../../../auth/services/firebaseConfigService';
 import { AuthContext } from '../../../../auth/context/AuthContext';
 import { WorkoutContext } from '../../../context/WorkoutContext';
 import { fetchSplitsFromFirestore } from '../../../services/workoutSplitService';
@@ -177,7 +176,7 @@ const PreviewSplitScreen = () => {
       const uid = getAuth().currentUser?.uid;
       if (!uid) return;
 
-      await setDoc(doc(db, 'users', uid), update, { merge: true });
+      await mergeUserProfile(uid, update);
 
       await refreshUserData();
       Alert.alert('Split Activated', `"${split?.name ?? 'Split'}" is now your active split.`);

@@ -10,15 +10,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
-import type { WorkoutSplit, WorkoutTemplate } from '../../types';
+import type { WorkoutSplit } from '../../types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import styles from './WorkoutLibraryScreenStyle';
-import { fetchSplitsFromFirestore } from '../../services/workoutSplitService';
-import { deleteTemplateFromFirestore, fetchTemplatesFromFirestore } from '../../services/workoutTemplateService';
+import { useWorkoutSplits } from '../../hooks/useWorkoutSplits';
+import { deleteTemplateFromFirestore } from '../../services/workoutTemplateService';
+import { workoutSplitQueryKey } from '../../services/workoutQueryKeys';
+import { queryClient } from '../../../../shared/query/queryClient';
+import { useWorkoutTemplates } from '../../hooks/useWorkoutTemplates';
 import { getAuth } from 'firebase/auth';
-import { doc, setDoc, deleteField } from 'firebase/firestore';
-import { db } from '../../../auth/services/firebaseConfigService';
+import { deleteField } from 'firebase/firestore';
+import { mergeUserProfile } from '../../../auth/services/userProfileQuery';
 import { colors } from '../../../../shared/theme';
 import { AuthContext } from '../../../auth/context/AuthContext';
 import { WorkoutContext } from '../../context/WorkoutContext';
@@ -32,17 +35,46 @@ import { afterSplitDelete } from '../../utils/activeSplit';
 const WorkoutLibraryScreen = () => {
     const navigation = useAppNavigation();
     const route = useAppRoute<'WorkoutLibrary'>();
-    const [splits, setSplits] = useState<WorkoutSplit[]>([]);
-    const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
     const [activeSplitId, setActiveSplitId] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const routeParams = (route.params ?? {}) as { initialSegment?: string };
     const [activeSegment, setActiveSegment] = useState<string>(routeParams.initialSegment || 'Templates');
 
     const { userData, refreshUserData } = useContext(AuthContext)!;
     const { activeWorkout } = useContext(WorkoutContext)!;
-    const hasFetchedRef = useRef(false);
+    const uid = getAuth().currentUser?.uid ?? null;
+    const splitsQuery = useWorkoutSplits(uid);
+    const templatesQuery = useWorkoutTemplates(uid);
+    const splits = useMemo<WorkoutSplit[]>(() => (splitsQuery.data ?? []).map(split => {
+        const fallback = typeof split.data === 'object' && split.data !== null
+            ? split.data as WorkoutSplit
+            : {};
+        const normalized: WorkoutSplit = {
+            ...split,
+            schedule: split.schedule || fallback.schedule || {},
+            durationWeeks: split.durationWeeks || fallback.durationWeeks || 8,
+        };
+        if (!normalized.id && fallback.id) normalized.id = fallback.id;
+        if (!normalized.name && fallback.name) normalized.name = fallback.name;
+        if (!normalized.templateName && fallback.templateName) normalized.templateName = fallback.templateName;
+        if (!normalized.description && fallback.description) normalized.description = fallback.description;
+        if (!normalized.type && fallback.type) normalized.type = fallback.type;
+        return normalized;
+    }), [splitsQuery.data]);
+    const templates = templatesQuery.data ?? [];
+    const loading = uid !== null && (splitsQuery.isLoading || templatesQuery.isLoading);
+    const queryError = splitsQuery.error ?? templatesQuery.error;
+    const alertedQueryError = useRef<unknown>(null);
+
+    useEffect(() => {
+        if (!queryError) {
+            alertedQueryError.current = null;
+            return;
+        }
+        if (alertedQueryError.current === queryError) return;
+        alertedQueryError.current = queryError;
+        Alert.alert('Error', 'Unable to fetch data.');
+    }, [queryError]);
 
     useEffect(() => {
         if (routeParams.initialSegment) {
@@ -56,52 +88,21 @@ const WorkoutLibraryScreen = () => {
         }
     }, [userData?.activeSplitId]);
 
-    const fetchData = useCallback(async () => {
-        if (!hasFetchedRef.current) setLoading(true);
-        try {
-            const [splitsData, templatesData] = await Promise.all([
-                fetchSplitsFromFirestore(),
-                fetchTemplatesFromFirestore(),
-            ]);
-
-            if (splitsData) {
-                const normalizedSplits = (splitsData as any[]).map((split: any) => ({
-                    id: split.id || split.data?.id,
-                    name: split.name || split.data?.name,
-                    templateName: split.templateName || split.data?.templateName,
-                    description: split.description || split.data?.description,
-                    type: split.type || split.data?.type,
-                    schedule: split.schedule || split.data?.schedule || {},
-                    durationWeeks: split.durationWeeks || split.data?.durationWeeks || 8,
-                })) as WorkoutSplit[];
-                setSplits(normalizedSplits);
-                setActiveSplitId(prev => prev ?? userData?.activeSplitId ?? normalizedSplits[0]?.id ?? null);
-            }
-
-            if (templatesData) {
-                setTemplates(templatesData as WorkoutTemplate[]);
-            }
-
-            hasFetchedRef.current = true;
-        } catch (error) {
-            Alert.alert('Error', 'Unable to fetch data.');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
     useFocusEffect(
         useCallback(() => {
-            fetchData();
-        }, [fetchData])
+            if (splitsQuery.data !== undefined && splitsQuery.isStale) void splitsQuery.refetch();
+            if (templatesQuery.data !== undefined && templatesQuery.isStale) void templatesQuery.refetch();
+        }, [splitsQuery.data, splitsQuery.isStale, splitsQuery.refetch, templatesQuery.data, templatesQuery.isStale, templatesQuery.refetch])
     );
 
     const refreshData = useCallback(async () => {
         setRefreshing(true);
-        hasFetchedRef.current = false;
-        await fetchData();
-        setRefreshing(false);
-    }, [fetchData]);
+        try {
+            await Promise.all([splitsQuery.refetch(), templatesQuery.refetch()]);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [splitsQuery.refetch, templatesQuery.refetch]);
 
     const handleCreate = useCallback(() => {
         if (activeSegment === 'Splits') {
@@ -114,7 +115,6 @@ const WorkoutLibraryScreen = () => {
     const handleDeleteTemplate = useCallback(async (templateId: string) => {
         try {
             await deleteTemplateFromFirestore(templateId);
-            setTemplates(prev => prev.filter(t => t.id !== templateId));
         } catch (error) {
             Alert.alert('Error', 'Failed to delete template.');
         }
@@ -123,15 +123,15 @@ const WorkoutLibraryScreen = () => {
     const handleSplitDeleted = useCallback(async (splitId: string, ownerUid: string) => {
         if (getAuth().currentUser?.uid !== ownerUid) return;
 
-        const remaining = splits.filter(s => s.id !== splitId);
-        setSplits(remaining);
+        const currentSplits = queryClient.getQueryData<WorkoutSplit[]>(workoutSplitQueryKey(ownerUid)) ?? splits;
+        const remaining = currentSplits.filter(s => s.id !== splitId);
 
         const next = afterSplitDelete(splitId, remaining, activeSplitId, userData?.activeSplitId);
         setActiveSplitId(next.localActiveId);
         if (!next.clearPersisted) return;
 
         try {
-            await setDoc(doc(db, 'users', ownerUid), { activeSplitId: deleteField() }, { merge: true });
+            await mergeUserProfile(ownerUid, { activeSplitId: deleteField() }, true);
             if (getAuth().currentUser?.uid !== ownerUid) return;
             await refreshUserData();
         } catch (error) {
@@ -157,7 +157,7 @@ const WorkoutLibraryScreen = () => {
             if (isRotationSplit(split as any)) update['rotationStartDate'] = toDateKey(new Date());
 
             const uid = getAuth().currentUser?.uid;
-            await setDoc(doc(db, 'users', uid!), update, { merge: true });
+            await mergeUserProfile(uid!, update);
 
             setActiveSplitId(split.id);
             await refreshUserData();
@@ -169,12 +169,12 @@ const WorkoutLibraryScreen = () => {
 
     const refreshControl = useMemo(() => (
         <RefreshControl
-            refreshing={refreshing}
+            refreshing={refreshing || (splitsQuery.isFetching && splitsQuery.data !== undefined) || (templatesQuery.isFetching && templatesQuery.data !== undefined)}
             onRefresh={refreshData}
             colors={[colors.accent.primary]}
             tintColor={colors.accent.primary}
         />
-    ), [refreshing, refreshData]);
+    ), [refreshing, refreshData, splitsQuery.isFetching, splitsQuery.data, templatesQuery.isFetching, templatesQuery.data]);
 
     return (
         <>

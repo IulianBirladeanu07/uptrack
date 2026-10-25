@@ -1,6 +1,6 @@
 # Claude session handoff
 
-Updated 2026-10-24. Start with this handoff, then read `AGENTS.md` before changing code.
+Updated 2026-10-25. Start with this handoff, then read `AGENTS.md` before changing code.
 
 ## Repository snapshot
 
@@ -18,6 +18,22 @@ Updated 2026-10-24. Start with this handoff, then read `AGENTS.md` before changi
 - The Food Selection calorie card is labeled “Calories today”; its remaining/over amount includes `kcal` for clarity. The calorie number, flame, and progress fill use the existing orange accent. The Scan button matches the search field's 52-point height.
 - Added `progressChartWidth.test.ts` for inset calculations and narrow/unmeasured widths, FoodListItem checks that both lists use measured layouts, and FoodSelectionHeader rendering/helper checks for the calorie card.
 - Validation: focused Jest passed (2 suites / 5 tests); `npx tsc --noEmit`, Android Expo export and `git diff --check` passed. The full Jest suite passed earlier in this batch (167 suites / 1,279 tests), before the last Food Selection refinements. No device preview was run.
+
+## Current batch: TanStack Query migration foundation
+
+- `WorkoutProvider` now owns workout-history pagination through `useInfiniteQuery` and template reads through `useQuery`, replacing its copied history/template arrays and manual pagination state. User IDs remain in query keys; page size, freshness, and load-more error behavior are preserved.
+- Added shared `useWorkoutSplits` and `useWorkoutTemplates` hooks. WorkoutProvider, Workout Library, and Create Split observe shared UID-scoped queries; templates and splits no longer have duplicate query setup across those screens.
+- Dashboard, Progress, and Workout schedule projections now derive from the shared split query rather than each running an imperative fetch and keeping duplicate state. Dashboard retains its 15-minute user-scoped AsyncStorage fallback for offline use; it shows that cached schedule while the query refreshes/fails. Workout and Dashboard retain retry/error behavior.
+- Workout History now distinguishes initial loading, an actual empty account, retryable initial failure, pagination failure, and background refetch while retaining cached rows during refresh.
+- The imperative history/split/template helpers remain for non-React consumers and share the same UID-scoped query cache. Template and split writes invalidate only their domain keys.
+- Exercise catalog reads now rely on the UID-scoped TanStack Query cache for in-memory data and request deduplication. The versioned AsyncStorage catalog remains as offline fallback, image prefetching remains intact, and custom exercise writes invalidate the signed-in user's catalog key.
+- Food search result/loading/error state now comes from `useQuery` using the same normalized product key as the imperative service. Its 300 ms debounce, suggestion service, and clear-on-edit behavior remain. Barcode reads already use a dedicated cached query key.
+- Authenticated profile reads now use the UID-scoped `user-profile` query key. `AuthContext.userData` is a compatibility projection of that query cache rather than a duplicate React state copy; the existing AsyncStorage offline fallback seeds the query cache, and profile queries are cleared on identity changes/sign-out. Retries are disabled for the initial auth read so the existing immediate offline fallback behavior is preserved.
+- Profile form saves and onboarding plan writes now share a `useMutation` hook that invalidates only the matching user's profile query after a successful Firestore write; the existing refresh then reloads fresh profile data.
+- Other profile writes and reads in auth, weight tracking, weekly evaluations, step sync, phase changes, and active-split selection now use the shared profile query boundary. Plain patches update cached profile data; Firestore transforms invalidate/refetch the scoped profile key.
+- Meal day and date-range reads now use UID-scoped `meal-history` query keys, with request deduplication and targeted invalidation after persisted writes. Closed nutrition history also uses a query function. `MealCache` and the durable pending-write outbox remain responsible for offline-first meal state and are not replaced.
+- Added coverage for cursor pagination, split uid filtering, offline Dashboard fallback, derived workout schedules, per-user query isolation, catalog query deduplication and persistent fallback, query-owned food search states, profile cache ownership, identity clearing, offline profile seeding, targeted profile invalidation, meal query caching/deduplication, and user-scoped meal invalidation.
+- Validation: full Jest 169 suites / 1,277 tests passed; `npx tsc --noEmit`, Android Expo export (9.39 MB JS bundle), and `git diff --check` passed. Jest emits existing React `act(...)` warnings and shared query clients keep timers open. No device preview was run.
 
 ## How to continue
 
@@ -363,6 +379,7 @@ This is a ranked starting point based on the current source inventory, not a man
 4. **Progress follow-ups:** screen model, maintenance-phase switch, focused planned-workout loading, and chart sizing are isolated and tested. Remaining screen content is presentation and model wiring; avoid splitting presentational fragments without a cohesive state or behavior boundary.
 5. **Workout follow-ups:** `WorkoutService` template-to-session mapping and in-memory exercise updates, workout completion payload projection, template-name policy, exercise image prefetch, split schedule hydration/sanitization, `CreateSplitScreen` preview statistics and editing transitions, `ExerciseSelectionScreen` catalog modeling/loading, `CreateTemplateScreen` selection and list updates, `ExerciseItem` swipe intent, `WorkoutHistoryScreen` grouping/payload/date labels/card projection, `CreateSplitScreen` review summaries, WorkoutDetails card stats, WorkoutScreen preview summaries/scheduled-day mapping and deterministic WorkoutTemplateLibrary keys are covered by tests. Any further extraction should begin with inspection and characterization; do not refactor solely for file size.
 6. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
+7. **TanStack Query adoption:** the app's active remote read paths now use shared, domain-scoped queries for workout history/templates/splits, exercise catalog, food and barcode lookup, profile and weight data, meal day/range history, and closed nutrition history. Profile writes update or invalidate the user's profile key; workout and meal writes target their own query roots. Remaining raw Firestore reads are query functions or account-deletion cleanup. `MealCache` and its durable outbox remain the offline-first meal layer. Avoid adding query wrappers around local computations or destructive cleanup reads.
 
 ## Separate app-flow audit: status and source of truth
 

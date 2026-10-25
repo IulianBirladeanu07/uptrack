@@ -3,10 +3,17 @@ import { db } from '../../auth/services/firebaseConfigService';
 import { formatDate } from '../utils/dateUtils';
 import { mealDayConverter } from '../../../shared/firestore/converters';
 import type { DateInput, LoggedFood, MealDayDoc, MealGroup, MealType, MealsByType } from '../../../shared/types';
+import { queryClient } from '../../../shared/query/queryClient';
 
 type AddUndoSpec = { id: string; previous: LoggedFood | null };
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
+export const mealHistoryQueryKey = {
+    root: (uid: string) => ['meal-history', uid] as const,
+    day: (uid: string, date: string) => ['meal-history', uid, 'day', date] as const,
+    range: (uid: string, start: string, end: string, direction: 'asc' | 'desc') =>
+        ['meal-history', uid, 'range', start, end, direction] as const,
+};
 
 const num = (v: unknown): number => Number(v) || 0;
 
@@ -71,10 +78,14 @@ export const writeMealType = async (uid: string, mealType: MealType, foods: Logg
     const data: MealDayDoc = { uid, date, timestamp: Timestamp.now() };
     data[mealType] = foods;
     await setDoc(dayDocRef(uid, date), data, { merge: true });
+    await queryClient.invalidateQueries({
+        queryKey: mealHistoryQueryKey.root(uid),
+        refetchType: 'none',
+    });
     return foods;
 };
 
-export const fetchRawMealsForDate = async (uid: string, date: string): Promise<MealsByType> => {
+const loadRawMealsForDate = async (uid: string, date: string): Promise<MealsByType> => {
     const snap = await getDoc(dayDocRef(uid, date));
     const data: Partial<MealsByType> = snap.exists() ? (snap.data() ?? {}) : {};
     return {
@@ -85,7 +96,15 @@ export const fetchRawMealsForDate = async (uid: string, date: string): Promise<M
     };
 };
 
-export const fetchMealsForDateRange = async (
+export const fetchRawMealsForDate = (uid: string, date: string): Promise<MealsByType> =>
+    queryClient.fetchQuery({
+        queryKey: mealHistoryQueryKey.day(uid, date),
+        queryFn: () => loadRawMealsForDate(uid, date),
+        staleTime: 0,
+        retry: false,
+    });
+
+const loadMealsForDateRange = async (
     uid: string,
     startDate: DateInput,
     endDate: DateInput,
@@ -106,6 +125,22 @@ export const fetchMealsForDateRange = async (
             const foods = normalizeLoggedFoods(data[mealType]);
             return foods.length > 0 ? [{ date: data.date, mealType, foods }] : [];
         });
+    });
+};
+
+export const fetchMealsForDateRange = (
+    uid: string,
+    startDate: DateInput,
+    endDate: DateInput,
+    direction: 'asc' | 'desc' = 'asc',
+): Promise<MealGroup[]> => {
+    const start = formatDate(startDate);
+    const end = formatDate(endDate);
+    return queryClient.fetchQuery({
+        queryKey: mealHistoryQueryKey.range(uid, start, end, direction),
+        queryFn: () => loadMealsForDateRange(uid, startDate, endDate, direction),
+        staleTime: 0,
+        retry: false,
     });
 };
 

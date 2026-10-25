@@ -10,12 +10,13 @@ jest.mock('firebase/firestore', () => ({
 }));
 jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 
-import { getDocs, startAfter } from 'firebase/firestore';
+import { getDocs, limit, orderBy, startAfter, where } from 'firebase/firestore';
 import { queryClient } from '../../../shared/query/queryClient';
 import {
   fetchUserWorkoutHistory,
   fetchUserWorkoutHistoryInRange,
   fetchUserWorkoutHistoryPage,
+  fetchWorkoutHistoryPage,
 } from './workoutHistoryQuery';
 
 describe('workout history page cache', () => {
@@ -49,6 +50,23 @@ describe('workout history page cache', () => {
 
     expect(getDocs).toHaveBeenCalledTimes(2);
     expect(startAfter).toHaveBeenCalledWith(firstPageDocs[1]);
+  });
+
+  it('fetches an infinite-query page directly from its cursor and user', async () => {
+    const cursor = { id: 'workout-1', data: () => ({}) };
+    const next = { id: 'workout-2', data: () => ({}) };
+    (getDocs as jest.Mock).mockResolvedValueOnce({ docs: [next] });
+
+    await expect(fetchWorkoutHistoryPage('user-2', 100, cursor as never)).resolves.toEqual({
+      records: [{ id: 'workout-2', data: {} }],
+      hasMore: false,
+      lastDocument: next,
+    });
+
+    expect(startAfter).toHaveBeenCalledWith(cursor);
+    expect(where).toHaveBeenCalledWith('uid', '==', 'user-2');
+    expect(orderBy).toHaveBeenCalledWith('timestamp', 'desc');
+    expect(limit).toHaveBeenCalledWith(100);
   });
 
   it('reuses the shared first page for smaller recent-history requests', async () => {

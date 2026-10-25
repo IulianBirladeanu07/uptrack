@@ -1,9 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { getAuth } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WorkoutSplit } from '../../../workout/types';
-import { fetchSplitsFromFirestore } from '../../../workout/services/workoutSplitService';
+import { useWorkoutSplits } from '../../../workout/hooks/useWorkoutSplits';
 import { SPLITS_CACHE_KEY } from '../../../workout/services/splitCache';
 import { getScheduledDay } from '../../../workout/utils/splitSchedule';
 import type { SplitLike } from '../../../workout/utils/splitSchedule';
@@ -38,74 +37,69 @@ export const resolveWorkoutFromSplits = (
 export const useDashboardScheduledWorkout = (
     activeSplitId: string | null | undefined,
     rotationStartDate: unknown,
+    uid: string | null | undefined,
 ) => {
     const localDayKey = useLocalDayKey();
-    const [workout, setWorkout] = useState<ScheduledWorkout | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [loadError, setLoadError] = useState(false);
+    const [focused, setFocused] = useState(false);
+    const [cachedSplits, setCachedSplits] = useState<{ uid: string; splits: WorkoutSplit[] } | null>(null);
+    const [cacheLoaded, setCacheLoaded] = useState(false);
+    const splitsQuery = useWorkoutSplits(uid, focused);
 
     useFocusEffect(
         useCallback(() => {
-            let cancelled = false;
-            setLoading(true);
-            setLoadError(false);
-
-            const loadWorkout = async () => {
-                const uid = getAuth().currentUser?.uid;
-                if (!uid) {
-                    setWorkout(null);
-                    setLoadError(true);
-                    setLoading(false);
-                    return;
-                }
-
-                try {
-                    const cached = await AsyncStorage.getItem(SPLITS_CACHE_KEY);
-                    if (cached) {
-                        const { uid: cachedUid, splits, ts } = JSON.parse(cached) as {
-                            uid?: string;
-                            splits: WorkoutSplit[];
-                            ts: number;
-                        };
-                        if (cachedUid === uid && Date.now() - ts < SPLITS_CACHE_TTL) {
-                            if (!cancelled) {
-                                setWorkout(resolveWorkoutFromSplits(splits, activeSplitId, rotationStartDate));
-                                setLoading(false);
-                                return;
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error('Dashboard split cache load failed:', error);
-                }
-
-                try {
-                    const splits = await fetchSplitsFromFirestore();
-                    if (!cancelled) {
-                        setWorkout(resolveWorkoutFromSplits(splits, activeSplitId, rotationStartDate));
-                        setLoadError(false);
-                        AsyncStorage.setItem(SPLITS_CACHE_KEY, JSON.stringify({
-                            uid,
-                            splits,
-                            ts: Date.now(),
-                        }))
-                            .catch(error => console.error('Dashboard split cache save failed:', error));
-                    }
-                } catch (error) {
-                    console.error('Dashboard split load failed:', error);
-                    if (!cancelled) {
-                        setWorkout(null);
-                        setLoadError(true);
-                    }
-                } finally {
-                    if (!cancelled) setLoading(false);
-                }
-            };
-
-            loadWorkout();
-            return () => { cancelled = true; };
-        }, [activeSplitId, rotationStartDate, localDayKey]),
+            setFocused(true);
+            return () => setFocused(false);
+        }, []),
     );
 
-    return { workout, loading, loadError };
+    useEffect(() => {
+        let cancelled = false;
+        setCacheLoaded(false);
+        if (!uid) {
+            setCachedSplits(null);
+            setCacheLoaded(true);
+            return;
+        }
+        AsyncStorage.getItem(SPLITS_CACHE_KEY)
+            .then(raw => {
+                if (!raw) return;
+                const cached = JSON.parse(raw) as { uid?: string; splits?: WorkoutSplit[]; ts?: number };
+                if (cached.uid === uid && Array.isArray(cached.splits) && typeof cached.ts === 'number'
+                    && Date.now() - cached.ts < SPLITS_CACHE_TTL && !cancelled) {
+                    setCachedSplits({ uid, splits: cached.splits });
+                }
+            })
+            .catch(error => console.error('Dashboard split cache load failed:', error))
+            .finally(() => {
+                if (!cancelled) setCacheLoaded(true);
+            });
+        return () => { cancelled = true; };
+    }, [uid]);
+
+    useEffect(() => {
+        if (!uid || !splitsQuery.data) return;
+        setCachedSplits({ uid, splits: splitsQuery.data });
+        AsyncStorage.setItem(SPLITS_CACHE_KEY, JSON.stringify({
+            uid,
+            splits: splitsQuery.data,
+            ts: Date.now(),
+        })).catch(error => console.error('Dashboard split cache save failed:', error));
+    }, [splitsQuery.data, uid]);
+
+    const splits = splitsQuery.data ?? (cachedSplits && cachedSplits.uid === uid ? cachedSplits.splits : undefined);
+    const workout = useMemo(
+        () => splits ? resolveWorkoutFromSplits(splits, activeSplitId, rotationStartDate) : null,
+        [activeSplitId, localDayKey, rotationStartDate, splits],
+    );
+    const loadWorkout = useCallback(async () => {
+        if (splitsQuery.data === undefined || splitsQuery.isStale) await splitsQuery.refetch();
+    }, [splitsQuery.data, splitsQuery.isStale, splitsQuery.refetch]);
+    const loading = Boolean(uid) && splits === undefined && (!cacheLoaded || splitsQuery.isLoading);
+    const loadError = Boolean(uid) && splitsQuery.isError && splits === undefined;
+
+    useEffect(() => {
+        if (loadError) console.error('Dashboard split load failed:', splitsQuery.error);
+    }, [loadError, splitsQuery.error]);
+
+    return { workout, loading, loadError, refreshing: splitsQuery.isRefetching, loadWorkout };
 };

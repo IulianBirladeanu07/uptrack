@@ -31,6 +31,32 @@ export type WorkoutHistoryPage = {
   lastDocument: QueryDocumentSnapshot<DocumentData> | null;
 };
 
+export const fetchWorkoutHistoryPage = async (
+  uid: string,
+  pageSize: number,
+  after: QueryDocumentSnapshot<DocumentData> | null,
+): Promise<WorkoutHistoryPage> => {
+  const constraints: QueryConstraint[] = [
+    where('uid', '==', uid),
+    orderBy('timestamp', 'desc'),
+  ];
+  if (after) constraints.push(startAfter(after));
+  const querySnapshot = await getDocs(query(
+    collection(db, 'workoutHistory'),
+    ...constraints,
+    limit(pageSize),
+  ));
+  const lastDocument = querySnapshot.docs.at(-1) ?? null;
+  return {
+    records: querySnapshot.docs.map(workout => ({
+      id: workout.id,
+      data: workout.data(),
+    })),
+    hasMore: querySnapshot.docs.length === pageSize,
+    lastDocument,
+  };
+};
+
 export const fetchUserWorkoutHistoryPage = async (
   uid: string,
   pageSize: number,
@@ -47,25 +73,7 @@ export const fetchUserWorkoutHistoryPage = async (
       return { records: [], hasMore: false, lastDocument: null };
     }
 
-    const constraints: QueryConstraint[] = [
-      where('uid', '==', uid),
-      orderBy('timestamp', 'desc'),
-    ];
-    if (previousPage?.lastDocument) constraints.push(startAfter(previousPage.lastDocument));
-    const querySnapshot = await getDocs(query(
-      collection(db, 'workoutHistory'),
-      ...constraints,
-      limit(pageSize),
-    ));
-    const lastDocument = querySnapshot.docs.at(-1) ?? null;
-    return {
-      records: querySnapshot.docs.map(workout => ({
-        id: workout.id,
-        data: workout.data(),
-      })),
-      hasMore: querySnapshot.docs.length === pageSize,
-      lastDocument,
-    };
+    return fetchWorkoutHistoryPage(uid, pageSize, previousPage?.lastDocument ?? null);
   },
 });
 

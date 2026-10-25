@@ -36,21 +36,25 @@ export const loadNutritionHistory = async (
 
   const closedEnd = addDays(recentFrom, -1);
   const closedEndKey = formatDate(closedEnd);
-  const queryKey = [QUERY_ROOT, uid, startKey];
-  const cached = queryClient.getQueryData<ClosedHistory>(queryKey);
+  const queryKey = [QUERY_ROOT, uid, 'closed-through', startKey] as const;
+  const closedHistory = await queryClient.fetchQuery({
+    queryKey,
+    queryFn: async (): Promise<ClosedHistory> => {
+      const cached = queryClient.getQueryData<ClosedHistory>(queryKey);
+      if (cached && cached.through === closedEndKey) return cached;
+      const resume = cached && cached.through < closedEndKey;
+      const from = resume ? addDays(toLocalDate(cached.through), 1) : start;
+      const fetched = await fetchNutritionForDateRange(uid, from, closedEnd);
+      return {
+        through: closedEndKey,
+        days: resume ? [...cached.days, ...fetched] : fetched,
+      };
+    },
+    staleTime: 0,
+    retry: false,
+  });
 
-  let closedDays: NutritionHistoryDay[];
-  if (cached && cached.through === closedEndKey) {
-    closedDays = cached.days;
-  } else {
-    const resume = cached && cached.through < closedEndKey;
-    const from = resume ? addDays(toLocalDate(cached.through), 1) : start;
-    const fetched = await fetchNutritionForDateRange(uid, from, closedEnd);
-    closedDays = resume ? [...cached.days, ...fetched] : fetched;
-    queryClient.setQueryData<ClosedHistory>(queryKey, { through: closedEndKey, days: closedDays });
-  }
-
-  return [...closedDays, ...readRecentDays(recentFrom, end)];
+  return [...closedHistory.days, ...readRecentDays(recentFrom, end)];
 };
 
 export const invalidateNutritionHistoryForDay = (uid: string, dateKey: string, now: Date = new Date()): void => {

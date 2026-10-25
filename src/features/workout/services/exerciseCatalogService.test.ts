@@ -81,7 +81,8 @@ describe('exercise catalog service', () => {
   });
 
   it('fetches, normalizes, merges, and sorts catalog and custom exercises', async () => {
-    await expect(fetchExercises(true)).resolves.toEqual([
+    const result = await fetchExercises(true);
+    await expect(Promise.resolve(result)).resolves.toEqual([
       {
         muscleGroup: 'Back',
         exercises: [{
@@ -125,13 +126,15 @@ describe('exercise catalog service', () => {
     ]);
     expect(getCacheStatus()).toEqual(expect.objectContaining({
       hasMemoryCache: true,
-      exerciseCount: 3,
+      exerciseCount: 4,
       isLoading: false,
     }));
     expect(AsyncStorage.setItem).toHaveBeenCalledWith(
       'exercises_cache_v3',
       expect.stringContaining('"version":3'),
     );
+    await expect(fetchExercises()).resolves.toEqual(result);
+    expect(getDocs).toHaveBeenCalledTimes(2);
   });
 
   it('rejects unauthenticated catalog reads', async () => {

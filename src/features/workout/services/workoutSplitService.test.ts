@@ -17,8 +17,8 @@ jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 jest.mock('./splitCache', () => ({ clearSplitsCache: jest.fn() }));
 jest.mock('./workoutTemplateService', () => ({ fetchTemplatesFromFirestore: jest.fn() }));
 
-import { getDocs, updateDoc } from 'firebase/firestore';
-import { fetchSplitsFromFirestore, updateSplitInFirestore } from './workoutSplitService';
+import { getDocs, orderBy, updateDoc, where } from 'firebase/firestore';
+import { fetchSplitsFromFirestore, loadSplitsFromFirestore, updateSplitInFirestore } from './workoutSplitService';
 import { queryClient } from '../../../shared/query/queryClient';
 import { fetchTemplatesFromFirestore } from './workoutTemplateService';
 
@@ -78,5 +78,19 @@ describe('updateSplitInFirestore', () => {
         expect(first).toEqual(second);
         expect(first).toHaveLength(1);
         expect(getDocs).toHaveBeenCalledTimes(1);
+    });
+
+    it('loads splits for the uid owned by the query', async () => {
+        (getDocs as jest.Mock).mockResolvedValue({
+            empty: false,
+            docs: [{ id: 'split-2', data: () => ({ name: 'B', schedule: {} }) }],
+        });
+        jest.mocked(fetchTemplatesFromFirestore).mockResolvedValue([]);
+
+        await expect(loadSplitsFromFirestore('user-2')).resolves.toHaveLength(1);
+
+        expect(where).toHaveBeenCalledWith('uid', '==', 'user-2');
+        expect(orderBy).toHaveBeenCalledWith('createdAt', 'desc');
+        expect(fetchTemplatesFromFirestore).toHaveBeenCalledWith('user-2');
     });
 });

@@ -1,76 +1,60 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchSplitsFromFirestore } from '../../services/workoutSplitService';
+import { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import type { SplitLike } from '../../utils/splitSchedule';
-import { selectActiveWorkoutSplit } from './activeWorkoutSplit';
 import type { UpcomingWorkout } from './ComingUpCard';
 import type { WorkoutDisplayData } from './MainWorkoutCard';
 import { buildWorkoutScheduleDisplay } from './workoutScheduleDisplay';
+import { selectActiveWorkoutSplit } from './activeWorkoutSplit';
+import { useWorkoutSplits } from '../../hooks/useWorkoutSplits';
+import { useLocalDayKey } from '../../../../shared/hooks/useLocalDayKey';
 
 type WorkoutScreenScheduleState = {
     activeSplit: SplitLike;
     todayWorkout: WorkoutDisplayData | null;
     upcomingWorkouts: UpcomingWorkout[];
     loading: boolean;
+    loadError: boolean;
     loadActiveSplit: () => Promise<void>;
 };
 
 export const useWorkoutScreenSchedule = (
     activeSplitId?: string | null,
     rotationStartDate?: unknown,
+    uid?: string | null,
 ): WorkoutScreenScheduleState => {
-    const [activeSplit, setActiveSplit] = useState<SplitLike>(null);
-    const [todayWorkout, setTodayWorkout] = useState<WorkoutDisplayData | null>(null);
-    const [upcomingWorkouts, setUpcomingWorkouts] = useState<UpcomingWorkout[]>([]);
-    const [loading, setLoading] = useState(true);
-    const hasLoadedOnceRef = useRef(false);
-    const requestGenerationRef = useRef(0);
+    const [focused, setFocused] = useState(false);
+    const localDayKey = useLocalDayKey();
+    const splitsQuery = useWorkoutSplits(uid, focused);
 
+    useFocusEffect(
+        useCallback(() => {
+            setFocused(true);
+            return () => setFocused(false);
+        }, []),
+    );
+
+    const activeSplit = useMemo(
+        () => selectActiveWorkoutSplit(splitsQuery.data ?? [], activeSplitId),
+        [activeSplitId, splitsQuery.data],
+    );
+    const schedule = useMemo(
+        () => activeSplit
+            ? buildWorkoutScheduleDisplay(activeSplit, new Date(), rotationStartDate)
+            : null,
+        [activeSplit, localDayKey, rotationStartDate],
+    );
     const loadActiveSplit = useCallback(async () => {
-        const requestGeneration = ++requestGenerationRef.current;
-        try {
-            if (!hasLoadedOnceRef.current) {
-                setLoading(true);
-            }
-            const splits = await fetchSplitsFromFirestore();
-            if (requestGeneration !== requestGenerationRef.current) return;
-            if (!splits.length) {
-                setActiveSplit(null);
-                setTodayWorkout(null);
-                setUpcomingWorkouts([]);
-                return;
-            }
-
-            const selectedSplit = selectActiveWorkoutSplit(splits, activeSplitId);
-            if (!selectedSplit) {
-                setActiveSplit(null);
-                setTodayWorkout(null);
-                setUpcomingWorkouts([]);
-                return;
-            }
-            setActiveSplit(selectedSplit);
-
-            const scheduleDisplay = buildWorkoutScheduleDisplay(
-                selectedSplit,
-                new Date(),
-                rotationStartDate,
-            );
-            setTodayWorkout(scheduleDisplay.todayWorkout);
-            setUpcomingWorkouts(scheduleDisplay.upcomingWorkouts);
-        } catch (error) {
-            if (requestGeneration === requestGenerationRef.current) {
-                console.error('Error loading split:', error);
-            }
-        } finally {
-            if (requestGeneration === requestGenerationRef.current) {
-                hasLoadedOnceRef.current = true;
-                setLoading(false);
-            }
+        if (splitsQuery.data === undefined || splitsQuery.isStale) {
+            await splitsQuery.refetch();
         }
-    }, [activeSplitId, rotationStartDate]);
+    }, [splitsQuery.data, splitsQuery.isStale, splitsQuery.refetch]);
 
-    useEffect(() => () => {
-        requestGenerationRef.current++;
-    }, []);
-
-    return { activeSplit, todayWorkout, upcomingWorkouts, loading, loadActiveSplit };
+    return {
+        activeSplit,
+        todayWorkout: schedule?.todayWorkout ?? null,
+        upcomingWorkouts: schedule?.upcomingWorkouts ?? [],
+        loading: splitsQuery.isLoading,
+        loadError: splitsQuery.isError && splitsQuery.data === undefined,
+        loadActiveSplit,
+    };
 };

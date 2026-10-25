@@ -20,6 +20,7 @@ const USER_SCOPED_QUERY_ROOTS = new Set([
   'workout-history',
   'workout-splits',
   'workout-templates',
+  'user-profile',
 ]);
 
 export const clearUserScopedQueries = (): void => {

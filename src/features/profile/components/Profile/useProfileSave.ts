@@ -3,10 +3,9 @@ import type { Dispatch, SetStateAction } from 'react';
 import { Alert } from 'react-native';
 import type { Auth } from 'firebase/auth';
 import { verifyBeforeUpdateEmail } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import type { UserData } from '../../../../shared/types';
-import { db } from '../../../auth/services/firebaseConfigService';
+import { useSaveUserProfile } from '../../../auth/services/useSaveUserProfile';
 import { buildPlanUpdate } from '../../utils/planUpdate';
 import type { ProfileFormSeed, ProfileIdentitySeed } from '../../utils/profileSeed';
 
@@ -46,6 +45,7 @@ export const useProfileSave = ({
     setPendingUri,
 }: ProfileSaveParams) => {
     const [saving, setSaving] = useState(false);
+    const saveUserProfile = useSaveUserProfile();
 
     const persist = useCallback(async () => {
         const user = auth.currentUser;
@@ -84,7 +84,7 @@ export const useProfileSave = ({
                 payload['profilePicture'] = `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`;
             }
 
-            await setDoc(doc(db, 'users', user.uid), payload, { merge: true });
+            await saveUserProfile.mutateAsync({ uid: user.uid, data: payload });
             const refreshedUserData = await refreshUserData();
 
             setOriginal({ ...form });
@@ -127,6 +127,7 @@ export const useProfileSave = ({
         planChanged,
         refreshUserData,
         savedIdentity,
+        saveUserProfile,
         setIdentity,
         setOriginal,
         setPendingUri,
