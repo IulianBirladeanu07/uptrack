@@ -1,6 +1,6 @@
 # Claude session handoff
 
-Updated 2026-10-25. Start with this handoff, then read `AGENTS.md` before changing code.
+Updated 2026-11-01. Start with this handoff, then read `AGENTS.md` before changing code.
 
 ## Repository snapshot
 
@@ -56,6 +56,13 @@ Do not combine the ongoing refactor with the separate app-flow/security audit. I
 ## Work completed in the recent modularity/refactoring sequence
 
 The work below records completed batches. Use `git status --short` and `git log --oneline` to distinguish the current uncommitted changes from committed work; do not redo a batch without a concrete reason.
+
+### Nutrition search and custom-food entry UX
+
+- Food Search recent searches now use a compact divider list and neutral actions; suggested foods are common staples. Exercise Selection filters use the same flat orange selected state and omit visual counts while retaining accessible count labels.
+- Custom Food opens on name, calories, and serving size. Nutrition details are optional and collapsed; macros and additional nutrients expand progressively. Empty nutrient fields no longer look prefilled with zeroes, serving context is shown only when details are open, and nutrient validation errors appear beside the fields.
+- The serving-size input now reports focus so it remains available while its keyboard is open.
+- Validation: CustomFoodScreen, useCustomFood, and customFoodValidators passed (3 suites / 29 tests); `npx tsc --noEmit`, Android Expo export, and `git diff --check` passed. Jest emitted existing icon-font `act(...)` warnings. No device preview was run.
 
 ### Nutrition meal calorie display
 
@@ -380,6 +387,7 @@ This is a ranked starting point based on the current source inventory, not a man
 5. **Workout follow-ups:** `WorkoutService` template-to-session mapping and in-memory exercise updates, workout completion payload projection, template-name policy, exercise image prefetch, split schedule hydration/sanitization, `CreateSplitScreen` preview statistics and editing transitions, `ExerciseSelectionScreen` catalog modeling/loading, `CreateTemplateScreen` selection and list updates, `ExerciseItem` swipe intent, `WorkoutHistoryScreen` grouping/payload/date labels/card projection, `CreateSplitScreen` review summaries, WorkoutDetails card stats, WorkoutScreen preview summaries/scheduled-day mapping and deterministic WorkoutTemplateLibrary keys are covered by tests. Any further extraction should begin with inspection and characterization; do not refactor solely for file size.
 6. **Maintenance pass:** reconcile directly related docs and test discovery after each batch. Do not start a broad rewrite, add a new lint framework, or reformat unrelated code.
 7. **TanStack Query adoption:** the app's active remote read paths now use shared, domain-scoped queries for workout history/templates/splits, exercise catalog, food and barcode lookup, profile and weight data, meal day/range history, and closed nutrition history. Profile writes update or invalidate the user's profile key; workout and meal writes target their own query roots. Remaining raw Firestore reads are query functions or account-deletion cleanup. `MealCache` and its durable outbox remain the offline-first meal layer. Avoid adding query wrappers around local computations or destructive cleanup reads.
+8. **Custom Food screen:** review the progressively disclosed form, serving-size keyboard behavior, and nutrient grid on-device at normal and large text sizes before making further layout changes.
 
 ## Separate app-flow audit: status and source of truth
 

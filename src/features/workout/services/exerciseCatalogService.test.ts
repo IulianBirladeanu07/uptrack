@@ -27,6 +27,7 @@ import {
   createCustomExercise,
   fetchExercises,
   getCacheStatus,
+  loadExercisesForQuery,
 } from './exerciseCatalogService';
 
 const catalogSnapshot = {
@@ -142,6 +143,17 @@ describe('exercise catalog service', () => {
 
     await expect(fetchExercises()).rejects.toThrow('User not authenticated.');
     expect(getDocs).not.toHaveBeenCalled();
+  });
+
+  it('surfaces custom-exercise query failures instead of returning an incomplete catalog', async () => {
+    (getDocs as jest.Mock).mockImplementation(async reference => {
+      if (reference === 'exercises') return catalogSnapshot;
+      if (reference === 'query:customExercises') throw new Error('custom exercises unavailable');
+      return { empty: true, docs: [] };
+    });
+
+    await expect(loadExercisesForQuery('user-1', true))
+      .rejects.toThrow('custom exercises unavailable');
   });
 
   it('does not write a duplicate custom exercise', async () => {

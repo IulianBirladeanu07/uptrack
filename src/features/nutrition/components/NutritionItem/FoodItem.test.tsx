@@ -1,4 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
+import { colors } from '../../../../shared/theme';
 import FoodItem from './FoodItem';
 
 const mockConfirmDelete = jest.fn();
@@ -24,7 +26,13 @@ jest.mock('../../../../shared/hooks/usePressAnimation', () => ({
 
 jest.mock('expo-image', () => ({ Image: () => null }));
 
-jest.mock('@expo/vector-icons/Ionicons', () => ({ __esModule: true, default: () => null }));
+jest.mock('@expo/vector-icons/Ionicons', () => ({
+    __esModule: true,
+    default: ({ color }: { color: string }) => {
+        const { View: MockView } = jest.requireActual('react-native');
+        return <MockView testID="selection-icon" accessibilityLabel={color} />;
+    },
+}));
 jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => ({ __esModule: true, default: () => null }));
 
 const item = { id: 'f1', productName: 'Greek yogurt', calories: 120, protein: 10, carbohydrates: 6, fats: 4, quantity: 150, unit: 'g' };
@@ -76,6 +84,19 @@ describe('FoodItem accessibility', () => {
         fireEvent.press(box);
 
         expect(screen.getByRole('checkbox', { name: 'Remove food from selection' }).props.accessibilityState).toEqual({ checked: true });
+    });
+
+    it('de-emphasizes item checks when the whole meal is selected', () => {
+        render(<FoodItem item={item} showPlusButton isSelected isSelectionEmphasized={false} />);
+
+        const checkbox = screen.getByRole('checkbox', { name: 'Remove food from selection' });
+        const buttonStyle = StyleSheet.flatten(screen.getByTestId('food-selection-toggle').props.style);
+
+        expect(checkbox.props.accessibilityState).toEqual({ checked: true });
+        expect(buttonStyle.backgroundColor).toBe(colors.background.secondary);
+        expect(buttonStyle.borderColor).toBe(colors.border.default);
+        expect(buttonStyle.shadowOpacity).toBe(0);
+        expect(screen.getByTestId('selection-icon').props.accessibilityLabel).toBe(colors.accent.success);
     });
 });
 

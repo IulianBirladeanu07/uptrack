@@ -12,8 +12,8 @@ export default StyleSheet.create({
     paddingBottom: spacing[3],
   },
   headerContainerSearching: {
-    paddingBottom: spacing[4],
-    paddingTop: spacing[2],
+    paddingBottom: spacing[1],
+    paddingTop: 0,
   },
   searchBox: {
     backgroundColor: colors.background.secondary,

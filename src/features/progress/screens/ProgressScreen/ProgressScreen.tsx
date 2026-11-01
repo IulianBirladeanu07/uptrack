@@ -25,11 +25,13 @@ import {
     fmt1,
     sg,
     kfmt,
+    isToGoalReached,
 } from '../../utils/progressEngine';
 import type { EnergyModel, MonthRow as MonthData, NutritionDay, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
 import { useProgressScreenModel } from './useProgressScreenModel';
 import { useMaintenanceSwitch } from './useMaintenanceSwitch';
 import { usePlannedWorkouts } from './usePlannedWorkouts';
+import RangeSegmentedControl from './RangeSegmentedControl';
 import { getProgressChartWidth } from './progressChartWidth';
 import styles from './ProgressScreenStyles';
 
@@ -85,14 +87,18 @@ const Hero = ({ value, unit, children }: { value: string; unit?: string | undefi
     </View>
 );
 
-type StatItem = { value: string; unit?: string | undefined; label: string; detail?: string; color?: string | undefined; dot?: string; dash?: boolean };
+type StatItem = { value: string; unit?: string | undefined; label: string; detail?: string; color?: string | undefined; dot?: string; dash?: boolean; accessibilityLabel?: string };
 
 const Stats = ({ items }: { items: StatItem[] }) => (
     <View style={styles.stats}>
         {items.map((it, i) => (
             <React.Fragment key={it.label}>
                 {i > 0 && <View style={styles.statDivider} />}
-                <View style={styles.stat}>
+                <View
+                    style={styles.stat}
+                    accessible={Boolean(it.accessibilityLabel)}
+                    accessibilityLabel={it.accessibilityLabel}
+                >
                     <View style={styles.statValueRow}>
                         <Text style={[styles.statValue, it.color && { color: it.color }]}>{it.value}</Text>
                         {it.unit ? <Text style={styles.statUnit}>{it.unit}</Text> : null}
@@ -220,8 +226,9 @@ const PaceCard = ({ m, info, n, chartWidth }: { m: PaceModel | null; info: Phase
         : m.eta
             ? `${shortDate(m.eta)}${m.eta.getFullYear() !== new Date().getFullYear() ? ` ${m.eta.getFullYear()}` : ''}`
             : '--';
+    const goalReached = m.reached && isToGoalReached(info.remaining);
     const goalStat = m.reached
-        ? { value: fmt1(info.remaining ?? 0), unit: 'kg', label: 'To goal' }
+        ? { value: goalReached ? 'Reached' : fmt1(info.remaining ?? 0), unit: goalReached ? undefined : 'kg', label: 'To goal', color: goalReached ? colors.accent.success : undefined }
         : { value: eta, label: 'Goal ETA' };
     const trendShown = m.slots.length >= 12 && m.slots.filter(slot => slot.avg != null).length > 1;
     const latestIsPartial = [...m.slots].reverse().find(slot => slot.v != null)?.cur ?? false;
@@ -256,7 +263,15 @@ const PaceCard = ({ m, info, n, chartWidth }: { m: PaceModel | null; info: Phase
             )}
             <Stats
                 items={[
-                    { value: fmt1(m.lastRate), unit: 'kg/wk', label: latestIsPartial ? 'This week · partial' : 'Latest week' },
+                    {
+                        value: fmt1(m.lastRate),
+                        unit: 'kg/wk',
+                        label: latestIsPartial ? 'This week' : 'Latest week',
+                        ...(latestIsPartial ? {
+                            detail: 'partial',
+                            accessibilityLabel: `This week, partial: ${fmt1(m.lastRate)} kilograms per week`,
+                        } : {}),
+                    },
                     { value: fmt1(m.rate), unit: 'kg/wk', label: `${n}-wk avg` },
                     goalStat,
                 ]}
@@ -677,33 +692,32 @@ const ProgressScreen = () => {
                             return (
                                 <TouchableOpacity
                                     key={t.key}
-                                    style={[styles.viewTab, on && styles.viewTabActive]}
+                                    style={styles.viewTab}
                                     onPress={() => setTab(t.key)}
                                     activeOpacity={0.7}
                                     hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                                    accessibilityRole="button"
+                                    accessibilityState={{ selected: on }}
                                 >
-                                    <Text style={[styles.viewText, on && styles.viewTextActive]}>{t.label}</Text>
+                                    <Text
+                                        style={[styles.viewText, on && styles.viewTextActive]}
+                                        numberOfLines={1}
+                                        adjustsFontSizeToFit
+                                        maxFontSizeMultiplier={1.3}
+                                    >
+                                        {t.label}
+                                    </Text>
+                                    {on && <View style={styles.tabIndicator} />}
                                 </TouchableOpacity>
                             );
                         })}
                     </View>
                     {weeks.length >= 2 && (
-                        <View style={styles.rangeSelector}>
-                            {ranges.map(r => (
-                                <TouchableOpacity
-                                    key={r.key}
-                                    style={styles.rangeOption}
-                                    onPress={() => setRangeKey(r.key)}
-                                    activeOpacity={0.7}
-                                    accessibilityRole="button"
-                                    accessibilityState={{ selected: range.key === r.key }}
-                                >
-                                    <Text style={[styles.rangeText, range.key === r.key && styles.rangeTextActive]}>
-                                        {r.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
+                        <RangeSegmentedControl
+                            options={ranges.map(({ key, label }) => ({ key, label }))}
+                            selectedKey={range.key}
+                            onSelect={setRangeKey}
+                        />
                     )}
                 </View>
                 {workoutHistoryLoadMoreError && hasMoreWorkoutHistory && (

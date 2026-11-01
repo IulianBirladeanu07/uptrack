@@ -86,7 +86,7 @@ const FoodSelectionHeader = ({
 
       <View style={styles.calorieCard}>
         <View style={styles.calorieHeader}>
-          <Text style={styles.calorieLabel}>Calories today</Text>
+          <Text style={styles.calorieLabel}>Daily calories</Text>
           <View style={styles.calorieValueContainer}>
             <Flame
               size={spacing.iconSm}
@@ -94,32 +94,25 @@ const FoodSelectionHeader = ({
               strokeWidth={2.5}
             />
             <Text style={styles.calorieValue}>
-              {targetCalories
-                ? `${calculatedCurrentCalories.toLocaleString()} / ${targetCalories.toLocaleString()} kcal`
+              {targetCalories && targetCalories > 0
+                ? calorieProgress.status
                 : `${calculatedCurrentCalories.toLocaleString()} kcal`}
             </Text>
           </View>
         </View>
 
-        {!!targetCalories && (
-          <>
-            <View style={styles.progressRow}>
-              <View style={styles.progressTrack}>
-                <Animated.View
-                  style={[
-                    styles.progressFill,
-                    {
-                      backgroundColor: colors.accent.primary,
-                      transform: [{ scaleX: animatedProgress }],
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.progressStatus}>
-                {calorieProgress.status}
-              </Text>
-            </View>
-          </>
+        {targetCalories != null && targetCalories > 0 && (
+          <View style={styles.progressTrack}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                {
+                  backgroundColor: colors.accent.primary,
+                  transform: [{ scaleX: animatedProgress }],
+                },
+              ]}
+            />
+          </View>
         )}
       </View>
     </View>
@@ -200,7 +193,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing[2],
+    marginBottom: spacing[1],
   },
   calorieLabel: {
     fontSize: fontSize[12],
@@ -219,30 +212,18 @@ const styles = StyleSheet.create({
     color: colors.accent.primary,
     letterSpacing: 0.2,
   },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-  },
   progressTrack: {
-    flex: 1,
-    height: spacing[2],
+    height: spacing[1],
     backgroundColor: colors.background.tertiary,
     borderRadius: radius[1],
     overflow: 'hidden',
+    marginTop: spacing[1],
   },
   progressFill: {
     height: '100%',
     width: '100%',
     borderRadius: radius[1],
     transformOrigin: 'left',
-  },
-  progressStatus: {
-    fontSize: fontSize[12],
-    fontWeight: fontWeight.bold,
-    color: colors.text.secondary,
-    minWidth: spacing[10],
-    textAlign: 'right',
   },
 });
 

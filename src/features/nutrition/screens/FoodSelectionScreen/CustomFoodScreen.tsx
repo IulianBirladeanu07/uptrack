@@ -29,7 +29,7 @@ type FoodInfoFieldProps = {
   field: Field;
   iconName?: IconName;
   unit?: string;
-  nextField?: Field;
+  nextField?: Field | undefined;
   value?: Numeric | null | undefined;
   error?: string | undefined;
   onChangeText: (field: Field, text: string) => void;
@@ -40,12 +40,11 @@ type FoodInfoFieldProps = {
 type NutrientDataFieldProps = {
   field: Field;
   label: string;
-  color: string;
-  iconName?: IconName;
   unit?: string;
   width: DimensionValue;
-  nextField?: Field;
+  nextField?: Field | undefined;
   value?: Numeric | null | undefined;
+  error?: string | undefined;
   onChangeText: (field: Field, text: string) => void;
   onFocus: (field: Field) => void;
   onSubmitEditing: (field: Field, nextField?: Field) => void;
@@ -54,8 +53,6 @@ type NutrientDataFieldProps = {
 type NutrientConfig = {
   field: Field;
   label: string;
-  color: string;
-  iconName: IconName;
   unit: string;
   width: DimensionValue;
   nextField?: Field;
@@ -65,6 +62,7 @@ type FooterProps = {
   foodData: FoodFormData;
   handleSubmit: () => void;
   onAmountChange: (value: string) => void;
+  onAmountFocus: () => void;
   onChooseUnit: () => void;
   visible: boolean;
 };
@@ -111,7 +109,7 @@ const FoodInfoField = memo(forwardRef<FieldHandle, FoodInfoFieldProps>(({ label,
   );
 }));
 
-const NutrientDataField = memo(forwardRef<FieldHandle, NutrientDataFieldProps>(({ field, label, color, iconName, unit, width, nextField, value, onChangeText, onFocus, onSubmitEditing }, ref) => {
+const NutrientDataField = memo(forwardRef<FieldHandle, NutrientDataFieldProps>(({ field, label, unit, width, nextField, value, error, onChangeText, onFocus, onSubmitEditing }, ref) => {
   const textInputRef = useRef<TextInput>(null);
   const containerRef = useRef<View>(null);
 
@@ -127,16 +125,12 @@ const NutrientDataField = memo(forwardRef<FieldHandle, NutrientDataFieldProps>((
   return (
     <View ref={containerRef} style={{ width }} collapsable={false}>
       <View style={styles.nutrientHeader}>
-        <View style={styles.labelWithIndicator}>
-          {iconName && <MaterialCommunityIcons name={iconName} size={16} color={color} />}
-          <Text style={styles.nutrientHeaderLabel}>{label}</Text>
-        </View>
+        <Text style={styles.nutrientHeaderLabel}>{label}</Text>
       </View>
-      <View style={styles.nutrientCell}>
+      <View style={[styles.nutrientCell, !!error && styles.errorInput]}>
         <TextInput
           ref={textInputRef}
           style={styles.nutrientInput}
-          placeholder="0"
           placeholderTextColor={colors.text.secondary}
           value={value == null ? '' : String(value)}
           onChangeText={(text) => onChangeText(field, text)}
@@ -151,11 +145,12 @@ const NutrientDataField = memo(forwardRef<FieldHandle, NutrientDataFieldProps>((
         />
         {unit && <Text style={styles.unitText}>{unit}</Text>}
       </View>
+      {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 }));
 
-const Footer = memo(({ foodData, handleSubmit, onAmountChange, onChooseUnit, visible }: FooterProps) => {
+const Footer = memo(({ foodData, handleSubmit, onAmountChange, onAmountFocus, onChooseUnit, visible }: FooterProps) => {
   const insets = useSafeAreaInsets();
 
   if (!visible) return null;
@@ -165,6 +160,7 @@ const Footer = memo(({ foodData, handleSubmit, onAmountChange, onChooseUnit, vis
 
   return (
     <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+      <Text style={styles.servingLabel}>Serving size</Text>
       <View style={styles.amountRow}>
         <TextInput
           style={styles.amountInput}
@@ -172,10 +168,12 @@ const Footer = memo(({ foodData, handleSubmit, onAmountChange, onChooseUnit, vis
           placeholderTextColor={colors.text.secondary}
           value={String(foodData.amount || '')}
           onChangeText={onAmountChange}
+          onFocus={onAmountFocus}
           keyboardType="numeric"
           underlineColorAndroid="transparent"
           maxLength={5}
           returnKeyType="done"
+          accessibilityLabel={`Serving size, ${foodData.amount || 'not set'} ${foodData.unit || 'g'}`}
         />
         <TouchableOpacity
           style={styles.unitSelector}
@@ -195,7 +193,7 @@ const Footer = memo(({ foodData, handleSubmit, onAmountChange, onChooseUnit, vis
       >
         <MaterialCommunityIcons name="plus" size={24} color={colors.background.primary} />
         <Text style={styles.addButtonText}>
-          Add to Diary • {formattedKcal} kcal
+          {foodData.calories ? `Add to Diary • ${formattedKcal} kcal` : 'Add to Diary'}
         </Text>
       </TouchableOpacity>
     </View>
@@ -212,7 +210,8 @@ const CustomFoodScreen = () => {
 
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const [activeTab, setActiveTab] = useState<'essential' | 'detailed'>('essential');
+  const [showNutritionDetails, setShowNutritionDetails] = useState(false);
+  const [showAdditionalNutrients, setShowAdditionalNutrients] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [currentFocusedField, setCurrentFocusedField] = useState<Field | null>(null);
 
@@ -281,17 +280,20 @@ const CustomFoodScreen = () => {
   }, [focusFirstField]);
 
   const macronutrients = useMemo<NutrientConfig[]>(() => [
-    { field: 'carbohydrates', label: 'Carbs', color: colors.accent.success, iconName: 'leaf', unit: 'g', width: '31%', nextField: 'protein' },
-    { field: 'protein', label: 'Protein', color: colors.accent.purple, iconName: 'food-drumstick', unit: 'g', width: '31%', nextField: 'fats' },
-    { field: 'fats', label: 'Fats', color: colors.accent.cyan, iconName: 'water', unit: 'g', width: '31%', nextField: 'fiber' },
+    { field: 'carbohydrates', label: 'Carbs', unit: 'g', width: '31%', nextField: 'protein' },
+    { field: 'protein', label: 'Protein', unit: 'g', width: '31%', nextField: 'fats' },
+    { field: 'fats', label: 'Fat', unit: 'g', width: '31%', nextField: 'fiber' },
   ], []);
 
   const otherNutrients = useMemo<NutrientConfig[]>(() => [
-    { field: 'fiber', label: 'Fiber', color: colors.accent.success, iconName: 'leaf', unit: 'g', width: '48%', nextField: 'sugar' },
-    { field: 'sugar', label: 'Sugar', color: colors.accent.purple, iconName: 'cube-outline', unit: 'g', width: '48%', nextField: 'saturatedFats' },
-    { field: 'saturatedFats', label: 'Sat Fat', color: colors.accent.cyan, iconName: 'water', unit: 'g', width: '48%', nextField: 'salt' },
-    { field: 'salt', label: 'Salt', color: colors.accent.primary, iconName: 'shaker-outline', unit: 'g', width: '48%' },
+    { field: 'fiber', label: 'Fiber', unit: 'g', width: '48%', nextField: 'sugar' },
+    { field: 'sugar', label: 'Sugar', unit: 'g', width: '48%', nextField: 'saturatedFats' },
+    { field: 'saturatedFats', label: 'Saturated fat', unit: 'g', width: '48%', nextField: 'salt' },
+    { field: 'salt', label: 'Salt', unit: 'g', width: '48%' },
   ], []);
+  const nutritionBasis = foodData.amount
+    ? `${foodData.amount} ${foodData.unit || 'g'}`
+    : 'the serving size selected below';
 
   const screenTitle = useMemo(() => {
     switch (type) {
@@ -317,20 +319,7 @@ const CustomFoodScreen = () => {
           keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.header}>{screenTitle}</Text>
-
-          <View style={styles.tabContainer}>
-            {(['essential', 'detailed'] as const).map((tab) => (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.tab, activeTab === tab && styles.activeTab]}
-                onPress={() => setActiveTab(tab)}
-              >
-                <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Text style={styles.introText}>Name and calories required. Nutrition details optional.</Text>
 
           <FoodInfoField
             label="Name"
@@ -365,7 +354,7 @@ const CustomFoodScreen = () => {
             field="calories"
             iconName="fire"
             unit="kcal"
-            nextField="carbohydrates"
+            nextField={showNutritionDetails ? 'carbohydrates' : undefined}
             value={foodData.calories}
             error={errors.calories}
             onChangeText={handleFieldChange}
@@ -373,31 +362,99 @@ const CustomFoodScreen = () => {
             onSubmitEditing={handleSubmitEditing}
             ref={registerInputRef('calories')}
           />
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {activeTab === 'essential' ? 'Macronutrients' : 'Additional Nutrients'}
-            </Text>
-            <View style={activeTab === 'essential' ? styles.nutrientRow : styles.otherNutrientGrid}>
-              {(activeTab === 'essential' ? macronutrients : otherNutrients).map((n) => (
-                <NutrientDataField
-                  key={n.field}
-                  {...n}
-                  value={foodData[n.field]}
-                  onChangeText={handleFieldChange}
-                  onFocus={handleFieldFocus}
-                  onSubmitEditing={handleSubmitEditing}
-                  ref={registerInputRef(n.field)}
-                />
-              ))}
+          <TouchableOpacity
+            style={styles.nutritionDisclosure}
+            onPress={() => {
+              setShowNutritionDetails(!showNutritionDetails);
+              if (showNutritionDetails) setShowAdditionalNutrients(false);
+            }}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showNutritionDetails }}
+            accessibilityLabel={showNutritionDetails ? 'Hide nutrition details' : 'Add nutrition details'}
+          >
+            <View style={styles.nutritionDisclosureText}>
+              <Text style={styles.nutritionDisclosureTitle}>
+                {showNutritionDetails ? 'Nutrition details' : 'Add nutrition details'}
+              </Text>
+              {!showNutritionDetails && (
+                <Text style={styles.nutritionDisclosureHint}>Optional: carbs, protein, fat and more</Text>
+              )}
             </View>
-          </View>
+            <MaterialCommunityIcons
+              name={showNutritionDetails ? 'chevron-up' : 'chevron-down'}
+              size={22}
+              color={colors.text.secondary}
+            />
+          </TouchableOpacity>
+
+          {showNutritionDetails && (
+            <>
+              <View style={styles.nutritionBasis}>
+                <Text style={styles.nutritionBasisText}>Nutrition values for {nutritionBasis}</Text>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Macronutrients</Text>
+                <View style={styles.nutrientRow}>
+                  {macronutrients.map(n => (
+                    <NutrientDataField
+                      key={n.field}
+                      {...n}
+                      nextField={n.field === 'fats' && !showAdditionalNutrients ? undefined : n.nextField}
+                      value={foodData[n.field]}
+                      error={errors[n.field]}
+                      onChangeText={handleFieldChange}
+                      onFocus={handleFieldFocus}
+                      onSubmitEditing={handleSubmitEditing}
+                      ref={registerInputRef(n.field)}
+                    />
+                  ))}
+                </View>
+                {errors.macroNutrients && <Text style={styles.errorText}>{errors.macroNutrients}</Text>}
+              </View>
+
+              <TouchableOpacity
+                style={styles.moreNutrientsToggle}
+                onPress={() => setShowAdditionalNutrients(value => !value)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showAdditionalNutrients }}
+                accessibilityLabel={showAdditionalNutrients ? 'Hide more nutrients' : 'Add more nutrients'}
+              >
+                <Text style={styles.moreNutrientsTitle}>
+                  {showAdditionalNutrients ? 'Hide more nutrients' : 'Add more nutrients'}
+                </Text>
+                <MaterialCommunityIcons
+                  name={showAdditionalNutrients ? 'chevron-up' : 'chevron-down'}
+                  size={20}
+                  color={colors.text.secondary}
+                />
+              </TouchableOpacity>
+
+              {showAdditionalNutrients && (
+                <View style={styles.otherNutrientGrid}>
+                  {otherNutrients.map(n => (
+                    <NutrientDataField
+                      key={n.field}
+                      {...n}
+                      value={foodData[n.field]}
+                      error={errors[n.field]}
+                      onChangeText={handleFieldChange}
+                      onFocus={handleFieldFocus}
+                      onSubmitEditing={handleSubmitEditing}
+                      ref={registerInputRef(n.field)}
+                    />
+                  ))}
+                </View>
+              )}
+            </>
+          )}
         </ScrollView>
 
         <Footer
           foodData={foodData}
           handleSubmit={handleSubmit}
           onAmountChange={handleAmountChange}
+          onAmountFocus={() => handleFieldFocus('amount')}
           onChooseUnit={chooseUnit}
           visible={showFooter}
         />

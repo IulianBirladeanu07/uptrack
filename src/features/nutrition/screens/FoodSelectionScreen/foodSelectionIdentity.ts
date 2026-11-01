@@ -1,5 +1,6 @@
 type FoodIdentity = {
     id?: string | undefined;
+    selectionKey?: string | undefined;
     productName?: string | null | undefined;
     image?: string | null | undefined;
     unit?: string | null | undefined;
@@ -11,7 +12,9 @@ type FoodIdentity = {
 };
 
 export const getFoodSelectionIdentity = (food: FoodIdentity): string =>
-    food.id
+    food.selectionKey
+        ? `selection:${food.selectionKey}`
+        : food.id
         ? `id:${food.id}`
         : `fields:${JSON.stringify([
             food.productName ?? '',

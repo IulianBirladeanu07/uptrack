@@ -236,14 +236,13 @@ const FilterBar = memo(({ activeFilter, onFilterChange, muscleGroups, counts }: 
                 accessibilityRole="button"
                 accessibilityState={{ selected: isActive }}
               >
-                {isActive && <View style={styles.filterPillGlow} />}
                 <Text
                   style={[
                     styles.filterText,
                     isActive && styles.filterTextActive,
                   ]}
                 >
-                  {filter} ({filter === 'All' ? counts.total : counts[filter] || 0})
+                  {filter}
                 </Text>
               </TouchableOpacity>
             </Animated.View>
@@ -498,13 +497,13 @@ const ExerciseSelectionScreen = () => {
     );
   }
 
-  if (error && !filteredAndGroupedExercises.length) {
+  if (error && !exerciseGroups.length) {
     return (
       <SafeAreaView style={[styles.container, styles.centerContent]} edges={['bottom']}>
         <Ionicons name="cloud-offline-outline" size={spacing[15]} color={colors.accent.errorAlt} />
         <Text style={styles.errorText}>{error}</Text>
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.retryButton} onPress={() => loadExercises(true)}>
+          <TouchableOpacity style={styles.retryButton} onPress={() => void loadExercises(true)}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.backButtonError} onPress={handleGoBack}>
@@ -527,6 +526,19 @@ const ExerciseSelectionScreen = () => {
         muscleGroups={muscleGroups}
         counts={counts}
       />
+
+      {error && exerciseGroups.length > 0 && (
+        <TouchableOpacity
+          style={styles.catalogWarning}
+          onPress={() => void loadExercises(true)}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Some exercises may be missing. Tap to retry loading."
+        >
+          <Ionicons name="cloud-offline-outline" size={spacing.icon} color={colors.accent.errorAlt} />
+          <Text style={styles.catalogWarningText}>Some exercises may be missing. Tap to retry.</Text>
+        </TouchableOpacity>
+      )}
 
       <FlatList<ExerciseListRow>
         data={flatListData}

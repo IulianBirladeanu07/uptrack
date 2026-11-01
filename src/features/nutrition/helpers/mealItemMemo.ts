@@ -107,6 +107,7 @@ export const foodItemPropsEqual = (
     onPlusPress?: unknown;
     isChecked?: boolean | undefined;
     showPlusButton?: boolean | undefined;
+    isSelectionEmphasized?: boolean | undefined;
     isFoodDeletable?: boolean | undefined;
   },
   next: {
@@ -115,6 +116,7 @@ export const foodItemPropsEqual = (
     onPlusPress?: unknown;
     isChecked?: boolean | undefined;
     showPlusButton?: boolean | undefined;
+    isSelectionEmphasized?: boolean | undefined;
     isFoodDeletable?: boolean | undefined;
   },
 ): boolean =>
@@ -123,4 +125,5 @@ export const foodItemPropsEqual = (
   prev.onPlusPress === next.onPlusPress &&
   prev.isChecked === next.isChecked &&
   prev.showPlusButton === next.showPlusButton &&
+  prev.isSelectionEmphasized === next.isSelectionEmphasized &&
   prev.isFoodDeletable === next.isFoodDeletable;

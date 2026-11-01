@@ -16,6 +16,7 @@ type MealItemData = {
 };
 
 type PlusPressHandler = (food: LoggedFood, toggleToAdd?: boolean) => void;
+type SelectableFood = LoggedFood & { selectionKey: string };
 
 type MealItemProps = {
   item?: (Omit<MealItemData, 'foods'> & { foods?: LoggedFood[] | null | undefined }) | null | undefined;
@@ -42,6 +43,7 @@ type MemoizedFoodItemProps = {
   onPlusPress?: ((food: LoggedFood) => void) | undefined;
   isChecked: boolean;
   showPlusButton: boolean;
+  isSelectionEmphasized: boolean;
   isFoodDeletable: boolean;
 };
 
@@ -101,7 +103,7 @@ const formatMealTitle = (date: DateInput, mealType: string) => {
   return `${fullDate} ${mealName}`;
 };
 
-const MemoizedFoodItem = memo(({ food, onPress, onPlusPress, isChecked, showPlusButton, isFoodDeletable }: MemoizedFoodItemProps) => (
+const MemoizedFoodItem = memo(({ food, onPress, onPlusPress, isChecked, showPlusButton, isSelectionEmphasized, isFoodDeletable }: MemoizedFoodItemProps) => (
   <FoodItem
     item={{
       ...food,
@@ -111,6 +113,7 @@ const MemoizedFoodItem = memo(({ food, onPress, onPlusPress, isChecked, showPlus
     onPlusPress={() => onPlusPress?.(food)}
     showPlusButton={showPlusButton}
     isSelected={isChecked}
+    isSelectionEmphasized={isSelectionEmphasized}
     isFoodDeletable={isFoodDeletable}
     foodContainer={styles.foodItemContainer}
   />
@@ -144,43 +147,52 @@ const MealItemContent = ({
   const mealTitle = formatMealTitle(item.date, item.mealType);
 
   const [checkedFoods, setCheckedFoods] = useState<Record<string, boolean>>({});
-  const [isMealAdded, setIsMealAdded] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const INITIAL_ITEMS_COUNT = 3;
   const hasMoreItems = foodsCount > INITIAL_ITEMS_COUNT;
   const displayedFoods = isExpanded ? item.foods : item.foods.slice(0, INITIAL_ITEMS_COUNT);
+  const mealIdentity = item.id || `${String(item.date)}_${item.mealType}`;
+  const getSelectableFood = useCallback((food: LoggedFood): SelectableFood => ({
+    ...food,
+    selectionKey: `${mealIdentity}:${food.id}`,
+  }), [mealIdentity]);
+  const isMealAdded = foodsCount > 0 && item.foods.every(food => {
+    const selectableFood = getSelectableFood(food);
+    return isFoodSelected?.(selectableFood) ?? checkedFoods[selectableFood.selectionKey] ?? false;
+  });
 
   const handlePlusPressInternal = useCallback((food: LoggedFood) => {
+    const selectableFood = getSelectableFood(food);
     setCheckedFoods(prev => ({
       ...prev,
-      [food.id]: !prev[food.id],
+      [selectableFood.selectionKey]: !prev[selectableFood.selectionKey],
     }));
-    onPlusPress?.(food);
-  }, [onPlusPress]);
+    onPlusPress?.(selectableFood);
+  }, [getSelectableFood, onPlusPress]);
 
   const handleNavigateToFoodDetail = useCallback((food: LoggedFood) => {
     containerScale.value = withTiming(0.98, { duration: 100 }, () => {
       containerScale.value = withTiming(1, { duration: 100 });
     });
-    onPress?.(food);
-  }, [onPress, containerScale]);
+    onPress?.(getSelectableFood(food));
+  }, [getSelectableFood, onPress, containerScale]);
 
   const handleToggleMeal = useCallback(() => {
     const toggleToAdd = !isMealAdded;
 
     const newCheckedState: Record<string, boolean> = {};
-    item.foods.forEach(food => {
-      newCheckedState[food.id] = toggleToAdd;
+    const selectableFoods = item.foods.map(getSelectableFood);
+    selectableFoods.forEach(food => {
+      newCheckedState[food.selectionKey] = toggleToAdd;
     });
 
     setCheckedFoods(newCheckedState);
-    setIsMealAdded(toggleToAdd);
 
     if (onPlusPress) {
-      item.foods.forEach(food => onPlusPress(food, toggleToAdd));
+      selectableFoods.forEach(food => onPlusPress(food, toggleToAdd));
     }
-  }, [isMealAdded, item.foods, onPlusPress]);
+  }, [getSelectableFood, isMealAdded, item.foods, onPlusPress]);
 
   const handleToggleExpansion = useCallback(() => {
     setIsExpanded(prev => !prev);
@@ -241,18 +253,22 @@ const MealItemContent = ({
 
       {displayedFoods.length > 0 ? (
         <View style={styles.foodItemsContainer}>
-          {displayedFoods.map((food, index) => (
-            <View key={food.id || `food-${index}`} style={styles.foodItemWrapper}>
-              <MemoizedFoodItem
-                food={food}
-                onPress={handleNavigateToFoodDetail}
-                onPlusPress={handlePlusPressInternal}
-                isChecked={isFoodSelected?.(food) ?? checkedFoods[food.id] ?? false}
-                showPlusButton={!isMealAdded && showPlusButton}
-                isFoodDeletable={isFoodDeletable}
-              />
-            </View>
-          ))}
+          {displayedFoods.map((food, index) => {
+            const selectableFood = getSelectableFood(food);
+            return (
+              <View key={food.id || `food-${index}`} style={styles.foodItemWrapper}>
+                <MemoizedFoodItem
+                  food={selectableFood}
+                  onPress={handleNavigateToFoodDetail}
+                  onPlusPress={handlePlusPressInternal}
+                  isChecked={isFoodSelected?.(selectableFood) ?? checkedFoods[selectableFood.selectionKey] ?? false}
+                  showPlusButton={showPlusButton}
+                  isSelectionEmphasized={!isMealAdded}
+                  isFoodDeletable={isFoodDeletable}
+                />
+              </View>
+            );
+          })}
 
           <Pressable
             style={styles.viewAllButton}

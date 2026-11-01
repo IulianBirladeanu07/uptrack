@@ -100,6 +100,7 @@ export const handleFoodAddition = async ({
 
   const updatedFoodDetails = {
     id: currentFoodId,
+    selectionKey: food.selectionKey,
     productName: food.productName || 'Unknown',
     ...nutrients,
     quantity,

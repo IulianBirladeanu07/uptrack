@@ -9,8 +9,6 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../../../share
 import type { FoodItemData } from './FoodItem';
 import type { FoodSearchItem } from '../../../../shared/types';
 
-type IconName = React.ComponentProps<typeof Ionicons>['name'];
-
 type Filter = {
   key: string;
   label: string;
@@ -91,13 +89,7 @@ const FoodSearchResults = memo(({
     onPlusPress?.(originalItem || item, toggleToAdd);
   }, [searchResults, onPlusPress]);
 
-  const quickSuggestions: { label: string; icon: IconName }[] = [
-    { label: 'Chicken', icon: 'nutrition' },
-    { label: 'Salmon', icon: 'fish' },
-    { label: 'Broccoli', icon: 'leaf' },
-    { label: 'Rice', icon: 'restaurant' },
-    { label: 'Eggs', icon: 'egg' }
-  ];
+  const quickSuggestions = ['Chicken', 'Rice', 'Eggs', 'Oats', 'Greek yogurt'];
 
   if (recentSearchesLoading) {
     return (
@@ -112,21 +104,15 @@ const FoodSearchResults = memo(({
     return (
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {recentSearches.length > 0 && (
-          <View style={styles.section}>
+          <View>
             <View style={styles.sectionHeader}>
-              <View style={styles.headerLeft}>
-                <View style={styles.iconBadge}>
-                  <MaterialCommunityIcons name="clock-outline" size={spacing[5]} color={colors.accent.primary} />
-                </View>
-                <Text style={styles.sectionTitle}>Recent Searches</Text>
-              </View>
+              <Text style={styles.sectionTitle}>Recent Searches</Text>
               <TouchableOpacity
                 style={styles.clearBtn}
                 onPress={onClearAllRecentSearches}
                 accessibilityRole="button"
                 accessibilityLabel="Clear recent searches"
               >
-                <MaterialCommunityIcons name="delete-sweep" size={spacing[4]} color={colors.accent.error} />
                 <Text style={styles.clearBtnText}>Clear</Text>
               </TouchableOpacity>
             </View>
@@ -139,34 +125,33 @@ const FoodSearchResults = memo(({
                   accessibilityRole="button"
                   accessibilityLabel={`Search for ${item}`}
                 >
-                  <MaterialCommunityIcons name="history" size={spacing[4]} color={colors.accent.primary} />
+                  <MaterialCommunityIcons name="history" size={spacing[4]} color={colors.text.tertiary} />
                   <Text style={styles.recentText} numberOfLines={1}>{item}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                  style={styles.removeRecentBtn}
                   onPress={() => onRemoveRecentSearch?.(item)}
                   hitSlop={styles.hitSlop}
                   accessibilityRole="button"
                   accessibilityLabel={`Remove ${item} from recent searches`}
                 >
-                  <Ionicons name="close-circle" size={spacing[5]} color={colors.text.tertiary} />
+                  <Ionicons name="close" size={spacing[4]} color={colors.text.tertiary} />
                 </TouchableOpacity>
               </View>
             ))}
 
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or try</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <View style={styles.quickGridWrapper}>
-              <View style={styles.quickGrid}>
-                {quickSuggestions.map((suggestion, index) => (
-                  <TouchableOpacity key={index} style={styles.quickCard} onPress={() => onRecentSearchPress?.(suggestion.label)}>
-                    <View style={styles.quickIcon}>
-                      <Ionicons name={suggestion.icon} size={spacing[6]} color={colors.accent.primary} />
-                    </View>
-                    <Text style={styles.quickLabel}>{suggestion.label}</Text>
+            <View style={styles.suggestionsSection}>
+              <Text style={styles.sectionTitle}>Suggestions</Text>
+              <View style={styles.suggestions}>
+                {quickSuggestions.map(suggestion => (
+                  <TouchableOpacity
+                    key={suggestion}
+                    style={styles.suggestion}
+                    onPress={() => onRecentSearchPress?.(suggestion)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Search for ${suggestion}`}
+                  >
+                    <Text style={styles.suggestionText}>{suggestion}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -244,15 +229,11 @@ const FoodSearchResults = memo(({
               accessibilityState={{ selected: selectedFilter === filter.key }}
               accessibilityLabel={`${filter.label}, ${filter.count} results`}
               style={[styles.filterPill, selectedFilter === filter.key && styles.filterPillActive]}
+              hitSlop={styles.filterHitSlop}
             >
               <Text style={[styles.filterText, selectedFilter === filter.key && styles.filterTextActive]}>
                 {filter.label}
               </Text>
-              <View style={[styles.filterBadge, selectedFilter === filter.key && styles.filterBadgeActive]}>
-                <Text style={[styles.filterBadgeText, selectedFilter === filter.key && styles.filterBadgeTextActive]}>
-                  {filter.count}
-                </Text>
-              </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -272,63 +253,82 @@ const FoodSearchResults = memo(({
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.resultsHeader}>
+            <Text style={styles.resultsCount}>
+              {filteredResults.length} result{filteredResults.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
           {bestMatch && (
-            <View style={styles.bestMatchSection}>
-              <View style={styles.bestMatchHeader}>
-                <View style={styles.bestMatchBadge}>
-                  <Ionicons name="star" size={spacing[3]} color={colors.accent.primary} />
-                  <Text style={styles.bestMatchTitle}>BEST MATCH</Text>
-                </View>
-                <Text style={styles.resultsCount}>
-                  {filteredResults.length} result{filteredResults.length !== 1 ? 's' : ''}
-                </Text>
-              </View>
-
-              <View style={styles.bestMatchCard}>
-                <FoodItem
-                  item={bestMatchItem!}
-                  onPress={handleItemPress}
-                  showPlusButton={false}
-                  isSelected={isBestMatchSelected}
-                  isFoodDeletable={false}
-                  isScrolling={false}
-                  foodContainer={styles.bestMatchItemContainer}
-                />
-
-                <View style={styles.actions}>
-                  <TouchableOpacity style={styles.primaryBtn} onPress={() => handlePlusPress(bestMatchItem!, !isBestMatchSelected)}>
-                    <Ionicons name={isBestMatchSelected ? 'checkmark' : 'add'} size={spacing[5]} color={colors.background.primary} />
-                    <Text style={styles.primaryBtnText}>{isBestMatchSelected ? 'Remove' : 'Add to Log'}</Text>
+            <View style={styles.recommendedCard}>
+              <Text style={styles.recommendedLabel}>Recommended</Text>
+              <FoodItem
+                item={bestMatchItem!}
+                onPress={handleItemPress}
+                showPlusButton={false}
+                isSelected={isBestMatchSelected}
+                isSelectionEmphasized={false}
+                isFoodDeletable={false}
+                isScrolling={false}
+                foodContainer={styles.recommendedFoodContainer}
+              />
+              {showPlusButton && (
+                <View style={styles.recommendedActions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.recommendedAction,
+                      isBestMatchSelected && styles.recommendedActionSelected,
+                    ]}
+                    onPress={() => handlePlusPress(bestMatchItem!, !isBestMatchSelected)}
+                    accessibilityRole="button"
+                    accessibilityLabel={isBestMatchSelected ? 'Remove recommended food' : 'Add recommended food to log'}
+                    accessibilityState={{ selected: isBestMatchSelected }}
+                  >
+                    <Ionicons
+                      name={isBestMatchSelected ? 'checkmark' : 'add'}
+                      size={spacing[5]}
+                      color={isBestMatchSelected ? colors.accent.success : colors.accent.buttonText}
+                    />
+                    <Text
+                      style={[
+                        styles.recommendedActionText,
+                        isBestMatchSelected && styles.recommendedActionTextSelected,
+                      ]}
+                    >
+                      {isBestMatchSelected ? 'Added' : 'Add to Log'}
+                    </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.secondaryBtn} onPress={() => handleItemPress(transformItem(bestMatch))}>
-                    <Ionicons name="information-circle-outline" size={spacing[5]} color={colors.text.secondary} />
+                  <TouchableOpacity
+                    style={styles.recommendedInfo}
+                    onPress={() => handleItemPress(bestMatchItem!)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Recommended food details"
+                  >
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={spacing[5]}
+                      color={colors.text.secondary}
+                    />
                   </TouchableOpacity>
                 </View>
-              </View>
+              )}
             </View>
           )}
 
-          {otherResults.length > 0 && (
-            <View>
-              <View style={styles.otherBadge}>
-                <MaterialCommunityIcons name="format-list-bulleted" size={spacing[3]} color={colors.text.secondary} />
-                <Text style={styles.otherResultsTitle}>MORE OPTIONS ({otherResults.length})</Text>
-              </View>
-
-              {otherResults.map((item, index) => (
-                <FoodItem
-                  key={item.id || index}
-                  item={transformItem(item)}
-                  onPress={handleItemPress}
-                  showPlusButton={showPlusButton}
-                  isSelected={isFoodSelected?.(item)}
-                  onPlusPress={handlePlusPress}
-                  isFoodDeletable={false}
-                  isScrolling={false}
-                />
-              ))}
-            </View>
-          )}
+          <View>
+            {otherResults.map((item, index) => (
+              <FoodItem
+                key={item.id || index}
+                item={transformItem(item)}
+                onPress={handleItemPress}
+                showPlusButton={showPlusButton}
+                isSelected={isFoodSelected?.(item)}
+                isSelectionEmphasized={false}
+                onPlusPress={handlePlusPress}
+                isFoodDeletable={false}
+                isScrolling={false}
+              />
+            ))}
+          </View>
         </ScrollView>
       )}
     </View>
@@ -357,124 +357,74 @@ const styles = createStyles(() => ({
     left: spacing[2],
     right: spacing[2],
   },
-  section: {},
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing[4],
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-  },
-  iconBadge: {
-    width: spacing[10],
-    height: spacing[10],
-    borderRadius: radius[3],
-    backgroundColor: colors.faded.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border.primary,
+    marginBottom: spacing[2],
   },
   sectionTitle: {
-    fontSize: fontSize[16],
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
     color: colors.text.primary,
   },
   clearBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
-    paddingHorizontal: spacing[3],
     paddingVertical: spacing[2],
-    backgroundColor: colors.faded.error,
-    borderRadius: radius[2],
-    borderWidth: 1,
-    borderColor: colors.border.error,
+    paddingHorizontal: spacing[2],
   },
   clearBtnText: {
     fontSize: fontSize[12],
-    color: colors.accent.error,
-    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    fontWeight: fontWeight.medium,
   },
   recentItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.background.secondary,
-    borderRadius: radius[3],
-    paddingVertical: spacing[3],
-    paddingHorizontal: spacing[3],
-    marginBottom: spacing[2],
-    borderWidth: 1,
-    borderColor: colors.border.default,
+    paddingVertical: spacing[2],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
   },
   recentLeft: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[3],
+    minHeight: spacing[9],
   },
   recentText: {
     flex: 1,
     fontSize: fontSize[14],
     color: colors.text.primary,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.medium,
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: spacing[5],
+  removeRecentBtn: {
+    minWidth: spacing[9],
+    minHeight: spacing[9],
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border.default,
+  suggestionsSection: {
+    marginTop: spacing[4],
   },
-  dividerText: {
-    fontSize: fontSize[10],
-    color: colors.text.tertiary,
-    fontWeight: fontWeight.semibold,
-    marginHorizontal: spacing[3],
-    textTransform: 'uppercase',
-  },
-  quickGridWrapper: {
-    alignItems: 'center',
-  },
-  quickGrid: {
+  suggestions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing[2],
-    justifyContent: 'center',
-    maxWidth: spacing[100],
+    marginTop: spacing[2],
   },
-  quickCard: {
-    width: spacing[18],
+  suggestion: {
     backgroundColor: colors.background.secondary,
-    borderRadius: radius[4],
-    padding: spacing[2],
-    alignItems: 'center',
+    borderRadius: radius[3],
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
     borderWidth: 1,
     borderColor: colors.border.default,
   },
-  quickIcon: {
-    width: spacing[11],
-    height: spacing[11],
-    borderRadius: radius[3],
-    backgroundColor: colors.faded.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing[2],
-    borderWidth: 1,
-    borderColor: colors.border.primary,
-  },
-  quickLabel: {
-    fontSize: fontSize[12],
+  suggestionText: {
+    fontSize: fontSize[14],
     color: colors.text.primary,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.medium,
   },
   emptyState: {
     flex: 1,
@@ -561,24 +511,25 @@ const styles = createStyles(() => ({
     fontWeight: fontWeight.bold,
   },
   filters: {
-    marginBottom: spacing[4],
+    paddingTop: spacing[3],
+    marginBottom: spacing[3],
   },
   filterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[2],
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
-    backgroundColor: colors.background.secondary,
+    gap: spacing[1],
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    backgroundColor: 'transparent',
     borderRadius: radius[3],
     borderWidth: 1,
     borderColor: colors.border.default,
     marginRight: spacing[2],
-    minHeight: spacing[9],
+    minHeight: spacing[8],
   },
   filterPillActive: {
-    backgroundColor: colors.faded.primary,
-    borderColor: colors.border.primary,
+    backgroundColor: colors.accent.primary,
+    borderColor: 'transparent',
   },
   filterText: {
     fontSize: fontSize[12],
@@ -586,94 +537,72 @@ const styles = createStyles(() => ({
     color: colors.text.secondary,
   },
   filterTextActive: {
-    color: colors.accent.primary,
+    color: colors.accent.buttonText,
   },
-  filterBadge: {
-    paddingHorizontal: spacing[2],
-    paddingVertical: 2,
-    backgroundColor: colors.faded.surface,
-    borderRadius: radius[1],
-    minWidth: spacing[6],
-    height: spacing[5],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterBadgeActive: {
-    backgroundColor: colors.faded.primaryLight,
-  },
-  filterBadgeText: {
-    fontSize: fontSize[10],
-    color: colors.text.secondary,
-    fontWeight: fontWeight.bold,
-  },
-  filterBadgeTextActive: {
-    color: colors.accent.primary,
-  },
-  bestMatchSection: {
-    marginBottom: spacing[5],
-  },
-  bestMatchHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  resultsHeader: {
+    alignItems: 'flex-end',
     marginBottom: spacing[2],
-    paddingRight: spacing[1],
-  },
-  bestMatchBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
-    paddingHorizontal: spacing[2],
-    paddingVertical: spacing[1],
-    backgroundColor: colors.faded.primary,
-    borderRadius: radius[2],
-    borderWidth: 1,
-    borderColor: colors.border.primaryAlt,
-  },
-  bestMatchTitle: {
-    fontSize: fontSize[10],
-    fontWeight: fontWeight.bold,
-    color: colors.accent.primary,
-    letterSpacing: 1,
   },
   resultsCount: {
     fontSize: fontSize[12],
     color: colors.text.secondary,
     fontWeight: fontWeight.semibold,
   },
-  bestMatchCard: {
+  filterHitSlop: {
+    top: spacing[1],
+    bottom: spacing[1],
+    left: spacing[1],
+    right: spacing[1],
+  },
+  recommendedCard: {
     backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
-    padding: spacing[4],
+    padding: spacing[3],
+    marginBottom: spacing[3],
     borderWidth: 1,
     borderColor: colors.border.default,
   },
-  bestMatchItemContainer: {
-    marginBottom: spacing[3],
+  recommendedLabel: {
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    marginBottom: spacing[2],
+  },
+  recommendedFoodContainer: {
+    marginBottom: spacing[2],
     paddingHorizontal: 0,
     paddingVertical: 0,
     borderWidth: 0,
+    backgroundColor: 'transparent',
   },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing[2],
-  },
-  primaryBtn: {
+  recommendedAction: {
     flex: 1,
+    minHeight: spacing[12],
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[2],
     backgroundColor: colors.accent.primary,
-    paddingVertical: spacing[3],
     borderRadius: radius[3],
   },
-  primaryBtnText: {
+  recommendedActionSelected: {
+    backgroundColor: colors.faded.successAlt,
+    borderWidth: 1,
+    borderColor: colors.border.successAlt,
+  },
+  recommendedActionText: {
     fontSize: fontSize[14],
     fontWeight: fontWeight.bold,
-    color: colors.background.primary,
+    color: colors.accent.buttonText,
   },
-  secondaryBtn: {
+  recommendedActionTextSelected: {
+    color: colors.accent.success,
+  },
+  recommendedActions: {
+    flexDirection: 'row',
+    gap: spacing[2],
+  },
+  recommendedInfo: {
     width: spacing[12],
     height: spacing[12],
     justifyContent: 'center',
@@ -682,18 +611,6 @@ const styles = createStyles(() => ({
     borderRadius: radius[3],
     borderWidth: 1,
     borderColor: colors.border.default,
-  },
-  otherBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
-    marginBottom: spacing[3],
-  },
-  otherResultsTitle: {
-    fontSize: fontSize[10],
-    fontWeight: fontWeight.bold,
-    color: colors.accent.primary,
-    letterSpacing: 1,
   },
 }));
 

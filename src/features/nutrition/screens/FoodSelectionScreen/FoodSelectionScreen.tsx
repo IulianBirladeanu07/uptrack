@@ -182,16 +182,20 @@ const FoodSelectionScreen = () => {
             return;
         }
         isSubmittingRef.current = true;
-        const validatedFoods = selectedFoods.map(food => ({
-            ...food,
-            id: food.id || `${Date.now()}_${Math.random()}`,
-            calories: parseFloat(String(food.calories)) || 0,
-            protein: parseFloat(String(food.protein)) || 0,
-            carbohydrates: parseFloat(String(food.carbohydrates)) || 0,
-            fats: parseFloat(String(food.fats)) || 0,
-            quantity: food.quantity || 1,
-            mealType: meal,
-        })) as LoggedFood[];
+        const validatedFoods = selectedFoods.map(food => {
+            const validatedFood = {
+                ...food,
+                id: food.id || `${Date.now()}_${Math.random()}`,
+                calories: parseFloat(String(food.calories)) || 0,
+                protein: parseFloat(String(food.protein)) || 0,
+                carbohydrates: parseFloat(String(food.carbohydrates)) || 0,
+                fats: parseFloat(String(food.fats)) || 0,
+                quantity: food.quantity || 1,
+                mealType: meal,
+            };
+            delete validatedFood.selectionKey;
+            return validatedFood;
+        }) as LoggedFood[];
         try {
             await handleAddMeal(meal as MealType, validatedFoods, selectedDate);
             navigation.navigate('Nutrition');

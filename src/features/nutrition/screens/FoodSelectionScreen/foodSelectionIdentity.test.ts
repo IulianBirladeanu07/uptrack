@@ -10,6 +10,11 @@ describe('getFoodSelectionIdentity', () => {
             .toBe('id:food-1');
     });
 
+    it('uses a meal occurrence key to distinguish repeated logged-food ids', () => {
+        expect(getFoodSelectionIdentity({ id: 'food-1', selectionKey: 'yesterday_lunch:food-1' }))
+            .not.toBe(getFoodSelectionIdentity({ id: 'food-1', selectionKey: 'friday_lunch:food-1' }));
+    });
+
     it('distinguishes same-name food entries with different nutrition data', () => {
         expect(getFoodSelectionIdentity({ productName: 'Yogurt', calories: 80 }))
             .not.toBe(getFoodSelectionIdentity({ productName: 'Yogurt', calories: 120 }));

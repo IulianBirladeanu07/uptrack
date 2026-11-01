@@ -62,7 +62,7 @@ export const styles = createStyles(() => ({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.faded.surface,
+    backgroundColor: colors.background.secondary,
     borderRadius: radius[4],
     borderWidth: 1,
     borderColor: colors.border.default,
@@ -91,10 +91,7 @@ export const styles = createStyles(() => ({
 
   clearSearchButton: {
     padding: spacing[2],
-    borderRadius: radius[3],
-    backgroundColor: colors.faded.primaryLight,
-    borderWidth: 1,
-    borderColor: colors.border.primary,
+    borderRadius: radius[2],
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: spacing[2],
@@ -111,27 +108,19 @@ export const styles = createStyles(() => ({
   },
 
   filterPill: {
-    paddingVertical: spacing[1],
-    paddingHorizontal: spacing[2],
-    borderRadius: radius[5],
-    backgroundColor: colors.faded.surface,
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3],
+    borderRadius: radius[3],
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border.default,
-    elevation: 2,
-    position: 'relative',
-    overflow: 'hidden',
   },
 
   filterPillActive: {
     backgroundColor: colors.accent.primary,
-    borderColor: colors.border.primarySelected,
-    shadowColor: colors.accent.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
+    borderColor: 'transparent',
   },
 
   filterText: {
@@ -143,20 +132,8 @@ export const styles = createStyles(() => ({
   },
 
   filterTextActive: {
-    color: colors.background.primary,
-    fontWeight: fontWeight.extrabold,
-  },
-
-  filterPillGlow: {
-    position: 'absolute',
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: 22,
-    backgroundColor: colors.faded.primary,
-    opacity: 0.6,
-    zIndex: -1,
+    color: colors.accent.buttonText,
+    fontWeight: fontWeight.semibold,
   },
 
   listContainer: {
@@ -366,6 +343,24 @@ export const styles = createStyles(() => ({
     textAlign: 'center',
     paddingHorizontal: spacing[5],
     lineHeight: 22,
+    fontWeight: fontWeight.medium,
+  },
+
+  catalogWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginHorizontal: spacing[4],
+    marginTop: spacing[2],
+    padding: spacing[3],
+    borderRadius: radius[3],
+    backgroundColor: colors.faded.error,
+  },
+
+  catalogWarningText: {
+    flex: 1,
+    color: colors.accent.errorAlt,
+    fontSize: fontSize[12],
     fontWeight: fontWeight.medium,
   },
 

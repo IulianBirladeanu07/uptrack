@@ -47,10 +47,7 @@ export const fetchExercises = async (forceRefresh = false): Promise<ExerciseGrou
 export const loadExercisesForQuery = async (uid: string, forceRefresh = false): Promise<ExerciseGroup[]> => {
   const [catalog, custom] = await Promise.all([
     loadCatalog(forceRefresh),
-    fetchCustomExercises(uid).catch(error => {
-      console.warn('Failed to load custom exercises:', (error as Error).message);
-      return [];
-    }),
+    fetchCustomExercises(uid),
   ]);
   return mergeCustomExercises(catalog, custom);
 };

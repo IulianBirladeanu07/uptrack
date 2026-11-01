@@ -11,18 +11,24 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing[5],
-    paddingTop: spacing[10],
+    paddingTop: spacing[6],
   },
   header: {
     color: colors.text.primary,
     fontSize: fontSize[24],
     fontWeight: fontWeight.extrabold,
     textAlign: 'center',
-    marginBottom: spacing[6],
+    marginBottom: spacing[2],
     letterSpacing: -0.5,
   },
+  introText: {
+    color: colors.text.secondary,
+    fontSize: fontSize[12],
+    textAlign: 'center',
+    marginBottom: spacing[4],
+  },
   inputWrapper: {
-    marginBottom: spacing[5],
+    marginBottom: spacing[4],
   },
   labelContainer: {
     marginBottom: spacing[2],
@@ -63,14 +69,24 @@ const styles = StyleSheet.create({
   },
   section: {
     marginTop: spacing[2],
-    marginBottom: spacing[7],
+    marginBottom: spacing[4],
   },
   sectionTitle: {
     color: colors.text.primary,
     fontSize: fontSize[16],
     fontWeight: fontWeight.bold,
-    marginBottom: spacing[4],
+    marginBottom: spacing[2],
     letterSpacing: -0.2,
+  },
+  nutritionBasis: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing[3],
+  },
+  nutritionBasisText: {
+    flex: 1,
+    color: colors.text.tertiary,
+    fontSize: fontSize[12],
   },
   nutrientRow: {
     flexDirection: 'row',
@@ -84,11 +100,6 @@ const styles = StyleSheet.create({
   },
   nutrientHeader: {
     marginBottom: spacing[2],
-  },
-  labelWithIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
   },
   nutrientCell: {
     backgroundColor: colors.background.secondary,
@@ -117,31 +128,44 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     marginLeft: 4,
   },
-  tabContainer: {
+  nutritionDisclosure: {
     flexDirection: 'row',
-    backgroundColor: colors.background.secondary,
-    borderRadius: radius[3],
-    padding: spacing[1],
-    marginBottom: spacing[6],
-    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: spacing[12],
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[1],
+    marginTop: spacing[1],
+    borderTopWidth: 1,
     borderColor: colors.border.default,
   },
-  tab: {
+  nutritionDisclosureText: {
     flex: 1,
-    paddingVertical: spacing[2],
-    borderRadius: radius[2],
+    gap: spacing[1],
+  },
+  nutritionDisclosureTitle: {
+    color: colors.text.primary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
+  },
+  nutritionDisclosureHint: {
+    color: colors.text.tertiary,
+    fontSize: fontSize[12],
+  },
+  moreNutrientsToggle: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: spacing[10],
+    paddingVertical: spacing[2],
+    borderTopWidth: 1,
+    borderColor: colors.border.default,
+    marginBottom: spacing[3],
   },
-  activeTab: {
-    backgroundColor: colors.accent.primary,
-  },
-  tabText: {
+  moreNutrientsTitle: {
     color: colors.text.secondary,
     fontSize: fontSize[14],
-    fontWeight: fontWeight.bold,
-  },
-  activeTabText: {
-    color: colors.background.primary,
+    fontWeight: fontWeight.medium,
   },
   footer: {
     padding: spacing[4],
@@ -149,6 +173,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
     borderTopWidth: 1,
     borderTopColor: colors.border.default,
+  },
+  servingLabel: {
+    color: colors.text.secondary,
+    fontSize: fontSize[12],
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing[2],
   },
   amountRow: {
     flexDirection: 'row',

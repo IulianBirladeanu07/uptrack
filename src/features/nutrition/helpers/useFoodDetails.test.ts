@@ -58,6 +58,7 @@ describe('handleFoodAddition while adding', () => {
   it('passes the selected local calendar date as a date key', async () => {
     const result = await handleFoodAddition({
       ...createArgs(jest.fn()),
+      food: { ...createArgs(jest.fn()).food, selectionKey: 'yesterday_lunch:food-1' },
       update: false,
     });
 
@@ -65,7 +66,10 @@ describe('handleFoodAddition while adding', () => {
       success: true,
       navigation: {
         screen: 'FoodSelection',
-        params: { selectedDate: '2026-10-15' },
+        params: {
+          selectedDate: '2026-10-15',
+          selectedFoodDetail: { selectionKey: 'yesterday_lunch:food-1' },
+        },
       },
     });
   });

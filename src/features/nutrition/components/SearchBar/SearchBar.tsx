@@ -68,7 +68,7 @@ const SearchBar = memo(({
 
   return (
     <View style={[styles.searchContainer, isSearching && styles.searchContainerSearching]}>
-      <View style={[styles.searchBar, isSearching && styles.searchBarFocused]}>
+      <View style={styles.searchBar}>
         {!isSearching && (
           <TouchableOpacity
             style={styles.searchBarOverlay}
@@ -79,13 +79,28 @@ const SearchBar = memo(({
           />
         )}
 
-        <View style={styles.iconContainer}>
-          <MaterialCommunityIcons
-            name="magnify"
-            size={spacing.icon}
-            color={colors.text.secondary}
-          />
-        </View>
+        {isSearching ? (
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBackPress}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel search"
+          >
+            <MaterialCommunityIcons
+              name="arrow-left"
+              size={spacing.icon}
+              color={colors.text.secondary}
+            />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.iconContainer}>
+            <MaterialCommunityIcons
+              name="magnify"
+              size={spacing.icon}
+              color={colors.text.secondary}
+            />
+          </View>
+        )}
 
         <TextInput
           ref={inputRef}
@@ -113,26 +128,12 @@ const SearchBar = memo(({
             accessibilityRole="button"
             accessibilityLabel="Clear search"
           >
-            <MaterialCommunityIcons
-              name="close-circle"
-              size={spacing.icon}
-              color={colors.text.secondary}
-            />
+            <MaterialCommunityIcons name="close" size={spacing.icon} color={colors.text.tertiary} />
           </TouchableOpacity>
         )}
       </View>
 
-      {isSearching ? (
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={handleBackPress}
-          accessibilityRole="button"
-          accessibilityLabel="Cancel search"
-          hitSlop={{ top: spacing[2], bottom: spacing[2], left: spacing[2], right: spacing[2] }}
-        >
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-      ) : (
+      {!isSearching && (
         <TouchableOpacity
           style={styles.scannerButton}
           onPress={handleBarcodePress}
@@ -157,7 +158,8 @@ const styles = createStyles(() => ({
     gap: spacing[2],
   },
   searchContainerSearching: {
-    gap: spacing[1],
+    marginTop: spacing[1],
+    gap: spacing[3],
   },
   searchBar: {
     flex: 1,
@@ -177,9 +179,6 @@ const styles = createStyles(() => ({
     right: 0,
     bottom: 0,
     zIndex: 1,
-  },
-  searchBarFocused: {
-    borderColor: colors.accent.primary,
   },
   iconContainer: {
     paddingLeft: spacing[4],
@@ -211,16 +210,11 @@ const styles = createStyles(() => ({
     fontSize: fontSize[12],
     fontWeight: fontWeight.semibold,
   },
-  cancelButton: {
-    minHeight: spacing[12],
-    paddingHorizontal: spacing[1],
+  backButton: {
+    width: spacing[12],
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  cancelText: {
-    color: colors.text.secondary,
-    fontSize: fontSize[14],
-    fontWeight: fontWeight.semibold,
   },
   clearButton: {
     padding: spacing[2],

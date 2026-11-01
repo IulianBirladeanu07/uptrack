@@ -7,24 +7,28 @@ const styles = createStyles(() => ({
         backgroundColor: colors.background.primary,
     },
     headerRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        flexDirection: 'column',
         marginBottom: spacing[3],
     },
     viewRow: {
         flexDirection: 'row',
-        gap: spacing[5],
-        flexShrink: 0,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border.default,
+        marginBottom: spacing[2],
     },
     viewTab: {
-        paddingTop: spacing[1],
-        paddingBottom: spacing[2],
-        borderBottomWidth: 2,
-        borderBottomColor: 'transparent',
+        flex: 1,
+        minHeight: spacing[12],
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    viewTabActive: {
-        borderBottomColor: colors.accent.primary,
+    tabIndicator: {
+        position: 'absolute',
+        bottom: -1,
+        left: 0,
+        right: 0,
+        height: 2,
+        backgroundColor: colors.accent.primary,
     },
     viewText: {
         fontSize: fontSize[18],
@@ -34,29 +38,6 @@ const styles = createStyles(() => ({
     viewTextActive: {
         color: colors.text.primary,
     },
-    rangeSelector: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flexShrink: 1,
-    },
-    rangeOption: {
-        minHeight: spacing[12],
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: spacing[3],
-        borderRadius: radius[2],
-    },
-    rangeText: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.quaternary,
-        textAlign: 'center',
-    },
-    rangeTextActive: {
-        color: colors.text.primary,
-        fontWeight: fontWeight.bold,
-    },
-
     card: {
         backgroundColor: colors.background.secondary,
         borderRadius: radius[4],

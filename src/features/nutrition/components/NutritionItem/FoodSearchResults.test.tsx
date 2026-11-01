@@ -8,14 +8,21 @@ jest.mock('./FoodItem', () => {
     const { Text: MockText, TouchableOpacity: MockTouchable } = require('react-native');
     return {
         __esModule: true,
-        default: ({ item, onPress, onPlusPress, showPlusButton }: {
+        default: ({ item, onPress, onPlusPress, showPlusButton, isSelected, isSelectionEmphasized }: {
             item: FoodItemData;
             onPress?: (food: FoodItemData) => void;
             onPlusPress?: (food: FoodItemData) => void;
             showPlusButton?: boolean;
+            isSelected?: boolean;
+            isSelectionEmphasized?: boolean;
         }) => (
             <>
-                <MockTouchable testID={`open-${item.id}`} onPress={() => onPress?.(item)}>
+                <MockTouchable
+                    testID={`open-${item.id}`}
+                    accessibilityState={{ selected: isSelected }}
+                    accessibilityHint={isSelectionEmphasized ? 'Selection emphasized' : 'Selection subtle'}
+                    onPress={() => onPress?.(item)}
+                >
                     <MockText>{item.productName}</MockText>
                 </MockTouchable>
                 {showPlusButton && (
@@ -90,6 +97,68 @@ describe('FoodSearchResults selection', () => {
         expect(onPlusPress.mock.calls[0][0]).toMatchObject({ id: 'b', calories: 130 });
     });
 
+    it('adds the recommended result from its primary action', () => {
+        const onPlusPress = jest.fn();
+        render(
+            <FoodSearchResults
+                searchResults={results}
+                searchQuery="yogurt"
+                showPlusButton
+                onPlusPress={onPlusPress}
+            />,
+        );
+
+        fireEvent.press(screen.getByRole('button', { name: 'Add recommended food to log' }));
+
+        expect(onPlusPress).toHaveBeenCalledWith(results[0], true);
+    });
+
+    it('opens the recommended result from its details action', () => {
+        const onItemPress = jest.fn();
+        render(
+            <FoodSearchResults
+                searchResults={results}
+                searchQuery="yogurt"
+                showPlusButton
+                onItemPress={onItemPress}
+            />,
+        );
+
+        fireEvent.press(screen.getByRole('button', { name: 'Recommended food details' }));
+
+        expect(onItemPress).toHaveBeenCalledWith(results[0]);
+    });
+
+    it('labels the recommended action as added when selected', () => {
+        render(
+            <FoodSearchResults
+                searchResults={results}
+                searchQuery="yogurt"
+                showPlusButton
+                isFoodSelected={item => item.id === 'a'}
+            />,
+        );
+
+        expect(screen.getByRole('button', { name: 'Remove recommended food' }).props.accessibilityState)
+            .toEqual({ selected: true });
+    });
+
+    it('keeps selected search results subtle because the checkmark or action already shows selection', () => {
+        render(
+            <FoodSearchResults
+                searchResults={results}
+                searchQuery="yogurt"
+                showPlusButton
+                isFoodSelected={item => item.id === 'a' || item.id === 'b'}
+            />,
+        );
+
+        expect(screen.getByTestId('open-a').props.accessibilityState).toEqual({ selected: true });
+        expect(screen.getByTestId('open-a').props.accessibilityHint).toBe('Selection subtle');
+        expect(screen.getByTestId('open-b').props.accessibilityState).toEqual({ selected: true });
+        expect(screen.getByTestId('open-b').props.accessibilityHint).toBe('Selection subtle');
+    });
+
     it('passes the original search item without the display-only quantity fields', () => {
         const onItemPress = jest.fn();
         render(
@@ -121,31 +190,41 @@ const mixed = [
     rich('f', 'Edge Bar', 200, 10),
 ];
 
-const pillCounts = () =>
-    screen.getAllByText(/^\d+$/).map(el => el.props.children);
-
 const visibleIds = () =>
     ['a', 'b', 'c', 'd', 'e', 'f'].filter(
         id => screen.queryByTestId(`open-${id}`) !== null,
     );
 
 describe('FoodSearchResults filters', () => {
-    it('shows a pill per filter with its count', () => {
+    it('announces filter result counts without adding count badges to the pills', () => {
         render(<FoodSearchResults searchResults={mixed} searchQuery="xx" />);
 
-        expect(screen.getByText('All')).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'All, 6 results' }).props.accessibilityState)
+            .toEqual({ selected: true });
         expect(screen.getByText('Under 200 kcal')).toBeTruthy();
         expect(screen.getByText('10g+ protein')).toBeTruthy();
-        expect(pillCounts()).toEqual([6, 3, 3]);
+        expect(screen.getByText('6 results')).toBeTruthy();
+        expect(screen.queryByText('3')).toBeNull();
+
+        fireEvent.press(screen.getByRole('button', { name: '10g+ protein, 3 results' }));
+
+        expect(screen.getByRole('button', { name: 'All, 6 results' }).props.accessibilityState)
+            .toEqual({ selected: false });
+        expect(screen.getByRole('button', { name: '10g+ protein, 3 results' }).props.accessibilityState)
+            .toEqual({ selected: true });
+        expect(screen.getByText('3 results')).toBeTruthy();
     });
 
     it('lists every result by default', () => {
         render(<FoodSearchResults searchResults={mixed} searchQuery="xx" showPlusButton />);
 
         expect(visibleIds()).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
-        expect(screen.getByText('BEST MATCH')).toBeTruthy();
         expect(screen.getByText('6 results')).toBeTruthy();
-        expect(screen.getByText('MORE OPTIONS (5)')).toBeTruthy();
+        expect(screen.queryByText('BEST MATCH')).toBeNull();
+        expect(screen.queryByText('MORE OPTIONS', { exact: false })).toBeNull();
+        expect(screen.getByText('Recommended')).toBeTruthy();
+        expect(screen.getAllByTestId(/^add-/)).toHaveLength(5);
+        expect(screen.getByRole('button', { name: 'Add recommended food to log' })).toBeTruthy();
     });
 
     it('keeps only foods under 200 calories for the low calorie filter', () => {
@@ -165,15 +244,16 @@ describe('FoodSearchResults filters', () => {
         expect(visibleIds()).toEqual(['d', 'e', 'f']);
     });
 
-    it('makes the first filtered result the best match without a plus button', () => {
+    it('keeps the recommended filtered result and remaining rows available for direct selection', () => {
         render(<FoodSearchResults searchResults={mixed} searchQuery="xx" showPlusButton />);
 
         fireEvent.press(screen.getByText('10g+ protein'));
 
-        expect(screen.queryByTestId('add-d')).toBeNull();
+        expect(screen.getByText('Recommended')).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Add recommended food to log' })).toBeTruthy();
         expect(screen.getByTestId('add-e')).toBeTruthy();
         expect(screen.getByTestId('add-f')).toBeTruthy();
-        expect(screen.getByText('MORE OPTIONS (2)')).toBeTruthy();
+        expect(screen.queryByText('MORE OPTIONS', { exact: false })).toBeNull();
     });
 
     it('returns to every result when All is pressed again', () => {
@@ -185,14 +265,15 @@ describe('FoodSearchResults filters', () => {
         expect(visibleIds()).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
     });
 
-    it('uses the singular for a single result and hides the other-results section', () => {
+    it('shows a single result as the recommendation', () => {
         render(<FoodSearchResults searchResults={[mixed[2] as FoodSearchItem]} searchQuery="xx" />);
 
         expect(screen.getByText('1 result')).toBeTruthy();
+        expect(screen.getByText('Recommended')).toBeTruthy();
         expect(screen.queryByText('MORE OPTIONS', { exact: false })).toBeNull();
     });
 
-    it('shows no best match when the active filter excludes everything', () => {
+    it('shows an empty state when the active filter excludes everything', () => {
         render(<FoodSearchResults searchResults={[mixed[2] as FoodSearchItem]} searchQuery="xx" />);
 
         fireEvent.press(screen.getByText('Under 200 kcal'));
@@ -202,14 +283,14 @@ describe('FoodSearchResults filters', () => {
         expect(screen.getByText('Under 200 kcal')).toBeTruthy();
     });
 
-    it('adds the best match with the original search item from the Add to Log button', () => {
+    it('adds a non-recommended result from its row control with the original search item', () => {
         const onPlusPress = jest.fn();
-        render(<FoodSearchResults searchResults={mixed} searchQuery="xx" onPlusPress={onPlusPress} />);
+        render(<FoodSearchResults searchResults={mixed} searchQuery="xx" showPlusButton onPlusPress={onPlusPress} />);
 
-        fireEvent.press(screen.getByText('Add to Log'));
+        fireEvent.press(screen.getByTestId('add-b'));
 
         expect(onPlusPress).toHaveBeenCalledTimes(1);
-        expect(onPlusPress.mock.calls[0][0]).toBe(mixed[0]);
+        expect(onPlusPress.mock.calls[0][0]).toBe(mixed[1]);
     });
 
     it('ignores stale results when there is no query', () => {
@@ -297,6 +378,7 @@ describe('FoodSearchResults states', () => {
         );
 
         expect(screen.getByText('Recent Searches')).toBeTruthy();
+        expect(screen.getByText('Suggestions')).toBeTruthy();
         expect(screen.queryByText('Search for Foods')).toBeNull();
 
         fireEvent.press(screen.getByText('oats'));
@@ -345,8 +427,8 @@ describe('FoodSearchResults states', () => {
             />,
         );
 
-        fireEvent.press(screen.getByText('Salmon'));
+        fireEvent.press(screen.getByRole('button', { name: 'Search for Greek yogurt' }));
 
-        expect(onRecentSearchPress).toHaveBeenCalledWith('Salmon');
+        expect(onRecentSearchPress).toHaveBeenCalledWith('Greek yogurt');
     });
 });

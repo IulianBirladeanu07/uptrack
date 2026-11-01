@@ -321,6 +321,7 @@ export type FoodFormData = {
 export type FoodFormErrors = Partial<Record<keyof FoodFormData | 'macroNutrients', string>>;
 
 export type FoodDetailFood = Partial<LoggedFood> & {
+  selectionKey?: string | undefined;
   image?: string | null | undefined;
   category?: string | null | undefined;
   isFavorite?: boolean | undefined;

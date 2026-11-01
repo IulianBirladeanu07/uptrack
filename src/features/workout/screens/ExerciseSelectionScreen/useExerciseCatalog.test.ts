@@ -91,4 +91,17 @@ describe('useExerciseCatalog', () => {
     await waitFor(() => expect(result.current.error).toBe('Failed to load exercises'));
     expect(result.current.loading).toBe(false);
   });
+
+  it('keeps a failed retry visible through query error state', async () => {
+    jest.mocked(loadExercisesForQuery).mockRejectedValue(new Error('catalog unavailable'));
+    const { result } = renderHook(() => useExerciseCatalog(), { wrapper });
+
+    await waitFor(() => expect(result.current.error).toBe('catalog unavailable'));
+
+    await act(async () => {
+      await result.current.loadExercises(true);
+    });
+
+    await waitFor(() => expect(result.current.error).toBe('catalog unavailable'));
+  });
 });

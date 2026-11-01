@@ -26,8 +26,7 @@ export const useExerciseCatalog = () => {
 
   const loadExercises = useCallback(async (isRetry = false) => {
     if (!isRetry) return;
-    const result = await refetch();
-    if (result.error) throw result.error;
+    await refetch();
   }, [refetch]);
 
   const error = queryError

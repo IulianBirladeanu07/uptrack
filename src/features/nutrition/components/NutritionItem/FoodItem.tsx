@@ -15,6 +15,7 @@ import type { Numeric } from '../../../../shared/types';
 
 export type FoodItemData = {
   id?: string | undefined;
+  selectionKey?: string | undefined;
   mealType?: string | undefined;
   productName?: string | null;
   image?: string | null;
@@ -41,6 +42,7 @@ type FoodItemProps = {
   onPlusPress?: ((item: FoodItemData) => void) | undefined;
   showPlusButton?: boolean | undefined;
   isSelected?: boolean | undefined;
+  isSelectionEmphasized?: boolean | undefined;
   isScrolling?: boolean | undefined;
   compact?: boolean | undefined;
   foodContainer?: StyleProp<ViewStyle>;
@@ -127,17 +129,23 @@ const MacroLabels = memo(({ macros }: { macros: Macro[] }) => (
 
 type PlusButtonProps = {
   isChecked: boolean;
+  isSelectionEmphasized: boolean;
   onPress: () => void;
   showButton: boolean;
 };
 
-const PlusButton = memo(({ isChecked, onPress, showButton }: PlusButtonProps) => {
+const PlusButton = memo(({ isChecked, isSelectionEmphasized, onPress, showButton }: PlusButtonProps) => {
   if (!showButton) return null;
   return (
     <View
+      testID="food-selection-toggle"
       style={[
         styles.plusButton,
-        isChecked ? styles.plusButtonSelected : styles.plusButtonAdd,
+        isChecked
+          ? isSelectionEmphasized
+            ? styles.plusButtonSelected
+            : styles.plusButtonSelectedSubtle
+          : styles.plusButtonAdd,
       ]}
     >
       <TouchableOpacity
@@ -178,6 +186,7 @@ type FoodInfoProps = {
   unit?: string | null | undefined;
   macros: Macro[];
   isChecked: boolean;
+  isSelectionEmphasized: boolean;
   showPlusButton: boolean;
   onPlusPress: () => void;
   nameStyle: StyleProp<TextStyle>;
@@ -194,6 +203,7 @@ const FoodInfo = memo(
     unit,
     macros,
     isChecked,
+    isSelectionEmphasized,
     showPlusButton,
     onPlusPress,
     nameStyle,
@@ -218,7 +228,12 @@ const FoodInfo = memo(
       </View>
       <View style={styles.caloriesContainer}>
         <CaloriesDisplay calories={calories} caloriesValueStyle={caloriesValueStyle} />
-        <PlusButton isChecked={isChecked} onPress={onPlusPress} showButton={showPlusButton} />
+        <PlusButton
+          isChecked={isChecked}
+          isSelectionEmphasized={isSelectionEmphasized}
+          onPress={onPlusPress}
+          showButton={showPlusButton}
+        />
       </View>
     </View>
   )
@@ -233,6 +248,7 @@ const FoodItem = memo(
     onPlusPress,
     showPlusButton = false,
     isSelected,
+    isSelectionEmphasized = true,
     isScrolling = false,
     compact = false,
     foodContainer,
@@ -319,6 +335,7 @@ const FoodItem = memo(
             unit={item.unit}
             macros={itemData.macros}
             isChecked={isChecked}
+            isSelectionEmphasized={isSelectionEmphasized}
             showPlusButton={showPlusButton}
             onPlusPress={handlePlusPress}
             nameStyle={resolvedStyles.name}
@@ -332,14 +349,14 @@ const FoodItem = memo(
 
     if (!isFoodDeletable) {
       return (
-        <Animated.View style={[resolvedStyles.container, isChecked && styles.containerSelected, pressStyle]}>
+        <Animated.View style={[resolvedStyles.container, isChecked && isSelectionEmphasized && styles.containerSelected, pressStyle]}>
           {Content}
         </Animated.View>
       );
     }
 
     return (
-      <View style={[resolvedStyles.container, isChecked && styles.containerSelected]}>
+      <View style={[resolvedStyles.container, isChecked && isSelectionEmphasized && styles.containerSelected]}>
         <View style={styles.deleteButtonContainer}>
           <Animated.View style={[styles.deleteIconWrapper, trashStyle]}>
             <MaterialCommunityIcons
@@ -524,6 +541,14 @@ const styles = createStyles(() => ({
     borderWidth: 1,
     borderColor: colors.border.successAlt,
     shadowColor: colors.accent.success,
+  },
+
+  plusButtonSelectedSubtle: {
+    backgroundColor: colors.background.secondary,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    shadowOpacity: 0,
+    elevation: 0,
   },
 
   deleteButtonContainer: {
