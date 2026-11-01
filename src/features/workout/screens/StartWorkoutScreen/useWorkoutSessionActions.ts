@@ -11,7 +11,7 @@ import { workoutTimer } from '../../services/WorkoutTimerService';
 import { isCurrentWorkoutUser } from './workoutUserGuard';
 
 type AppNavigation = NativeStackNavigationProp<AuthenticatedStackParamList>;
-type SessionNavigation = Pick<AppNavigation, 'navigate' | 'goBack'>;
+type SessionNavigation = Pick<AppNavigation, 'navigate' | 'getState' | 'pop' | 'replace'>;
 
 type WorkoutSessionActionsOptions = {
     inputText: string;
@@ -34,6 +34,19 @@ export const useWorkoutSessionActions = ({
     initializationGeneration,
     isFinishingWorkout,
 }: WorkoutSessionActionsOptions) => {
+    const returnToWorkout = useCallback(() => {
+        const state = navigation.getState();
+        const workoutRouteIndex = state.routes.findIndex(
+            (route, index) => index < state.index && route.name === 'Workout',
+        );
+
+        if (workoutRouteIndex >= 0) {
+            navigation.pop(state.index - workoutRouteIndex);
+        } else {
+            navigation.replace('Workout');
+        }
+    }, [navigation]);
+
     const confirmExit = useCallback(async (uid: string) => {
         if (!isCurrentWorkoutUser(uid) || workoutService.uid !== uid) return;
         initializationGeneration.current++;
@@ -42,10 +55,8 @@ export const useWorkoutSessionActions = ({
         if (!isCurrentWorkoutUser(uid) || workoutService.uid !== uid) return;
         setActiveWorkout(null);
         setInputText('');
-        await refreshAllData(true);
-        if (!isCurrentWorkoutUser(uid) || workoutService.uid !== uid) return;
-        navigation.goBack();
-    }, [initializationGeneration, navigation, refreshAllData, setActiveWorkout, setInputText]);
+        returnToWorkout();
+    }, [initializationGeneration, returnToWorkout, setActiveWorkout, setInputText]);
 
     const handleExit = useCallback(() => {
         if (isFinishingWorkout.current) return;

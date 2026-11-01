@@ -96,7 +96,6 @@ const FoodSelectionScreen = () => {
         });
     }, [selectedDate]);
 
-    const currentCalories = useMemo(() => Math.round(dailyNutrition?.calories || 0), [dailyNutrition?.calories]);
     const targetCalories = useMemo(() => resolveCalorieTarget(hasTargets, userMacros?.targetCalories), [hasTargets, userMacros?.targetCalories]);
     const selectedFoodIdentities = useMemo(
         () => new Set(selectedFoods.map(getFoodSelectionIdentity)),
@@ -263,7 +262,7 @@ const FoodSelectionScreen = () => {
                     date={formattedDate}
                     meal={meal}
                     selectedFoods={selectedFoods}
-                    currentCalories={currentCalories}
+                    currentCalories={dailyNutrition?.calories || 0}
                     targetCalories={targetCalories ?? undefined}
                     onQuickActionsPress={handleQuickActionsPress}
                 />

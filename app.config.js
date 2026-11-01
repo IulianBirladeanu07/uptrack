@@ -44,7 +44,7 @@ module.exports = {
       supportsTablet: true,
       infoPlist: {
         CFBundleDisplayName: "UpTrack",
-        NSCameraUsageDescription: "This app uses the camera to scan barcodes.",
+        NSCameraUsageDescription: "This app uses the camera to scan barcodes and nutrition labels.",
         NSHealthUpdateUsageDescription: "This app reads your health data to track activity and steps.",
         NSHealthShareUsageDescription: "This app requires access to your health data to display your activity progress.",
       },

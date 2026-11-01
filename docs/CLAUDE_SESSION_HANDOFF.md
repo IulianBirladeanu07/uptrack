@@ -10,6 +10,18 @@ Updated 2026-11-01. Start with this handoff, then read `AGENTS.md` before changi
 - Three patch files mentioned in an earlier handoff (`0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`) are not present in this checkout at the current base commit.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
+## Current batch: Workout cancellation navigation
+
+- Confirming Cancel clears the active session and returns directly to an existing Workout screen; if none is underneath, it replaces StartWorkout with Workout. It no longer waits for unrelated history/template refreshes before navigating.
+- `useWorkoutSessionActions.test.ts` covers both stack paths. Focused Jest, TypeScript, and `git diff --check` pass.
+
+## Current batch: Nutrition food entry and label scanning
+
+- Removed the global pending-meal-write banner while retaining queued writes and automatic retries. Calorie progress now avoids intermediate rounding and uses a thicker accessible bar; Recent foods can show the full cached range with larger list render batches.
+- The Dashboard steps notice waits for health access/loading and sits below primary content. The Create Food unit picker remains single-column with its existing colors and shorter rows.
+- Barcode misses now offer nutrition-label scanning, manual entry, or retry. Label photos are processed on-device with ML Kit; recognized nutrient values and serving basis prefill an editable form with a review warning. OCR never logs food automatically, and the original barcode is preserved.
+- `nutritionLabelOcr.test.ts` covers nutrition fields, split OCR lines, serving bases, kJ, and sodium conversion. A rebuilt native dev client is required to exercise the ML Kit module; Android JS export does not validate native camera/OCR behavior.
+
 ## Latest batch: Progress chart sizing and Food Selection refinements
 
 - `ProgressScreen.tsx` now measures the persistent screen width once and derives chart width from the existing screen/card spacing and border tokens. The chart cards no longer keep their own width state, so changing Nutrition/Training tabs does not remount charts into a temporary empty measurement state.
@@ -60,9 +72,29 @@ The work below records completed batches. Use `git status --short` and `git log 
 ### Nutrition search and custom-food entry UX
 
 - Food Search recent searches now use a compact divider list and neutral actions; suggested foods are common staples. Exercise Selection filters use the same flat orange selected state and omit visual counts while retaining accessible count labels.
-- Custom Food opens on name, calories, and serving size. Nutrition details are optional and collapsed; macros and additional nutrients expand progressively. Empty nutrient fields no longer look prefilled with zeroes, serving context is shown only when details are open, and nutrient validation errors appear beside the fields.
-- The serving-size input now reports focus so it remains available while its keyboard is open.
-- Validation: CustomFoodScreen, useCustomFood, and customFoodValidators passed (3 suites / 29 tests); `npx tsc --noEmit`, Android Expo export, and `git diff --check` passed. Jest emitted existing icon-font `act(...)` warnings. No device preview was run.
+- Custom Food keeps name, a distinct full-width Calories row with a flame icon, and the three main macros grouped together in the main form; the redundant “Macros” subheading is removed and the macro fields have more separation from Calories. Less commonly used nutrients expand in a separate optional group. The serving size remains in the sticky bottom panel beside Add to Diary, and the form labels nutrition values for the current serving. Empty nutrient fields no longer look prefilled with zeroes, and validation errors appear beside the fields.
+- Create Food opens unit choices in a compact single-column menu anchored to the serving-unit control. It unfolds upward from the control (and down only when there is insufficient space above); tighter rows reduce how much of the form it covers while retaining the existing colors and selected checkmark. Choices show concise unit codes, with full names available to screen readers. Selection and outside tap dismiss the menu; Food Detail retains its shared bottom sheet.
+- Validation: the nutrition test suite passed earlier in this batch (61 suites / 452 tests); after the latest layout changes, CustomFoodScreen passed (1 suite / 6 tests), `npx tsc --noEmit`, and `git diff --check` passed. Android Expo export passed earlier in the batch. Jest emitted existing icon-font `act(...)` warnings and reported lingering async handles after all tests passed. No device preview was run.
+
+### Dashboard steps connection prompt
+
+- The steps permission notice waits for the initial health-access check and step loading to finish, so it no longer appears while the dashboard is still initializing. It now sits below the primary dashboard cards in a compact, theme-colored layout with Connect and dismiss actions.
+- Validation: focused Jest passed (2 suites / 15 tests); `npx tsc --noEmit`, Android Expo export (9.4 MB JS bundle), and `git diff --check` passed. The Create Food component test emitted the existing icon-font `act(...)` warnings. No device preview was run.
+
+### Food Selection calorie progress
+
+- The Food Selection header now combines current-day calories with selected foods before rounding only the displayed remainder, avoiding double-rounding errors. The progress bar is 8 dp instead of 4 dp and exposes its consumed/target values to accessibility services.
+- Validation: focused Jest passed (2 suites / 7 tests); `npx tsc --noEmit`, Android Expo export (9.4 MB JS bundle), and `git diff --check` passed. No device preview was run.
+
+### Recent meals scrolling
+
+- Recent now includes every meal entry in the existing 30-day in-memory cache instead of truncating the list to 30 entries. Its FlatList renders larger initial and incremental batches with a wider window to reduce blanks during fast scrolling.
+- Validation: focused Jest passed (2 suites / 5 tests); `npx tsc --noEmit`, Android Expo export (9.4 MB JS bundle), and `git diff --check` passed. The FoodListItem component test emitted the existing icon-font `act(...)` warnings. No device preview was run.
+
+### Removing meal-sync layout banner
+
+- Removed the global “meal change is waiting to sync” banner, which inserted a row above every authenticated screen and shifted the content. Offline meal writes remain queued and continue retrying on meal changes and app initialization; no meal data or synchronization behavior was removed.
+- Validation: queued-write tests passed (3 suites / 7 tests); `npx tsc --noEmit`, `git diff --check`, and a source search confirming no banner references remain passed.
 
 ### Nutrition meal calorie display
 

@@ -54,6 +54,7 @@ describe('useCustomFood', () => {
       result.current.handleFieldChange('productName', 'Oats');
       result.current.changeUnit('ml');
     });
+
     expect(result.current.foodData).toMatchObject({
       calories: '200.5', amount: '1.25', productName: 'Oats', unit: 'ml',
     });
@@ -67,6 +68,28 @@ describe('useCustomFood', () => {
     });
     expect(result.current.errors).toEqual({});
     expect(result.current.isDirty).toEqual({});
+  });
+
+  it('initializes the editable form with recognized label values and serving basis', () => {
+    const navigation = { navigate: jest.fn() } as never;
+    const { result } = renderHook(() =>
+      useCustomFood(
+        'foodWithBarcode',
+        navigation,
+        '12345678',
+        'lunch',
+        '2026-10-17',
+        { calories: '160', protein: '7', amount: '35', unit: 'g' },
+      ),
+    );
+
+    expect(result.current.foodData).toMatchObject({
+      calories: '160',
+      protein: '7',
+      amount: '35',
+      unit: 'g',
+      barcode: '12345678',
+    });
   });
 
   it('shows validation errors without dismissing the keyboard or writing data', async () => {

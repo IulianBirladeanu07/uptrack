@@ -26,14 +26,18 @@ export const useCustomFood = (
     navigation: AppNavigationProp,
     barcode = '',
     meal: string | undefined,
-    selectedDate: string | undefined
+    selectedDate: string | undefined,
+    initialData?: Partial<FoodFormData>
 ) => {
     const inputRefs = useRef<Record<string, FieldHandle | null>>({});
     const validationTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const submittingRef = useRef(false);
     
     const [formData, setFormData] = useState<FoodFormData>(() => {
-        const initial: FoodFormData = getInitialFoodData();
+        const initial: FoodFormData = {
+            ...getInitialFoodData(),
+            ...initialData,
+        };
         if (barcode) {
             initial.barcode = barcode;
         }

@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Linking, Alert, ActivityIndicator, NativeModules } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import styles from './BarcodeScannerScreenStyle';
 import { useBarcodeScanner } from '../../helpers/useBarcodeScanner';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
+import { parseNutritionLabel } from '../../utils/nutritionLabelOcr';
+
+type TextRecognitionModule = {
+  recognize: (imageURL: string, script: 'Latin') => Promise<{ text: string }>;
+};
+
+const textRecognitionModule = NativeModules['TextRecognition'] as TextRecognitionModule | undefined;
 
 type ScannerOverlayProps = {
   isScanning: boolean;
@@ -75,11 +82,15 @@ const ScannerOverlay = ({
 const BarcodeScannerScreen = () => {
   const navigation = useAppNavigation();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [isReadingLabel, setIsReadingLabel] = useState(false);
   const scanLineAnimation = useRef(new Animated.Value(0)).current;
+  const cameraRef = useRef<CameraView>(null);
   
   const route = useAppRoute<'BarcodeScanner'>();
   const selectedDate = route.params?.selectedDate;
   const meal = route.params?.meal;
+  const barcode = route.params?.barcode;
+  const isNutritionLabelMode = route.params?.mode === 'nutritionLabel';
 
   const {
     isScanning,
@@ -98,7 +109,7 @@ const BarcodeScannerScreen = () => {
   }, [navigation, resumeScanning]);
 
   useEffect(() => {
-    if (isScanning) {
+    if (isScanning && !isNutritionLabelMode) {
       Animated.loop(
         Animated.sequence([
           Animated.timing(scanLineAnimation, {
@@ -116,7 +127,7 @@ const BarcodeScannerScreen = () => {
     } else {
       scanLineAnimation.stopAnimation();
     }
-  }, [isScanning, scanLineAnimation]);
+  }, [isNutritionLabelMode, isScanning, scanLineAnimation]);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,6 +166,71 @@ const BarcodeScannerScreen = () => {
     }
   };
 
+  const openManualFoodEntry = () => {
+    navigation.navigate('CustomFood', {
+      barcode: barcode ?? '',
+      type: 'foodWithBarcode',
+      meal,
+      selectedDate,
+    });
+  };
+
+  const captureNutritionLabel = async () => {
+    if (!cameraRef.current || isReadingLabel) return;
+    if (!textRecognitionModule) {
+      Alert.alert(
+        'Scanner unavailable',
+        'Nutrition label scanning is not available in this app build. Update the app or enter the food manually.',
+        [{ text: 'Enter Manually', onPress: openManualFoodEntry }, { text: 'Cancel', style: 'cancel' }],
+      );
+      return;
+    }
+
+    setIsReadingLabel(true);
+    try {
+      const image = await cameraRef.current.takePictureAsync({ quality: 0.9 });
+      if (!image.uri) throw new Error('Captured image has no local URI');
+
+      const result = await textRecognitionModule.recognize(image.uri, 'Latin');
+      const parsed = parseNutritionLabel(result.text);
+      if (!parsed) {
+        Alert.alert(
+          'Nutrition facts not found',
+          'Try another photo with the nutrition panel in focus, or enter the food manually.',
+          [
+            { text: 'Try Again', style: 'cancel' },
+            { text: 'Enter Manually', onPress: openManualFoodEntry },
+          ],
+        );
+        return;
+      }
+
+      navigation.navigate('CustomFood', {
+        type: 'foodWithBarcode',
+        barcode: barcode ?? '',
+        meal,
+        selectedDate,
+        nutritionLabelValues: {
+          ...parsed.fields,
+          amount: parsed.amount,
+          unit: parsed.unit,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to scan nutrition label:', error);
+      Alert.alert(
+        'Label scan failed',
+        'Could not read the photo. Try again or enter the food manually.',
+        [
+          { text: 'Try Again', style: 'cancel' },
+          { text: 'Enter Manually', onPress: openManualFoodEntry },
+        ],
+      );
+    } finally {
+      setIsReadingLabel(false);
+    }
+  };
+
   if (hasPermission === null) {
     return (
       <View style={styles.centered}>
@@ -185,7 +261,7 @@ const BarcodeScannerScreen = () => {
 
   return (
     <View style={styles.container}>
-      {!isScanning && (
+      {!isNutritionLabelMode && !isScanning && (
         <View style={styles.header}>
           <TouchableOpacity onPress={closeScanner} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="black" />
@@ -194,9 +270,10 @@ const BarcodeScannerScreen = () => {
         </View>
       )}
 
-      {isScanning && (
+      {(isScanning || isNutritionLabelMode) && (
         <CameraView
-          onBarcodeScanned={isScanning ? handleBarcodeScanned : undefined}
+          ref={cameraRef}
+          onBarcodeScanned={!isNutritionLabelMode && isScanning ? handleBarcodeScanned : undefined}
           barcodeScannerSettings={{
             barcodeTypes: ['aztec', 'ean13', 'ean8', 'qr', 'pdf417', 'upc_e', 'datamatrix', 'code39', 'code93', 'itf14', 'codabar', 'code128', 'upc_a']
           }}
@@ -205,7 +282,7 @@ const BarcodeScannerScreen = () => {
         />
       )}
 
-      {isScanning && (
+      {isScanning && !isNutritionLabelMode && (
         <TouchableOpacity
           style={styles.closeButton}
           onPress={closeScanner}
@@ -214,13 +291,42 @@ const BarcodeScannerScreen = () => {
         </TouchableOpacity>
       )}
 
-      <ScannerOverlay 
-        isScanning={isScanning}
-        scanLineAnimation={scanLineAnimation}
-        instructionsVisible={instructionsVisible}
-        successOpacity={successOpacity}
-        errorOpacity={errorOpacity}
-      />
+      {isNutritionLabelMode ? (
+        <View style={styles.labelScanOverlay} pointerEvents="box-none">
+          <TouchableOpacity style={styles.labelCloseButton} onPress={closeScanner} accessibilityRole="button" accessibilityLabel="Close label scanner">
+            <Ionicons name="close" size={28} color="white" />
+          </TouchableOpacity>
+          <View style={styles.labelScanInstructions}>
+            <Text style={styles.labelScanTitle}>Scan nutrition label</Text>
+            <Text style={styles.labelScanText}>Fit the nutrition facts panel inside the frame.</Text>
+          </View>
+          <View style={styles.labelScanFrame} />
+          <View style={styles.labelScanFooter}>
+            <TouchableOpacity
+              style={[styles.captureButton, isReadingLabel && styles.captureButtonDisabled]}
+              onPress={captureNutritionLabel}
+              disabled={isReadingLabel}
+              accessibilityRole="button"
+              accessibilityLabel="Take nutrition label photo"
+            >
+              {isReadingLabel
+                ? <ActivityIndicator color="#111" />
+                : <Ionicons name="camera" size={30} color="#111" />}
+            </TouchableOpacity>
+            <Text style={styles.labelScanText}>
+              {isReadingLabel ? 'Reading label...' : 'Take photo to fill in the form'}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <ScannerOverlay
+          isScanning={isScanning}
+          scanLineAnimation={scanLineAnimation}
+          instructionsVisible={instructionsVisible}
+          successOpacity={successOpacity}
+          errorOpacity={errorOpacity}
+        />
+      )}
 
       {loadingProduct && (
         <View style={styles.loadingContainer}>

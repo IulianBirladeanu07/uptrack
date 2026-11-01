@@ -36,7 +36,9 @@ jest.mock('../../services/WorkoutTimerService', () => ({
 
 type SessionNavigation = {
     navigate: jest.Mock;
-    goBack: jest.Mock;
+    getState: jest.Mock;
+    pop: jest.Mock;
+    replace: jest.Mock;
 };
 
 const exercise: WorkoutExercise = {
@@ -57,11 +59,16 @@ const exercise: WorkoutExercise = {
     }],
 };
 
-const makeOptions = () => ({
+const makeOptions = (routes: string[] = ['Dashboard', 'Workout', 'StartWorkout']) => ({
     inputText: 'Session note',
     navigation: {
         navigate: jest.fn(),
-        goBack: jest.fn(),
+        getState: jest.fn(() => ({
+            index: routes.length - 1,
+            routes: routes.map(name => ({ name })),
+        })),
+        pop: jest.fn(),
+        replace: jest.fn(),
     } as unknown as SessionNavigation,
     refreshAllData: jest.fn(async () => undefined),
     setActiveWorkout: jest.fn<(workout: PersistedWorkoutState | null) => void>(),
@@ -178,7 +185,7 @@ describe('useWorkoutSessionActions', () => {
         });
     });
 
-    it('asks for exit confirmation and clears the matching user session when confirmed', async () => {
+    it('clears the session and returns directly to an existing Workout screen when confirmed', async () => {
         const options = makeOptions();
         const { result } = renderHook(() => useWorkoutSessionActions(options));
 
@@ -201,8 +208,26 @@ describe('useWorkoutSessionActions', () => {
         expect(workoutService.clearWorkout).toHaveBeenCalledTimes(1);
         expect(options.setActiveWorkout).toHaveBeenCalledWith(null);
         expect(options.setInputText).toHaveBeenCalledWith('');
-        expect(options.refreshAllData).toHaveBeenCalledWith(true);
-        expect(options.navigation.goBack).toHaveBeenCalledTimes(1);
+        expect(options.refreshAllData).not.toHaveBeenCalled();
+        expect(options.navigation.pop).toHaveBeenCalledWith(1);
+        expect(options.navigation.replace).not.toHaveBeenCalled();
+    });
+
+    it('replaces the session screen with Workout when there is no Workout route underneath', async () => {
+        const options = makeOptions(['Dashboard', 'StartWorkout']);
+        const { result } = renderHook(() => useWorkoutSessionActions(options));
+
+        act(() => result.current.handleExit());
+        const alertActions = (Alert.alert as jest.Mock).mock.calls[0]?.[2] as Array<{
+            text: string;
+            onPress?: () => void | Promise<void>;
+        }>;
+        await act(async () => {
+            await alertActions.find(action => action.text === 'YES')?.onPress?.();
+        });
+
+        expect(options.navigation.pop).not.toHaveBeenCalled();
+        expect(options.navigation.replace).toHaveBeenCalledWith('Workout');
     });
 
     it('reports completion errors and releases the finishing guard', async () => {

@@ -11,7 +11,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing[5],
-    paddingTop: spacing[6],
+    paddingTop: spacing[10],
   },
   header: {
     color: colors.text.primary,
@@ -21,10 +21,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing[2],
     letterSpacing: -0.5,
   },
-  introText: {
+  reviewNote: {
     color: colors.text.secondary,
-    fontSize: fontSize[12],
-    textAlign: 'center',
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[3],
+    fontSize: fontSize[14],
+    lineHeight: fontSize[18],
+    padding: spacing[3],
     marginBottom: spacing[4],
   },
   inputWrapper: {
@@ -78,19 +81,46 @@ const styles = StyleSheet.create({
     marginBottom: spacing[2],
     letterSpacing: -0.2,
   },
-  nutritionBasis: {
+  nutritionHeading: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing[3],
+    justifyContent: 'space-between',
+    marginBottom: spacing[2],
   },
   nutritionBasisText: {
-    flex: 1,
     color: colors.text.tertiary,
     fontSize: fontSize[12],
+    fontWeight: fontWeight.medium,
   },
-  nutrientRow: {
+  energyCell: {
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[3],
+    height: spacing[12],
+    paddingHorizontal: spacing[4],
     flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  energyLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  energyLabelText: {
+    color: colors.text.primary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.semibold,
+  },
+  energyInput: {
+    textAlign: 'right',
+  },
+  macroGrid: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
     justifyContent: 'space-between',
+    gap: spacing[2],
+    marginTop: spacing[4],
   },
   otherNutrientGrid: {
     flexDirection: 'row',
@@ -128,39 +158,17 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     marginLeft: 4,
   },
-  nutritionDisclosure: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: spacing[12],
-    paddingVertical: spacing[2],
-    paddingHorizontal: spacing[1],
-    marginTop: spacing[1],
-    borderTopWidth: 1,
-    borderColor: colors.border.default,
-  },
-  nutritionDisclosureText: {
-    flex: 1,
-    gap: spacing[1],
-  },
-  nutritionDisclosureTitle: {
-    color: colors.text.primary,
-    fontSize: fontSize[14],
-    fontWeight: fontWeight.semibold,
-  },
-  nutritionDisclosureHint: {
-    color: colors.text.tertiary,
-    fontSize: fontSize[12],
-  },
   moreNutrientsToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: spacing[10],
+    minHeight: spacing[11],
     paddingVertical: spacing[2],
+    paddingHorizontal: spacing[1],
     borderTopWidth: 1,
+    borderBottomWidth: 1,
     borderColor: colors.border.default,
-    marginBottom: spacing[3],
+    marginBottom: spacing[4],
   },
   moreNutrientsTitle: {
     color: colors.text.secondary,
@@ -207,6 +215,60 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: colors.border.default,
+  },
+  unitSelectorAnchor: {
+    flex: 1,
+  },
+  unitMenuBackdrop: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  unitMenu: {
+    position: 'absolute',
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius[3],
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    elevation: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: spacing[2] },
+    shadowOpacity: 0.24,
+    shadowRadius: spacing[3],
+    overflow: 'hidden',
+  },
+  unitMenuContent: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.background.secondary,
+    paddingHorizontal: spacing[1],
+    paddingVertical: spacing[1],
+  },
+  unitMenuOption: {
+    minHeight: spacing[10],
+    paddingHorizontal: spacing[4],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
+  },
+  unitMenuOptionLast: {
+    borderBottomWidth: 0,
+  },
+  unitMenuLabel: {
+    color: colors.text.secondary,
+    fontSize: fontSize[14],
+    fontWeight: fontWeight.medium,
+  },
+  unitMenuLabelSelected: {
+    color: colors.text.primary,
+    fontWeight: fontWeight.semibold,
+  },
+  unitMenuIndicator: {
+    width: spacing[5],
+    alignItems: 'flex-end',
   },
   addButton: {
     backgroundColor: colors.accent.primary,

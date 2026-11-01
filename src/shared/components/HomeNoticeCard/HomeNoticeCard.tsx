@@ -13,26 +13,29 @@ type HomeNoticeCardProps = {
   onAction?: (() => void) | undefined;
   actionLabel?: string | undefined;
   onDismiss?: (() => void) | undefined;
+  compact?: boolean;
 };
 
 const ICONS: Record<HomeNotice['type'], NoticeIcon> = {
   calorie_adjustment: { name: 'flame-outline',  color: colors.accent.primary,   bg: colors.faded.primary },
   goal_reached:       { name: 'trophy-outline', color: colors.accent.success,   bg: colors.faded.success },
-  steps_permission:   { name: 'walk-outline',   color: colors.accent.stepsRed,  bg: colors.faded.error },
+  steps_permission:   { name: 'walk-outline',   color: colors.accent.primary,  bg: colors.faded.primary },
 };
 
-const HomeNoticeCard = ({ notice, onAction, actionLabel, onDismiss }: HomeNoticeCardProps) => {
+const HomeNoticeCard = ({ notice, onAction, actionLabel, onDismiss, compact = false }: HomeNoticeCardProps) => {
   const icon = ICONS[notice.type] || ICONS.calorie_adjustment;
 
   return (
-    <View style={styles.card}>
-      <View style={[styles.iconContainer, { backgroundColor: icon.bg }]}>
+    <View style={[styles.card, compact && styles.compactCard]}>
+      <View style={[styles.iconContainer, compact && styles.compactIconContainer, { backgroundColor: icon.bg }]}>
         <Ionicons name={icon.name} size={spacing[5]} color={icon.color} />
       </View>
-      <View style={styles.textCol}>
+      <View style={[styles.textCol, compact && styles.compactTextCol]}>
         <Text style={styles.title}>{notice.title}</Text>
-        <Text style={styles.body}>{notice.body}</Text>
-        {(onAction || onDismiss) && (
+        <Text style={[styles.body, compact && styles.compactBody]} numberOfLines={compact ? 1 : undefined}>
+          {notice.body}
+        </Text>
+        {!compact && (onAction || onDismiss) && (
           <View style={styles.actionsRow}>
             {onAction && (
               <TouchableOpacity onPress={onAction} activeOpacity={0.7}>
@@ -47,7 +50,27 @@ const HomeNoticeCard = ({ notice, onAction, actionLabel, onDismiss }: HomeNotice
           </View>
         )}
       </View>
-      {onDismiss && !onAction && (
+      {compact && (
+        <View style={styles.compactActions}>
+          {onAction && (
+            <TouchableOpacity onPress={onAction} activeOpacity={0.7} accessibilityRole="button">
+              <Text style={styles.actionText}>{actionLabel || 'Connect'}</Text>
+            </TouchableOpacity>
+          )}
+          {onDismiss && (
+            <TouchableOpacity
+              onPress={onDismiss}
+              style={styles.closeBtn}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss steps connection prompt"
+            >
+              <Ionicons name="close" size={16} color={colors.text.quaternary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+      {!compact && onDismiss && !onAction && (
         <TouchableOpacity onPress={onDismiss} style={styles.closeBtn} activeOpacity={0.7}>
           <Ionicons name="close" size={16} color={colors.text.quaternary} />
         </TouchableOpacity>
@@ -67,6 +90,12 @@ const styles = createStyles(() => ({
     gap: spacing[3],
     alignItems: 'flex-start',
   },
+  compactCard: {
+    alignItems: 'center',
+    padding: spacing[3],
+    marginTop: spacing[2],
+    marginBottom: spacing[4],
+  },
   iconContainer: {
     width: spacing[10],
     height: spacing[10],
@@ -74,10 +103,18 @@ const styles = createStyles(() => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  compactIconContainer: {
+    width: spacing[8],
+    height: spacing[8],
+    borderRadius: radius[2],
+  },
   textCol: { flex: 1, gap: spacing[1] },
+  compactTextCol: { gap: 0 },
   title: { fontSize: fontSize[14], fontWeight: fontWeight.bold, color: colors.text.primary },
   body: { fontSize: fontSize[12], fontWeight: fontWeight.medium, color: colors.text.secondary, lineHeight: fontSize[16] },
+  compactBody: { fontSize: fontSize[12], lineHeight: fontSize[14] },
   actionsRow: { flexDirection: 'row', gap: spacing[4], marginTop: spacing[2] },
+  compactActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
   actionText: { fontSize: fontSize[14], fontWeight: fontWeight.bold, color: colors.accent.primary },
   dismissText: { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.text.quaternary },
   closeBtn: { padding: spacing[1] },

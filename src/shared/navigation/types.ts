@@ -1,4 +1,4 @@
-import type { OnboardingFormData, PlanType, WeightInWeek } from '../types';
+import type { FoodFormData, OnboardingFormData, PlanType, WeightInWeek } from '../types';
 import type { WorkoutSplit } from '../../features/workout/types';
 
 export type RootStackParamList = {
@@ -55,6 +55,8 @@ export type AuthenticatedStackParamList = {
   BarcodeScanner: {
     meal?: string | undefined;
     selectedDate?: string | undefined;
+    mode?: 'nutritionLabel';
+    barcode?: string;
   } | undefined;
   FoodDetail: {
     food?: unknown;
@@ -68,6 +70,10 @@ export type AuthenticatedStackParamList = {
     barcode?: string;
     meal?: string | undefined;
     selectedDate?: string | undefined;
+    nutritionLabelValues?: Partial<Pick<
+      FoodFormData,
+      'calories' | 'carbohydrates' | 'protein' | 'fats' | 'fiber' | 'sugar' | 'saturatedFats' | 'salt' | 'amount' | 'unit'
+    >>;
   } | undefined;
   CreateSplit: {
     split?: WorkoutSplit;

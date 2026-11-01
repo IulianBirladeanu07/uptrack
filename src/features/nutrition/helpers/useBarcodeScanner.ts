@@ -105,10 +105,21 @@ export const useBarcodeScanner = (
   const handleProductNotFound = (barcode: string) => {
     Alert.alert(
       'Product Not Found',
-      `No product found with barcode: ${barcode}`,
+      `No product found with barcode: ${barcode}. Scan its nutrition label or enter it manually.`,
       [
         {
-          text: 'Create Custom Food',
+          text: 'Scan Nutrition Label',
+          onPress: () => {
+            navigation.navigate('BarcodeScanner', {
+              mode: 'nutritionLabel',
+              barcode,
+              meal,
+              selectedDate
+            });
+          }
+        },
+        {
+          text: 'Enter Manually',
           onPress: () => {
             navigation.navigate('CustomFood', {
               barcode,

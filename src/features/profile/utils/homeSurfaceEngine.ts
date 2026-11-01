@@ -71,18 +71,18 @@ export const getGoalReachedNotice = (userData: UserData | null | undefined, dism
 };
 
 export const getStepsPermissionNotice = (
-  stepsConnected: boolean,
+  stepsConnected: boolean | null,
   dismissedAt: string | null = null,
   stepsLoading = false,
 ): HomeNotice | null => {
-  if (stepsConnected || stepsLoading) return null;
+  if (stepsConnected === null || stepsConnected || stepsLoading) return null;
   if (dismissedAt && daysBetween(dismissedAt) < STEPS_PERMISSION_RENAG_DAYS) return null;
 
   return {
     id: 'steps_permission',
     type: 'steps_permission',
-    title: 'Track steps automatically',
-    body: 'Allow access to Health Connect or Apple Health so we can factor your activity into your plan.',
+    title: 'Connect health data',
+    body: 'Sync steps to personalize your plan.',
   };
 };
 
@@ -95,7 +95,7 @@ export const getHomeNotices = ({
   goalReachedDismissed,
 }: {
   userData: UserData | null | undefined;
-  stepsConnected: boolean;
+  stepsConnected: boolean | null;
   stepsLoading?: boolean;
   dismissedAdjustmentTimestamps?: string[];
   stepsPermissionDismissedAt?: string | null;

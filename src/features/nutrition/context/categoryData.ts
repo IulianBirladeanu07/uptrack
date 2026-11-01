@@ -31,8 +31,7 @@ export const buildCategoryData = (cache: MealCache): FoodCategories => {
                     totalCalories: meals[mealType].reduce((s, f) => s + (Number(f.calories) || 0), 0),
                 }))
         )
-        .reverse()
-        .slice(0, 30);
+        .reverse();
 
     const foodUsageMap = new Map<string, FrequentFood>();
     allDays.forEach(({ date, meals }) => {

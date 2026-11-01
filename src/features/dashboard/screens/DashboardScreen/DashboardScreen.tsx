@@ -237,7 +237,7 @@ const DashboardScreen = () => {
         if (!noticesLoaded || !userData || !initialLoadComplete) return [];
         return getHomeNotices({
             userData,
-            stepsConnected: stepsConnected ?? false,
+            stepsConnected,
             stepsLoading,
             dismissedAdjustmentTimestamps: dismissedAdjustments,
             stepsPermissionDismissedAt,
@@ -276,6 +276,7 @@ const DashboardScreen = () => {
     }, [navigation, todayScheduledWorkout, activeWorkout]);
 
     const dashboardReady = initialLoadComplete && !workoutLoading;
+    const stepsPermissionNotice = notices.find(notice => notice.type === 'steps_permission');
 
     return (
         <ApplicationCustomScreen>
@@ -311,18 +312,14 @@ const DashboardScreen = () => {
                     </View>
                     {dashboardReady ? (
                         <View>
-                            {notices.map(notice => (
+                            {notices.filter(notice => notice.type !== 'steps_permission').map(notice => (
                                 <HomeNoticeCard
                                     key={notice.id}
                                     notice={notice}
                                     onAction={
-                                        (notice.type === 'goal_reached' || notice.type === 'steps_permission')
-                                            ? () => handleNoticeAction(notice)
-                                            : undefined
+                                        notice.type === 'goal_reached' ? () => handleNoticeAction(notice) : undefined
                                     }
-                                    actionLabel={
-                                        notice.type === 'goal_reached' ? 'Update Goal' : 'Connect'
-                                    }
+                                    actionLabel={notice.type === 'goal_reached' ? 'Update Goal' : undefined}
                                     onDismiss={() => dismissNotice(notice)}
                                 />
                             ))}
@@ -350,6 +347,15 @@ const DashboardScreen = () => {
                                 onWeightPress={() => navigation.navigate('WeightTracker')}
                                 dataReady={initialLoadComplete}
                             />
+                            {stepsPermissionNotice && (
+                                <HomeNoticeCard
+                                    notice={stepsPermissionNotice}
+                                    onAction={() => handleNoticeAction(stepsPermissionNotice)}
+                                    actionLabel="Connect"
+                                    onDismiss={() => dismissNotice(stepsPermissionNotice)}
+                                    compact
+                                />
+                            )}
                         </View>
                     ) : (
                         <View style={styles.loadingContainer}>

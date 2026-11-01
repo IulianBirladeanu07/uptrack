@@ -329,6 +329,10 @@ const FoodListItem = memo(({
             return (
                 <FlatList
                     {...flatListProps}
+                    initialNumToRender={8}
+                    maxToRenderPerBatch={8}
+                    updateCellsBatchingPeriod={30}
+                    windowSize={9}
                     data={categoryFoods as RecentMeal[]}
                     renderItem={({ item }) => renderMealItem(item, meal, handleNavigateToFoodDetail, handlePlusPress, isFoodSelected)}
                     keyExtractor={getItemKey}

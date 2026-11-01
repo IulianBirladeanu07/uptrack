@@ -68,7 +68,7 @@ describe('useBarcodeScanner', () => {
     expect(result.current.loadingProduct).toBe(false);
   });
 
-  it('offers custom-food creation for missing products and resumes after dismiss', async () => {
+  it('offers label scanning or manual entry for missing products and resumes after dismiss', async () => {
     setupLookup({ data: null, error: null });
     const { result } = renderHook(() =>
       useBarcodeScanner(navigation, 'lunch', '2026-10-17'),
@@ -83,7 +83,19 @@ describe('useBarcodeScanner', () => {
       expect.objectContaining({ cancelable: true, onDismiss: expect.any(Function) }),
     );
     const [, , buttons, options] = (Alert.alert as jest.Mock).mock.calls[0];
+    expect(buttons.map((button: { text: string }) => button.text)).toEqual([
+      'Scan Nutrition Label',
+      'Enter Manually',
+      'Try Again',
+    ]);
     act(() => buttons[0].onPress());
+    expect(navigation.navigate).toHaveBeenCalledWith('BarcodeScanner', {
+      mode: 'nutritionLabel',
+      barcode: '98765432',
+      meal: 'lunch',
+      selectedDate: '2026-10-17',
+    });
+    act(() => buttons[1].onPress());
     expect(navigation.navigate).toHaveBeenCalledWith('CustomFood', {
       barcode: '98765432',
       type: 'foodWithBarcode',

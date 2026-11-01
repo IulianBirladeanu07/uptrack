@@ -1,4 +1,4 @@
-import { getCalorieAdjustmentNotice } from './homeSurfaceEngine';
+import { getCalorieAdjustmentNotice, getStepsPermissionNotice } from './homeSurfaceEngine';
 
 const recent = () => new Date(Date.now() - 3600000).toISOString();
 
@@ -51,5 +51,21 @@ describe('getCalorieAdjustmentNotice', () => {
     expect(getCalorieAdjustmentNotice(cutUser({ adjustedAt: '2020-01-01T00:00:00.000Z' }))).toBeNull();
     const u = cutUser();
     expect(getCalorieAdjustmentNotice(u, [u.lastCalorieAdjustment.adjustedAt])).toBeNull();
+  });
+});
+
+describe('getStepsPermissionNotice', () => {
+  test('waits until the initial steps access check has completed', () => {
+    expect(getStepsPermissionNotice(null)).toBeNull();
+    expect(getStepsPermissionNotice(false, null, true)).toBeNull();
+  });
+
+  test('shows a connect prompt only after access is confirmed unavailable', () => {
+    expect(getStepsPermissionNotice(false)).toMatchObject({
+      type: 'steps_permission',
+      title: 'Connect health data',
+      body: 'Sync steps to personalize your plan.',
+    });
+    expect(getStepsPermissionNotice(true)).toBeNull();
   });
 });

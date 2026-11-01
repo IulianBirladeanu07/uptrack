@@ -40,4 +40,17 @@ describe('FoodListItem list layout', () => {
     expect(view.UNSAFE_getByType(FlatList).props.getItemLayout).toBeUndefined();
   });
 
+  it('renders Recent meals in larger batches for smoother fast scrolling', () => {
+    const view = render(
+      <FoodListItem
+        selectedCategory="Recent"
+        categoryFoods={[]}
+      />,
+    );
+
+    const list = view.UNSAFE_getByType(FlatList);
+    expect(list.props.initialNumToRender).toBe(8);
+    expect(list.props.maxToRenderPerBatch).toBe(8);
+    expect(list.props.windowSize).toBe(9);
+  });
 });

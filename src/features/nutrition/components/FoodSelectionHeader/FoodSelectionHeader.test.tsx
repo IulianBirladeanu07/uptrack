@@ -16,6 +16,29 @@ describe('FoodSelectionHeader', () => {
     expect(screen.getByText('2,727 kcal left')).toBeTruthy();
     expect(screen.queryByText('482 / 3,209 kcal')).toBeNull();
     expect(screen.queryByLabelText('Daily macro balance')).toBeNull();
+    expect(screen.getByRole('progressbar', { name: 'Daily calorie progress' }).props.accessibilityValue).toEqual({
+      min: 0,
+      max: 3209,
+      now: 482,
+    });
+  });
+
+  it('includes selected foods in progress without rounding before calculating the remainder', () => {
+    render(
+      <FoodSelectionHeader
+        currentCalories={482.4}
+        selectedFoods={[{ calories: 85.5 }, { calories: '0.4' }]}
+        targetCalories={3209}
+        onQuickActionsPress={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('2,641 kcal left')).toBeTruthy();
+    expect(screen.getByRole('progressbar', { name: 'Daily calorie progress' }).props.accessibilityValue).toEqual({
+      min: 0,
+      max: 3209,
+      now: 568.3,
+    });
   });
 
   it('shows consumed calories when there is no valid target', () => {

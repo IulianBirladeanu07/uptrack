@@ -23,10 +23,13 @@ const FoodSelectionHeader = ({
   onQuickActionsPress,
 }: FoodSelectionHeaderProps) => {
   const { calculatedCurrentCalories, foodCount } = useMemo(() => {
-    const selectedFoodsCalories = Math.round(
-      selectedFoods.reduce((total, food) => total + (Number(food.calories) || 0), 0)
-    );
-    const totalCurrentCalories = Math.round((currentCalories || 0) + selectedFoodsCalories);
+    const selectedFoodsCalories = selectedFoods.reduce((total, food) => {
+      const calories = Number(food.calories);
+      return total + (Number.isFinite(calories) ? Math.max(calories, 0) : 0);
+    }, 0);
+    const currentDayCalories = Number(currentCalories);
+    const totalCurrentCalories = (Number.isFinite(currentDayCalories) ? Math.max(currentDayCalories, 0) : 0)
+      + selectedFoodsCalories;
 
     return {
       calculatedCurrentCalories: totalCurrentCalories,
@@ -102,7 +105,17 @@ const FoodSelectionHeader = ({
         </View>
 
         {targetCalories != null && targetCalories > 0 && (
-          <View style={styles.progressTrack}>
+          <View
+            style={styles.progressTrack}
+            accessible
+            accessibilityRole="progressbar"
+            accessibilityValue={{
+              min: 0,
+              max: targetCalories,
+              now: Math.min(calculatedCurrentCalories, targetCalories),
+            }}
+            accessibilityLabel="Daily calorie progress"
+          >
             <Animated.View
               style={[
                 styles.progressFill,
@@ -213,7 +226,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   progressTrack: {
-    height: spacing[1],
+    height: spacing[2],
     backgroundColor: colors.background.tertiary,
     borderRadius: radius[1],
     overflow: 'hidden',
