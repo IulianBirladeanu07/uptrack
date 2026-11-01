@@ -89,7 +89,7 @@ const ProgressChart = ({ sessions, width }: ProgressChartProps & { width: number
         .onBegin(event => runOnJS(updateActivePoint)(event.x, event.y))
         .onUpdate(event => runOnJS(updateActivePoint)(event.x, event.y))
         .onFinalize(() => runOnJS(setActiveSelection)(null)), [updateActivePoint]);
-    const active = activeSelection ? points[activeSelection.index] : null;
+    const active = activeSelection ? points[activeSelection.index] ?? null : null;
     const bestSet = active && active.weight !== undefined && active.reps !== undefined
         ? formatBestSet({ weight: active.weight, reps: active.reps })
         : null;
@@ -100,12 +100,9 @@ const ProgressChart = ({ sessions, width }: ProgressChartProps & { width: number
         )
         : 0;
     const tooltipTop = activeSelection
-        ? Math.min(
-            activeSelection.touchY > TOOLTIP_HEIGHT + 8
-                ? activeSelection.touchY - TOOLTIP_HEIGHT - 8
-                : activeSelection.touchY + 16,
-            CHART_H - TOOLTIP_HEIGHT,
-        )
+        ? activeSelection.touchY <= CHART_H - TOOLTIP_HEIGHT - 8
+            ? Math.min(activeSelection.touchY + 16, CHART_H - TOOLTIP_HEIGHT)
+            : Math.max(activeSelection.touchY - TOOLTIP_HEIGHT - 8, 0)
         : 0;
 
     if (!chartModel) return null;
@@ -300,56 +297,48 @@ const ExerciseHistoryScreen = () => {
         </View>
     );
 
-    const listHeader = (
-        <>
-            <View style={styles.summaryCard}>
-                {allTimeBest && (
-                    <View style={styles.bestSummary}>
-                        <View style={styles.bestMetric}>
-                            <Text style={styles.bestEyebrow}>ALL-TIME BEST</Text>
-                            <Text style={styles.bestValue}>{formatBestSet(allTimeBest) || '-'}</Text>
-                        </View>
-                        <View style={styles.oneRmCard}>
-                            <Text style={styles.oneRmLabel}>EST. 1RM</Text>
-                            <Text style={styles.oneRmValue}>{allTimeBest.e1rm.toFixed(1)} kg</Text>
-                        </View>
+    const summaryCard = (
+        <View style={styles.summaryCard}>
+            {allTimeBest && (
+                <View style={styles.bestSummary}>
+                    <View style={styles.bestMetric}>
+                        <Text style={styles.bestEyebrow}>ALL-TIME BEST</Text>
+                        <Text style={styles.bestValue}>{formatBestSet(allTimeBest) || '-'}</Text>
                     </View>
-                )}
+                    <View style={styles.oneRmCard}>
+                        <Text style={styles.oneRmLabel}>EST. 1RM</Text>
+                        <Text style={styles.oneRmValue}>{allTimeBest.e1rm.toFixed(1)} kg</Text>
+                    </View>
+                </View>
+            )}
 
-                <View style={styles.progressHeading}>
-                    <Text style={styles.progressTitle}>Progress</Text>
-                    <Text style={styles.progressSubtitle}>Estimated 1RM per session</Text>
-                </View>
-                <View style={styles.periodRow}>
-                    {PERIODS.map(p => (
-                        <TouchableOpacity
-                            key={p.key}
-                            style={[styles.periodChip, selectedPeriod === p.key && styles.periodChipActive]}
-                            onPress={() => setSelectedPeriod(p.key)}
-                            activeOpacity={0.7}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: selectedPeriod === p.key }}
-                            accessibilityLabel={p.key === 999 ? 'Show all sessions' : `Show last ${p.key} sessions`}
-                        >
-                            <Text style={[styles.periodChipText, selectedPeriod === p.key && styles.periodChipTextActive]}>
-                                {p.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-                {filteredSessions.length >= 2 && (
-                    <View style={styles.chartWrapper}>
-                        <ProgressChart sessions={filteredSessions} width={chartWidth} />
-                    </View>
-                )}
+            <View style={styles.progressHeading}>
+                <Text style={styles.progressTitle}>Progress</Text>
+                <Text style={styles.progressSubtitle}>Estimated 1RM per session</Text>
             </View>
-            <View style={styles.sessionsHeading}>
-                <Text style={styles.sessionsTitle}>Sessions</Text>
-                <Text style={styles.sessionsCount}>
-                    {filteredSessions.length}{filteredSessions.length !== sessions.length ? ` of ${sessions.length}` : ''}
-                </Text>
+            <View style={styles.periodRow}>
+                {PERIODS.map(p => (
+                    <TouchableOpacity
+                        key={p.key}
+                        style={[styles.periodChip, selectedPeriod === p.key && styles.periodChipActive]}
+                        onPress={() => setSelectedPeriod(p.key)}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: selectedPeriod === p.key }}
+                        accessibilityLabel={p.key === 999 ? 'Show all sessions' : `Show last ${p.key} sessions`}
+                    >
+                        <Text style={[styles.periodChipText, selectedPeriod === p.key && styles.periodChipTextActive]}>
+                            {p.label}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
             </View>
-        </>
+            {filteredSessions.length >= 2 && (
+                <View style={styles.chartWrapper}>
+                    <ProgressChart sessions={filteredSessions} width={chartWidth} />
+                </View>
+            )}
+        </View>
     );
 
     if (loading) {
@@ -396,18 +385,31 @@ const ExerciseHistoryScreen = () => {
                     </Text>
                 </View>
             ) : (
-                <FlatList
-                    data={filteredSessions}
-                    renderItem={renderItem}
-                    keyExtractor={keyExtractor}
-                    ListHeaderComponent={listHeader}
-                    contentContainerStyle={styles.listContent}
-                    showsVerticalScrollIndicator={false}
-                    initialNumToRender={10}
-                    maxToRenderPerBatch={10}
-                    windowSize={5}
-                    removeClippedSubviews={true}
-                />
+                <>
+                    <View style={styles.summaryContainer}>
+                        {summaryCard}
+                    </View>
+                    <View style={styles.sessionsHeadingContainer}>
+                        <View style={styles.sessionsHeading}>
+                            <Text style={styles.sessionsTitle}>Sessions</Text>
+                            <Text style={styles.sessionsCount}>
+                                {filteredSessions.length}{filteredSessions.length !== sessions.length ? ` of ${sessions.length}` : ''}
+                            </Text>
+                        </View>
+                    </View>
+                    <FlatList
+                        style={styles.sessionsList}
+                        data={filteredSessions}
+                        renderItem={renderItem}
+                        keyExtractor={keyExtractor}
+                        contentContainerStyle={styles.listContent}
+                        showsVerticalScrollIndicator={false}
+                        initialNumToRender={10}
+                        maxToRenderPerBatch={10}
+                        windowSize={5}
+                        removeClippedSubviews={true}
+                    />
+                </>
             )}
         </SafeAreaView>
     );

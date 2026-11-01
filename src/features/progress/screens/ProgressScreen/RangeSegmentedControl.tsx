@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
-import { colors, fontSize, fontWeight, radius, spacing } from '../../../../shared/theme';
+import { colors, fontSize, fontWeight, spacing } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
 
 type Option = { key: string; label: string };
@@ -14,21 +14,26 @@ const styles = createStyles(() => ({
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: colors.border.default,
-        borderRadius: radius[5],
-        padding: spacing[1],
+        justifyContent: 'space-between',
+        minHeight: spacing[11],
+    },
+    rangeLabel: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.quaternary,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+    options: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[3],
     },
     segment: {
-        flex: 1,
-        minHeight: spacing[12],
+        minHeight: spacing[11],
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: spacing[2],
-        borderRadius: radius[4],
-    },
-    segmentSelected: {
-        backgroundColor: colors.background.tertiary,
+        paddingHorizontal: spacing[1],
     },
     label: {
         fontSize: fontSize[12],
@@ -44,29 +49,33 @@ const styles = createStyles(() => ({
 
 const RangeSegmentedControl = ({ options, selectedKey, onSelect }: Props) => (
     <View style={styles.container}>
-        {options.map(option => {
-            const selected = option.key === selectedKey;
-            return (
-                <TouchableOpacity
-                    key={option.key}
-                    style={[styles.segment, selected && styles.segmentSelected]}
-                    onPress={() => onSelect(option.key)}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={option.label}
-                >
-                    <Text
-                        style={[styles.label, selected && styles.labelSelected]}
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                        maxFontSizeMultiplier={1.3}
+        <Text style={styles.rangeLabel}>Range</Text>
+        <View style={styles.options}>
+            {options.map(option => {
+                const selected = option.key === selectedKey;
+                return (
+                    <TouchableOpacity
+                        key={option.key}
+                        style={styles.segment}
+                        onPress={() => onSelect(option.key)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={option.label}
+                        hitSlop={{ top: spacing[1], bottom: spacing[1] }}
                     >
-                        {option.label}
-                    </Text>
-                </TouchableOpacity>
-            );
-        })}
+                        <Text
+                            style={[styles.label, selected && styles.labelSelected]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            maxFontSizeMultiplier={1.3}
+                        >
+                            {option.label}
+                        </Text>
+                    </TouchableOpacity>
+                );
+            })}
+        </View>
     </View>
 );
 

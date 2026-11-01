@@ -15,6 +15,7 @@ describe('RangeSegmentedControl', () => {
     it('renders labels and selects only the active option', () => {
         render(<RangeSegmentedControl options={options} selectedKey="PHASE" onSelect={jest.fn()} />);
 
+        expect(screen.getByText('Range')).toBeTruthy();
         expect(screen.getByRole('button', { name: 'Phase · 19 wk' })).toBeSelected();
         expect(screen.getByRole('button', { name: '8 wk' })).not.toBeSelected();
         expect(screen.getByRole('button', { name: '12 wk' })).not.toBeSelected();

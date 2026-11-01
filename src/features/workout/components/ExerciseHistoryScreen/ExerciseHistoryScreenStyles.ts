@@ -33,6 +33,9 @@ const styles = createStyles(() => ({
         letterSpacing: -0.3,
         flex: 1,
     },
+    summaryContainer: {
+        paddingHorizontal: spacing[4],
+    },
     summaryCard: {
         backgroundColor: colors.background.secondary,
         borderRadius: radius[4],
@@ -137,9 +140,11 @@ const styles = createStyles(() => ({
         borderWidth: 1,
         borderColor: colors.border.default,
         borderRadius: radius[2],
+        height: 58,
         paddingHorizontal: spacing[2],
         paddingVertical: spacing[1],
         alignItems: 'center',
+        justifyContent: 'center',
     },
     chartTooltipLabel: {
         fontSize: fontSize[10],
@@ -162,6 +167,9 @@ const styles = createStyles(() => ({
         justifyContent: 'space-between',
         marginBottom: spacing[2],
     },
+    sessionsHeadingContainer: {
+        paddingHorizontal: spacing[4],
+    },
     sessionsTitle: {
         fontSize: fontSize[16],
         fontWeight: fontWeight.bold,
@@ -171,6 +179,9 @@ const styles = createStyles(() => ({
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
         color: colors.text.quaternary,
+    },
+    sessionsList: {
+        flex: 1,
     },
     listContent: {
         paddingHorizontal: spacing[4],
@@ -228,7 +239,7 @@ const styles = createStyles(() => ({
     sessionBestValue: {
         fontSize: fontSize[14],
         fontWeight: fontWeight.bold,
-        color: colors.text.primary,
+        color: colors.text.secondary,
     },
     sessionBestValuePR: {
         color: colors.accent.primary,
@@ -298,13 +309,13 @@ const styles = createStyles(() => ({
         flex: 1,
         fontSize: fontSize[14],
         fontWeight: fontWeight.semibold,
-        color: colors.text.primary,
+        color: colors.text.secondary,
     },
     setReps: {
         width: 60,
         fontSize: fontSize[14],
         fontWeight: fontWeight.semibold,
-        color: colors.text.primary,
+        color: colors.text.secondary,
     },
     setColRM: {
         width: 70,

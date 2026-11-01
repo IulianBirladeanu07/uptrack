@@ -15,7 +15,9 @@ Updated 2026-11-01. Start with this handoff, then read `AGENTS.md` before changi
 - Restyled Exercise History into a compact title bar, a contained best/progress summary, a clearly labeled session count, and individual session cards matching the Workout surfaces.
 - The trend chart now uses the available screen width, range controls have explicit accessible labels, and expanded set details have column headers. Expanded detail rows stay on the session card surface; the column header has no contrasting band, ordinary session results and set numbers are neutral, the inline PR badge is removed, and orange remains only for PR session summaries and progress accents.
 - The range pills stay before the chart so users set the chart range before reading it; inactive pills use a restrained outline instead of a filled blue-gray surface.
-- Existing history service, chart, and presentation tests passed (3 suites / 7 tests); `npx tsc --noEmit`, Android Expo export, and `git diff --check` passed.
+- The title and progress summary stay stationary while only the session cards scroll below the Sessions heading.
+- The Exercise History shortcut in active exercise headers uses the same muted neutral treatment as the adjacent menu, leaving cyan for active set state.
+- Exercise History tests passed (2 suites / 6 tests); `npx tsc --noEmit`, Android Expo export, and `git diff --check` passed.
 
 ## Current batch: Workout cancellation navigation
 

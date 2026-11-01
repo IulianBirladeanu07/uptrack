@@ -8,13 +8,13 @@ const styles = createStyles(() => ({
     },
     headerRow: {
         flexDirection: 'column',
-        marginBottom: spacing[3],
+        marginBottom: spacing[2],
     },
     viewRow: {
         flexDirection: 'row',
         borderBottomWidth: 1,
         borderBottomColor: colors.border.default,
-        marginBottom: spacing[2],
+        marginBottom: spacing[1],
     },
     viewTab: {
         flex: 1,

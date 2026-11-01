@@ -74,7 +74,7 @@ const ExerciseHeader = memo(({
                         <Ionicons
                             name="time-outline"
                             size={styles.iconSizeSm.width}
-                            color={colors.accent.cyan}
+                            color={colors.text.secondary}
                         />
                     </TouchableOpacity>
 
@@ -185,9 +185,9 @@ const styles = createStyles(() => ({
         width: spacing[9],
         height: spacing[9],
         borderRadius: radius[2],
-        backgroundColor: colors.faded.cyanDark,
+        backgroundColor: colors.faded.surface,
         borderWidth: 1,
-        borderColor: colors.border.cyan,
+        borderColor: colors.border.default,
         alignItems: 'center',
         justifyContent: 'center',
     },
