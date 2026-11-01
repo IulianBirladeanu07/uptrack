@@ -255,15 +255,16 @@ const MealItemContent = ({
         <View style={styles.foodItemsContainer}>
           {displayedFoods.map((food, index) => {
             const selectableFood = getSelectableFood(food);
+            const isChecked = isFoodSelected?.(selectableFood) ?? checkedFoods[selectableFood.selectionKey] ?? false;
             return (
               <View key={food.id || `food-${index}`} style={styles.foodItemWrapper}>
                 <MemoizedFoodItem
                   food={selectableFood}
                   onPress={handleNavigateToFoodDetail}
                   onPlusPress={handlePlusPressInternal}
-                  isChecked={isFoodSelected?.(selectableFood) ?? checkedFoods[selectableFood.selectionKey] ?? false}
+                  isChecked={isChecked}
                   showPlusButton={showPlusButton}
-                  isSelectionEmphasized={!isMealAdded}
+                  isSelectionEmphasized={!isMealAdded && !isChecked}
                   isFoodDeletable={isFoodDeletable}
                 />
               </View>

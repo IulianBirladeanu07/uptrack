@@ -16,7 +16,6 @@ type WeightSummaryCardProps = {
     remaining: number | null;
     planType: PlanType;
     goalReached: boolean;
-    trendPhaseKnown: boolean;
 };
 
 const WeightSummaryCard = ({
@@ -30,7 +29,6 @@ const WeightSummaryCard = ({
     remaining,
     planType,
     goalReached,
-    trendPhaseKnown,
 }: WeightSummaryCardProps) => {
     const lastWeekDisplay = lastWeekAverage != null ? parseFloat(lastWeekAverage.toFixed(1)) : null;
     const weeklyDisplay = weeklyAverage != null ? parseFloat(weeklyAverage.toFixed(1)) : null;
@@ -39,7 +37,7 @@ const WeightSummaryCard = ({
         : null;
     const weekChangeTone = weekChangeDelta == null
         ? 'neutral'
-        : getWeightTrendTone(weekChangeDelta, planType, trendPhaseKnown);
+        : getWeightTrendTone(weekChangeDelta, planType);
     const weekChangeColor = weekChangeTone === 'favorable'
         ? colors.accent.success
         : weekChangeTone === 'unfavorable'

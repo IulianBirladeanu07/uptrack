@@ -197,7 +197,10 @@ const FoodSelectionScreen = () => {
         }) as LoggedFood[];
         try {
             await handleAddMeal(meal as MealType, validatedFoods, selectedDate);
-            navigation.navigate('Nutrition');
+            navigation.navigate('Nutrition', {
+                meal,
+                highlightedFoodIds: validatedFoods.map(food => food.id),
+            });
         } catch {
             isSubmittingRef.current = false;
         }

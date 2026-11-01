@@ -644,6 +644,16 @@ export const balanceNote = (balance: number, weeks: number): string => {
   return `${side} maintenance \u00b7 recent ${weeks}-week estimate`;
 };
 
+export const energyBalanceDisplay = (balance: number): { value: string; unit: string } => ({
+  value: kfmt(Math.abs(balance)),
+  unit: Math.abs(balance) < 50 ? 'kcal/day' : balance < 0 ? 'kcal/day deficit' : 'kcal/day surplus',
+});
+
+export const weightChangeTone = (change: number, dir: number): 'good' | 'warn' | 'flat' => {
+  if (dir === 0) return Math.abs(change) < 0.5 ? 'good' : 'flat';
+  return dir * change > 0 ? 'good' : 'warn';
+};
+
 const estimatorWeeks = (weeks: RatedWeek[]): WeekStats[] =>
   weeks.map(w => ({ weekStart: w.key, daysLogged: w.nd, avgCalories: w.kcal ?? 0, avgSteps: w.steps }));
 
@@ -706,17 +716,32 @@ export const energyModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, weig
 };
 
 export const energyTip = (m: EnergyModel, info: PhaseInfo): string => {
-  const verb = info.dir > 0 ? 'gain' : info.dir < 0 ? 'lose' : 'change';
+  const rateVerb = (rate: number | null): string => {
+    if (info.dir === 0 || rate == null || rate === 0) return 'change';
+    const aligned = Math.sign(rate) === 1;
+    if (info.dir > 0) return aligned ? 'gain' : 'lose';
+    return aligned ? 'lose' : 'gain';
+  };
   const plan = info.planRate;
   if (plan != null && (m.realRate ?? 0) < plan * 0.8) {
     const need = info.dir < 0 ? m.maintNow - (plan * KCAL_PER_KG) / 7 : m.maintNow + (plan * KCAL_PER_KG) / 7;
-    return `You ${verb} ${fmt1(m.realRate)} kg/wk against a ${fmt1(plan)} plan. Your real maintenance looks like ${kfmt(m.maintNow)} kcal, so plan pace needs about ${kfmt(need)}.`;
+    const verb = rateVerb(m.realRate);
+    const direction = verb === 'gain' ? 'rising' : verb === 'lose' ? 'falling' : 'changing';
+    const rateDescription = m.realRate != null && Math.abs(m.realRate) >= 0.05
+      ? `Your weight is ${direction} at ${fmt1(Math.abs(m.realRate))} kg/wk`
+      : 'Your weight is roughly stable';
+    const goalDescription = info.dir === 0
+      ? 'your maintenance goal'
+      : `your ${fmt1(plan)} kg/wk ${info.dir > 0 ? 'gain' : 'loss'} goal`;
+    return `${rateDescription}, below ${goalDescription}. Estimated maintenance is ${kfmt(m.maintNow)} kcal; aim for about ${kfmt(need)} kcal/day.`;
   }
   const gap = m.gapToTarget ?? 0;
   const adverse = info.dir < 0 ? gap < 0 : info.dir > 0 ? gap > 0 : true;
   if (adverse && m.target != null && m.atTarget != null && Math.abs(gap) > m.target * 0.05) {
     const side = gap > 0 ? 'under' : 'over';
-    return `You eat ~${kfmt(Math.abs(gap))} kcal ${side} the ${kfmt(m.target)} target. At target you would ${verb} about ${fmt1(m.atTarget)} kg/wk, at ${kfmt(m.eatNow)} you ${verb} ${fmt1(m.realRate)}.`;
+    const targetVerb = rateVerb(info.dir === 0 ? m.atTarget : Math.abs(m.atTarget));
+    const actualVerb = rateVerb(m.realRate);
+    return `You eat ~${kfmt(Math.abs(gap))} kcal ${side} the ${kfmt(m.target)} target. At target you would ${targetVerb} about ${fmt1(Math.abs(m.atTarget))} kg/wk; at ${kfmt(m.eatNow)} kcal you ${actualVerb} ${fmt1(Math.abs(m.realRate ?? 0))} kg/wk.`;
   }
   return '';
 };

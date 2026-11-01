@@ -26,12 +26,13 @@ import {
     sg,
     kfmt,
     isToGoalReached,
+    energyBalanceDisplay,
+    weightChangeTone,
 } from '../../utils/progressEngine';
 import type { EnergyModel, MonthRow as MonthData, NutritionDay, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
 import { useProgressScreenModel } from './useProgressScreenModel';
 import { useMaintenanceSwitch } from './useMaintenanceSwitch';
 import { usePlannedWorkouts } from './usePlannedWorkouts';
-import RangeSegmentedControl from './RangeSegmentedControl';
 import { getProgressChartWidth } from './progressChartWidth';
 import styles from './ProgressScreenStyles';
 
@@ -50,6 +51,12 @@ const TONES = {
     purple: { bg: colors.faded.purple, fg: colors.macro.protein },
     flat: { bg: colors.faded.surface, fg: colors.text.secondary },
 };
+
+const PHASE_PRESENTATION = {
+    muscle_gain: { label: 'Bulking', verb: 'Gain', color: colors.accent.success, background: colors.faded.successAlt },
+    weight_loss: { label: 'Cutting', verb: 'Lose', color: colors.accent.primary, background: colors.faded.primary },
+    maintenance: { label: 'Maintenance', verb: 'Hold', color: colors.accent.cyan, background: colors.faded.cyan },
+} as const;
 
 const HEAT_KEY = [
     { label: '<6', a: 0.08 },
@@ -147,17 +154,16 @@ const EmptyCard = ({ cap, text }: { cap: string; text: string }) => (
     </View>
 );
 
-const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: boolean; onSwitch: () => void; onProfile: () => void }) => {
+const RecapCard = ({ r, busy, onSwitch }: { r: PhaseRecap; busy: boolean; onSwitch: () => void }) => {
     const third = r.dir < 0
         ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Strength / kg', detail: 'vs bodyweight', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
         : { value: r.strengthPct != null ? sg(r.strengthPct, 0) : '--', unit: r.strengthPct != null ? '%' : undefined, label: 'Strength', color: r.strengthPct != null && r.strengthPct > 0 ? colors.accent.success : undefined };
-    const phaseLabel = r.dir < 0 ? 'Cutting' : 'Bulking';
     const hasRange = maintenanceRangeNote(r) != null;
 
     return (
         <View style={styles.card}>
             <View style={styles.rowBetween}>
-                <Text style={styles.cap}>{phaseLabel} phase recap</Text>
+                <Text style={styles.cap}>Phase recap</Text>
             </View>
             <Hero value={sg(r.change, 1)} unit="kg">
                 <Delta tone="good" icon="checkmark" text="goal reached" />
@@ -189,9 +195,6 @@ const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: bool
                     </Text>
                 </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.link} onPress={onProfile} activeOpacity={0.7}>
-                <Text style={styles.linkText}>Choose another goal in Profile</Text>
-            </TouchableOpacity>
         </View>
     );
 };
@@ -202,7 +205,7 @@ const PaceCard = ({ m, info, n, chartWidth }: { m: PaceModel | null; info: Phase
         setSel(null);
     }, [n]);
 
-    const title = info.dir < 0 ? 'Rate of loss' : info.dir > 0 ? 'Rate of gain' : 'Weight drift';
+    const title = info.dir < 0 ? 'Rate of loss' : info.dir > 0 ? 'Rate of gain' : 'Weight stability';
     if (!m) return <EmptyCard cap={title} text="Log your weight for two weeks to see your pace." />;
 
     const pills: Record<PaceStatus, DeltaProps | null> = {
@@ -293,9 +296,8 @@ const EnergyCard = ({ m, info, n, chartWidth }: { m: EnergyModel | null; info: P
     const bars = m.bal.map(v => (v == null ? null : v * f));
     const goal = m.targetBal != null ? m.targetBal * f : null;
     const picked = sel != null && bars[sel] != null ? sel : null;
-    const shown = picked != null ? (bars[picked] as number) : m.balance * f;
-    const heroText = info.dir === 0 || shown < 0 ? sg(shown, 0) : kfmt(shown);
-    const unit = info.dir < 0 ? 'kcal/day deficit' : info.dir > 0 ? 'kcal/day surplus' : 'kcal/day';
+    const shown = picked != null ? (m.bal[picked] as number) : m.balance;
+    const { value: heroText, unit } = energyBalanceDisplay(shown);
 
     return (
         <View style={styles.card}>
@@ -444,7 +446,6 @@ const MonthRow = ({ m, kind, info, open, onToggle, last }: MonthRowProps) => {
     let tiles: ReactNode;
 
     if (kind === 'n') {
-        const good = m.change != null && (info.dir === 0 ? Math.abs(m.change) < 0.5 : info.dir * m.change > 0);
         right = (
             <>
                 {m.wEnd != null && (
@@ -453,7 +454,7 @@ const MonthRow = ({ m, kind, info, open, onToggle, last }: MonthRowProps) => {
                         <Text style={styles.monthUnit}>kg</Text>
                     </View>
                 )}
-                {m.change != null && <Delta tone={good ? 'good' : 'flat'} text={sg(m.change, 1)} />}
+                {m.change != null && <Delta tone={weightChangeTone(m.change, info.dir)} text={sg(m.change, 1)} />}
             </>
         );
         tiles = (
@@ -670,6 +671,13 @@ const ProgressScreen = () => {
     const openProfile = useCallback(() => navigation.navigate('Profile'), [navigation]);
 
     const { switching, onSwitch } = useMaintenanceSwitch({ recap, userData, refreshUserData });
+    const phasePresentation = PHASE_PRESENTATION[info.type];
+    const phaseDetail = info.dir === 0
+        ? 'Hold a steady weight'
+        : info.planRate != null
+            ? `${phasePresentation.verb} ${fmt1(info.planRate)} kg per week`
+            : `${phasePresentation.verb} weight gradually`;
+    const phaseStatus = weeks.length ? `Week ${info.phaseWeeks} · ${phaseDetail}` : phaseDetail;
     return (
         <ApplicationCustomScreen>
             <ScrollView
@@ -685,40 +693,63 @@ const ProgressScreen = () => {
                 }}
                 showsVerticalScrollIndicator={false}
             >
-                <View style={styles.headerRow}>
+                <View style={styles.titleRow}>
                     <View style={styles.viewRow}>
                         {TABS.map(t => {
                             const on = tab === t.key;
                             return (
                                 <TouchableOpacity
                                     key={t.key}
-                                    style={styles.viewTab}
+                                    style={[styles.viewTab, on && styles.viewTabActive]}
                                     onPress={() => setTab(t.key)}
                                     activeOpacity={0.7}
                                     hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                                     accessibilityRole="button"
                                     accessibilityState={{ selected: on }}
+                                    accessibilityLabel={t.label}
                                 >
-                                    <Text
-                                        style={[styles.viewText, on && styles.viewTextActive]}
-                                        numberOfLines={1}
-                                        adjustsFontSizeToFit
-                                        maxFontSizeMultiplier={1.3}
-                                    >
-                                        {t.label}
-                                    </Text>
-                                    {on && <View style={styles.tabIndicator} />}
+                                    <Text style={[styles.viewText, on && styles.viewTextActive]}>{t.label}</Text>
                                 </TouchableOpacity>
                             );
                         })}
                     </View>
                     {weeks.length >= 2 && (
-                        <RangeSegmentedControl
-                            options={ranges.map(({ key, label }) => ({ key, label }))}
-                            selectedKey={range.key}
-                            onSelect={setRangeKey}
-                        />
+                        <View style={styles.rangeRow}>
+                            {ranges.map(r => {
+                                const selected = range.key === r.key;
+                                return (
+                                    <TouchableOpacity
+                                        key={r.key}
+                                        onPress={() => setRangeKey(r.key)}
+                                        activeOpacity={0.7}
+                                        hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                                        accessibilityRole="button"
+                                        accessibilityState={{ selected }}
+                                        accessibilityLabel={r.label}
+                                    >
+                                        <Text style={[styles.rangeText, selected && styles.rangeTextActive]}>
+                                            {r.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
                     )}
+                </View>
+                <View style={styles.phaseRow}>
+                    <TouchableOpacity
+                        style={[styles.phaseButton, { backgroundColor: phasePresentation.background }]}
+                        onPress={openProfile}
+                        activeOpacity={0.75}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Current goal: ${phasePresentation.label}. Open Profile to change goal`}
+                    >
+                        <Text style={[styles.phaseButtonText, { color: phasePresentation.color }]}>
+                            {phasePresentation.label}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={spacing.iconSm} color={phasePresentation.color} />
+                    </TouchableOpacity>
+                    <Text style={styles.phaseDetail} numberOfLines={1}>{phaseStatus}</Text>
                 </View>
                 {workoutHistoryLoadMoreError && hasMoreWorkoutHistory && (
                     <TouchableOpacity onPress={() => void loadMoreWorkoutHistory()}>
@@ -740,7 +771,7 @@ const ProgressScreen = () => {
                     <>
                         {tab === 'nutrition' ? (
                             <>
-                                {recap && <RecapCard r={recap} busy={switching} onSwitch={onSwitch} onProfile={openProfile} />}
+                                {recap && <RecapCard r={recap} busy={switching} onSwitch={onSwitch} />}
                                 {phaseNutritionHistoryLoading && (
                                     <Text style={styles.statDetail}>Loading food history from this phase...</Text>
                                 )}

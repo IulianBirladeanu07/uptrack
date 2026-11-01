@@ -87,6 +87,7 @@ describe('formatWeightDate', () => {
         describe('getWeightTrendTone', () => {
             it('uses the phase direction to classify a weekly change', () => {
                 expect(getWeightTrendTone(2, 'muscle_gain')).toBe('favorable');
+                expect(getWeightTrendTone(-2, 'muscle_gain')).toBe('unfavorable');
                 expect(getWeightTrendTone(2, 'weight_loss')).toBe('unfavorable');
             });
 

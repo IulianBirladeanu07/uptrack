@@ -19,6 +19,28 @@ Updated 2026-11-01. Start with this handoff, then read `AGENTS.md` before changi
 - The Exercise History shortcut in active exercise headers uses the same muted neutral treatment as the adjacent menu, leaving cyan for active set state.
 - Exercise History tests passed (2 suites / 6 tests); `npx tsc --noEmit`, Android Expo export, and `git diff --check` passed.
 
+## Current batch: Nutrition food feedback and Steps colors
+
+- Foods added from Food Selection briefly receive a subtle amber surface tint in the destination meal; the tint fades away and does not add a border or change row dimensions.
+- The Nutrition and Dashboard Steps icons share the same orange-red accent; the Nutrition icon container still turns green at the daily goal to communicate status.
+- Recent-meal item selection and Add All use the same green success treatment. Selected food rows do not gain an extra outline.
+- The plus control is a separate 60dp touch target, so pressing it does not activate the food-details row.
+- Focused Nutrition tests passed (5 suites / 21 tests); `npx tsc --noEmit`, Android Expo export, and `git diff --check` pass.
+
+## Current batch: Investigating inflated Android step totals
+
+- Device logs showed a single Health Connect bucket of 16,691 steps for 2026-11-01, which matches the value delivered to Nutrition. The duplicate-bucket hypothesis was not supported, so same-date bucket summing remains unchanged.
+- Logs later showed 16,760 steps across Google Fit, Samsung Health, and the Health Connect phone provider. Per-origin totals showed Samsung Health at 7,606, Google Fit at 9,397, and the phone provider at 9,760; the user's Google Fit display was 9,398. Android now uses Google Fit's origin total when available, falling back to the highest other origin, instead of summing sources.
+- Development logs include the unfiltered total, readable per-origin totals, and selected total for today. Focused step tests (2 suites / 15 tests), `npx tsc --noEmit`, Android Expo export, and `git diff --check` pass after source-selection changes.
+
+## Current batch: Progress screen visual cleanup
+
+- Corrected Energy Balance so a real calorie deficit displays as a positive amount labeled “deficit,” rather than a negative number labeled “surplus”; chart balances remain phase-oriented.
+- Removed the Strength chart’s “start” annotation that collided with the latest strength label and reduced the Energy Balance and Strength chart heights by 20dp.
+- Progress monthly weight-change badges now use the active phase direction: weight loss during a bulk is warning-colored instead of neutral gray. Progress engine tests cover energy balance labels and phase-aware weight badge tones.
+- Weight Tracker’s current summary and weekly trend badges now color changes according to the active goal. Only the separate all-history screen keeps cross-phase comparisons neutral.
+- The Progress header uses compact Nutrition/Training tabs and text-only range choices, with a colored Bulking/Cutting/Maintenance button linking to Profile and a concise week/target line. The phase recap keeps its “goal reached” badge and maintenance action without repeating the phase label or Profile link. Chart calculations and partial-week cues remain unchanged.
+
 ## Current batch: Workout cancellation navigation
 
 - Confirming Cancel clears the active session and returns directly to an existing Workout screen; if none is underneath, it replaces StartWorkout with Workout. It no longer waits for unrelated history/template refreshes before navigating.

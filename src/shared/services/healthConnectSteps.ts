@@ -8,7 +8,8 @@ import {
   openHealthConnectSettings,
   requestPermission,
 } from 'react-native-health-connect';
-import { bucketsToDailySteps, type DailySteps } from './stepBuckets';
+import { bucketsToDailySteps, toDateKey, type DailySteps } from './stepBuckets';
+import { formatLocalDateKey } from '../utils/localDateKey';
 
 export type StepsAccess = 'ready' | 'unavailable' | 'update_required' | 'permission_denied';
 
@@ -18,6 +19,7 @@ const INSTALL_URL =
   'market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding';
 
 const STEPS_READ = { accessType: 'read', recordType: 'Steps' } as const;
+const GOOGLE_FIT_ORIGIN = 'com.google.android.apps.fitness';
 
 const hasStepsRead = (granted: ReadonlyArray<{ recordType: string }>): boolean =>
   granted.some(p => p.recordType === 'Steps' && 'accessType' in p && p.accessType === 'read');
@@ -55,5 +57,51 @@ export const readDailySteps = async (from: Date, to: Date): Promise<DailySteps> 
     timeRangeFilter: { operator: 'between', startTime: start.toISOString(), endTime: to.toISOString() },
     timeRangeSlicer: { period: 'DAYS', length: 1 },
   });
-  return bucketsToDailySteps(groups);
+  const allSourceSteps = bucketsToDailySteps(groups);
+  const foundOrigins = [...new Set(groups.flatMap(({ result }) => result.dataOrigins ?? []))];
+  const sourceSteps = foundOrigins.length > 1
+    ? await Promise.all(foundOrigins.map(async origin => ({
+      origin,
+      dailySteps: bucketsToDailySteps(await aggregateGroupByPeriod({
+        recordType: 'Steps',
+        timeRangeFilter: { operator: 'between', startTime: start.toISOString(), endTime: to.toISOString() },
+        timeRangeSlicer: { period: 'DAYS', length: 1 },
+        dataOriginFilter: [origin],
+      })),
+    })))
+    : [];
+  const dailySteps = { ...allSourceSteps };
+  if (sourceSteps.length > 1) {
+    Object.keys(allSourceSteps).forEach(dateKey => {
+      const sourceTotals = sourceSteps
+        .map(source => ({ origin: source.origin, total: source.dailySteps[dateKey] }))
+        .filter((source): source is { origin: string; total: number } => source.total !== undefined);
+      const googleFitSteps = sourceTotals.find(source => source.origin === GOOGLE_FIT_ORIGIN)?.total;
+      if (googleFitSteps !== undefined) {
+        dailySteps[dateKey] = googleFitSteps;
+      } else if (sourceTotals.length) {
+        dailySteps[dateKey] = Math.max(...sourceTotals.map(source => source.total));
+      }
+    });
+  }
+  if (__DEV__) {
+    const dateKey = formatLocalDateKey(to);
+    console.log('[Steps] Health Connect aggregate', {
+      requestedStart: start.toISOString(),
+      requestedEnd: to.toISOString(),
+      bucketCount: groups.length,
+      dateKey,
+      buckets: groups.filter(({ startTime }) => toDateKey(startTime) === dateKey).map(({ startTime, endTime, result }) => ({
+        startTime,
+        endTime,
+        total: result.COUNT_TOTAL,
+        dataOrigins: JSON.stringify(result.dataOrigins),
+        sourceTotals: JSON.stringify(sourceSteps
+          .filter(source => (result.dataOrigins ?? []).includes(source.origin))
+          .map(source => ({ origin: source.origin, total: source.dailySteps[toDateKey(startTime)] ?? 0 }))),
+      })),
+      dateTotal: dailySteps[dateKey] ?? null,
+    });
+  }
+  return dailySteps;
 };

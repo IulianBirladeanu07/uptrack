@@ -184,7 +184,11 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         if (!mountedRef.current) return;
         const key = formatDate(selectedDateRef.current);
-        setDailySteps(mealCache.current.getSteps(key));
+        const cachedSteps = mealCache.current.getSteps(key);
+        if (__DEV__) {
+            console.log('[Steps] Nutrition display value', { selectedDateKey: key, steps: cachedSteps });
+        }
+        setDailySteps(cachedSteps);
     }, [stepsVersion, selectedDate]);
 
     const getCaloriesForDateRange = useCallback((startDate: DateInput, endDate: DateInput) =>
@@ -239,7 +243,15 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
     const updateDailySteps = useCallback((steps: number, dateKey?: string) => {
         if (!mountedRef.current) return;
         const key = dateKey || formatDate(selectedDateRef.current);
-        if (mealCache.current.getSteps(key) === steps) return;
+        const previousSteps = mealCache.current.getSteps(key);
+        if (__DEV__ && key === formatDate(selectedDateRef.current)) {
+            console.log('[Steps] Nutrition cache update', {
+                dateKey: key,
+                receivedSteps: steps,
+                previousSteps,
+            });
+        }
+        if (previousSteps === steps) return;
         mealCache.current.setSteps(key, steps);
         setStepsVersion(v => v + 1);
     }, []);

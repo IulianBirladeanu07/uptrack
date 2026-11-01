@@ -10,6 +10,8 @@ import {
   paceTip,
   energyModel,
   balanceNote,
+  energyBalanceDisplay,
+  weightChangeTone,
   energyTip,
   maintenanceEstimateNote,
   maintenanceRangeNote,
@@ -463,6 +465,35 @@ describe('balanceNote', () => {
   });
 });
 
+describe('energyBalanceDisplay', () => {
+  test('labels negative balances as deficits without a misleading minus sign', () => {
+    expect(energyBalanceDisplay(-297)).toEqual({ value: '297', unit: 'kcal/day deficit' });
+  });
+
+  test('labels positive balances as surpluses', () => {
+    expect(energyBalanceDisplay(220)).toEqual({ value: '220', unit: 'kcal/day surplus' });
+  });
+
+  test('uses a neutral unit close to maintenance', () => {
+    expect(energyBalanceDisplay(-20)).toEqual({ value: '20', unit: 'kcal/day' });
+  });
+});
+
+describe('weightChangeTone', () => {
+  test('treats weight gain as favorable during a bulk', () => {
+    expect(weightChangeTone(0.3, 1)).toBe('good');
+  });
+
+  test('marks weight loss as unfavorable during a bulk', () => {
+    expect(weightChangeTone(-0.3, 1)).toBe('warn');
+  });
+
+  test('keeps small maintenance changes favorable and larger changes neutral', () => {
+    expect(weightChangeTone(0.2, 0)).toBe('good');
+    expect(weightChangeTone(-0.5, 0)).toBe('flat');
+  });
+});
+
 describe('energyModel', () => {
   const { weeks } = buildWeeks(buildSrc(), NOW);
   const rated = withRates(weeks, -1);
@@ -535,7 +566,14 @@ describe('energyModel', () => {
 
   test('says behind-plan when real rate is far below plan', () => {
     const m = energyModel(rated, 12, { ...info, planRate: 1.2 });
-    expect(energyTip(m, { ...info, planRate: 1.2 })).toMatch(/plan pace needs about/);
+    expect(energyTip(m, { ...info, planRate: 1.2 })).toMatch(/aim for about/);
+  });
+
+  test('describes weight loss as opposite to a bulk goal without a negative gain rate', () => {
+    const bulk = { ...info, dir: 1, planRate: 0.2 };
+    const m = energyModel(rated, 12, bulk, buildSrc().weightIns, NOW);
+    expect(m.realRate).toBeLessThan(0);
+    expect(energyTip(m, bulk)).toMatch(/weight is falling at .* below your 0.2 kg\/wk gain goal/);
   });
 
   test('stays silent when target matches intake', () => {

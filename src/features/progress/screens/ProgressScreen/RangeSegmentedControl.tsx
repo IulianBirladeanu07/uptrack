@@ -8,6 +8,9 @@ type Props = {
     options: Option[];
     selectedKey: string;
     onSelect: (key: string) => void;
+    contextLabel: string;
+    contextDetail: string;
+    contextColor: string;
 };
 
 const styles = createStyles(() => ({
@@ -15,22 +18,32 @@ const styles = createStyles(() => ({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        minHeight: spacing[11],
+        minHeight: spacing[12],
     },
-    rangeLabel: {
-        fontSize: fontSize[10],
+    context: {
+        flex: 1,
+        minWidth: 0,
+    },
+    contextLabel: {
+        fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
-        color: colors.text.quaternary,
+        color: colors.accent.primary,
         letterSpacing: 1,
         textTransform: 'uppercase',
+    },
+    contextDetail: {
+        marginTop: 2,
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
     },
     options: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing[3],
+        gap: spacing[2],
     },
     segment: {
-        minHeight: spacing[11],
+        minHeight: spacing[12],
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: spacing[1],
@@ -47,9 +60,12 @@ const styles = createStyles(() => ({
     },
 }));
 
-const RangeSegmentedControl = ({ options, selectedKey, onSelect }: Props) => (
+const RangeSegmentedControl = ({ options, selectedKey, onSelect, contextLabel, contextDetail, contextColor }: Props) => (
     <View style={styles.container}>
-        <Text style={styles.rangeLabel}>Range</Text>
+        <View style={styles.context}>
+            <Text style={[styles.contextLabel, { color: contextColor }]}>{contextLabel}</Text>
+            <Text style={styles.contextDetail} numberOfLines={1}>{contextDetail}</Text>
+        </View>
         <View style={styles.options}>
             {options.map(option => {
                 const selected = option.key === selectedKey;

@@ -77,7 +77,12 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
 
         try {
             const byDate = await backend.hc.readDailySteps(today, now);
-            return byDate[formatLocalDateKey(today)] ?? null;
+            const todayKey = formatLocalDateKey(today);
+            const steps = byDate[todayKey] ?? null;
+            if (__DEV__) {
+                console.log('[Steps] Health Connect today result', { todayKey, steps, byDate });
+            }
+            return steps;
         } catch (err) {
             console.log('[Steps] fetchToday error:', err);
             return null;
@@ -113,6 +118,14 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
 
         try {
             const byDate = await backend.hc.readDailySteps(startDate, now);
+            if (__DEV__) {
+                const todayKey = formatLocalDateKey(now);
+                console.log('[Steps] Recent Health Connect results', {
+                    startDate: formatLocalDateKey(startDate),
+                    datesReturned: Object.keys(byDate).length,
+                    todaySteps: byDate[todayKey] ?? null,
+                });
+            }
             Object.entries(byDate).forEach(([dateKey, totalSteps]) => {
                 entries[dateKey] = totalSteps;
                 onStepsUpdate?.(totalSteps, dateKey);
@@ -132,6 +145,9 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
         }
         const steps = await fetchTodaySteps();
         if (steps === null) return;
+        if (__DEV__) {
+            console.log('[Steps] Updating today total', { todayKey, steps });
+        }
         if (onStepsUpdate) onStepsUpdate(steps, todayKey);
     };
 

@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import type { AccessibilityActionEvent, StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
-import Animated from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -42,6 +42,7 @@ type FoodItemProps = {
   onPlusPress?: ((item: FoodItemData) => void) | undefined;
   showPlusButton?: boolean | undefined;
   isSelected?: boolean | undefined;
+  isHighlighted?: boolean | undefined;
   isSelectionEmphasized?: boolean | undefined;
   isScrolling?: boolean | undefined;
   compact?: boolean | undefined;
@@ -129,41 +130,31 @@ const MacroLabels = memo(({ macros }: { macros: Macro[] }) => (
 
 type PlusButtonProps = {
   isChecked: boolean;
-  isSelectionEmphasized: boolean;
   onPress: () => void;
   showButton: boolean;
 };
 
-const PlusButton = memo(({ isChecked, isSelectionEmphasized, onPress, showButton }: PlusButtonProps) => {
+const PlusButton = memo(({ isChecked, onPress, showButton }: PlusButtonProps) => {
   if (!showButton) return null;
   return (
-    <View
+    <TouchableOpacity
       testID="food-selection-toggle"
       style={[
         styles.plusButton,
-        isChecked
-          ? isSelectionEmphasized
-            ? styles.plusButtonSelected
-            : styles.plusButtonSelectedSubtle
-          : styles.plusButtonAdd,
+        isChecked ? styles.plusButtonSelected : styles.plusButtonAdd,
       ]}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="checkbox"
+      accessibilityLabel={isChecked ? 'Remove food from selection' : 'Add food to selection'}
+      accessibilityState={{ checked: isChecked }}
     >
-      <TouchableOpacity
-        onPress={onPress}
-        hitSlop={styles.hitSlop}
-        delayPressIn={0}
-        activeOpacity={0.7}
-        accessibilityRole="checkbox"
-        accessibilityLabel={isChecked ? 'Remove food from selection' : 'Add food to selection'}
-        accessibilityState={{ checked: isChecked }}
-      >
-        <Ionicons
-          name={isChecked ? 'checkmark' : 'add'}
-          size={spacing[4]}
-          color={isChecked ? colors.accent.success : colors.text.tertiary}
-        />
-      </TouchableOpacity>
-    </View>
+      <Ionicons
+        name={isChecked ? 'checkmark' : 'add'}
+        size={spacing[4]}
+        color={isChecked ? colors.accent.success : colors.text.tertiary}
+      />
+    </TouchableOpacity>
   );
 });
 
@@ -181,16 +172,10 @@ const CaloriesDisplay = memo(({ calories, caloriesValueStyle }: CaloriesDisplayP
 
 type FoodInfoProps = {
   foodName: string;
-  calories: number;
   quantity?: Numeric | null | undefined;
   unit?: string | null | undefined;
   macros: Macro[];
-  isChecked: boolean;
-  isSelectionEmphasized: boolean;
-  showPlusButton: boolean;
-  onPlusPress: () => void;
   nameStyle: StyleProp<TextStyle>;
-  caloriesValueStyle: StyleProp<TextStyle>;
   quantityLabelStyle?: StyleProp<ViewStyle>;
   quantityLabelTextStyle?: StyleProp<TextStyle>;
 };
@@ -198,16 +183,10 @@ type FoodInfoProps = {
 const FoodInfo = memo(
   ({
     foodName,
-    calories,
     quantity,
     unit,
     macros,
-    isChecked,
-    isSelectionEmphasized,
-    showPlusButton,
-    onPlusPress,
     nameStyle,
-    caloriesValueStyle,
     quantityLabelStyle,
     quantityLabelTextStyle,
   }: FoodInfoProps) => (
@@ -226,15 +205,6 @@ const FoodInfo = memo(
           <MacroLabels macros={macros} />
         </View>
       </View>
-      <View style={styles.caloriesContainer}>
-        <CaloriesDisplay calories={calories} caloriesValueStyle={caloriesValueStyle} />
-        <PlusButton
-          isChecked={isChecked}
-          isSelectionEmphasized={isSelectionEmphasized}
-          onPress={onPlusPress}
-          showButton={showPlusButton}
-        />
-      </View>
     </View>
   )
 );
@@ -248,6 +218,7 @@ const FoodItem = memo(
     onPlusPress,
     showPlusButton = false,
     isSelected,
+    isHighlighted = false,
     isSelectionEmphasized = true,
     isScrolling = false,
     compact = false,
@@ -263,6 +234,14 @@ const FoodItem = memo(
   }: FoodItemProps) => {
     const [isLocallyChecked, setIsLocallyChecked] = useState(false);
     const isChecked = isSelected ?? isLocallyChecked;
+    const highlightOpacity = useSharedValue(0);
+    const highlightStyle = useAnimatedStyle(() => ({ opacity: highlightOpacity.value }));
+
+    useEffect(() => {
+      highlightOpacity.value = withTiming(isHighlighted ? 1 : 0, {
+        duration: isHighlighted ? 180 : 500,
+      });
+    }, [highlightOpacity, isHighlighted]);
 
     const itemData = useMemo(
       () => ({
@@ -316,41 +295,47 @@ const FoodItem = memo(
     }, [handlePlusPress, confirmDelete]);
 
     const Content = (
-      <TouchableOpacity
-        onPress={handlePress}
-        style={compact ? styles.touchableCompact : styles.touchable}
-        activeOpacity={0.9}
-        delayPressIn={0}
-        accessibilityRole="button"
-        accessibilityLabel={`${itemData.foodName}, ${itemData.calories} kilocalories`}
-        accessibilityActions={accessibilityActions}
-        onAccessibilityAction={handleAccessibilityAction}
-      >
-        <View style={resolvedStyles.item}>
+      <View style={resolvedStyles.item}>
+        <TouchableOpacity
+          onPress={handlePress}
+          style={[styles.foodRowTouchable, compact && styles.foodRowTouchableCompact]}
+          activeOpacity={0.9}
+          delayPressIn={0}
+          accessibilityRole="button"
+          accessibilityLabel={`${itemData.foodName}, ${itemData.calories} kilocalories`}
+          accessibilityActions={accessibilityActions}
+          onAccessibilityAction={handleAccessibilityAction}
+        >
           <FoodImage uri={item.image} icon={item.icon} style={resolvedStyles.image} isScrolling={isScrolling} />
           <FoodInfo
             foodName={itemData.foodName}
-            calories={itemData.calories}
             quantity={item.quantity}
             unit={item.unit}
             macros={itemData.macros}
-            isChecked={isChecked}
-            isSelectionEmphasized={isSelectionEmphasized}
-            showPlusButton={showPlusButton}
-            onPlusPress={handlePlusPress}
             nameStyle={resolvedStyles.name}
-            caloriesValueStyle={resolvedStyles.caloriesValue}
             quantityLabelStyle={quantityLabelStyle}
             quantityLabelTextStyle={quantityLabelTextStyle}
           />
+        </TouchableOpacity>
+        <View style={styles.foodActions}>
+          <CaloriesDisplay calories={itemData.calories} caloriesValueStyle={resolvedStyles.caloriesValue} />
+          <PlusButton
+            isChecked={isChecked}
+            onPress={handlePlusPress}
+            showButton={showPlusButton}
+          />
         </View>
-      </TouchableOpacity>
+      </View>
     );
 
     if (!isFoodDeletable) {
       return (
         <Animated.View style={[resolvedStyles.container, isChecked && isSelectionEmphasized && styles.containerSelected, pressStyle]}>
           {Content}
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.highlightOverlay, highlightStyle]}
+          />
         </Animated.View>
       );
     }
@@ -369,14 +354,16 @@ const FoodItem = memo(
         <GestureDetector gesture={gesture}>
           <Animated.View style={containerStyle}>{Content}</Animated.View>
         </GestureDetector>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.highlightOverlay, highlightStyle]}
+        />
       </View>
     );
   },
 );
 
 const styles = createStyles(() => ({
-  hitSlop: { top: spacing[2], bottom: spacing[2], left: spacing[2], right: spacing[2] },
-
   container: {
     position: 'relative',
     backgroundColor: colors.background.secondary,
@@ -405,17 +392,36 @@ const styles = createStyles(() => ({
     backgroundColor: colors.background.selectedCard,
   },
 
-  touchable: {
+  highlightOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: radius[3],
+    backgroundColor: colors.faded.primary,
+  },
+
+  foodRowTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[2],
     paddingVertical: spacing[1],
     paddingHorizontal: spacing[1],
     overflow: 'visible',
     backgroundColor: 'transparent',
   },
 
-  touchableCompact: {
+  foodRowTouchableCompact: {
+    paddingVertical: 0,
     paddingHorizontal: 0,
-    overflow: 'visible',
-    backgroundColor: 'transparent',
+  },
+
+  foodActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
   },
 
   foodItem: {
@@ -482,14 +488,6 @@ const styles = createStyles(() => ({
     flex: 1,
   },
 
-  caloriesContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-    position: 'absolute',
-    right: 0,
-  },
-
   caloriesDisplay: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -519,8 +517,8 @@ const styles = createStyles(() => ({
   },
 
   plusButton: {
-    alignSelf: 'center',
-    padding: spacing[2],
+    width: spacing[11],
+    height: spacing[11],
     borderRadius: radius[5],
     alignItems: 'center',
     justifyContent: 'center',
@@ -541,14 +539,6 @@ const styles = createStyles(() => ({
     borderWidth: 1,
     borderColor: colors.border.successAlt,
     shadowColor: colors.accent.success,
-  },
-
-  plusButtonSelectedSubtle: {
-    backgroundColor: colors.background.secondary,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    shadowOpacity: 0,
-    elevation: 0,
   },
 
   deleteButtonContainer: {

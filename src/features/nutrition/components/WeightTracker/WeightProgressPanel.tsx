@@ -11,11 +11,10 @@ import {
     formatWeekLabel,
     formatWeightDate,
     getWeightTrendTone,
-    isComparisonInCurrentGoalPhase,
 } from './weightTrackerPresentation';
 
-type TrendBadgeProps = { value: number | null; planType: PlanType; phaseKnown: boolean };
-type WeekRowProps = { group: ReturnType<typeof buildWeeklyGroups>[number]; planType: PlanType; phaseKnown: boolean; expanded: boolean; onToggle: () => void };
+type TrendBadgeProps = { value: number | null; planType: PlanType };
+type WeekRowProps = { group: ReturnType<typeof buildWeeklyGroups>[number]; planType: PlanType; expanded: boolean; onToggle: () => void };
 
 type WeightProgressPanelProps = {
     trendData: ChartEntry[];
@@ -27,9 +26,9 @@ type WeightProgressPanelProps = {
     onViewAll: () => void;
 };
 
-const TrendBadge = ({ value, planType, phaseKnown }: TrendBadgeProps) => {
+const TrendBadge = ({ value, planType }: TrendBadgeProps) => {
     if (value == null) return null;
-    const tone = getWeightTrendTone(value, planType, phaseKnown);
+    const tone = getWeightTrendTone(value, planType);
     const color = tone === 'favorable'
         ? colors.accent.success
         : tone === 'unfavorable'
@@ -49,7 +48,7 @@ const TrendBadge = ({ value, planType, phaseKnown }: TrendBadgeProps) => {
     );
 };
 
-const WeekRow = ({ group, planType, phaseKnown, expanded, onToggle }: WeekRowProps) => (
+const WeekRow = ({ group, planType, expanded, onToggle }: WeekRowProps) => (
     <View>
         <TouchableOpacity style={styles.weekHeader} onPress={onToggle} activeOpacity={0.7}>
             <View style={styles.weekHeaderLeft}>
@@ -63,7 +62,7 @@ const WeekRow = ({ group, planType, phaseKnown, expanded, onToggle }: WeekRowPro
                         <Text style={styles.weekAverageUnit}> kg</Text>
                     </View>
                 )}
-                <TrendBadge value={group.trend} planType={planType} phaseKnown={phaseKnown} />
+                <TrendBadge value={group.trend} planType={planType} />
                 <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={colors.text.quaternary} />
             </View>
         </TouchableOpacity>
@@ -172,11 +171,6 @@ const WeightProgressPanel = ({
                                 <WeekRow
                                     group={group}
                                     planType={planType}
-                                    phaseKnown={isComparisonInCurrentGoalPhase(
-                                        group.weekStart,
-                                        weeklyGroups[index + 1]?.weekStart,
-                                        goalSwitchDate,
-                                    )}
                                     expanded={!!expandedWeeks[group.weekStart]}
                                     onToggle={() => toggleWeek(group.weekStart)}
                                 />

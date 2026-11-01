@@ -85,7 +85,7 @@ function NutritionStats({ onWeightPress, dailyNutrition, userMacros, hasTargets,
                         <MaterialCommunityIcons
                             name="run-fast"
                             size={20}
-                            color={dailySteps >= 10000 ? colors.accent.success : colors.accent.stepsRed}
+                            color={colors.accent.stepsRed}
                         />
                     </View>
                     <Text style={styles.metricValue}>

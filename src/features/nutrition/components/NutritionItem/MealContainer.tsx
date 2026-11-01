@@ -16,6 +16,7 @@ type MealContainerProps = {
   isFoodDeletable?: boolean | undefined;
   selectedMeal: MealType;
   setSelectedMeal: (meal: MealType) => void;
+  highlightedFoodIds?: string[] | undefined;
   onAddFood?: (() => void) | undefined;
 };
 
@@ -36,6 +37,7 @@ const MealContainer = ({
   isFoodDeletable,
   selectedMeal,
   setSelectedMeal,
+  highlightedFoodIds = [],
   onAddFood,
 }: MealContainerProps) => {
   const mealTotals = calculateDailyNutrition(foods);
@@ -105,6 +107,7 @@ const MealContainer = ({
               <View key={item.id ?? `${item.productName}_${index}`} style={styles.foodItemWrapper}>
                 <FoodItem
                   item={item}
+                  isHighlighted={highlightedFoodIds.includes(item.id ?? '')}
                   onSwipeableOpen={onSwipeableOpen}
                   onPress={() => onPress(item, selectedMeal)}
                   isFoodDeletable={isFoodDeletable}

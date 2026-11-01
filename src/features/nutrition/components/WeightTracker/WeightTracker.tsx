@@ -16,7 +16,6 @@ import {
     processWeightInsForDisplay,
     adjustWeight,
     getRollingAverageWeight,
-    getLocalWeekStart,
 } from '../../helpers/weightTrackerUtils';
 import type { ChartEntry } from './WeightChart';
 import { isSuspiciousWeightEntry, getCurrentTrendWeight } from '../../../profile/utils/weightTrendEngine';
@@ -28,7 +27,6 @@ import {
     WEEK_DAYS,
     getWeightGoalProgressPercent,
     getWeightGoalRemaining,
-    isComparisonInCurrentGoalPhase,
     isWeightGoalReached,
 } from './weightTrackerPresentation';
 import { applyWeightKey } from './weightInput';
@@ -159,16 +157,6 @@ const WeightTracker = () => {
 
     const remaining = getWeightGoalRemaining(progressWeight, goalWeight, effectivePlanType);
     const goalReached = isWeightGoalReached(progressWeight, goalWeight, effectivePlanType);
-    const summaryWeekStart = weeklyData?.weekStart ?? getLocalWeekStart(committedDate);
-    const previousSummaryWeekStart = weightIns
-        .filter(week => week.weekStart < summaryWeekStart)
-        .sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0]?.weekStart;
-    const summaryTrendPhaseKnown = isComparisonInCurrentGoalPhase(
-        summaryWeekStart,
-        previousSummaryWeekStart,
-        goalSwitchDate,
-    );
-
     const handleKeypadPress = (key: string) => {
         if (Platform.OS === 'ios') Vibration.vibrate(5);
 
@@ -304,7 +292,6 @@ const WeightTracker = () => {
                     remaining={remaining}
                     planType={effectivePlanType}
                     goalReached={goalReached}
-                    trendPhaseKnown={summaryTrendPhaseKnown}
                 />
 
                 <WeightProgressPanel

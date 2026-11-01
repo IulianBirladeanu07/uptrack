@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
-import { colors } from '../../../../shared/theme';
+import { colors, spacing } from '../../../../shared/theme';
 import FoodItem from './FoodItem';
 
 const mockConfirmDelete = jest.fn();
@@ -76,26 +76,30 @@ describe('FoodItem accessibility', () => {
     });
 
     it('marks the plus button as a checkbox that follows the selection', () => {
-        render(<FoodItem item={item} showPlusButton />);
+        const onPress = jest.fn();
+        const onPlusPress = jest.fn();
+        render(<FoodItem item={item} showPlusButton onPress={onPress} onPlusPress={onPlusPress} />);
 
         const box = screen.getByRole('checkbox', { name: 'Add food to selection' });
         expect(box.props.accessibilityState).toEqual({ checked: false });
+        expect(StyleSheet.flatten(screen.getByTestId('food-selection-toggle').props.style).width).toBeGreaterThanOrEqual(44);
 
         fireEvent.press(box);
 
         expect(screen.getByRole('checkbox', { name: 'Remove food from selection' }).props.accessibilityState).toEqual({ checked: true });
+        expect(onPlusPress).toHaveBeenCalledWith(item);
+        expect(onPress).not.toHaveBeenCalled();
     });
 
-    it('de-emphasizes item checks when the whole meal is selected', () => {
+    it('uses the same green check treatment when one or all items are selected', () => {
         render(<FoodItem item={item} showPlusButton isSelected isSelectionEmphasized={false} />);
 
         const checkbox = screen.getByRole('checkbox', { name: 'Remove food from selection' });
         const buttonStyle = StyleSheet.flatten(screen.getByTestId('food-selection-toggle').props.style);
 
         expect(checkbox.props.accessibilityState).toEqual({ checked: true });
-        expect(buttonStyle.backgroundColor).toBe(colors.background.secondary);
-        expect(buttonStyle.borderColor).toBe(colors.border.default);
-        expect(buttonStyle.shadowOpacity).toBe(0);
+        expect(buttonStyle.backgroundColor).toBe(colors.faded.successAlt);
+        expect(buttonStyle.borderColor).toBe(colors.border.successAlt);
         expect(screen.getByTestId('selection-icon').props.accessibilityLabel).toBe(colors.accent.success);
     });
 });

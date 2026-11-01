@@ -6,7 +6,9 @@ jest.mock('./FoodItem', () => {
     const { Text: MockText } = require('react-native');
     return {
         __esModule: true,
-        default: ({ item }: { item: { productName: string } }) => <MockText>{item.productName}</MockText>,
+        default: ({ item, isHighlighted }: { item: { productName: string }; isHighlighted: boolean }) => (
+            <MockText testID={isHighlighted ? 'highlighted-food' : undefined}>{item.productName}</MockText>
+        ),
     };
 });
 
@@ -76,4 +78,10 @@ describe('MealContainer meal selector', () => {
         expect(setSelectedMeal).toHaveBeenCalledWith('dinner');
     });
 
+    it('highlights only foods passed as recently added', () => {
+        setup({ highlightedFoodIds: ['b'] });
+
+        expect(screen.getByTestId('highlighted-food').props.children).toBe('Food b');
+        expect(screen.queryByText('Food a')?.props.testID).toBeUndefined();
+    });
 });

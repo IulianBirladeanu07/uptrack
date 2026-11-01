@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { getAuth } from 'firebase/auth';
 import { useFoodContext } from '../../context/FoodContext';
@@ -12,7 +12,7 @@ import NutritionStats from '../../components/NutritionStats/NutritionStats';
 import useWeightData from '../../helpers/useWeightData';
 import styles from './NutritionScreenStyles';
 import type { FoodItemData } from '../../components/NutritionItem/FoodItem';
-import { useAppNavigation } from '../../../../shared/navigation';
+import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import { formatDate } from '../../utils/dateUtils';
 import type { FoodDetailFood, LoggedFood, MealType } from '../../../../shared/types';
 
@@ -24,8 +24,12 @@ const getMealForLocalTime = (): MealType => {
     return 'snacks';
 };
 
+const isMealType = (meal: string): meal is MealType =>
+    meal === 'breakfast' || meal === 'lunch' || meal === 'dinner' || meal === 'snacks';
+
 const NutritionScreen = () => {
     const navigation = useAppNavigation();
+    const route = useAppRoute<'Nutrition'>();
     const navInset = useBottomNavInset();
 
     const {
@@ -47,11 +51,32 @@ const NutritionScreen = () => {
     } = useFoodContext();
 
     const [selectedMeal, setSelectedMeal] = useState<MealType>(getMealForLocalTime);
+    const [highlightedFoodIds, setHighlightedFoodIds] = useState<string[]>([]);
     const [userId] = useState<string | null>(() => getAuth().currentUser?.uid || null);
     const [isReady, setIsReady] = useState(false);
+    const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { weightData, refreshWeightData } = useWeightData(userId, selectedDate);
     useLearningCompletion(learningData, hasTargets);
+
+    useEffect(() => {
+        const ids = route.params?.highlightedFoodIds;
+        if (!ids?.length) return;
+
+        const meal = route.params?.meal;
+        if (meal && isMealType(meal)) setSelectedMeal(meal);
+        setHighlightedFoodIds(ids);
+        if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+        highlightTimeoutRef.current = setTimeout(() => {
+            setHighlightedFoodIds([]);
+            highlightTimeoutRef.current = null;
+        }, 1800);
+        navigation.setParams({ highlightedFoodIds: undefined });
+    }, [navigation, route.params?.highlightedFoodIds, route.params?.meal]);
+
+    useEffect(() => () => {
+        if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+    }, []);
 
     useEffect(() => {
         if (initialLoadComplete && userId) {
@@ -159,6 +184,7 @@ const NutritionScreen = () => {
                         isFoodDeletable={true}
                         selectedMeal={selectedMeal}
                         setSelectedMeal={setSelectedMeal}
+                        highlightedFoodIds={highlightedFoodIds}
                         onAddFood={handleAddFood}
                     />
                 </View>

@@ -57,6 +57,14 @@ const friday: RecentMeal = {
     foods: [food],
     totalCalories: 200,
 };
+const mealWithTwoFoods: RecentMeal = {
+    ...yesterday,
+    foods: [
+        food,
+        { id: 'second-food-id', productName: 'Beans', calories: 100 },
+    ],
+    totalCalories: 300,
+};
 
 const MealSelection = () => {
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -77,6 +85,29 @@ const MealSelection = () => {
             <MealItem item={yesterday} onPlusPress={onPlusPress} isFoodSelected={isFoodSelected} />
             <MealItem item={friday} onPlusPress={onPlusPress} isFoodSelected={isFoodSelected} />
         </>
+    );
+};
+
+const TwoFoodMealSelection = () => {
+    const [selected, setSelected] = useState<Set<string>>(() => new Set());
+    const onPlusPress = (item: LoggedFood & { selectionKey?: string }, toggleToAdd?: boolean) => {
+        const key = getFoodSelectionIdentity(item);
+        setSelected(previous => {
+            const next = new Set(previous);
+            if (toggleToAdd === true || (toggleToAdd == null && !next.has(key))) next.add(key);
+            else next.delete(key);
+            return next;
+        });
+    };
+    const isFoodSelected = (item: LoggedFood & { selectionKey?: string }) =>
+        selected.has(getFoodSelectionIdentity(item));
+
+    return (
+        <MealItem
+            item={mealWithTwoFoods}
+            onPlusPress={onPlusPress}
+            isFoodSelected={isFoodSelected}
+        />
     );
 };
 
@@ -103,5 +134,27 @@ describe('MealItem selection', () => {
         expect(fridayFood.props.accessibilityState).toEqual({ selected: true });
         expect(fridayFood.props.accessibilityHint).toBe('Selection subdued');
         expect(screen.getAllByRole('button', { name: 'Undo add all items' })).toHaveLength(2);
+    });
+
+    it('uses the same selected appearance for one item and Add All', () => {
+        render(<TwoFoodMealSelection />);
+
+        const firstFood = screen.getByTestId('food-2026-10-31_lunch:same-food-id');
+        const secondFood = screen.getByTestId('food-2026-10-31_lunch:second-food-id');
+
+        fireEvent.press(firstFood);
+
+        expect(firstFood.props.accessibilityState).toEqual({ selected: true });
+        expect(firstFood.props.accessibilityHint).toBe('Selection subdued');
+        expect(secondFood.props.accessibilityState).toEqual({ selected: false });
+        expect(secondFood.props.accessibilityHint).toBe('Selection emphasized');
+
+        fireEvent.press(screen.getByRole('button', { name: 'Add all items' }));
+
+        expect(screen.getByRole('button', { name: 'Undo add all items' })).toBeTruthy();
+        expect(firstFood.props.accessibilityHint).toBe('Selection subdued');
+        expect(secondFood.props.accessibilityHint).toBe('Selection subdued');
+        expect(firstFood.props.accessibilityState).toEqual({ selected: true });
+        expect(secondFood.props.accessibilityState).toEqual({ selected: true });
     });
 });

@@ -193,7 +193,7 @@ type BalanceChartProps = {
 
 export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }: BalanceChartProps) => {
   const n = bal.length;
-  const H = 176;
+  const H = 156;
   const top = 18;
   const bot = 24;
   const gut = 52;
@@ -331,7 +331,7 @@ type StrengthChartProps = {
 
 export const StrengthChart = ({ strength, weight, slots, width }: StrengthChartProps) => {
   const n = strength.length;
-  const H = 176;
+  const H = 156;
   const top = 8;
   const bot = 24;
   const gut = 54;
@@ -362,7 +362,6 @@ export const StrengthChart = ({ strength, weight, slots, width }: StrengthChartP
   return (
     <Svg width={width} height={H}>
       <Line x1={0} x2={pw} y1={y(0)} y2={y(0)} stroke={PLAN} strokeOpacity={0.5} strokeWidth={1} strokeDasharray="4 4" />
-      <SvgText x={pw + 8} y={y(0) + 3} fontSize={10} fill={AX}>start</SvgText>
       {runs(weight).map((r, k) => r.length > 1 && (
         <Path key={k} d={line(r, x, y, weight)} stroke={WEIGHT} strokeWidth={2.4} strokeLinejoin="round" strokeLinecap="round" fill="none" />
       ))}

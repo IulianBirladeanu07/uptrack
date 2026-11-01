@@ -13,7 +13,7 @@ export type RootStackParamList = {
 
 export type AuthenticatedStackParamList = {
   Dashboard: undefined;
-  Nutrition: { meal?: string } | undefined;
+  Nutrition: { meal?: string; highlightedFoodIds?: string[] } | undefined;
   Workout: undefined;
   Progress: undefined;
   Profile: undefined;

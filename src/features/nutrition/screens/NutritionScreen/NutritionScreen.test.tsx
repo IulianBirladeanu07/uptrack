@@ -1,10 +1,12 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import NutritionScreen from './NutritionScreen';
 
 const initializationError = 'Unable to load nutrition data. Check your connection and try again.';
 let mockInitialLoadComplete = false;
 let mockInitializationError: string | null = initializationError;
+let mockNutritionRouteParams: { meal?: string; highlightedFoodIds?: string[] } | undefined;
+let mockMealContainerProps: { selectedMeal: string; highlightedFoodIds?: string[] } | null = null;
 
 const mockFoodContext = {
     breakfastFoods: [],
@@ -44,7 +46,7 @@ jest.mock('../../context/FoodContext', () => ({
 
 jest.mock('../../../../shared/navigation', () => ({
     useAppNavigation: () => mockNavigation,
-    useAppRoute: () => ({ params: undefined }),
+    useAppRoute: () => ({ params: mockNutritionRouteParams }),
 }));
 
 jest.mock('../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen', () => ({
@@ -60,7 +62,8 @@ jest.mock('../../../../shared/components/BottomNav/BottomNav', () => ({
 
 jest.mock('../../components/NutritionItem/MealContainer', () => ({
     __esModule: true,
-    default: () => {
+    default: (props: { selectedMeal: string; highlightedFoodIds?: string[] }) => {
+        mockMealContainerProps = props;
         const React = require('react');
         const { Text } = require('react-native');
         return React.createElement(Text, null, 'Meals rendered');
@@ -92,7 +95,10 @@ describe('NutritionScreen initialization recovery', () => {
         mockFoodContext.retryInitialization.mockClear();
         mockInitialLoadComplete = false;
         mockInitializationError = initializationError;
+        mockNutritionRouteParams = undefined;
+        mockMealContainerProps = null;
         mockNavigation.addListener.mockClear();
+        mockNavigation.setParams.mockClear();
     });
 
     it('retries after an initialization error and displays meals after recovery', async () => {
@@ -108,5 +114,19 @@ describe('NutritionScreen initialization recovery', () => {
         rerender(<NutritionScreen />);
 
         expect(await screen.findByText('Meals rendered')).toBeTruthy();
+    });
+
+    it('selects the destination meal and highlights added food IDs', async () => {
+        mockInitialLoadComplete = true;
+        mockInitializationError = null;
+        mockNutritionRouteParams = { meal: 'lunch', highlightedFoodIds: ['new-food'] };
+
+        render(<NutritionScreen />);
+
+        await waitFor(() => {
+            expect(mockMealContainerProps?.selectedMeal).toBe('lunch');
+            expect(mockMealContainerProps?.highlightedFoodIds).toEqual(['new-food']);
+        });
+        expect(mockNavigation.setParams).toHaveBeenCalledWith({ highlightedFoodIds: undefined });
     });
 });

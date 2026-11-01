@@ -6,29 +6,23 @@ const styles = createStyles(() => ({
         flex: 1,
         backgroundColor: colors.background.primary,
     },
-    headerRow: {
-        flexDirection: 'column',
-        marginBottom: spacing[2],
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
     },
     viewRow: {
         flexDirection: 'row',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.default,
-        marginBottom: spacing[1],
+        gap: spacing[5],
     },
     viewTab: {
-        flex: 1,
-        minHeight: spacing[12],
-        alignItems: 'center',
-        justifyContent: 'center',
+        paddingTop: spacing[1],
+        paddingBottom: spacing[2],
+        borderBottomWidth: 2,
+        borderBottomColor: 'transparent',
     },
-    tabIndicator: {
-        position: 'absolute',
-        bottom: -1,
-        left: 0,
-        right: 0,
-        height: 2,
-        backgroundColor: colors.accent.primary,
+    viewTabActive: {
+        borderBottomColor: colors.accent.primary,
     },
     viewText: {
         fontSize: fontSize[18],
@@ -37,6 +31,46 @@ const styles = createStyles(() => ({
     },
     viewTextActive: {
         color: colors.text.primary,
+    },
+    phaseRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[2],
+        marginTop: spacing[1],
+        marginBottom: spacing[3],
+        minHeight: spacing[8],
+    },
+    phaseButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[1],
+        paddingHorizontal: spacing[2],
+        paddingVertical: spacing[1],
+        borderRadius: radius[3],
+    },
+    phaseButtonText: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.bold,
+    },
+    phaseDetail: {
+        flex: 1,
+        minWidth: 0,
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+    rangeRow: {
+        flexDirection: 'row',
+        gap: spacing[4],
+    },
+    rangeText: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.quaternary,
+    },
+    rangeTextActive: {
+        color: colors.text.primary,
+        fontWeight: fontWeight.bold,
     },
     card: {
         backgroundColor: colors.background.secondary,
@@ -268,18 +302,6 @@ const styles = createStyles(() => ({
         color: colors.accent.buttonText,
         letterSpacing: 0.3,
     },
-    link: {
-        alignSelf: 'center',
-        paddingTop: spacing[3],
-        paddingBottom: spacing[1],
-    },
-    linkText: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.semibold,
-        color: colors.accent.primary,
-        textDecorationLine: 'underline',
-    },
-
     alert: {
         flexDirection: 'row',
         alignItems: 'center',

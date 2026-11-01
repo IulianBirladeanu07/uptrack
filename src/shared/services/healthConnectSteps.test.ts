@@ -24,10 +24,6 @@ jest.mock('react-native-health-connect', () => ({
   requestPermission: jest.fn(),
 }));
 
-jest.mock('./stepBuckets', () => ({
-  bucketsToDailySteps: jest.fn((groups) => ({ '2026-10-17': groups.length * 100 })),
-}));
-
 describe('healthConnectSteps', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -95,11 +91,25 @@ describe('healthConnectSteps', () => {
   });
 
   it('clamps the requested range to the maximum lookback window', async () => {
-    (aggregateGroupByPeriod as jest.Mock).mockResolvedValue([{ count: 2 }, { count: 3 }]);
+    (aggregateGroupByPeriod as jest.Mock).mockResolvedValue([
+      {
+        startTime: '2026-10-16T00:00',
+        endTime: '2026-10-17T00:00',
+        result: { COUNT_TOTAL: 2 },
+      },
+      {
+        startTime: '2026-10-17T00:00',
+        endTime: '2026-10-18T00:00',
+        result: { COUNT_TOTAL: 3 },
+      },
+    ]);
     const to = new Date('2026-10-17T12:00:00.000Z');
     const from = new Date('2026-01-01T00:00:00.000Z');
 
-    await expect(readDailySteps(from, to)).resolves.toEqual({ '2026-10-17': 200 });
+    await expect(readDailySteps(from, to)).resolves.toEqual({
+      '2026-10-16': 2,
+      '2026-10-17': 3,
+    });
     const request = (aggregateGroupByPeriod as jest.Mock).mock.calls[0][0];
     const expectedEarliest = new Date(to);
     expectedEarliest.setDate(expectedEarliest.getDate() - MAX_LOOKBACK_DAYS);
@@ -108,5 +118,83 @@ describe('healthConnectSteps', () => {
     expect(request.timeRangeFilter.startTime).toBe(expectedEarliest.toISOString());
     expect(request.timeRangeFilter.endTime).toBe(to.toISOString());
     expect(request.timeRangeSlicer).toEqual({ period: 'DAYS', length: 1 });
+  });
+
+  it('uses Google Fit instead of combining synced source totals', async () => {
+    (aggregateGroupByPeriod as jest.Mock)
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-01T00:00',
+        endTime: '2026-11-02T00:00',
+        result: {
+          COUNT_TOTAL: 16760,
+          dataOrigins: [
+            'com.google.android.apps.fitness',
+            'com.sec.android.app.shealth',
+            'com.android.healthconnect.phone.test',
+          ],
+        },
+      }])
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-01T00:00',
+        endTime: '2026-11-02T00:00',
+        result: { COUNT_TOTAL: 9397, dataOrigins: ['com.google.android.apps.fitness'] },
+      }])
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-01T00:00',
+        endTime: '2026-11-02T00:00',
+        result: { COUNT_TOTAL: 7606, dataOrigins: ['com.sec.android.app.shealth'] },
+      }])
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-01T00:00',
+        endTime: '2026-11-02T00:00',
+        result: { COUNT_TOTAL: 9760, dataOrigins: ['com.android.healthconnect.phone.test'] },
+      }]);
+
+    await expect(readDailySteps(new Date('2026-11-01T00:00:00'), new Date('2026-11-01T18:00:00')))
+      .resolves.toEqual({ '2026-11-01': 9397 });
+    expect(aggregateGroupByPeriod).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      dataOriginFilter: ['com.google.android.apps.fitness'],
+    }));
+    expect(aggregateGroupByPeriod).toHaveBeenNthCalledWith(3, expect.objectContaining({
+      dataOriginFilter: ['com.sec.android.app.shealth'],
+    }));
+    expect(aggregateGroupByPeriod).toHaveBeenNthCalledWith(4, expect.objectContaining({
+      dataOriginFilter: ['com.android.healthconnect.phone.test'],
+    }));
+  });
+
+  it('uses the available source when neither preferred app contributes', async () => {
+    (aggregateGroupByPeriod as jest.Mock)
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-01T00:00',
+        endTime: '2026-11-02T00:00',
+        result: { COUNT_TOTAL: 12000, dataOrigins: ['com.android.healthconnect.phone'] },
+      }]);
+
+    await expect(readDailySteps(new Date('2026-11-01T00:00:00'), new Date('2026-11-01T18:00:00')))
+      .resolves.toEqual({ '2026-11-01': 12000 });
+    expect(aggregateGroupByPeriod).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to the highest available source when Google Fit is absent', async () => {
+    (aggregateGroupByPeriod as jest.Mock)
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-01T00:00',
+        endTime: '2026-11-02T00:00',
+        result: { COUNT_TOTAL: 17000, dataOrigins: ['com.sec.android.app.shealth', 'com.android.healthconnect.phone'] },
+      }])
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-01T00:00',
+        endTime: '2026-11-02T00:00',
+        result: { COUNT_TOTAL: 7606, dataOrigins: ['com.sec.android.app.shealth'] },
+      }])
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-01T00:00',
+        endTime: '2026-11-02T00:00',
+        result: { COUNT_TOTAL: 9760, dataOrigins: ['com.android.healthconnect.phone'] },
+      }]);
+
+    await expect(readDailySteps(new Date('2026-11-01T00:00:00'), new Date('2026-11-01T18:00:00')))
+      .resolves.toEqual({ '2026-11-01': 9760 });
   });
 });

@@ -2,7 +2,14 @@ import { render, screen } from '@testing-library/react-native';
 import NutritionStats from './NutritionStats';
 import type useDailyNutrition from '../../helpers/useDailyNutrition';
 
-jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => ({ __esModule: true, default: () => null }));
+jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => ({
+  __esModule: true,
+  default: ({ name, color }: { name: string; color: string }) => {
+    if (name !== 'run-fast') return null;
+    const { Text } = require('react-native');
+    return <Text testID="steps-icon-color">{color}</Text>;
+  },
+}));
 
 jest.mock('../../../../shared/components/CircularProgress/CircularProgress', () => () => null);
 
@@ -37,5 +44,6 @@ describe('NutritionStats steps display', () => {
 
     expect(screen.getByText('11,416')).toBeTruthy();
     expect(screen.getByText('10,000 goal')).toBeTruthy();
+    expect(screen.getByTestId('steps-icon-color').props.children).toBe('#FF5722');
   });
 });
