@@ -5,13 +5,21 @@ import {
 
 export type ExerciseHistoryChartSession = {
     timestamp?: ExerciseHistoryTimestamp;
-    best: { e1rm: number };
+    best: {
+        e1rm: number;
+        weight?: number | string;
+        reps?: number | string;
+    };
 };
 
 export type ExerciseHistoryChartPoint = {
     x: number;
     y: number;
     label: string;
+    tooltipLabel: string;
+    e1rm: number;
+    weight?: number | string;
+    reps?: number | string;
     i: number;
     total: number;
 };
@@ -44,6 +52,10 @@ export const buildExerciseHistoryChartModel = (
         y: drawTop + (1 - (session.best.e1rm - yMin) / (yMax - yMin || 1)) *
             (drawBottom - drawTop),
         label: formatExerciseHistoryDate(session.timestamp).label.split(',')[0],
+        tooltipLabel: formatExerciseHistoryDate(session.timestamp).label,
+        e1rm: session.best.e1rm,
+        ...(session.best.weight !== undefined ? { weight: session.best.weight } : {}),
+        ...(session.best.reps !== undefined ? { reps: session.best.reps } : {}),
         i: index,
         total: chronologicalSessions.length,
     }));

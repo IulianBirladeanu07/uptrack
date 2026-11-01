@@ -34,4 +34,30 @@ describe('exercise history chart model', () => {
         expect(buildExerciseHistoryChartModel(sevenSessions, 120, 8, 72)?.showLabels.map(point => point.i))
             .toEqual([0, 2, 4, 6]);
     });
+
+    it('keeps full session values available for chart inspection', () => {
+        const model = buildExerciseHistoryChartModel([
+            {
+                timestamp: { seconds: new Date(2026, 9, 26).getTime() / 1000 },
+                best: { weight: 35, reps: 11, e1rm: 48.5 },
+            },
+            {
+                timestamp: { seconds: new Date(2026, 9, 19).getTime() / 1000 },
+                best: { weight: 32.5, reps: 10, e1rm: 43.3 },
+            },
+        ], 100, 8, 72);
+
+        expect(model?.points[0]).toMatchObject({
+            tooltipLabel: 'Oct 19, 2026',
+            weight: 32.5,
+            reps: 10,
+            e1rm: 43.3,
+        });
+        expect(model?.points[1]).toMatchObject({
+            tooltipLabel: 'Oct 26, 2026',
+            weight: 35,
+            reps: 11,
+            e1rm: 48.5,
+        });
+    });
 });
