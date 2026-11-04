@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Text, TouchableOpacity } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { LoggedFood, RecentMeal } from '../../../../shared/types';
 import { getFoodSelectionIdentity } from '../../screens/FoodSelectionScreen/foodSelectionIdentity';
@@ -57,6 +58,13 @@ const friday: RecentMeal = {
     foods: [food],
     totalCalories: 200,
 };
+const today: RecentMeal = {
+    id: '2026-11-04_lunch',
+    date: '2026-11-04',
+    mealType: 'lunch',
+    foods: [food],
+    totalCalories: 200,
+};
 const mealWithTwoFoods: RecentMeal = {
     ...yesterday,
     foods: [
@@ -111,6 +119,41 @@ const TwoFoodMealSelection = () => {
     );
 };
 
+const RecentMealsAfterAdd = () => {
+    const [meals, setMeals] = useState([yesterday]);
+    const [selected, setSelected] = useState<Set<string>>(() => new Set());
+    const onPlusPress = (item: LoggedFood & { selectionKey?: string }, toggleToAdd?: boolean) => {
+        const key = getFoodSelectionIdentity(item);
+        setSelected(previous => {
+            const next = new Set(previous);
+            if (toggleToAdd === true || (toggleToAdd == null && !next.has(key))) next.add(key);
+            else next.delete(key);
+            return next;
+        });
+    };
+    const isFoodSelected = (item: LoggedFood & { selectionKey?: string }) =>
+        selected.has(getFoodSelectionIdentity(item));
+
+    return (
+        <>
+            <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => setMeals([today, ...meals])}
+            >
+                <Text>Add current meal to Recent</Text>
+            </TouchableOpacity>
+            {meals.map(meal => (
+                <MealItem
+                    key={meal.id}
+                    item={meal}
+                    onPlusPress={onPlusPress}
+                    isFoodSelected={isFoodSelected}
+                />
+            ))}
+        </>
+    );
+};
+
 describe('MealItem selection', () => {
     it('keeps same-id foods selected only in their source meal and syncs Add All state', () => {
         render(<MealSelection />);
@@ -156,5 +199,21 @@ describe('MealItem selection', () => {
         expect(secondFood.props.accessibilityHint).toBe('Selection subdued');
         expect(firstFood.props.accessibilityState).toEqual({ selected: true });
         expect(secondFood.props.accessibilityState).toEqual({ selected: true });
+    });
+
+    it('keeps Add All selection attached to its source meal when Recent meals update', () => {
+        render(<RecentMealsAfterAdd />);
+
+        fireEvent.press(screen.getByRole('button', { name: 'Add all items' }));
+        expect(screen.getByRole('button', { name: 'Undo add all items' })).toBeTruthy();
+
+        fireEvent.press(screen.getByRole('button', { name: 'Add current meal to Recent' }));
+
+        expect(screen.getByRole('button', { name: 'Undo add all items' })).toBeTruthy();
+        expect(screen.getAllByRole('button', { name: 'Add all items' })).toHaveLength(1);
+        expect(screen.getByTestId('food-2026-10-31_lunch:same-food-id').props.accessibilityState)
+            .toEqual({ selected: true });
+        expect(screen.getByTestId('food-2026-11-04_lunch:same-food-id').props.accessibilityState)
+            .toEqual({ selected: false });
     });
 });

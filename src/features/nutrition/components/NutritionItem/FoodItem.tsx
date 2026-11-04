@@ -399,7 +399,7 @@ const styles = createStyles(() => ({
     bottom: 0,
     left: 0,
     borderRadius: radius[3],
-    backgroundColor: colors.faded.primary,
+    backgroundColor: colors.faded.foodAdded,
   },
 
   foodRowTouchable: {

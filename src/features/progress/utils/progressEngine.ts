@@ -531,15 +531,15 @@ export const phaseInfo = (userData: UserData | null | undefined, weeks: WeekRow[
   };
 };
 
-export const rangeOptions = (info: PhaseInfo): { key: string; label: string; n: number }[] => {
-  const out = [
-    { key: '8W', label: '8 wk', n: 8 },
-    { key: '12W', label: '12 wk', n: 12 },
-  ];
-  if (info.phaseWeeks >= RECAP_MIN_WEEKS) {
-    const phaseWeeks = Math.min(info.phaseWeeks, MAX_WEEKS);
-    out.unshift({ key: 'PHASE', label: `Phase · ${phaseWeeks} wk`, n: phaseWeeks });
-  }
+export const rangeOptions = (
+  info: PhaseInfo,
+  availableHistoryWeeks = info.phaseWeeks,
+): { key: string; label: string; n: number }[] => {
+  const phaseLabel = info.dir > 0 ? 'Bulk' : info.dir < 0 ? 'Cut' : 'Maintain';
+  const phaseWeeks = Math.min(Math.max(1, info.phaseWeeks), MAX_WEEKS, Math.max(1, availableHistoryWeeks));
+  const out = [{ key: 'PHASE', label: phaseLabel, n: phaseWeeks }];
+  if (availableHistoryWeeks >= 8) out.push({ key: '8W', label: '8 wk', n: 8 });
+  if (availableHistoryWeeks >= 12) out.push({ key: '12W', label: '12 wk', n: 12 });
   return out;
 };
 
@@ -575,7 +575,7 @@ export const paceModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, now: D
     const trail = win.slice(Math.max(0, k - 3), k + 1);
     roll.set(w.i, trail.length >= 3 ? mean(trail.map(x => x.rate)) : null);
   });
-  const recent12 = weeks.filter(w => w.rate != null).slice(-RATE_WINDOW);
+  const recent12 = slots.filter(w => w.rate != null).slice(-RATE_WINDOW);
   const recent12Weeks = sum(recent12.map(w => w.gap));
   const rate12 = recent12Weeks > 0 ? sum(recent12.map(w => w.chg)) / recent12Weeks : null;
   let eta: Date | null = null;
@@ -585,8 +585,13 @@ export const paceModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, now: D
     else if (rate12 != null && rate12 > 0.05) eta = new Date(now.getTime() + (info.remaining / rate12) * WEEK_MS);
   }
 
+  const chartSlots = slots.map(w => ({ v: w.rate, monday: w.monday, gap: w.gap, avg: roll.get(w.i) ?? null, cur: w.isCurrent }));
+  const firstRate = chartSlots.findIndex(slot => slot.v != null);
+  let lastRateIndex = chartSlots.length - 1;
+  while (lastRateIndex > firstRate && chartSlots[lastRateIndex].v == null) lastRateIndex -= 1;
+
   return {
-    slots: slots.map(w => ({ v: w.rate, monday: w.monday, gap: w.gap, avg: roll.get(w.i) ?? null, cur: w.isCurrent })),
+    slots: chartSlots.slice(firstRate, lastRateIndex + 1),
     plan,
     diff,
     rate,
@@ -648,11 +653,6 @@ export const energyBalanceDisplay = (balance: number): { value: string; unit: st
   value: kfmt(Math.abs(balance)),
   unit: Math.abs(balance) < 50 ? 'kcal/day' : balance < 0 ? 'kcal/day deficit' : 'kcal/day surplus',
 });
-
-export const weightChangeTone = (change: number, dir: number): 'good' | 'warn' | 'flat' => {
-  if (dir === 0) return Math.abs(change) < 0.5 ? 'good' : 'flat';
-  return dir * change > 0 ? 'good' : 'warn';
-};
 
 const estimatorWeeks = (weeks: RatedWeek[]): WeekStats[] =>
   weeks.map(w => ({ weekStart: w.key, daysLogged: w.nd, avgCalories: w.kcal ?? 0, avgSteps: w.steps }));

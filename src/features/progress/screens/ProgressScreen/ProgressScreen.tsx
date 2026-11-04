@@ -27,7 +27,6 @@ import {
     kfmt,
     isToGoalReached,
     energyBalanceDisplay,
-    weightChangeTone,
 } from '../../utils/progressEngine';
 import type { EnergyModel, MonthRow as MonthData, NutritionDay, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
 import { useProgressScreenModel } from './useProgressScreenModel';
@@ -53,9 +52,9 @@ const TONES = {
 };
 
 const PHASE_PRESENTATION = {
-    muscle_gain: { label: 'Bulking', verb: 'Gain', color: colors.accent.success, background: colors.faded.successAlt },
-    weight_loss: { label: 'Cutting', verb: 'Lose', color: colors.accent.primary, background: colors.faded.primary },
-    maintenance: { label: 'Maintenance', verb: 'Hold', color: colors.accent.cyan, background: colors.faded.cyan },
+    muscle_gain: { verb: 'Gain' },
+    weight_loss: { verb: 'Lose' },
+    maintenance: { verb: 'Hold' },
 } as const;
 
 const HEAT_KEY = [
@@ -125,7 +124,6 @@ const Stats = ({ items }: { items: StatItem[] }) => (
 const Tip = ({ text }: { text: string | null | undefined }) =>
     text ? (
         <View style={styles.tip}>
-            <Ionicons name="sparkles-outline" size={spacing.iconSm} color={colors.accent.primary} />
             <Text style={styles.tipText}>{text}</Text>
         </View>
     ) : null;
@@ -199,14 +197,88 @@ const RecapCard = ({ r, busy, onSwitch }: { r: PhaseRecap; busy: boolean; onSwit
     );
 };
 
-const PaceCard = ({ m, info, n, chartWidth }: { m: PaceModel | null; info: PhaseInfo; n: number; chartWidth: number }) => {
+type PaceAverage = { monday: Date; average: number; change: number | null; gap: number | null };
+
+const PaceCard = ({
+    m,
+    info,
+    n,
+    rangeKey,
+    phaseWeekCount,
+    averages,
+    planSummary,
+    onProfile,
+    chartWidth,
+}: {
+    m: PaceModel | null;
+    info: PhaseInfo;
+    n: number;
+    rangeKey: string;
+    phaseWeekCount: number;
+    averages: PaceAverage[];
+    planSummary: string;
+    onProfile: () => void;
+    chartWidth: number;
+}) => {
     const [sel, setSel] = useState<number | null>(null);
+    const phaseStart = info.phaseStart?.getTime() ?? null;
     useEffect(() => {
         setSel(null);
-    }, [n]);
+    }, [n, phaseStart, info.type]);
 
+    const mature = m != null && m.count >= 4;
     const title = info.dir < 0 ? 'Rate of loss' : info.dir > 0 ? 'Rate of gain' : 'Weight stability';
-    if (!m) return <EmptyCard cap={title} text="Log your weight for two weeks to see your pace." />;
+    if (!mature || !m) {
+        const remainingChanges = Math.max(0, 4 - Math.max(0, averages.length - 1));
+        return (
+            <View style={styles.card}>
+                <View style={styles.rowBetween}>
+                    <Text style={styles.cap}>Weight trend</Text>
+                    <TouchableOpacity
+                        onPress={onProfile}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Change weight goal in Profile"
+                    >
+                        <Text style={styles.planLink}>{planSummary}</Text>
+                    </TouchableOpacity>
+                </View>
+                {averages.length === 0 ? (
+                    <Text style={styles.empty}>Your trend starts after your first weekly average.</Text>
+                ) : averages.length === 1 ? (
+                    <>
+                        <Hero value={fmt1(averages[0].average)} unit="kg" />
+                        <Text style={styles.heroNote}>First weekly average</Text>
+                        <Text style={styles.empty}>Pace appears after another weekly average.</Text>
+                    </>
+                ) : (
+                    <>
+                        <View style={styles.averageList}>
+                            {averages.slice(-4).map(average => (
+                                <View key={average.monday.getTime()} style={styles.averageRow}>
+                                    <Text style={styles.averageDate}>{shortDate(average.monday)}</Text>
+                                    <Text style={styles.averageValue}>{fmt1(average.average)} kg</Text>
+                                    <Text style={styles.averageChange}>
+                                        {average.change == null
+                                            ? '—'
+                                            : `${sg(average.change, 1)} kg${average.gap != null && average.gap > 1 ? ` · ${average.gap} wk` : ''}`}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                        <Text style={styles.heroNote}>
+                            {remainingChanges > 0
+                                ? `${remainingChanges} more weekly ${remainingChanges === 1 ? 'change' : 'changes'} to estimate pace.`
+                                : 'Building a reliable pace estimate.'}
+                        </Text>
+                    </>
+                )}
+                {rangeKey !== 'PHASE' && info.phaseStart && phaseWeekCount < n && (
+                    <Text style={styles.heroNote}>Pace uses this phase only; earlier weeks are excluded.</Text>
+                )}
+            </View>
+        );
+    }
 
     const pills: Record<PaceStatus, DeltaProps | null> = {
         on: { tone: 'good', icon: 'checkmark', text: 'on plan' },
@@ -220,10 +292,6 @@ const PaceCard = ({ m, info, n, chartWidth }: { m: PaceModel | null; info: Phase
     const pill = pills[m.status];
 
     const picked = sel != null && m.slots[sel]?.v != null ? m.slots[sel] : null;
-    const pickedText = picked
-        ? `week of ${shortDate(picked.monday)}${(picked.gap ?? 0) > 1 ? ` · ${picked.gap}-wk avg` : ''}`
-        : null;
-
     const eta = m.reached
         ? 'Reached'
         : m.eta
@@ -236,26 +304,31 @@ const PaceCard = ({ m, info, n, chartWidth }: { m: PaceModel | null; info: Phase
     const trendShown = m.slots.length >= 12 && m.slots.filter(slot => slot.avg != null).length > 1;
     const latestIsPartial = [...m.slots].reverse().find(slot => slot.v != null)?.cur ?? false;
 
-    const note = picked
-        ? pickedText
-        : info.remaining != null && !info.reached
-            ? `${info.remaining.toFixed(1)} kg to go`
-            : null;
     const recent = m.rate4 ?? m.rate;
 
     return (
         <View style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.cap}>{title}</Text>
-                {note != null && <Text style={styles.capRight}>{note}</Text>}
+                <TouchableOpacity
+                    onPress={onProfile}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Change weight goal in Profile"
+                >
+                    <Text style={styles.planLink}>{planSummary}</Text>
+                </TouchableOpacity>
             </View>
             <Hero value={fmt1(picked ? picked.v : recent)} unit="kg/wk">
                 {!picked && pill ? <Delta {...pill} /> : null}
             </Hero>
-            {!picked && <Text style={styles.heroNote}>{`last ${m.recentWeeks}-week average`}</Text>}
+            {!picked && <Text style={styles.heroNote}>{`${m.recentWeeks}-week average`}</Text>}
             <ChartBox width={chartWidth}>
                 {w => <PaceChart slots={m.slots} plan={m.plan} width={w} sel={sel} onSelect={setSel} />}
             </ChartBox>
+            {rangeKey !== 'PHASE' && info.phaseStart && phaseWeekCount < n && (
+                <Text style={styles.heroNote}>Pace uses this phase only; earlier weeks are excluded.</Text>
+            )}
             {trendShown && (
                 <View style={[styles.legendRow, styles.chartLegend]}>
                     <View style={styles.legendItem}>
@@ -275,7 +348,7 @@ const PaceCard = ({ m, info, n, chartWidth }: { m: PaceModel | null; info: Phase
                             accessibilityLabel: `This week, partial: ${fmt1(m.lastRate)} kilograms per week`,
                         } : {}),
                     },
-                    { value: fmt1(m.rate), unit: 'kg/wk', label: `${n}-wk avg` },
+                    { value: m.plan != null ? fmt1(m.plan) : '--', unit: m.plan != null ? 'kg/wk' : undefined, label: 'Plan' },
                     goalStat,
                 ]}
             />
@@ -439,9 +512,9 @@ const Tile = ({ label, dot, value, sub }: { label: string; dot: string; value: s
 
 const vs = (v: number | null | undefined, d: number, suffix = '') => (v != null ? `${sg(v, d)}${suffix} vs prev` : null);
 
-type MonthRowProps = { m: MonthData; kind: 'n' | 't'; info: PhaseInfo; open: boolean; onToggle: () => void; last: boolean };
+type MonthRowProps = { m: MonthData; kind: 'n' | 't'; open: boolean; onToggle: () => void; last: boolean };
 
-const MonthRow = ({ m, kind, info, open, onToggle, last }: MonthRowProps) => {
+const MonthRow = ({ m, kind, open, onToggle, last }: MonthRowProps) => {
     let right: ReactNode;
     let tiles: ReactNode;
 
@@ -454,7 +527,7 @@ const MonthRow = ({ m, kind, info, open, onToggle, last }: MonthRowProps) => {
                         <Text style={styles.monthUnit}>kg</Text>
                     </View>
                 )}
-                {m.change != null && <Delta tone={weightChangeTone(m.change, info.dir)} text={sg(m.change, 1)} />}
+                {m.change != null && <Text style={styles.monthChange}>{sg(m.change, 1)}</Text>}
             </>
         );
         tiles = (
@@ -508,14 +581,13 @@ const MonthRow = ({ m, kind, info, open, onToggle, last }: MonthRowProps) => {
 type MonthsCardProps = {
     months: MonthData[];
     kind: 'n' | 't';
-    info: PhaseInfo;
     open: Record<string, boolean>;
     setOpen: Dispatch<SetStateAction<Record<string, boolean>>>;
     all: boolean;
     setAll: (v: boolean) => void;
 };
 
-const MonthsCard = ({ months, kind, info, open, setOpen, all, setAll }: MonthsCardProps) => {
+const MonthsCard = ({ months, kind, open, setOpen, all, setAll }: MonthsCardProps) => {
     if (!months.length) return null;
     const shown = all ? months.slice(0, 12) : months.slice(0, 3);
 
@@ -537,7 +609,6 @@ const MonthsCard = ({ months, kind, info, open, setOpen, all, setAll }: MonthsCa
                         key={m.key}
                         m={m}
                         kind={kind}
-                        info={info}
                         open={isOpen}
                         onToggle={() => setOpen(o => ({ ...o, [k]: !isOpen }))}
                         last={i === shown.length - 1}
@@ -644,6 +715,8 @@ const ProgressScreen = () => {
         range,
         n,
         pace,
+        paceAverages,
+        phaseWeekCount,
         energy,
         strength,
         lifts,
@@ -672,12 +745,11 @@ const ProgressScreen = () => {
 
     const { switching, onSwitch } = useMaintenanceSwitch({ recap, userData, refreshUserData });
     const phasePresentation = PHASE_PRESENTATION[info.type];
-    const phaseDetail = info.dir === 0
-        ? 'Hold a steady weight'
+    const planSummary = info.dir === 0
+        ? 'Hold steady · Profile'
         : info.planRate != null
-            ? `${phasePresentation.verb} ${fmt1(info.planRate)} kg per week`
-            : `${phasePresentation.verb} weight gradually`;
-    const phaseStatus = weeks.length ? `Week ${info.phaseWeeks} · ${phaseDetail}` : phaseDetail;
+            ? `${phasePresentation.verb} ${fmt1(info.planRate)} kg/wk · Profile`
+            : `${phasePresentation.verb} · Profile`;
     return (
         <ApplicationCustomScreen>
             <ScrollView
@@ -713,21 +785,27 @@ const ProgressScreen = () => {
                             );
                         })}
                     </View>
-                    {weeks.length >= 2 && (
+                    {ranges.length > 1 && (
                         <View style={styles.rangeRow}>
                             {ranges.map(r => {
                                 const selected = range.key === r.key;
                                 return (
                                     <TouchableOpacity
                                         key={r.key}
+                                        style={[styles.rangeOption, selected && styles.rangeOptionActive]}
                                         onPress={() => setRangeKey(r.key)}
                                         activeOpacity={0.7}
-                                        hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                                        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                                         accessibilityRole="button"
                                         accessibilityState={{ selected }}
                                         accessibilityLabel={r.label}
                                     >
-                                        <Text style={[styles.rangeText, selected && styles.rangeTextActive]}>
+                                        <Text
+                                            style={[styles.rangeText, selected && styles.rangeTextActive]}
+                                            numberOfLines={1}
+                                            adjustsFontSizeToFit
+                                            maxFontSizeMultiplier={1.2}
+                                        >
                                             {r.label}
                                         </Text>
                                     </TouchableOpacity>
@@ -735,21 +813,6 @@ const ProgressScreen = () => {
                             })}
                         </View>
                     )}
-                </View>
-                <View style={styles.phaseRow}>
-                    <TouchableOpacity
-                        style={[styles.phaseButton, { backgroundColor: phasePresentation.background }]}
-                        onPress={openProfile}
-                        activeOpacity={0.75}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Current goal: ${phasePresentation.label}. Open Profile to change goal`}
-                    >
-                        <Text style={[styles.phaseButtonText, { color: phasePresentation.color }]}>
-                            {phasePresentation.label}
-                        </Text>
-                        <Ionicons name="chevron-forward" size={spacing.iconSm} color={phasePresentation.color} />
-                    </TouchableOpacity>
-                    <Text style={styles.phaseDetail} numberOfLines={1}>{phaseStatus}</Text>
                 </View>
                 {workoutHistoryLoadMoreError && hasMoreWorkoutHistory && (
                     <TouchableOpacity onPress={() => void loadMoreWorkoutHistory()}>
@@ -759,12 +822,12 @@ const ProgressScreen = () => {
                     </TouchableOpacity>
                 )}
 
-                {weeks.length < 2 ? (
+                {weeks.length === 0 ? (
                     <View style={styles.emptyScreen}>
                         <Ionicons name="trending-up" size={spacing[10]} color={colors.text.quaternary} />
                         <Text style={styles.emptyTitle}>No trends yet</Text>
                         <Text style={styles.emptySub}>
-                            Log your weight, food and workouts for a couple of weeks and your long-range trends show up here.
+                            Log weight, food, or workouts to start building your progress history.
                         </Text>
                     </View>
                 ) : (
@@ -780,12 +843,21 @@ const ProgressScreen = () => {
                                         Could not load historical food logs. Showing saved weekly summaries instead.
                                     </Text>
                                 )}
-                                <PaceCard m={pace} info={info} n={n} chartWidth={chartWidth} />
+                                <PaceCard
+                                    m={pace}
+                                    info={info}
+                                    n={n}
+                                    rangeKey={range.key}
+                                    phaseWeekCount={phaseWeekCount}
+                                    averages={paceAverages}
+                                    planSummary={planSummary}
+                                    onProfile={openProfile}
+                                    chartWidth={chartWidth}
+                                />
                                 <EnergyCard m={energy} info={info} n={n} chartWidth={chartWidth} />
                                 <MonthsCard
                                     months={months}
                                     kind="n"
-                                    info={info}
                                     open={open}
                                     setOpen={setOpen}
                                     all={all.n}
@@ -799,7 +871,6 @@ const ProgressScreen = () => {
                                 <MonthsCard
                                     months={months}
                                     kind="t"
-                                    info={info}
                                     open={open}
                                     setOpen={setOpen}
                                     all={all.t}

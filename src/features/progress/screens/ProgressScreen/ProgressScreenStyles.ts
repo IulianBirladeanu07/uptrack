@@ -10,14 +10,20 @@ const styles = createStyles(() => ({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        minHeight: spacing[12],
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border.default,
+        marginBottom: spacing[3],
     },
     viewRow: {
         flexDirection: 'row',
-        gap: spacing[5],
+        alignItems: 'center',
+        gap: spacing[2],
     },
     viewTab: {
-        paddingTop: spacing[1],
-        paddingBottom: spacing[2],
+        minHeight: spacing[12],
+        justifyContent: 'center',
+        paddingHorizontal: spacing[1],
         borderBottomWidth: 2,
         borderBottomColor: 'transparent',
     },
@@ -25,46 +31,33 @@ const styles = createStyles(() => ({
         borderBottomColor: colors.accent.primary,
     },
     viewText: {
-        fontSize: fontSize[18],
+        fontSize: fontSize[14],
         fontWeight: fontWeight.bold,
         color: colors.text.quaternary,
     },
     viewTextActive: {
         color: colors.text.primary,
     },
-    phaseRow: {
+    rangeRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing[2],
-        marginTop: spacing[1],
-        marginBottom: spacing[3],
-        minHeight: spacing[8],
+        flexShrink: 1,
     },
-    phaseButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing[1],
-        paddingHorizontal: spacing[2],
-        paddingVertical: spacing[1],
-        borderRadius: radius[3],
-    },
-    phaseButtonText: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.bold,
-    },
-    phaseDetail: {
-        flex: 1,
+    rangeOption: {
+        minHeight: spacing[12],
         minWidth: 0,
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.medium,
-        color: colors.text.tertiary,
+        flexShrink: 1,
+        justifyContent: 'center',
+        paddingHorizontal: spacing[1],
+        borderBottomWidth: 2,
+        borderBottomColor: 'transparent',
     },
-    rangeRow: {
-        flexDirection: 'row',
-        gap: spacing[4],
+    rangeOptionActive: {
+        borderBottomColor: colors.accent.primary,
     },
     rangeText: {
-        fontSize: fontSize[14],
+        fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
         color: colors.text.quaternary,
     },
@@ -148,10 +141,10 @@ const styles = createStyles(() => ({
         alignItems: 'baseline',
     },
     big: {
-        fontSize: fontSize[44],
+        fontSize: fontSize[36],
         fontWeight: fontWeight.bold,
         color: colors.text.primary,
-        letterSpacing: -1,
+        letterSpacing: -0.5,
     },
     bigUnit: {
         marginLeft: spacing[1],
@@ -160,7 +153,7 @@ const styles = createStyles(() => ({
         color: colors.text.tertiary,
     },
     heroNote: {
-        marginTop: -spacing[1],
+        marginTop: spacing[1],
         marginBottom: spacing[2],
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
@@ -189,7 +182,8 @@ const styles = createStyles(() => ({
     },
     stat: {
         flex: 1,
-        alignItems: 'center',
+        alignItems: 'flex-start',
+        minWidth: 0,
     },
     statDivider: {
         width: 1,
@@ -221,7 +215,7 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.medium,
         color: colors.text.tertiary,
         textTransform: 'uppercase',
-        letterSpacing: 1.2,
+        letterSpacing: 0.6,
     },
     statDetail: {
         marginTop: 2,
@@ -246,7 +240,6 @@ const styles = createStyles(() => ({
     tip: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        gap: spacing[2],
         marginTop: spacing[3],
         padding: spacing[3],
         borderRadius: radius[3],
@@ -465,6 +458,48 @@ const styles = createStyles(() => ({
     },
     monthUnit: {
         marginLeft: 3,
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.secondary,
+    },
+    monthChange: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.secondary,
+    },
+    planLink: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.tertiary,
+    },
+    averageList: {
+        marginTop: spacing[2],
+        borderTopWidth: 1,
+        borderTopColor: colors.border.default,
+    },
+    averageRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: spacing[2],
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border.light,
+    },
+    averageDate: {
+        flex: 1,
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+    averageValue: {
+        width: spacing[20],
+        textAlign: 'right',
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.primary,
+    },
+    averageChange: {
+        width: spacing[20],
+        textAlign: 'right',
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
         color: colors.text.secondary,

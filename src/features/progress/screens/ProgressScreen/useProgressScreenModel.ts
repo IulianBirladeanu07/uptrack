@@ -4,12 +4,14 @@ import type { UserData } from '../../../../shared/types';
 import type { BuildSource } from '../../utils/progressEngine';
 import {
     MAX_WEEKS,
+    addDays,
     buildWeeks,
     dirOf,
     energyModel,
     liftSpan,
     liftStats,
     monthsModel,
+    mondayOf,
     paceModel,
     phaseInfo,
     phaseRecap,
@@ -58,11 +60,23 @@ export const useProgressScreenModel = ({
 
     const weeks = useMemo(() => withRates(built.weeks, dir), [built, dir]);
     const info = useMemo(() => phaseInfo(userData, weeks), [userData, weeks]);
-    const ranges = useMemo(() => rangeOptions(info), [info]);
-    const range = ranges.find(option => option.key === rangeKey) ?? ranges.find(option => option.key === 'PHASE') ?? ranges.find(option => option.key === '12W')!;
+    const phasePaceWeeks = useMemo(() => {
+        if (!info.phaseStart) return withRates(built.weeks, dir);
+        const phaseWeek = mondayOf(info.phaseStart);
+        const firstFullPhaseWeek = phaseWeek.getTime() < info.phaseStart.getTime()
+            ? addDays(phaseWeek, 7)
+            : phaseWeek;
+        return withRates(built.weeks.filter(week => week.monday >= firstFullPhaseWeek), dir);
+    }, [built.weeks, info.phaseStart, dir]);
+    const ranges = useMemo(() => rangeOptions(info, weeks.length), [info, weeks.length]);
+    const range = ranges.find(option => option.key === rangeKey) ?? ranges[0]!;
     const n = range.n;
 
-    const pace = useMemo(() => paceModel(weeks, n, info), [weeks, n, info]);
+    const paceWeeks = phasePaceWeeks.slice(-n);
+    const paceAverages = paceWeeks
+        .filter((week): week is typeof week & { w: number } => week.w != null)
+        .map(week => ({ monday: week.monday, average: week.w, change: week.delta, gap: week.gap }));
+    const pace = useMemo(() => paceModel(phasePaceWeeks, n, info), [phasePaceWeeks, n, info]);
     const energy = useMemo(() => energyModel(weeks, n, info, userData?.weightIns), [weeks, n, info, userData?.weightIns]);
     const strength = useMemo(() => strengthModel(weeks, built.lifts, n), [weeks, built.lifts, n]);
     const lifts = useMemo(() => liftStats(weeks, built.lifts, liftSpan(info)), [weeks, built.lifts, info]);
@@ -81,6 +95,8 @@ export const useProgressScreenModel = ({
         range,
         n,
         pace,
+        paceAverages,
+        phaseWeekCount: phasePaceWeeks.length,
         energy,
         strength,
         lifts,

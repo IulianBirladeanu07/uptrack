@@ -75,6 +75,7 @@ const FoodSelectionScreen = () => {
     } = useRecentSearches();
 
     const [selectedFoods, setSelectedFoods] = useState<FoodItemData[]>([]);
+    const [submissionCategoryFoods, setSubmissionCategoryFoods] = useState<typeof categoryFoods | null>(null);
     const [isSearching, setIsSearching] = useState(false);
     const [isQuickActionsExpanded, setIsQuickActionsExpanded] = useState(false);
 
@@ -181,6 +182,7 @@ const FoodSelectionScreen = () => {
             return;
         }
         isSubmittingRef.current = true;
+        setSubmissionCategoryFoods(categoryFoods);
         const validatedFoods = selectedFoods.map(food => {
             const validatedFood = {
                 ...food,
@@ -203,8 +205,9 @@ const FoodSelectionScreen = () => {
             });
         } catch {
             isSubmittingRef.current = false;
+            setSubmissionCategoryFoods(null);
         }
-    }, [selectedFoods, handleAddMeal, meal, selectedDate, navigation]);
+    }, [categoryFoods, selectedFoods, handleAddMeal, meal, selectedDate, navigation]);
 
     const handleEnterSearch = useCallback(() => {
         setIsSearching(true);
@@ -309,7 +312,7 @@ const FoodSelectionScreen = () => {
                     searchLoading={searchLoading}
                     searchError={searchError}
                     onRetrySearch={() => handleSearch(searchQuery)}
-                    categoryFoods={categoryFoods}
+                    categoryFoods={submissionCategoryFoods ?? categoryFoods}
                     searchQuery={searchQuery}
                     handleNavigateToFoodDetail={handleNavigateToFoodDetail}
                     handlePlusPress={toggleFoodSelection}

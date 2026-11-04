@@ -73,6 +73,7 @@ export const colors = {
     surface: 'rgba(255, 255, 255, 0.05)',
     surfaceLight: 'rgba(255, 255, 255, 0.06)',
     surfaceMedium: 'rgba(255, 255, 255, 0.1)',
+    foodAdded: 'rgba(255, 255, 255, 0.08)',
     breakfast: 'rgba(255, 182, 39, 0.06)',
     lunch: 'rgba(255, 182, 39, 0.06)',
     dinner: 'rgba(167, 139, 250, 0.06)',

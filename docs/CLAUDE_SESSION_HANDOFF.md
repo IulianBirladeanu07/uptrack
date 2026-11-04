@@ -21,7 +21,9 @@ Updated 2026-11-01. Start with this handoff, then read `AGENTS.md` before changi
 
 ## Current batch: Nutrition food feedback and Steps colors
 
-- Foods added from Food Selection briefly receive a subtle amber surface tint in the destination meal; the tint fades away and does not add a border or change row dimensions.
+- Foods added from Food Selection briefly receive a subtle neutral-white surface tint in the destination meal; the 8% tint fades away and does not add a border or change row dimensions.
+- Confirmed food deletion fades the row out while the meal list smoothly closes the gap.
+- Food Selection keeps its category list stable while an add is being saved, preventing optimistic recent-meal updates from reordering Add All cards during the transition back to Nutrition.
 - The Nutrition and Dashboard Steps icons share the same orange-red accent; the Nutrition icon container still turns green at the daily goal to communicate status.
 - Recent-meal item selection and Add All use the same green success treatment. Selected food rows do not gain an extra outline.
 - The plus control is a separate 60dp touch target, so pressing it does not activate the food-details row.
@@ -37,9 +39,11 @@ Updated 2026-11-01. Start with this handoff, then read `AGENTS.md` before changi
 
 - Corrected Energy Balance so a real calorie deficit displays as a positive amount labeled “deficit,” rather than a negative number labeled “surplus”; chart balances remain phase-oriented.
 - Removed the Strength chart’s “start” annotation that collided with the latest strength label and reduced the Energy Balance and Strength chart heights by 20dp.
-- Progress monthly weight-change badges now use the active phase direction: weight loss during a bulk is warning-colored instead of neutral gray. Progress engine tests cover energy balance labels and phase-aware weight badge tones.
+- Progress monthly weight changes are neutral signed values rather than success/error signals; actual status colors remain for goal or training-plan feedback.
 - Weight Tracker’s current summary and weekly trend badges now color changes according to the active goal. Only the separate all-history screen keeps cross-phase comparisons neutral.
-- The Progress header uses compact Nutrition/Training tabs and text-only range choices, with a colored Bulking/Cutting/Maintenance button linking to Profile and a concise week/target line. The phase recap keeps its “goal reached” badge and maintenance action without repeating the phase label or Profile link. Chart calculations and partial-week cues remain unchanged.
+- The Progress header keeps Nutrition/Training and phase/8/12-week controls on one aligned row; the active phase is labeled Bulk, Cut or Maintain and is the default. 8/12-week choices appear when history supports them.
+- Pace uses only complete weekly averages from the active phase, including when a wider range is selected; 8/12-week ranges do not mix earlier phase changes into the pace estimate. For zero/one/few in-phase averages the card stays compact and explains what data is available without a chart, plan status or ETA; a pace chart and status appear after four weekly changes. Pace bars use a zero baseline so negative rates render below it instead of as stub bars.
+- Validation: focused Progress tests passed (2 suites / 99 tests) in the default time zone and `America/Los_Angeles`; `npx tsc --noEmit`, Android Expo export (9.43 MB JS bundle), and `git diff --check` passed. No device preview was run.
 
 ## Current batch: Workout cancellation navigation
 

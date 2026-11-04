@@ -11,7 +11,6 @@ import {
   energyModel,
   balanceNote,
   energyBalanceDisplay,
-  weightChangeTone,
   energyTip,
   maintenanceEstimateNote,
   maintenanceRangeNote,
@@ -395,9 +394,9 @@ describe('phaseInfo and ranges', () => {
     const gs = addDays(CUR, -18 * 7).toISOString();
     const info = phaseInfo({ ...userData, goalSwitchDate: gs }, rated, NOW);
     expect(info.phaseWeeks).toBe(19);
-    const opts = rangeOptions(info);
+    const opts = rangeOptions(info, 20);
     expect(opts.map(o => o.key)).toEqual(['PHASE', '8W', '12W']);
-    expect(opts[0].label).toBe('Phase · 19 wk');
+    expect(opts[0].label).toBe('Cut');
     expect(opts[0].n).toBe(19);
   });
 
@@ -443,16 +442,16 @@ describe('phaseInfo and ranges', () => {
     expect(phaseInfo(userData, rated, NOW).phaseStart).toBeNull();
   });
 
-  test('adds the phase range from four weeks and hides it before that', () => {
+  test('always offers the active phase and offers longer ranges only when history supports them', () => {
     const at = w => phaseInfo({ ...userData, goalSwitchDate: addDays(NOW, -w * 7).toISOString() }, rated, NOW);
-    expect(rangeOptions(at(5)).map(o => o.key)).toEqual(['PHASE', '8W', '12W']);
-    expect(rangeOptions(at(2)).map(o => o.key)).toEqual(['8W', '12W']);
+    expect(rangeOptions(at(5), 20).map(o => o.key)).toEqual(['PHASE', '8W', '12W']);
+    expect(rangeOptions(at(2), 7).map(o => o.key)).toEqual(['PHASE']);
   });
 
-  test('caps phase range at 26 weeks', () => {
-    const info = { phaseWeeks: 60, tab: 'Cut' };
+  test('labels the phase range by the active goal and caps it at 26 weeks', () => {
+    const info = { ...phaseInfo(userData, rated, NOW), phaseWeeks: 60 };
     expect(rangeOptions(info)[0].n).toBe(26);
-    expect(rangeOptions(info)[0].label).toBe('Phase · 26 wk');
+    expect(rangeOptions(info)[0].label).toBe('Cut');
   });
 });
 
@@ -476,21 +475,6 @@ describe('energyBalanceDisplay', () => {
 
   test('uses a neutral unit close to maintenance', () => {
     expect(energyBalanceDisplay(-20)).toEqual({ value: '20', unit: 'kcal/day' });
-  });
-});
-
-describe('weightChangeTone', () => {
-  test('treats weight gain as favorable during a bulk', () => {
-    expect(weightChangeTone(0.3, 1)).toBe('good');
-  });
-
-  test('marks weight loss as unfavorable during a bulk', () => {
-    expect(weightChangeTone(-0.3, 1)).toBe('warn');
-  });
-
-  test('keeps small maintenance changes favorable and larger changes neutral', () => {
-    expect(weightChangeTone(0.2, 0)).toBe('good');
-    expect(weightChangeTone(-0.5, 0)).toBe('flat');
   });
 });
 

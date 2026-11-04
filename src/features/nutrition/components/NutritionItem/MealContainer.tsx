@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
+import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
 import { Coffee, Utensils, Moon, Cookie } from 'lucide-react-native';
 import FoodItem from './FoodItem';
 import type { FoodItemData } from './FoodItem';
@@ -104,7 +105,12 @@ const MealContainer = ({
             nestedScrollEnabled={true}
           >
             {foods.map((item, index) => (
-              <View key={item.id ?? `${item.productName}_${index}`} style={styles.foodItemWrapper}>
+              <Animated.View
+                key={item.id ?? `${item.productName}_${index}`}
+                style={styles.foodItemWrapper}
+                layout={LinearTransition.duration(180)}
+                exiting={FadeOut.duration(180)}
+              >
                 <FoodItem
                   item={item}
                   isHighlighted={highlightedFoodIds.includes(item.id ?? '')}
@@ -124,7 +130,7 @@ const MealContainer = ({
                 {index < foods.length - 1 && (
                   <View style={styles.divider} />
                 )}
-              </View>
+              </Animated.View>
             ))}
             <View style={styles.scrollBottomPadding} />
           </ScrollView>

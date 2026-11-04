@@ -84,22 +84,31 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
   const bw = (pw - gap * (n - 1)) / n;
   const base = H - bot;
   const vals = slots.map(s => s.v).filter((v): v is number => v != null);
-  const mx = Math.max(...vals, plan || 0, 0.1) * 1.1;
-  const y = (v: number) => top + (base - top) * (1 - v / mx);
+  const lo = Math.min(0, ...vals);
+  const hi = Math.max(0, ...vals, plan ?? 0);
+  const pad = Math.max((hi - lo) * 0.1, 0.1);
+  const chartLo = lo - pad;
+  const chartHi = hi + pad;
+  const y = (v: number) => top + (base - top) * ((chartHi - v) / (chartHi - chartLo));
+  const zeroY = y(0);
   const step = n <= 8 ? 2 : n <= 12 ? 3 : 4;
   const li = lastIdx(slots.map(s => s.v));
   const active = sel != null && slots[sel]?.v != null ? sel : li;
   const py = plan != null ? y(plan) : null;
   const trend = n >= 12 ? slots.map((s, i) => (s.avg != null ? [i * (bw + gap) + bw / 2, y(s.avg)] : null)).filter((pt): pt is number[] => pt != null) : [];
-  const ts = tickStep(mx);
+  const ts = tickStep(Math.max(Math.abs(lo), Math.abs(hi)));
   const ticks: number[] = [];
-  for (let t = ts; t < mx; t += ts) ticks.push(Math.round(t * 100) / 100);
+  for (let t = Math.ceil(chartLo / ts) * ts; t <= chartHi; t += ts) {
+    if (Math.abs(t) > 0.001) ticks.push(Math.round(t * 100) / 100);
+  }
   const shown = ticks.filter(t => py == null || Math.abs(y(t) - py) >= 26);
   const activeValue = active >= 0 ? slots[active]?.v : null;
   const activeLabel = activeValue != null
     ? {
         x: active * (bw + gap) + bw / 2,
-        y: Math.max(y(activeValue) - 8, top + 10),
+        y: activeValue >= 0
+          ? Math.max(y(activeValue) - 8, top + 10)
+          : Math.min(y(activeValue) + 14, H - 4),
         text: activeValue.toFixed(1),
       }
     : null;
@@ -124,26 +133,25 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
               <SvgText x={width - LP} y={y(t) + 3} fontSize={10} fill={AX} textAnchor="end">{tickText(t)}</SvgText>
             </React.Fragment>
           ))}
-          <Line x1={-LP} x2={pw} y1={base} y2={base} stroke={GRID} strokeWidth={1} />
+          <Line x1={-LP} x2={pw} y1={zeroY} y2={zeroY} stroke={GRID} strokeWidth={1} />
           {slots.map((s, i) => {
             const x = i * (bw + gap);
             const hot = i === active;
             const showLabel = (n - 1 - i) % step === 0;
+            const valueY = s.v == null ? zeroY : y(s.v);
             return (
               <React.Fragment key={i}>
                 {s.v != null && (
-                  <>
                     <Rect
                       x={x}
-                      y={y(s.v)}
+                      y={Math.min(valueY, zeroY)}
                       width={bw}
-                      height={Math.max(base - y(s.v), 2)}
+                      height={Math.max(Math.abs(zeroY - valueY), 2)}
                       rx={3}
                       fill={EAT}
                       fillOpacity={s.cur ? (hot ? 0.4 : 0.14) : hot ? 1 : 0.5}
                       {...(s.cur ? { stroke: EAT, strokeWidth: 1.5, strokeOpacity: hot ? 1 : 0.6, strokeDasharray: '3 3' } : {})}
                     />
-                  </>
                 )}
                 {showLabel && (
                   <SvgText
