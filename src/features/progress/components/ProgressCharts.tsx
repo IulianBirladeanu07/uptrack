@@ -10,6 +10,7 @@ const AX = colors.text.tertiary;
 const GRID = colors.border.default;
 const PLAN = colors.text.primary;
 const EAT = colors.accent.primary;
+const PACE = colors.accent.primary;
 const WEIGHT = colors.macro.protein;
 const STRENGTH = colors.accent.cyan;
 const BG = colors.background.secondary;
@@ -86,9 +87,10 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
   const vals = slots.map(s => s.v).filter((v): v is number => v != null);
   const lo = Math.min(0, ...vals);
   const hi = Math.max(0, ...vals, plan ?? 0);
-  const pad = Math.max((hi - lo) * 0.1, 0.1);
-  const chartLo = lo - pad;
-  const chartHi = hi + pad;
+  const hasNegativeRate = vals.some(v => v < 0);
+  const pad = hasNegativeRate ? Math.max((hi - lo) * 0.1, 0.1) : 0;
+  const chartLo = hasNegativeRate ? lo - pad : 0;
+  const chartHi = hasNegativeRate ? hi + pad : Math.max(...vals, plan ?? 0, 0.1) * 1.1;
   const y = (v: number) => top + (base - top) * ((chartHi - v) / (chartHi - chartLo));
   const zeroY = y(0);
   const step = n <= 8 ? 2 : n <= 12 ? 3 : 4;
@@ -148,9 +150,8 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
                       width={bw}
                       height={Math.max(Math.abs(zeroY - valueY), 2)}
                       rx={3}
-                      fill={EAT}
-                      fillOpacity={s.cur ? (hot ? 0.4 : 0.14) : hot ? 1 : 0.5}
-                      {...(s.cur ? { stroke: EAT, strokeWidth: 1.5, strokeOpacity: hot ? 1 : 0.6, strokeDasharray: '3 3' } : {})}
+                      fill={PACE}
+                      fillOpacity={hot ? 1 : s.cur ? 0.24 : 0.5}
                     />
                 )}
                 {showLabel && (
@@ -158,7 +159,7 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
                     x={x + bw / 2}
                     y={H - 6}
                     fontSize={10}
-                    fill={hot ? EAT : AX}
+                    fill={hot ? PACE : AX}
                     textAnchor="middle"
                   >
                     {shortDate(s.monday)}
@@ -172,7 +173,7 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
           )}
           {trend.length > 1 && <Circle cx={trend[trend.length - 1][0]} cy={trend[trend.length - 1][1]} r={3.5} fill={PLAN} stroke={BG} strokeWidth={1.5} />}
           {activeLabel && (
-            <SvgText x={activeLabel.x} y={activeLabel.y} fontSize={10} fontWeight="600" fill={EAT} textAnchor="middle">
+            <SvgText x={activeLabel.x} y={activeLabel.y} fontSize={10} fontWeight="600" fill={PACE} textAnchor="middle">
               {activeLabel.text}
             </SvgText>
           )}
@@ -190,6 +191,87 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
   );
 };
 
+export type WeightTrendPoint = { monday: Date; average: number };
+
+export const WeightTrendChart = ({ points, width }: { points: WeightTrendPoint[]; width: number }) => {
+  const H = 116;
+  const left = 4;
+  const right = 54;
+  const top = 14;
+  const bottom = 26;
+  const plotWidth = width - left - right;
+  const values = points.map(point => point.average);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const pad = Math.max((max - min) * 0.35, 0.3);
+  const low = min - pad;
+  const high = max + pad;
+  const firstTime = points[0].monday.getTime();
+  const lastTime = points[points.length - 1].monday.getTime();
+  const span = Math.max(lastTime - firstTime, DAY_MS);
+  const x = (point: WeightTrendPoint) => left + ((point.monday.getTime() - firstTime) / span) * plotWidth;
+  const y = (value: number) => top + ((high - value) / (high - low)) * (H - top - bottom);
+  const segments: WeightTrendPoint[][] = [];
+  points.forEach(point => {
+    const current = segments[segments.length - 1];
+    if (!current || point.monday.getTime() - current[current.length - 1].monday.getTime() > DAY_MS * 8) {
+      segments.push([point]);
+    } else {
+      current.push(point);
+    }
+  });
+  const paths = segments.filter(segment => segment.length > 1).map(segment => {
+    const linePath = segment.map((point, index) =>
+      `${index === 0 ? 'M' : 'L'}${x(point).toFixed(1)} ${y(point.average).toFixed(1)}`,
+    ).join(' ');
+    const areaPath = `${linePath} L${x(segment[segment.length - 1]).toFixed(1)} ${H - bottom} L${x(segment[0]).toFixed(1)} ${H - bottom} Z`;
+    return { linePath, areaPath };
+  });
+
+  return (
+    <View pointerEvents="none">
+      <Svg width={width} height={H}>
+        {[0, 0.5, 1].map(fraction => {
+          const lineY = top + fraction * (H - top - bottom);
+          return <Line key={fraction} x1={left} x2={left + plotWidth} y1={lineY} y2={lineY} stroke={GRID} strokeWidth={1} />;
+        })}
+        {paths.map(({ areaPath }, index) => (
+          <Path key={`area-${index}`} d={areaPath} fill={EAT} fillOpacity={0.07} />
+        ))}
+        {paths.map(({ linePath }, index) => (
+          <Path key={`line-${index}`} d={linePath} stroke={EAT} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" fill="none" />
+        ))}
+        {points.map((point, index) => (
+          <React.Fragment key={point.monday.getTime()}>
+            <Circle cx={x(point)} cy={y(point.average)} r={index === points.length - 1 ? 5 : 4} fill={EAT} stroke={BG} strokeWidth={2} />
+            {(index === 0 || index === points.length - 1) && (
+              <SvgText
+                x={x(point)}
+                y={H - 7}
+                fontSize={10}
+                fill={index === points.length - 1 ? EAT : AX}
+                textAnchor={index === 0 ? 'start' : 'end'}
+              >
+                {shortDate(point.monday)}
+              </SvgText>
+            )}
+            <SvgText
+              x={x(point)}
+              y={y(point.average) - 9}
+              fontSize={11}
+              fontWeight="700"
+              fill={EAT}
+              textAnchor={index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle'}
+            >
+              {point.average.toFixed(1)}
+            </SvgText>
+          </React.Fragment>
+        ))}
+      </Svg>
+    </View>
+  );
+};
+
 type BalanceChartProps = {
   bal: Vals;
   target: number | null;
@@ -201,7 +283,7 @@ type BalanceChartProps = {
 
 export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }: BalanceChartProps) => {
   const n = bal.length;
-  const H = 156;
+  const H = 176;
   const top = 18;
   const bot = 24;
   const gut = 52;
@@ -339,7 +421,7 @@ type StrengthChartProps = {
 
 export const StrengthChart = ({ strength, weight, slots, width }: StrengthChartProps) => {
   const n = strength.length;
-  const H = 156;
+  const H = 176;
   const top = 8;
   const bot = 24;
   const gut = 54;
@@ -370,6 +452,7 @@ export const StrengthChart = ({ strength, weight, slots, width }: StrengthChartP
   return (
     <Svg width={width} height={H}>
       <Line x1={0} x2={pw} y1={y(0)} y2={y(0)} stroke={PLAN} strokeOpacity={0.5} strokeWidth={1} strokeDasharray="4 4" />
+      <SvgText x={pw + 8} y={y(0) + 3} fontSize={10} fill={AX}>start</SvgText>
       {runs(weight).map((r, k) => r.length > 1 && (
         <Path key={k} d={line(r, x, y, weight)} stroke={WEIGHT} strokeWidth={2.4} strokeLinejoin="round" strokeLinecap="round" fill="none" />
       ))}

@@ -6,24 +6,20 @@ const styles = createStyles(() => ({
         flex: 1,
         backgroundColor: colors.background.primary,
     },
-    titleRow: {
+    headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        minHeight: spacing[12],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.default,
         marginBottom: spacing[3],
     },
     viewRow: {
         flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing[2],
+        gap: spacing[5],
+        flexShrink: 0,
     },
     viewTab: {
-        minHeight: spacing[12],
-        justifyContent: 'center',
-        paddingHorizontal: spacing[1],
+        paddingTop: spacing[1],
+        paddingBottom: spacing[2],
         borderBottomWidth: 2,
         borderBottomColor: 'transparent',
     },
@@ -31,35 +27,30 @@ const styles = createStyles(() => ({
         borderBottomColor: colors.accent.primary,
     },
     viewText: {
-        fontSize: fontSize[14],
+        fontSize: fontSize[18],
         fontWeight: fontWeight.bold,
         color: colors.text.quaternary,
     },
     viewTextActive: {
         color: colors.text.primary,
     },
-    rangeRow: {
+    rangeSelector: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing[2],
         flexShrink: 1,
     },
     rangeOption: {
         minHeight: spacing[12],
-        minWidth: 0,
-        flexShrink: 1,
+        alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: spacing[1],
-        borderBottomWidth: 2,
-        borderBottomColor: 'transparent',
-    },
-    rangeOptionActive: {
-        borderBottomColor: colors.accent.primary,
+        paddingHorizontal: spacing[3],
+        borderRadius: radius[2],
     },
     rangeText: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
         color: colors.text.quaternary,
+        textAlign: 'center',
     },
     rangeTextActive: {
         color: colors.text.primary,
@@ -108,16 +99,6 @@ const styles = createStyles(() => ({
         alignItems: 'center',
         gap: spacing[1],
     },
-    chartLegend: {
-        marginTop: spacing[2],
-        justifyContent: 'center',
-    },
-    legendLine: {
-        width: 14,
-        height: 2,
-        borderRadius: 1,
-        backgroundColor: colors.text.primary,
-    },
     legendDot: {
         width: 8,
         height: 8,
@@ -141,10 +122,10 @@ const styles = createStyles(() => ({
         alignItems: 'baseline',
     },
     big: {
-        fontSize: fontSize[36],
+        fontSize: fontSize[44],
         fontWeight: fontWeight.bold,
         color: colors.text.primary,
-        letterSpacing: -0.5,
+        letterSpacing: -1,
     },
     bigUnit: {
         marginLeft: spacing[1],
@@ -153,13 +134,12 @@ const styles = createStyles(() => ({
         color: colors.text.tertiary,
     },
     heroNote: {
-        marginTop: spacing[1],
+        marginTop: -spacing[1],
         marginBottom: spacing[2],
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
         color: colors.text.tertiary,
     },
-
     dp: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -172,6 +152,17 @@ const styles = createStyles(() => ({
         fontSize: fontSize[12],
         fontWeight: fontWeight.bold,
     },
+    link: {
+        alignSelf: 'center',
+        paddingTop: spacing[3],
+        paddingBottom: spacing[1],
+    },
+    linkText: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.semibold,
+        color: colors.accent.primary,
+        textDecorationLine: 'underline',
+    },
 
     stats: {
         flexDirection: 'row',
@@ -182,8 +173,7 @@ const styles = createStyles(() => ({
     },
     stat: {
         flex: 1,
-        alignItems: 'flex-start',
-        minWidth: 0,
+        alignItems: 'center',
     },
     statDivider: {
         width: 1,
@@ -215,13 +205,13 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.medium,
         color: colors.text.tertiary,
         textTransform: 'uppercase',
-        letterSpacing: 0.6,
+        letterSpacing: 1.2,
     },
     statDetail: {
         marginTop: 2,
         fontSize: fontSize[10],
         fontWeight: fontWeight.medium,
-        color: colors.text.tertiary,
+        color: colors.text.quaternary,
         textAlign: 'center',
     },
     statDot: {
@@ -240,6 +230,7 @@ const styles = createStyles(() => ({
     tip: {
         flexDirection: 'row',
         alignItems: 'flex-start',
+        gap: spacing[2],
         marginTop: spacing[3],
         padding: spacing[3],
         borderRadius: radius[3],
@@ -444,7 +435,7 @@ const styles = createStyles(() => ({
         marginTop: 2,
         fontSize: fontSize[10],
         fontWeight: fontWeight.medium,
-        color: colors.text.tertiary,
+        color: colors.text.quaternary,
     },
     monthValueRow: {
         flexDirection: 'row',

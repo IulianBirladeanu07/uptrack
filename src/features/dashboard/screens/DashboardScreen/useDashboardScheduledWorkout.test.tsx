@@ -81,14 +81,14 @@ describe('useDashboardScheduledWorkout', () => {
         });
     });
 
-    it('distinguishes an unconfigured day from a scheduled rest day', () => {
+    it('treats a missing day entry as a rest day, matching the Workout screen', () => {
         scheduledDay.mockReturnValue(null);
         const date = new Date(2026, 9, 1);
         const key = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()];
         expect(resolveWorkoutFromSplits([{
             id: 'split',
             schedule: { monday: { templateName: 'Rest Day', templateId: 'rest-day', exercises: [] } },
-        }], 'split', null, date).status).toBe('day-unconfigured');
+        }], 'split', null, date).status).toBe('rest-day');
 
         expect(resolveWorkoutFromSplits([{
             id: 'split',

@@ -15,6 +15,8 @@ type WeeklyOverviewProps = {
     goalDir: number;
     getCaloriesForDateRange: FoodContextValue['getCaloriesForDateRange'];
     onWeightPress: () => void;
+    onStepsRefresh: () => void;
+    stepsLoading: boolean;
     dataReady: boolean;
 };
 
@@ -25,9 +27,12 @@ const WeeklyOverview = ({
     goalDir,
     getCaloriesForDateRange,
     onWeightPress,
+    onStepsRefresh,
+    stepsLoading,
     dataReady,
 }: WeeklyOverviewProps) => {
     const localDayKey = useLocalDayKey();
+    const daysLoggedSteps = rollingStats.daysLoggedSteps ?? 0;
     const weekDays = useMemo(
         () => getWeeklyCaloriesDays(new Date(), getCaloriesForDateRange),
         [getCaloriesForDateRange, dataReady, localDayKey],
@@ -105,7 +110,14 @@ const WeeklyOverview = ({
                         icon: <Ionicons name="walk-outline" size={spacing[5]} color={colors.accent.stepsRed} />,
                         bg: colors.faded.error,
                         value: rollingStats.avgSteps > 0 ? `${(rollingStats.avgSteps / 1000).toFixed(1)}k` : '--',
-                        label: 'Avg Steps',
+                        label: stepsLoading
+                            ? 'Refreshing steps...'
+                            : daysLoggedSteps > 0
+                                ? `Avg Steps · ${daysLoggedSteps}d`
+                                : 'Avg Steps',
+                        onPress: onStepsRefresh,
+                        refreshable: true,
+                        accessibilityLabel: 'Refresh steps from Health Connect',
                     },
                     {
                         icon: <Ionicons name="barbell-outline" size={spacing[5]} color={colors.accent.cyan} />,
@@ -121,6 +133,9 @@ const WeeklyOverview = ({
                             style={styles.weeklyStatItem}
                             onPress={stat.onPress}
                             activeOpacity={stat.onPress ? 0.7 : 1}
+                            accessibilityRole={stat.onPress ? 'button' : undefined}
+                            accessibilityLabel={'accessibilityLabel' in stat ? stat.accessibilityLabel : undefined}
+                            accessibilityHint={'refreshable' in stat ? 'Sync recent step history' : undefined}
                         >
                             <View style={[styles.weeklyIconContainer, { backgroundColor: stat.bg }]}>{stat.icon}</View>
                             <View style={styles.weeklyStatText}>
@@ -135,6 +150,13 @@ const WeeklyOverview = ({
                                 </View>
                                 <Text style={styles.weeklyStatLabel}>{stat.label}</Text>
                             </View>
+                            {'refreshable' in stat && (
+                                <Ionicons
+                                    name="refresh-outline"
+                                    size={spacing[4]}
+                                    color={colors.text.tertiary}
+                                />
+                            )}
                         </CardComponent>
                     );
                 })}

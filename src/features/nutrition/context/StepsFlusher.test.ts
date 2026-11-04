@@ -84,7 +84,7 @@ describe('StepsFlusher', () => {
         expect(persist).not.toHaveBeenCalled();
     });
 
-    test('remembers written entries and only writes higher values afterwards', async () => {
+    test('remembers written entries and persists corrected lower source totals', async () => {
         const { flusher } = makeFlusher();
         flusher.queue({ '2026-10-10': 5000 });
         await flusher.flush();
@@ -93,9 +93,11 @@ describe('StepsFlusher', () => {
         await flusher.flush();
         flusher.queue({ '2026-10-10': 5200 });
         await flusher.flush();
+        flusher.queue({ '2026-10-10': 4800 });
+        await flusher.flush();
 
-        expect(persist).toHaveBeenCalledTimes(2);
-        expect(persist).toHaveBeenLastCalledWith('user-1', { '2026-10-10': 5200 });
+        expect(persist).toHaveBeenCalledTimes(3);
+        expect(persist).toHaveBeenLastCalledWith('user-1', { '2026-10-10': 4800 });
     });
 
     test('puts failed entries back, keeping newer queued values over the failed ones', async () => {

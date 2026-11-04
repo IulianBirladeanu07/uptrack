@@ -5,7 +5,7 @@ import {
   calculateMaintenanceEstimate,
   refreshWeightChangePlan,
 } from '../../profile/utils/nutritionPlanEngine';
-import { weekStepStats, overlayWeekSteps } from './stepStats';
+import { MIN_VALID_STEPS, weekStepStats, overlayWeekSteps } from './stepStats';
 import { differenceInLocalDays, toLocalDate } from '../utils/dateUtils';
 import type {
   DailySteps,
@@ -56,7 +56,7 @@ export const getRollingWeekStats = (mealCache: MealCacheLike, weekStart: DateInp
     .map(({ meals }) => calculateDailyNutritionFromMeals(meals))
     .filter(d => d.calories > 0);
 
-  const stepDays = mealCache.getStepsRange(start, end).filter(d => d.steps > 0);
+  const stepDays = mealCache.getStepsRange(start, end).filter(d => d.steps >= MIN_VALID_STEPS);
 
   return {
     daysLoggedNutrition: nutritionDays.length,

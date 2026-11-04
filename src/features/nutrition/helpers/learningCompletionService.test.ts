@@ -112,6 +112,17 @@ describe('getRollingWeekStats', () => {
     expect(stats.totalSteps).toBe(20000);
   });
 
+  test('excludes incomplete step readings under the minimum valid daily total', () => {
+    const mealCache = new MealCache();
+    const weekStart = new Date(2026, 1, 2);
+    putDay(mealCache, weekStart, { steps: 800 });
+    putDay(mealCache, addDays(weekStart, 1), { steps: 10000 });
+
+    const stats = getRollingWeekStats(mealCache, weekStart, addDays(weekStart, 1));
+    expect(stats.daysLoggedSteps).toBe(1);
+    expect(stats.avgSteps).toBe(10000);
+  });
+
   test('empty range produces all zeros without throwing', () => {
     const mealCache = new MealCache();
     const stats = getRollingWeekStats(mealCache, new Date('2026-02-02'), new Date('2026-02-02'));

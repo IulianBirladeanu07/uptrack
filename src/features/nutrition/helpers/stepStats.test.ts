@@ -60,9 +60,15 @@ describe('diffPastSteps', () => {
     expect(diffPastSteps({}, { '2026-10-03': 8000, '2026-10-04': 5000, '2026-10-05': 7000 }, '2026-10-04')).toEqual({ '2026-10-03': 8000 });
   });
 
-  test('writes new days and strictly larger values only', () => {
+  test('writes new days and replaces stored values when the source total changes', () => {
     const out = diffPastSteps({ '2026-10-01': 8000, '2026-10-02': 9000, '2026-10-03': 7000 }, { '2026-10-01': 8000, '2026-10-02': 9500, '2026-10-03': 6000, '2026-09-30': 12000 }, '2026-10-04');
-    expect(out).toEqual({ '2026-10-02': 9500, '2026-09-30': 12000 });
+    expect(out).toEqual({ '2026-10-02': 9500, '2026-10-03': 6000, '2026-09-30': 12000 });
+  });
+
+  test('clears stale high values when a source corrects a day below the valid-step threshold', () => {
+    expect(diffPastSteps({ '2026-10-01': 24400 }, { '2026-10-01': 0 }, '2026-10-04'))
+      .toEqual({ '2026-10-01': 0 });
+    expect(diffPastSteps({}, { '2026-10-01': 0 }, '2026-10-04')).toEqual({});
   });
 
   test('ignores implausible, non-numeric and fractional-equal values', () => {

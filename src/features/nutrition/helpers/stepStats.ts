@@ -53,9 +53,14 @@ export const diffPastSteps = (
   const s = stored || {};
   Object.entries(incoming || {}).forEach(([k, v]) => {
     if (todayKey && k >= todayKey) return;
+    if (v == null) return;
     const n = Math.round(Number(v));
-    if (!(n >= MIN_VALID_STEPS)) return;
-    if (s[k] == null || n > s[k]) out[k] = n;
+    if (!Number.isFinite(n) || n < 0) return;
+    if (s[k] == null) {
+      if (n >= MIN_VALID_STEPS) out[k] = n;
+    } else if (n !== s[k]) {
+      out[k] = n;
+    }
   });
   return out;
 };

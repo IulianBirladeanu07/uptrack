@@ -119,7 +119,7 @@ const TodayWorkout = ({ workout, scheduleStatus, activeWorkout, completed, loadE
     }
 
     const statusContent: Record<
-        'no-plan' | 'rotation-not-started' | 'day-unconfigured' | 'workout-unavailable',
+        'no-plan' | 'rotation-not-started' | 'workout-unavailable',
         { title: string; subtitle: string }
     > = {
         'no-plan': {
@@ -130,10 +130,6 @@ const TodayWorkout = ({ workout, scheduleStatus, activeWorkout, completed, loadE
             title: 'Workout schedule needs setup',
             subtitle: 'Tap to start your rotation from today.',
         },
-        'day-unconfigured': {
-            title: 'Workout schedule unavailable',
-            subtitle: 'Today is missing from your active split. Tap to review Workouts.',
-        },
         'workout-unavailable': {
             title: 'Workout unavailable',
             subtitle: 'The scheduled workout could not be loaded. Tap to open Workouts.',
@@ -142,7 +138,6 @@ const TodayWorkout = ({ workout, scheduleStatus, activeWorkout, completed, loadE
     if (
         scheduleStatus === 'no-plan'
         || scheduleStatus === 'rotation-not-started'
-        || scheduleStatus === 'day-unconfigured'
         || scheduleStatus === 'workout-unavailable'
     ) {
         const content = statusContent[scheduleStatus];
@@ -270,7 +265,7 @@ const DashboardScreen = () => {
     const goalDir = dirOf(userData?.weightChangePlan?.type);
     const uid = getAuth().currentUser?.uid;
     const { workout: todayScheduledWorkout, scheduleStatus, loading: workoutLoading, loadError: workoutLoadError } =
-        useDashboardScheduledWorkout(userData?.activeSplitId, userData?.rotationStartDate, userData?.uid);
+        useDashboardScheduledWorkout(userData?.activeSplitId, userData?.rotationStartDate, uid);
     const {
         dismissedAdjustments,
         goalReachedDismissed,
@@ -401,6 +396,8 @@ const DashboardScreen = () => {
                                 goalDir={goalDir}
                                 getCaloriesForDateRange={getCaloriesForDateRange}
                                 onWeightPress={() => navigation.navigate('WeightTracker')}
+                                onStepsRefresh={retryStepsConnection}
+                                stepsLoading={stepsLoading}
                                 dataReady={initialLoadComplete}
                             />
                             {stepsPermissionNotice && (

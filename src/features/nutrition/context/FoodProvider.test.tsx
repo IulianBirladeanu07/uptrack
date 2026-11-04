@@ -431,14 +431,18 @@ describe('FoodProvider step history writes', () => {
         });
     };
 
-    test('writes past days that are new or higher and skips today', async () => {
+    test('writes past days when the source total changes and skips today', async () => {
         mockUserData = { uid: 'user-1', dailySteps: { '2026-10-09': 4000, '2026-10-08': 9000 } };
         await setup();
 
         await sendHistory({ '2026-10-10': 5000, '2026-10-09': 6000, '2026-10-08': 8000, '2026-10-07': 3, [today]: 7000 });
 
         expect(persistDailySteps).toHaveBeenCalledTimes(1);
-        expect(persistDailySteps).toHaveBeenCalledWith('user-1', { '2026-10-10': 5000, '2026-10-09': 6000 });
+        expect(persistDailySteps).toHaveBeenCalledWith('user-1', {
+            '2026-10-10': 5000,
+            '2026-10-09': 6000,
+            '2026-10-08': 8000,
+        });
     });
 
     test('does not write the same entries twice', async () => {

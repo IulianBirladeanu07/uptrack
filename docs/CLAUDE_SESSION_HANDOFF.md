@@ -1,6 +1,6 @@
 # Claude session handoff
 
-Updated 2026-11-01. Start with this handoff, then read `AGENTS.md` before changing code.
+Updated 2026-11-04. Start with this handoff, then read `AGENTS.md` before changing code.
 
 ## Repository snapshot
 
@@ -38,12 +38,21 @@ Updated 2026-11-01. Start with this handoff, then read `AGENTS.md` before changi
 ## Current batch: Progress screen visual cleanup
 
 - Corrected Energy Balance so a real calorie deficit displays as a positive amount labeled “deficit,” rather than a negative number labeled “surplus”; chart balances remain phase-oriented.
-- Removed the Strength chart’s “start” annotation that collided with the latest strength label and reduced the Energy Balance and Strength chart heights by 20dp.
+- Restored the Oct 18 Progress chart heights and original Strength baseline label.
 - Progress monthly weight changes are neutral signed values rather than success/error signals; actual status colors remain for goal or training-plan feedback.
 - Weight Tracker’s current summary and weekly trend badges now color changes according to the active goal. Only the separate all-history screen keeps cross-phase comparisons neutral.
 - The Progress header keeps Nutrition/Training and phase/8/12-week controls on one aligned row; the active phase is labeled Bulk, Cut or Maintain and is the default. 8/12-week choices appear when history supports them.
 - Pace uses only complete weekly averages from the active phase, including when a wider range is selected; 8/12-week ranges do not mix earlier phase changes into the pace estimate. For zero/one/few in-phase averages the card stays compact and explains what data is available without a chart, plan status or ETA; a pace chart and status appear after four weekly changes. Pace bars use a zero baseline so negative rates render below it instead of as stub bars.
-- Validation: focused Progress tests passed (2 suites / 99 tests) in the default time zone and `America/Los_Angeles`; `npx tsc --noEmit`, Android Expo export (9.43 MB JS bundle), and `git diff --check` passed. No device preview was run.
+- Progress answers whether the current weight phase is tracking toward its plan; the active phase's rate is the headline when reliable, and its chart is supporting evidence.
+- The October 18 layout reference is `ea31f2d4ea4d2603767134e9e7c85168e5d582df`: the phase recap comes first, then the pace card leads with its 44-point numeric rate and the chart supports it. Supporting stats are centered, and the Nutrition/Training tabs and understated range labels follow that layout. For positive rates, bars use the original bottom baseline and the partial-week bar is bright and solid; negative rates still render below zero. Phase-scoped calculations and sparse-data safeguards remain intact.
+- The mature pace card leads with the recent pace and its status, followed by a compact phase-scoped chart and latest-week / plan / goal ETA stats. The chart no longer leads the card.
+- Before pace is reliable, the latest real weekly average is the headline when available, with plan, goal distance, and weeks logged below. Two or more in-phase weekly averages get a compact orange trend chart; zero/one-point states stay chart-free, and pace status remains withheld.
+- Missing weeks in the sparse weight trend are not connected, and established weekly-rate bars use the weight-tracker orange.
+- Dashboard weekly step averages now exclude readings below the established 1,000-step daily minimum and show how many days contributed, so a partial week’s denominator is visible.
+- Step history sync now persists corrected lower past-day totals, including explicit readings below 1,000, when Health Connect's selected source differs from previously stored aggregate totals; new low readings are still ignored. Dashboard now treats a day absent from a split as a rest day, matching the Workout screen. The Dashboard workout schedule uses the authenticated uid, matching the Workout screen, rather than relying on a possibly absent profile uid.
+- The Dashboard Avg Steps tile can manually refresh Health Connect's recent history (within its 30-day lookback) and today's count. The previous retry was a no-op after initial connection because StepDisplay ignored retries once initialized; refresh now checks existing Android permission without prompting and runs the history sync again.
+- Dashboard schedule and step-sync regression tests: 5 suites / 73 tests passed, including a StepDisplay test proving retry re-reads history after initialization; `npx tsc --noEmit`, Android Expo export (9.44 MB JS bundle), and `git diff --check` passed. Jest emitted its open-handle warning after reporting all tests passed.
+- Validation after the October 18 visual restoration: focused Progress tests passed (5 suites / 109 tests); `npx tsc --noEmit`, Android Expo export (9.44 MB JS bundle), and `git diff --check` passed. No device preview was run.
 
 ## Current batch: Workout cancellation navigation
 

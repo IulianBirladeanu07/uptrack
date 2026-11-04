@@ -89,7 +89,7 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
         }
     };
 
-    const fetchRecentSteps = async (days: number): Promise<void> => {
+    const fetchRecentSteps = async (days: number): Promise<boolean> => {
         const now = new Date();
         const startDate = new Date();
         startDate.setDate(now.getDate() - days);
@@ -98,19 +98,22 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
 
         if (backend.kind === 'ios') {
             const { kit } = backend;
-            return new Promise<void>((resolve) => {
+            return new Promise<boolean>((resolve) => {
                 kit.getDailyStepCountSamples(
                     { startDate: startDate.toISOString(), endDate: now.toISOString() },
                     (err, results) => {
-                        if (!err && results) {
-                            results.forEach(day => {
-                                const key = formatLocalDateKey(new Date(day.startDate));
-                                entries[key] = Math.max(entries[key] || 0, day.value || 0);
-                            });
-                            Object.entries(entries).forEach(([key, value]) => onStepsUpdate?.(value, key));
-                            onStepsHistory?.(entries);
+                        if (err || !results) {
+                            onStepsError?.('steps_unavailable');
+                            resolve(false);
+                            return;
                         }
-                        resolve();
+                        results.forEach(day => {
+                            const key = formatLocalDateKey(new Date(day.startDate));
+                            entries[key] = Math.max(entries[key] || 0, day.value || 0);
+                        });
+                        Object.entries(entries).forEach(([key, value]) => onStepsUpdate?.(value, key));
+                        onStepsHistory?.(entries);
+                        resolve(true);
                     }
                 );
             });
@@ -131,9 +134,11 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
                 onStepsUpdate?.(totalSteps, dateKey);
             });
             onStepsHistory?.(entries);
+            return true;
         } catch (err) {
             console.log('[Steps] fetchRecent error:', err);
             onStepsError?.('steps_unavailable');
+            return false;
         }
     };
 
@@ -182,7 +187,10 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
             }
 
             await new Promise(resolve => setTimeout(resolve, 500));
-            await fetchRecentSteps(STEPS_LOOKBACK_DAYS);
+            if (!(await fetchRecentSteps(STEPS_LOOKBACK_DAYS))) {
+                onConnectedChange?.(false);
+                return;
+            }
             lastDayKeyRef.current = formatLocalDateKey(new Date());
             await updateTodaySteps();
             setInitialized(true);
@@ -196,7 +204,42 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
         }
     };
 
-    useImperativeHandle(ref, () => ({ retry: () => { initialize(true); } }));
+    const retry = async () => {
+        if (initializingRef.current) return;
+        if (!initialized) {
+            await initialize(true);
+            return;
+        }
+
+        initializingRef.current = true;
+        onStepsLoading?.(true);
+        try {
+            if (backend.kind === 'android') {
+                const access = await backend.hc.ensureStepsAccess({ request: false });
+                if (access !== 'ready') {
+                    onStepsError?.(ACCESS_ERRORS[access]);
+                    onConnectedChange?.(false);
+                    return;
+                }
+            }
+            if (!(await fetchRecentSteps(STEPS_LOOKBACK_DAYS))) {
+                onConnectedChange?.(false);
+                return;
+            }
+            lastDayKeyRef.current = formatLocalDateKey(new Date());
+            await updateTodaySteps();
+            onConnectedChange?.(true);
+        } catch (err) {
+            console.error('[Steps] refresh failed:', err);
+            onStepsError?.('steps_unavailable');
+            onConnectedChange?.(false);
+        } finally {
+            initializingRef.current = false;
+            onStepsLoading?.(false);
+        }
+    };
+
+    useImperativeHandle(ref, () => ({ retry: () => { void retry(); } }));
 
     useEffect(() => {
         initialize();

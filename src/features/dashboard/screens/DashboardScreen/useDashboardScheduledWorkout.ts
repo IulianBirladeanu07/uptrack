@@ -9,7 +9,6 @@ import type { SplitLike } from '../../../workout/utils/splitSchedule';
 import { useLocalDayKey } from '../../../../shared/hooks/useLocalDayKey';
 
 const SPLITS_CACHE_TTL = 15 * 60 * 1000;
-const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 export type ScheduledWorkout = {
     name: string;
@@ -23,7 +22,6 @@ export type WorkoutScheduleStatus =
     | 'rest-day'
     | 'no-plan'
     | 'rotation-not-started'
-    | 'day-unconfigured'
     | 'workout-unavailable';
 
 type ScheduledWorkoutResult = {
@@ -43,12 +41,6 @@ export const resolveWorkoutFromSplits = (
     const rotation = isRotationSplit(split);
     const rotationDay = rotation ? getRotationDayNumber(split, date, rotationStartDate) : null;
     if (rotation && rotationDay == null) return { workout: null, status: 'rotation-not-started' };
-
-    const schedule = split?.schedule ?? split?.data?.schedule ?? {};
-    const scheduleKey = rotation ? String(rotationDay) : WEEKDAYS[date.getDay()];
-    if (!Object.prototype.hasOwnProperty.call(schedule, scheduleKey)) {
-        return { workout: null, status: 'day-unconfigured' };
-    }
 
     const workout = getScheduledDay(split, date, rotationStartDate);
     if (!workout) return { workout: null, status: 'rest-day' };

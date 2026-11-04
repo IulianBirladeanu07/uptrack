@@ -11,7 +11,8 @@ import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { formatDate } from '../../../nutrition/utils/dateUtils';
 import { colors, spacing } from '../../../../shared/theme';
 import { useAppNavigation } from '../../../../shared/navigation';
-import { PaceChart, BalanceChart, StrengthChart } from '../../components/ProgressCharts';
+import { PaceChart, BalanceChart, StrengthChart, WeightTrendChart } from '../../components/ProgressCharts';
+import type { WeightTrendPoint } from '../../components/ProgressCharts';
 import {
     SETS_LOW,
     recapTip,
@@ -25,7 +26,6 @@ import {
     fmt1,
     sg,
     kfmt,
-    isToGoalReached,
     energyBalanceDisplay,
 } from '../../utils/progressEngine';
 import type { EnergyModel, MonthRow as MonthData, NutritionDay, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
@@ -152,16 +152,16 @@ const EmptyCard = ({ cap, text }: { cap: string; text: string }) => (
     </View>
 );
 
-const RecapCard = ({ r, busy, onSwitch }: { r: PhaseRecap; busy: boolean; onSwitch: () => void }) => {
+const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: boolean; onSwitch: () => void; onProfile: () => void }) => {
     const third = r.dir < 0
-        ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Strength / kg', detail: 'vs bodyweight', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
+        ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Rel. strength', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
         : { value: r.strengthPct != null ? sg(r.strengthPct, 0) : '--', unit: r.strengthPct != null ? '%' : undefined, label: 'Strength', color: r.strengthPct != null && r.strengthPct > 0 ? colors.accent.success : undefined };
-    const hasRange = maintenanceRangeNote(r) != null;
+    const phaseLabel = r.dir < 0 ? 'Cutting' : 'Bulking';
 
     return (
         <View style={styles.card}>
             <View style={styles.rowBetween}>
-                <Text style={styles.cap}>Phase recap</Text>
+                <Text style={styles.cap}>{phaseLabel} phase recap</Text>
             </View>
             <Hero value={sg(r.change, 1)} unit="kg">
                 <Delta tone="good" icon="checkmark" text="goal reached" />
@@ -189,15 +189,16 @@ const RecapCard = ({ r, busy, onSwitch }: { r: PhaseRecap; busy: boolean; onSwit
                 >
                     <Ionicons name="swap-horizontal" size={spacing.iconSm} color={colors.accent.buttonText} />
                     <Text style={styles.ctaText}>
-                        {busy ? 'Switching...' : hasRange ? 'Switch to maintenance' : `Switch to maintenance · ~${kfmt(r.maintenance)} kcal`}
+                        {busy ? 'Switching...' : `Switch to maintenance · ~${kfmt(r.maintenance)} kcal`}
                     </Text>
                 </TouchableOpacity>
             )}
+            <TouchableOpacity style={styles.link} onPress={onProfile} activeOpacity={0.7}>
+                <Text style={styles.linkText}>Choose another goal in Profile</Text>
+            </TouchableOpacity>
         </View>
     );
 };
-
-type PaceAverage = { monday: Date; average: number; change: number | null; gap: number | null };
 
 const PaceCard = ({
     m,
@@ -215,7 +216,7 @@ const PaceCard = ({
     n: number;
     rangeKey: string;
     phaseWeekCount: number;
-    averages: PaceAverage[];
+    averages: (WeightTrendPoint & { change: number | null; gap: number | null })[];
     planSummary: string;
     onProfile: () => void;
     chartWidth: number;
@@ -230,10 +231,11 @@ const PaceCard = ({
     const title = info.dir < 0 ? 'Rate of loss' : info.dir > 0 ? 'Rate of gain' : 'Weight stability';
     if (!mature || !m) {
         const remainingChanges = Math.max(0, 4 - Math.max(0, averages.length - 1));
+        const latestAverage = averages[averages.length - 1];
         return (
             <View style={styles.card}>
                 <View style={styles.rowBetween}>
-                    <Text style={styles.cap}>Weight trend</Text>
+                    <Text style={styles.cap}>{title}</Text>
                     <TouchableOpacity
                         onPress={onProfile}
                         activeOpacity={0.7}
@@ -243,36 +245,43 @@ const PaceCard = ({
                         <Text style={styles.planLink}>{planSummary}</Text>
                     </TouchableOpacity>
                 </View>
-                {averages.length === 0 ? (
-                    <Text style={styles.empty}>Your trend starts after your first weekly average.</Text>
-                ) : averages.length === 1 ? (
+                {latestAverage && (
                     <>
-                        <Hero value={fmt1(averages[0].average)} unit="kg" />
-                        <Text style={styles.heroNote}>First weekly average</Text>
-                        <Text style={styles.empty}>Pace appears after another weekly average.</Text>
-                    </>
-                ) : (
-                    <>
-                        <View style={styles.averageList}>
-                            {averages.slice(-4).map(average => (
-                                <View key={average.monday.getTime()} style={styles.averageRow}>
-                                    <Text style={styles.averageDate}>{shortDate(average.monday)}</Text>
-                                    <Text style={styles.averageValue}>{fmt1(average.average)} kg</Text>
-                                    <Text style={styles.averageChange}>
-                                        {average.change == null
-                                            ? '—'
-                                            : `${sg(average.change, 1)} kg${average.gap != null && average.gap > 1 ? ` · ${average.gap} wk` : ''}`}
-                                    </Text>
-                                </View>
-                            ))}
-                        </View>
+                        <Hero value={fmt1(latestAverage.average)} unit="kg" />
                         <Text style={styles.heroNote}>
-                            {remainingChanges > 0
-                                ? `${remainingChanges} more weekly ${remainingChanges === 1 ? 'change' : 'changes'} to estimate pace.`
-                                : 'Building a reliable pace estimate.'}
+                            Weekly average · week of {shortDate(latestAverage.monday)}
                         </Text>
                     </>
                 )}
+                {averages.length >= 2 && (
+                    <ChartBox width={chartWidth}>
+                        {w => <WeightTrendChart points={averages} width={w} />}
+                    </ChartBox>
+                )}
+                <Text style={styles.empty}>
+                    {averages.length === 0
+                        ? 'Your trend starts after your first weekly average.'
+                        : averages.length === 1
+                            ? 'Pace appears after another weekly average.'
+                            : remainingChanges > 0
+                                ? `${remainingChanges} more weekly ${remainingChanges === 1 ? 'change' : 'changes'} to estimate pace.`
+                                : 'Building a reliable pace estimate.'}
+                </Text>
+                <Stats
+                    items={[
+                        {
+                            value: info.dir === 0 ? 'Hold' : info.planRate != null ? fmt1(info.planRate) : '--',
+                            unit: info.dir !== 0 && info.planRate != null ? 'kg/wk' : undefined,
+                            label: 'Plan',
+                        },
+                        {
+                            value: info.goal != null && info.remaining != null ? fmt1(info.remaining) : '--',
+                            unit: info.goal != null && info.remaining != null ? 'kg' : undefined,
+                            label: 'To goal',
+                        },
+                        { value: String(averages.length), unit: 'wk', label: 'Weeks logged' },
+                    ]}
+                />
                 {rangeKey !== 'PHASE' && info.phaseStart && phaseWeekCount < n && (
                     <Text style={styles.heroNote}>Pace uses this phase only; earlier weeks are excluded.</Text>
                 )}
@@ -297,58 +306,45 @@ const PaceCard = ({
         : m.eta
             ? `${shortDate(m.eta)}${m.eta.getFullYear() !== new Date().getFullYear() ? ` ${m.eta.getFullYear()}` : ''}`
             : '--';
-    const goalReached = m.reached && isToGoalReached(info.remaining);
     const goalStat = m.reached
-        ? { value: goalReached ? 'Reached' : fmt1(info.remaining ?? 0), unit: goalReached ? undefined : 'kg', label: 'To goal', color: goalReached ? colors.accent.success : undefined }
+        ? { value: fmt1(info.remaining ?? 0), unit: 'kg', label: 'To goal' }
         : { value: eta, label: 'Goal ETA' };
-    const trendShown = m.slots.length >= 12 && m.slots.filter(slot => slot.avg != null).length > 1;
     const latestIsPartial = [...m.slots].reverse().find(slot => slot.v != null)?.cur ?? false;
 
     const recent = m.rate4 ?? m.rate;
+    const headerNote = picked
+        ? `week of ${shortDate(picked.monday)}${(picked.gap ?? 0) > 1 ? ` · ${picked.gap}-wk avg` : ''}`
+        : info.remaining != null && !info.reached
+            ? `${info.remaining.toFixed(1)} kg to go`
+            : null;
 
     return (
         <View style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.cap}>{title}</Text>
-                <TouchableOpacity
-                    onPress={onProfile}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel="Change weight goal in Profile"
-                >
-                    <Text style={styles.planLink}>{planSummary}</Text>
-                </TouchableOpacity>
+                {headerNote != null && <Text style={styles.capRight}>{headerNote}</Text>}
             </View>
             <Hero value={fmt1(picked ? picked.v : recent)} unit="kg/wk">
                 {!picked && pill ? <Delta {...pill} /> : null}
             </Hero>
-            {!picked && <Text style={styles.heroNote}>{`${m.recentWeeks}-week average`}</Text>}
+            {!picked && <Text style={styles.heroNote}>{`last ${m.recentWeeks}-week average`}</Text>}
             <ChartBox width={chartWidth}>
                 {w => <PaceChart slots={m.slots} plan={m.plan} width={w} sel={sel} onSelect={setSel} />}
             </ChartBox>
             {rangeKey !== 'PHASE' && info.phaseStart && phaseWeekCount < n && (
                 <Text style={styles.heroNote}>Pace uses this phase only; earlier weeks are excluded.</Text>
             )}
-            {trendShown && (
-                <View style={[styles.legendRow, styles.chartLegend]}>
-                    <View style={styles.legendItem}>
-                        <View style={styles.legendLine} />
-                        <Text style={styles.legendText}>4-week average</Text>
-                    </View>
-                </View>
-            )}
             <Stats
                 items={[
                     {
                         value: fmt1(m.lastRate),
                         unit: 'kg/wk',
-                        label: latestIsPartial ? 'This week' : 'Latest week',
+                        label: latestIsPartial ? 'This week · partial' : 'Latest week',
                         ...(latestIsPartial ? {
-                            detail: 'partial',
                             accessibilityLabel: `This week, partial: ${fmt1(m.lastRate)} kilograms per week`,
                         } : {}),
                     },
-                    { value: m.plan != null ? fmt1(m.plan) : '--', unit: m.plan != null ? 'kg/wk' : undefined, label: 'Plan' },
+                    { value: fmt1(m.rate), unit: 'kg/wk', label: 'Range avg' },
                     goalStat,
                 ]}
             />
@@ -765,7 +761,7 @@ const ProgressScreen = () => {
                 }}
                 showsVerticalScrollIndicator={false}
             >
-                <View style={styles.titleRow}>
+                <View style={styles.headerRow}>
                     <View style={styles.viewRow}>
                         {TABS.map(t => {
                             const on = tab === t.key;
@@ -785,20 +781,19 @@ const ProgressScreen = () => {
                             );
                         })}
                     </View>
-                    {ranges.length > 1 && (
-                        <View style={styles.rangeRow}>
+                    {weeks.length >= 2 && (
+                        <View style={styles.rangeSelector}>
                             {ranges.map(r => {
                                 const selected = range.key === r.key;
                                 return (
                                     <TouchableOpacity
                                         key={r.key}
-                                        style={[styles.rangeOption, selected && styles.rangeOptionActive]}
+                                        style={styles.rangeOption}
                                         onPress={() => setRangeKey(r.key)}
                                         activeOpacity={0.7}
                                         hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                                         accessibilityRole="button"
                                         accessibilityState={{ selected }}
-                                        accessibilityLabel={r.label}
                                     >
                                         <Text
                                             style={[styles.rangeText, selected && styles.rangeTextActive]}
@@ -834,7 +829,7 @@ const ProgressScreen = () => {
                     <>
                         {tab === 'nutrition' ? (
                             <>
-                                {recap && <RecapCard r={recap} busy={switching} onSwitch={onSwitch} />}
+                                {recap && <RecapCard r={recap} busy={switching} onSwitch={onSwitch} onProfile={openProfile} />}
                                 {phaseNutritionHistoryLoading && (
                                     <Text style={styles.statDetail}>Loading food history from this phase...</Text>
                                 )}
