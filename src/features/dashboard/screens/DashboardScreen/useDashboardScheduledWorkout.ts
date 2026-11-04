@@ -4,11 +4,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WorkoutSplit } from '../../../workout/types';
 import { useWorkoutSplits } from '../../../workout/hooks/useWorkoutSplits';
 import { SPLITS_CACHE_KEY } from '../../../workout/services/splitCache';
-import { getScheduledDay } from '../../../workout/utils/splitSchedule';
+import { getRotationDayNumber, getScheduledDay, isRotationSplit } from '../../../workout/utils/splitSchedule';
 import type { SplitLike } from '../../../workout/utils/splitSchedule';
 import { useLocalDayKey } from '../../../../shared/hooks/useLocalDayKey';
 
 const SPLITS_CACHE_TTL = 15 * 60 * 1000;
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 export type ScheduledWorkout = {
     name: string;
@@ -17,21 +18,62 @@ export type ScheduledWorkout = {
     exercises: unknown[];
 };
 
+export type WorkoutScheduleStatus =
+    | 'workout'
+    | 'rest-day'
+    | 'no-plan'
+    | 'rotation-not-started'
+    | 'day-unconfigured'
+    | 'workout-unavailable';
+
+type ScheduledWorkoutResult = {
+    workout: ScheduledWorkout | null;
+    status: WorkoutScheduleStatus;
+};
+
 export const resolveWorkoutFromSplits = (
     splits: WorkoutSplit[],
     activeSplitId: string | null | undefined,
     rotationStartDate: unknown,
-): ScheduledWorkout | null => {
-    if (!splits?.length) return null;
+    date: Date = new Date(),
+): ScheduledWorkoutResult => {
+    if (!splits?.length) return { workout: null, status: 'no-plan' };
     const activeSplit = (activeSplitId && splits.find(split => split.id === activeSplitId)) || splits[0];
-    const workout = getScheduledDay(activeSplit as SplitLike, new Date(), rotationStartDate);
+    const split = activeSplit as SplitLike;
+    const rotation = isRotationSplit(split);
+    const rotationDay = rotation ? getRotationDayNumber(split, date, rotationStartDate) : null;
+    if (rotation && rotationDay == null) return { workout: null, status: 'rotation-not-started' };
+
+    const schedule = split?.schedule ?? split?.data?.schedule ?? {};
+    const scheduleKey = rotation ? String(rotationDay) : WEEKDAYS[date.getDay()];
+    if (!Object.prototype.hasOwnProperty.call(schedule, scheduleKey)) {
+        return { workout: null, status: 'day-unconfigured' };
+    }
+
+    const workout = getScheduledDay(split, date, rotationStartDate);
+    if (!workout) return { workout: null, status: 'rest-day' };
     const exercises = workout?.exercises || [];
-    return exercises.length > 0 ? {
-        name: (workout?.['templateName'] as string | undefined) || 'Workout',
-        duration: (workout?.['duration'] as number | undefined) || 45,
-        exerciseCount: exercises.length,
-        exercises,
-    } : null;
+    if (exercises.length > 0) {
+        return {
+            workout: {
+                name: (workout['templateName'] as string | undefined) || 'Workout',
+                duration: (workout['duration'] as number | undefined) || 45,
+                exerciseCount: exercises.length,
+                exercises,
+            },
+            status: 'workout',
+        };
+    }
+
+    const templateId = workout['templateId'] as string | undefined;
+    const templateName = workout['templateName'] as string | undefined;
+    const hasAssignedTemplate = Boolean(templateId && templateId !== 'rest-day')
+        || Boolean(workout.id && workout.id !== 'rest-day');
+    const isExplicitRestDay = templateId === 'rest-day' || templateName?.toLowerCase() === 'rest day';
+    return {
+        workout: null,
+        status: hasAssignedTemplate && !isExplicitRestDay ? 'workout-unavailable' : 'rest-day',
+    };
 };
 
 export const useDashboardScheduledWorkout = (
@@ -87,7 +129,7 @@ export const useDashboardScheduledWorkout = (
     }, [splitsQuery.data, uid]);
 
     const splits = splitsQuery.data ?? (cachedSplits && cachedSplits.uid === uid ? cachedSplits.splits : undefined);
-    const workout = useMemo(
+    const schedule = useMemo(
         () => splits ? resolveWorkoutFromSplits(splits, activeSplitId, rotationStartDate) : null,
         [activeSplitId, localDayKey, rotationStartDate, splits],
     );
@@ -101,5 +143,12 @@ export const useDashboardScheduledWorkout = (
         if (loadError) console.error('Dashboard split load failed:', splitsQuery.error);
     }, [loadError, splitsQuery.error]);
 
-    return { workout, loading, loadError, refreshing: splitsQuery.isRefetching, loadWorkout };
+    return {
+        workout: schedule?.workout ?? null,
+        scheduleStatus: schedule?.status ?? 'no-plan',
+        loading,
+        loadError,
+        refreshing: splitsQuery.isRefetching,
+        loadWorkout,
+    };
 };

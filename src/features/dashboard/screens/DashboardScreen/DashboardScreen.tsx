@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react';
-import { View, ScrollView, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Text, ActivityIndicator, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { getAuth } from 'firebase/auth';
 import { REQUIRED_LEARNING_DAYS, useFoodContext } from '../../../nutrition/context/FoodContext';
 import { learningProgressLabel, resolveCalorieTarget } from '../../../nutrition/helpers/calorieTarget';
 import { WorkoutContext } from '../../../workout/context/WorkoutContext';
+import { toDateKey } from '../../../workout/utils/splitSchedule';
 import { AuthContext } from '../../../auth/context/AuthContext';
+import { mergeUserProfile } from '../../../auth/services/userProfileQuery';
 import ApplicationCustomScreen from '../../../../shared/components/ApplicationCustomScreen/ApplicationCustomScreen';
 import BottomNav, { useBottomNavInset } from '../../../../shared/components/BottomNav/BottomNav';
 import HomeNoticeCard from '../../../../shared/components/HomeNoticeCard/HomeNoticeCard';
@@ -20,7 +22,7 @@ import { dirOf } from '../../../progress/utils/progressEngine';
 import { styles } from './DashboardScreenStyles';
 import WeeklyOverview from './WeeklyOverview';
 import { useDashboardScheduledWorkout } from './useDashboardScheduledWorkout';
-import type { ScheduledWorkout } from './useDashboardScheduledWorkout';
+import type { ScheduledWorkout, WorkoutScheduleStatus } from './useDashboardScheduledWorkout';
 import { useHomeNoticeDismissals } from './useHomeNoticeDismissals';
 import type { CompletedToday, DashboardWorkoutHistoryEntry } from './dashboardWorkoutSummary';
 import { useDashboardWorkoutSummary } from './useDashboardWorkoutSummary';
@@ -47,13 +49,14 @@ const LiveTimer = ({ startTime }: { startTime: number }) => {
 
 type TodayWorkoutProps = {
     workout: ScheduledWorkout | null;
+    scheduleStatus: WorkoutScheduleStatus;
     activeWorkout: PersistedWorkoutState | null;
     completed: CompletedToday | null;
     loadError: boolean;
     onPress: () => void;
 };
 
-const TodayWorkout = ({ workout, activeWorkout, completed, loadError, onPress }: TodayWorkoutProps) => {
+const TodayWorkout = ({ workout, scheduleStatus, activeWorkout, completed, loadError, onPress }: TodayWorkoutProps) => {
     if (activeWorkout) {
         return (
             <TouchableOpacity style={styles.workoutCard} onPress={onPress} activeOpacity={0.85}>
@@ -109,6 +112,49 @@ const TodayWorkout = ({ workout, activeWorkout, completed, loadError, onPress }:
                     <View style={styles.workoutInfo}>
                         <Text style={styles.workoutTitle}>Workout unavailable</Text>
                         <Text style={styles.workoutSubtitle}>Couldn't load today's schedule. Tap to open Workouts.</Text>
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
+    }
+
+    const statusContent: Record<
+        'no-plan' | 'rotation-not-started' | 'day-unconfigured' | 'workout-unavailable',
+        { title: string; subtitle: string }
+    > = {
+        'no-plan': {
+            title: 'No active workout plan',
+            subtitle: 'Choose a workout split to see scheduled training.',
+        },
+        'rotation-not-started': {
+            title: 'Workout schedule needs setup',
+            subtitle: 'Tap to start your rotation from today.',
+        },
+        'day-unconfigured': {
+            title: 'Workout schedule unavailable',
+            subtitle: 'Today is missing from your active split. Tap to review Workouts.',
+        },
+        'workout-unavailable': {
+            title: 'Workout unavailable',
+            subtitle: 'The scheduled workout could not be loaded. Tap to open Workouts.',
+        },
+    };
+    if (
+        scheduleStatus === 'no-plan'
+        || scheduleStatus === 'rotation-not-started'
+        || scheduleStatus === 'day-unconfigured'
+        || scheduleStatus === 'workout-unavailable'
+    ) {
+        const content = statusContent[scheduleStatus];
+        return (
+            <TouchableOpacity style={styles.workoutCard} onPress={onPress} activeOpacity={0.85}>
+                <View style={styles.workoutContent}>
+                    <View style={styles.restIconContainer}>
+                        <Ionicons name="alert-circle-outline" size={spacing[6]} color={colors.text.secondary} />
+                    </View>
+                    <View style={styles.workoutInfo}>
+                        <Text style={styles.workoutTitle}>{content.title}</Text>
+                        <Text style={styles.workoutSubtitle}>{content.subtitle}</Text>
                     </View>
                 </View>
             </TouchableOpacity>
@@ -216,14 +262,14 @@ const DashboardScreen = () => {
 
     const { todayNutrition, userMacros, hasTargets, learningData, rollingWeekStats, getCaloriesForDateRange, initialLoadComplete, stepsConnected, stepsLoading, retryStepsConnection } = useFoodContext();
     const { workoutHistory, activeWorkout } = useContext(WorkoutContext)!;
-    const { userData } = useContext(AuthContext)!;
+    const { userData, refreshUserData } = useContext(AuthContext)!;
 
     const targetWorkouts = userData?.targetWorkoutsPerWeek || 5;
     const targetCalories = resolveCalorieTarget(hasTargets, userMacros?.targetCalories);
     const learningLabel = learningProgressLabel(learningData?.daysLogged ?? 0, REQUIRED_LEARNING_DAYS);
     const goalDir = dirOf(userData?.weightChangePlan?.type);
     const uid = getAuth().currentUser?.uid;
-    const { workout: todayScheduledWorkout, loading: workoutLoading, loadError: workoutLoadError } =
+    const { workout: todayScheduledWorkout, scheduleStatus, loading: workoutLoading, loadError: workoutLoadError } =
         useDashboardScheduledWorkout(userData?.activeSplitId, userData?.rotationStartDate, userData?.uid);
     const {
         dismissedAdjustments,
@@ -262,6 +308,15 @@ const DashboardScreen = () => {
             navigation.navigate('StartWorkout');
             return;
         }
+        if (scheduleStatus === 'rotation-not-started' && userData?.uid && userData.activeSplitId) {
+            void mergeUserProfile(userData.uid, { rotationStartDate: toDateKey(new Date()) })
+                .then(() => refreshUserData())
+                .catch(error => {
+                    console.error('Failed to initialize the active workout rotation:', error);
+                    Alert.alert('Error', 'Could not start the workout rotation. Please try again.');
+                });
+                return;
+        }
         if (todayScheduledWorkout) {
             navigation.navigate('StartWorkout', {
                 selectedWorkout: {
@@ -273,7 +328,7 @@ const DashboardScreen = () => {
         } else {
             navigation.navigate('Workout');
         }
-    }, [navigation, todayScheduledWorkout, activeWorkout]);
+    }, [navigation, todayScheduledWorkout, activeWorkout, scheduleStatus, userData, refreshUserData]);
 
     const dashboardReady = initialLoadComplete && !workoutLoading;
     const stepsPermissionNotice = notices.find(notice => notice.type === 'steps_permission');
@@ -325,6 +380,7 @@ const DashboardScreen = () => {
                             ))}
                             <TodayWorkout
                                 workout={todayScheduledWorkout}
+                                scheduleStatus={scheduleStatus}
                                 activeWorkout={activeWorkout}
                                 completed={completedToday}
                                 loadError={workoutLoadError}

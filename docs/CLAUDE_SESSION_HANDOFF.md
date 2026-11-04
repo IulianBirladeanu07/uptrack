@@ -50,6 +50,11 @@ Updated 2026-11-01. Start with this handoff, then read `AGENTS.md` before changi
 - Confirming Cancel clears the active session and returns directly to an existing Workout screen; if none is underneath, it replaces StartWorkout with Workout. It no longer waits for unrelated history/template refreshes before navigating.
 - `useWorkoutSessionActions.test.ts` covers both stack paths. Focused Jest, TypeScript, and `git diff --check` pass.
 
+## Current batch: Dashboard workout schedule status
+
+- The Dashboard no longer labels missing plans, invalid rotation start dates, unconfigured weekdays, or unresolved workout templates as “Rest Day.” A missing rotation anchor can be initialized from the Dashboard card; genuine scheduled rest days keep their existing treatment.
+- `useDashboardScheduledWorkout.test.tsx` covers each schedule status. Schedule-focused Jest, TypeScript, and `git diff --check` pass.
+
 ## Current batch: Nutrition food entry and label scanning
 
 - Removed the global pending-meal-write banner while retaining queued writes and automatic retries. Calorie progress now avoids intermediate rounding and uses a thicker accessible bar; Recent foods can show the full cached range with larger list render batches.
