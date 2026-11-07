@@ -204,22 +204,30 @@ const styles = createStyles(() => ({
         alignItems: 'center',
         paddingVertical: spacing[1],
     },
-    setDetailRow: {
+    setChips: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: spacing[1],
         paddingLeft: spacing[8],
-        paddingVertical: 2,
+        paddingBottom: spacing[1],
     },
-    setDetailLabel: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.medium,
+    setChip: {
+        paddingHorizontal: spacing[1],
+        paddingVertical: 3,
+        backgroundColor: colors.faded.surfaceMedium,
+        borderRadius: radius[1],
+    },
+    setChipPR: {
+        backgroundColor: colors.faded.primary,
+    },
+    setChipText: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.semibold,
         color: colors.text.tertiary,
+        lineHeight: 10,
     },
-    setDetailValue: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.medium,
-        color: colors.text.secondary,
+    setChipTextPR: {
+        color: colors.accent.primary,
     },
     exerciseLeft: {
         flex: 1,
@@ -234,8 +242,14 @@ const styles = createStyles(() => ({
         color: colors.text.tertiary,
         width: spacing[6],
     },
-    exerciseName: {
+    exerciseNameRow: {
         flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[1],
+    },
+    exerciseName: {
+        flexShrink: 1,
         fontSize: fontSize[14],
         fontWeight: fontWeight.semibold,
         color: colors.text.primary,
@@ -244,21 +258,17 @@ const styles = createStyles(() => ({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    prSlot: {
-        width: spacing[4],
-        alignItems: 'center',
-    },
     valueWeight: {
-        width: spacing[16],
+        width: spacing[14],
         textAlign: 'right',
         fontVariant: ['tabular-nums'],
     },
     valueTimes: {
-        width: spacing[4],
+        width: spacing[3],
         textAlign: 'center',
     },
     valueReps: {
-        width: spacing[6],
+        width: spacing[5],
         textAlign: 'right',
         fontVariant: ['tabular-nums'],
     },

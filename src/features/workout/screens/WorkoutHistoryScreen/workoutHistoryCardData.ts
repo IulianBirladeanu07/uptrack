@@ -26,7 +26,7 @@ export type WorkoutHistoryCardItem = {
 };
 
 const MISSING_LABEL = '-';
-const PREVIEW_LIMIT = 3;
+export const PREVIEW_EXERCISE_COUNT = 3;
 
 const splitLabel = (label: string) => {
     const i = label.indexOf(' × ');
@@ -35,15 +35,28 @@ const splitLabel = (label: string) => {
         : { weight: label.slice(0, i), reps: label.slice(i + 3) };
 };
 
-export const getPreviewExercises = <T extends { hasPR: boolean }>(exercises: T[], limit: number = PREVIEW_LIMIT): T[] => {
-    const picked = new Set<number>();
-    exercises.forEach((exercise, i) => {
-        if (exercise.hasPR && picked.size < limit) picked.add(i);
+type SetParts = { weight: string; reps: string; isPR: boolean };
+
+const joinReps = (reps: string[]) => {
+    if (reps.every(r => r.endsWith(' reps'))) return `${reps.map(r => r.slice(0, -5)).join(', ')} reps`;
+    return reps.join(', ');
+};
+
+const groupSets = (sets: SetParts[]): { label: string; isPR: boolean }[] => {
+    const groups: { weight: string; reps: string[]; isPR: boolean }[] = [];
+    sets.forEach(set => {
+        const last = groups[groups.length - 1];
+        if (last && last.weight === set.weight) {
+            last.reps.push(set.reps);
+            last.isPR = last.isPR || set.isPR;
+        } else {
+            groups.push({ weight: set.weight, reps: [set.reps], isPR: set.isPR });
+        }
     });
-    exercises.forEach((_, i) => {
-        if (picked.size < limit) picked.add(i);
-    });
-    return exercises.filter((_, i) => picked.has(i));
+    return groups.map(group => ({
+        label: group.weight ? `${group.weight} × ${joinReps(group.reps)}` : joinReps(group.reps),
+        isPR: group.isPR,
+    }));
 };
 
 export const getWorkoutHistoryCardData = (item: WorkoutHistoryCardItem) => {
@@ -60,10 +73,10 @@ export const getWorkoutHistoryCardData = (item: WorkoutHistoryCardItem) => {
             return {
                 exerciseName: exercise.exerciseName,
                 setCount: exercise.sets.length,
-                sets: exercise.sets.map((set, index) => {
-                    const label = formatBestSet(set) || MISSING_LABEL;
-                    return { number: index + 1, label, ...splitLabel(label), isPR: !!set.isPR };
-                }),
+                setGroups: groupSets(exercise.sets.map(set => ({
+                    ...splitLabel(formatBestSet(set) || MISSING_LABEL),
+                    isPR: !!set.isPR,
+                }))),
                 bestSetLabel,
                 best: splitLabel(bestSetLabel),
                 hasPR: exercise.sets.some(set => set.isPR),

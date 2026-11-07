@@ -59,31 +59,34 @@ const renderScreen = () => {
 };
 
 describe('WorkoutHistoryScreen card', () => {
-    it('shows the PR count from the sets and pulls the PR exercise into the collapsed preview', () => {
+    it('keeps the collapsed preview in workout order and still counts hidden PRs in the badge', () => {
         renderScreen();
 
         expect(screen.getByLabelText('1 personal record')).toBeTruthy();
-        expect(screen.getByText('Hip Abduction')).toBeTruthy();
-        expect(screen.queryByText('Leg Press')).toBeNull();
+        expect(screen.getByText('Squat')).toBeTruthy();
+        expect(screen.getByText('Deadlift')).toBeTruthy();
+        expect(screen.getByText('Leg Press')).toBeTruthy();
         expect(screen.queryByText('Calf Raise')).toBeNull();
+        expect(screen.queryByText('Hip Abduction')).toBeNull();
         expect(screen.getByText('BEST')).toBeTruthy();
     });
 
-    it('expands from the card header, lists every set and drops the duplicate best column', () => {
+    it('expands from the card header and lists each exercise sets as compact groups', () => {
         renderScreen();
 
         fireEvent.press(screen.getByLabelText(/Expand full workout/));
 
-        expect(screen.getByText('Calf Raise')).toBeTruthy();
-        expect(screen.getByText('Set 2')).toBeTruthy();
-        expect(screen.getByText('SETS')).toBeTruthy();
-        expect(screen.queryByText('BEST')).toBeNull();
-        expect(screen.getAllByText('108kg')).toHaveLength(2);
+        expect(screen.getByText('Hip Abduction')).toBeTruthy();
+        expect(screen.getByText('108kg × 12, 9')).toBeTruthy();
+        expect(screen.getByText('100kg × 5')).toBeTruthy();
+        expect(screen.getByText('BEST')).toBeTruthy();
+        expect(screen.queryByText('SETS')).toBeNull();
+        expect(screen.queryByText(/^Set \d/)).toBeNull();
         expect(screen.getByText('Show less')).toBeTruthy();
 
         fireEvent.press(screen.getByLabelText('Collapse full workout'));
 
-        expect(screen.queryByText('Calf Raise')).toBeNull();
-        expect(screen.getByText('BEST')).toBeTruthy();
+        expect(screen.queryByText('108kg × 12, 9')).toBeNull();
+        expect(screen.queryByText('Hip Abduction')).toBeNull();
     });
 });

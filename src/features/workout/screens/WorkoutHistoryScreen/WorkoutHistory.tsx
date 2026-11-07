@@ -1,6 +1,5 @@
 import { useCallback, useContext, useMemo, useState } from 'react';
 import { View, Text, SectionList, TouchableOpacity, ActivityIndicator } from 'react-native';
-import type { StyleProp, TextStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { WorkoutContext } from '../../context/WorkoutContext';
@@ -12,29 +11,20 @@ import {
     toHistorySelectedWorkout,
     type WorkoutHistoryForSelection,
 } from './workoutHistorySelection';
-import { getPreviewExercises, getWorkoutHistoryCardData, type WorkoutHistoryCardItem } from './workoutHistoryCardData';
+import { getWorkoutHistoryCardData, PREVIEW_EXERCISE_COUNT, type WorkoutHistoryCardItem } from './workoutHistoryCardData';
 
 type HistoryWorkout = WorkoutHistoryCardItem & WorkoutHistoryForSelection & { id?: string };
 
-const SetValue = ({ weight, reps, isPR, highlight, textStyle }: {
-    weight: string;
-    reps: string;
-    isPR: boolean;
-    highlight: boolean;
-    textStyle: StyleProp<TextStyle>;
-}) => (
+const BestValue = ({ weight, reps, highlight }: { weight: string; reps: string; highlight: boolean }) => (
     <View style={styles.valueRow}>
-        <View style={styles.prSlot}>
-            {isPR && <Ionicons name="trophy" size={11} color={colors.accent.primary} />}
-        </View>
         {weight ? (
             <>
-                <Text style={[styles.valueWeight, textStyle, highlight && styles.bestSetValuePR]}>{weight}</Text>
-                <Text style={[styles.valueTimes, textStyle, highlight && styles.bestSetValuePR]}>×</Text>
-                <Text style={[styles.valueReps, textStyle, highlight && styles.bestSetValuePR]}>{reps}</Text>
+                <Text style={[styles.valueWeight, styles.bestSetValue, highlight && styles.bestSetValuePR]}>{weight}</Text>
+                <Text style={[styles.valueTimes, styles.bestSetValue, highlight && styles.bestSetValuePR]}>×</Text>
+                <Text style={[styles.valueReps, styles.bestSetValue, highlight && styles.bestSetValuePR]}>{reps}</Text>
             </>
         ) : (
-            <Text style={[styles.valueBodyweight, textStyle, highlight && styles.bestSetValuePR]}>{reps}</Text>
+            <Text style={[styles.valueBodyweight, styles.bestSetValue, highlight && styles.bestSetValuePR]}>{reps}</Text>
         )}
     </View>
 );
@@ -42,7 +32,7 @@ const SetValue = ({ weight, reps, isPR, highlight, textStyle }: {
 const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; activeWorkout?: boolean; onPress: (item: HistoryWorkout) => void }) => {
     const cardData = getWorkoutHistoryCardData(item);
     const [expanded, setExpanded] = useState(false);
-    const visibleExercises = expanded ? cardData.exercises : getPreviewExercises(cardData.exercises);
+    const visibleExercises = expanded ? cardData.exercises : cardData.exercises.slice(0, PREVIEW_EXERCISE_COUNT);
     const toggle = () => setExpanded(value => !value);
 
     return (
@@ -99,7 +89,7 @@ const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; a
 
             <View style={styles.exerciseListHeader}>
                 <Text style={styles.exerciseListHeaderLabel}>EXERCISE</Text>
-                <Text style={styles.exerciseListHeaderLabel}>{expanded ? 'SETS' : 'BEST'}</Text>
+                <Text style={styles.exerciseListHeaderLabel}>BEST</Text>
             </View>
 
             <View style={styles.exercisesList}>
@@ -115,30 +105,26 @@ const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; a
                         >
                             <View style={styles.exerciseLeft}>
                                 <Text style={styles.exerciseSets}>{exercise.setCount}x</Text>
-                                <Text style={styles.exerciseName} numberOfLines={1}>{exercise.exerciseName}</Text>
+                                <View style={styles.exerciseNameRow}>
+                                    <Text style={styles.exerciseName} numberOfLines={1}>{exercise.exerciseName}</Text>
+                                    {exercise.hasPR && <Ionicons name="trophy" size={12} color={colors.accent.primary} />}
+                                </View>
                             </View>
-                            {!expanded && (
-                                <SetValue
-                                    weight={exercise.best.weight}
-                                    reps={exercise.best.reps}
-                                    isPR={exercise.hasPR}
-                                    highlight={exercise.hasPR}
-                                    textStyle={styles.bestSetValue}
-                                />
-                            )}
+                            <BestValue weight={exercise.best.weight} reps={exercise.best.reps} highlight={exercise.hasPR} />
                         </View>
-                        {expanded && exercise.sets.map(set => (
-                            <View key={set.number} style={styles.setDetailRow} accessible accessibilityLabel={`Set ${set.number}, ${set.label}${set.isPR ? ', personal record' : ''}`}>
-                                <Text style={styles.setDetailLabel}>Set {set.number}</Text>
-                                <SetValue
-                                    weight={set.weight}
-                                    reps={set.reps}
-                                    isPR={set.isPR}
-                                    highlight={set.isPR}
-                                    textStyle={styles.setDetailValue}
-                                />
+                        {expanded && (
+                            <View
+                                style={styles.setChips}
+                                accessible
+                                accessibilityLabel={`Sets: ${exercise.setGroups.map(group => group.label).join(', ')}`}
+                            >
+                                {exercise.setGroups.map((group, g) => (
+                                    <View key={g} style={[styles.setChip, group.isPR && styles.setChipPR]}>
+                                        <Text style={[styles.setChipText, group.isPR && styles.setChipTextPR]}>{group.label}</Text>
+                                    </View>
+                                ))}
                             </View>
-                        ))}
+                        )}
                     </View>
                 ))}
             </View>
