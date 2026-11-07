@@ -48,7 +48,7 @@ const styles = createStyles(() => ({
     monthDivider: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
-        color: colors.text.quaternary,
+        color: colors.text.tertiary,
         letterSpacing: 0.4,
         marginBottom: spacing[3],
         marginTop: spacing[1],
@@ -135,7 +135,7 @@ const styles = createStyles(() => ({
     statsMetaText: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
-        color: colors.text.quaternary,
+        color: colors.text.tertiary,
     },
     exerciseListHeader: {
         flexDirection: 'row',
@@ -146,29 +146,35 @@ const styles = createStyles(() => ({
     exerciseListHeaderLabel: {
         fontSize: fontSize[10],
         fontWeight: fontWeight.semibold,
-        color: colors.text.quaternary,
+        color: colors.text.tertiary,
         letterSpacing: 0.8,
     },
     exercisesList: {},
+    footerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: spacing[3],
+    },
     expandButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
         gap: spacing[1],
         paddingVertical: spacing[2],
+        paddingRight: spacing[3],
     },
     expandButtonText: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
-        color: colors.accent.primary,
+        color: colors.text.secondary,
     },
     repeatButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: spacing[2],
-        marginTop: spacing[3],
-        paddingVertical: spacing[3],
+        gap: spacing[1],
+        paddingVertical: spacing[2],
+        paddingHorizontal: spacing[4],
         borderRadius: radius[3],
         borderWidth: 1,
         borderColor: colors.border.default,
@@ -178,35 +184,37 @@ const styles = createStyles(() => ({
         backgroundColor: colors.background.primary,
     },
     repeatButtonText: {
-        fontSize: fontSize[14],
+        fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
         color: colors.accent.primary,
     },
     repeatButtonTextDisabled: {
         color: colors.text.quaternary,
     },
+    exerciseGroup: {
+        paddingVertical: spacing[1],
+    },
+    exerciseGroupDivider: {
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border.light,
+    },
     exerciseRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: spacing[2],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
-    },
-    exerciseRowLast: {
-        borderBottomWidth: 0,
+        paddingVertical: spacing[1],
     },
     setDetailRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingLeft: spacing[8],
-        paddingVertical: spacing[1],
+        paddingVertical: 2,
     },
     setDetailLabel: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
-        color: colors.text.quaternary,
+        color: colors.text.tertiary,
     },
     setDetailValue: {
         fontSize: fontSize[12],
@@ -223,7 +231,7 @@ const styles = createStyles(() => ({
     exerciseSets: {
         fontSize: fontSize[14],
         fontWeight: fontWeight.bold,
-        color: colors.accent.primary,
+        color: colors.text.tertiary,
         width: spacing[6],
     },
     exerciseName: {
@@ -232,8 +240,31 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.semibold,
         color: colors.text.primary,
     },
-    bestSetContainer: {
-        alignItems: 'flex-end',
+    valueRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    prSlot: {
+        width: spacing[4],
+        alignItems: 'center',
+    },
+    valueWeight: {
+        width: spacing[16],
+        textAlign: 'right',
+        fontVariant: ['tabular-nums'],
+    },
+    valueTimes: {
+        width: spacing[4],
+        textAlign: 'center',
+    },
+    valueReps: {
+        width: spacing[6],
+        textAlign: 'right',
+        fontVariant: ['tabular-nums'],
+    },
+    valueBodyweight: {
+        textAlign: 'right',
+        fontVariant: ['tabular-nums'],
     },
     bestSetValue: {
         fontSize: fontSize[12],

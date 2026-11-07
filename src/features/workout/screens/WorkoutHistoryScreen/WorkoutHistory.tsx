@@ -1,128 +1,185 @@
 import { useCallback, useContext, useMemo, useState } from 'react';
 import { View, Text, SectionList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import type { StyleProp, TextStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import { colors } from '../../../../shared/theme';
 import styles from './WorkoutHistoryStyles';
 import { useAppNavigation } from '../../../../shared/navigation';
-import {
-    getWorkoutMonthYear,
-    groupWorkoutHistoryByMonth,
-    type WorkoutHistoryTimestamp,
-} from './workoutHistorySections';
+import { getWorkoutMonthYear, groupWorkoutHistoryByMonth } from './workoutHistorySections';
 import {
     toHistorySelectedWorkout,
     type WorkoutHistoryForSelection,
 } from './workoutHistorySelection';
-import { getWorkoutHistoryCardData, type WorkoutHistoryCardItem } from './workoutHistoryCardData';
+import { getPreviewExercises, getWorkoutHistoryCardData, type WorkoutHistoryCardItem } from './workoutHistoryCardData';
 
-type HistoryWorkout = WorkoutHistoryCardItem & WorkoutHistoryForSelection;
+type HistoryWorkout = WorkoutHistoryCardItem & WorkoutHistoryForSelection & { id?: string };
+
+const SetValue = ({ weight, reps, isPR, highlight, textStyle }: {
+    weight: string;
+    reps: string;
+    isPR: boolean;
+    highlight: boolean;
+    textStyle: StyleProp<TextStyle>;
+}) => (
+    <View style={styles.valueRow}>
+        <View style={styles.prSlot}>
+            {isPR && <Ionicons name="trophy" size={11} color={colors.accent.primary} />}
+        </View>
+        {weight ? (
+            <>
+                <Text style={[styles.valueWeight, textStyle, highlight && styles.bestSetValuePR]}>{weight}</Text>
+                <Text style={[styles.valueTimes, textStyle, highlight && styles.bestSetValuePR]}>×</Text>
+                <Text style={[styles.valueReps, textStyle, highlight && styles.bestSetValuePR]}>{reps}</Text>
+            </>
+        ) : (
+            <Text style={[styles.valueBodyweight, textStyle, highlight && styles.bestSetValuePR]}>{reps}</Text>
+        )}
+    </View>
+);
 
 const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; activeWorkout?: boolean; onPress: (item: HistoryWorkout) => void }) => {
     const cardData = getWorkoutHistoryCardData(item);
     const [expanded, setExpanded] = useState(false);
-    const visibleExercises = expanded ? cardData.exercises : cardData.exercises.slice(0, 3);
+    const visibleExercises = expanded ? cardData.exercises : getPreviewExercises(cardData.exercises);
+    const toggle = () => setExpanded(value => !value);
 
     return (
         <View style={styles.workoutCard}>
-            <View style={styles.cardHeader}>
-                <Text style={styles.workoutTitle} numberOfLines={1}>{cardData.workoutTitle}</Text>
-                <View style={styles.headerRight}>
-                    {cardData.hasPRs && (
-                        <View style={styles.prBadge}>
-                            <Ionicons name="trophy" size={10} color="#FFD700" />
-                            <Text style={styles.prText}>{cardData.totalPRs}</Text>
+            <TouchableOpacity
+                onPress={toggle}
+                activeOpacity={0.7}
+                disabled={cardData.exercises.length === 0}
+                accessibilityRole="button"
+                accessibilityState={{ expanded }}
+                accessibilityLabel={`${cardData.workoutTitle}, ${cardData.dateLabel}. ${expanded ? 'Collapse' : 'Expand'} full workout`}
+            >
+                <View style={styles.cardHeader}>
+                    <Text style={styles.workoutTitle} numberOfLines={1}>{cardData.workoutTitle}</Text>
+                    <View style={styles.headerRight}>
+                        {cardData.hasPRs && (
+                            <View
+                                style={styles.prBadge}
+                                accessible
+                                accessibilityLabel={`${cardData.totalPRs} personal ${cardData.totalPRs === 1 ? 'record' : 'records'}`}
+                            >
+                                <Ionicons name="trophy" size={10} color={colors.accent.primary} />
+                                <Text style={styles.prText}>{cardData.totalPRs}</Text>
+                            </View>
+                        )}
+                        <View style={[styles.dateBadge, cardData.isToday && styles.dateBadgeToday]}>
+                            <Text style={[styles.dateText, cardData.isToday && styles.dateTextToday]}>{cardData.dateLabel}</Text>
                         </View>
-                    )}
-                    <View style={[styles.dateBadge, cardData.isToday && styles.dateBadgeToday]}>
-                        <Text style={[styles.dateText, cardData.isToday && styles.dateTextToday]}>{cardData.dateLabel}</Text>
+                        {cardData.exercises.length > 0 && (
+                            <Ionicons
+                                name={expanded ? 'chevron-up' : 'chevron-down'}
+                                size={16}
+                                color={colors.text.tertiary}
+                            />
+                        )}
                     </View>
                 </View>
-            </View>
 
-            <View style={styles.statsMeta}>
-                <View style={styles.statsMetaItem}>
-                    <Ionicons name="time-outline" size={12} color={colors.text.quaternary} />
-                    <Text style={styles.statsMetaText}>{cardData.durationMinutes}m</Text>
+                <View style={styles.statsMeta}>
+                    <View style={styles.statsMetaItem}>
+                        <Ionicons name="time-outline" size={12} color={colors.text.tertiary} />
+                        <Text style={styles.statsMetaText}>{cardData.durationMinutes}m</Text>
+                    </View>
+                    <View style={styles.statsMetaItem}>
+                        <Ionicons name="layers-outline" size={12} color={colors.text.tertiary} />
+                        <Text style={styles.statsMetaText}>{cardData.totalSets} sets</Text>
+                    </View>
+                    <View style={styles.statsMetaItem}>
+                        <Ionicons name="barbell-outline" size={12} color={colors.text.tertiary} />
+                        <Text style={styles.statsMetaText}>{cardData.exercises.length} exercises</Text>
+                    </View>
                 </View>
-                <View style={styles.statsMetaItem}>
-                    <Ionicons name="layers-outline" size={12} color={colors.text.quaternary} />
-                    <Text style={styles.statsMetaText}>{cardData.totalSets} sets</Text>
-                </View>
-                <View style={styles.statsMetaItem}>
-                    <Ionicons name="barbell-outline" size={12} color={colors.text.quaternary} />
-                    <Text style={styles.statsMetaText}>{cardData.exercises.length} exercises</Text>
-                </View>
-            </View>
+            </TouchableOpacity>
 
             <View style={styles.exerciseListHeader}>
                 <Text style={styles.exerciseListHeaderLabel}>EXERCISE</Text>
-                <Text style={styles.exerciseListHeaderLabel}>BEST</Text>
+                <Text style={styles.exerciseListHeaderLabel}>{expanded ? 'SETS' : 'BEST'}</Text>
             </View>
 
             <View style={styles.exercisesList}>
-                {visibleExercises.map((exercise, i) => {
-                    return (
-                        <View key={i}>
-                            <View style={[styles.exerciseRow, !expanded && i === visibleExercises.length - 1 && styles.exerciseRowLast]}>
-                                <View style={styles.exerciseLeft}>
-                                    <Text style={styles.exerciseSets}>{exercise.setCount}x</Text>
-                                    <Text style={styles.exerciseName} numberOfLines={1}>{exercise.exerciseName}</Text>
-                                </View>
-                                <View style={styles.bestSetContainer}>
-                                    <Text style={[styles.bestSetValue, exercise.hasPR && styles.bestSetValuePR]}>
-                                        {exercise.bestSetLabel}
-                                    </Text>
-                                </View>
+                {visibleExercises.map((exercise, i) => (
+                    <View
+                        key={`${exercise.exerciseName}-${i}`}
+                        style={[styles.exerciseGroup, i < visibleExercises.length - 1 && styles.exerciseGroupDivider]}
+                    >
+                        <View
+                            style={styles.exerciseRow}
+                            accessible
+                            accessibilityLabel={`${exercise.exerciseName}, ${exercise.setCount} sets, best ${exercise.bestSetLabel}${exercise.hasPR ? ', personal record' : ''}`}
+                        >
+                            <View style={styles.exerciseLeft}>
+                                <Text style={styles.exerciseSets}>{exercise.setCount}x</Text>
+                                <Text style={styles.exerciseName} numberOfLines={1}>{exercise.exerciseName}</Text>
                             </View>
-                            {expanded && exercise.sets.map(set => (
-                                <View key={set.number} style={styles.setDetailRow}>
-                                    <Text style={styles.setDetailLabel}>Set {set.number}</Text>
-                                    <Text style={[styles.setDetailValue, set.isPR && styles.bestSetValuePR]}>
-                                        {set.label}{set.isPR ? ' · PR' : ''}
-                                    </Text>
-                                </View>
-                            ))}
+                            {!expanded && (
+                                <SetValue
+                                    weight={exercise.best.weight}
+                                    reps={exercise.best.reps}
+                                    isPR={exercise.hasPR}
+                                    highlight={exercise.hasPR}
+                                    textStyle={styles.bestSetValue}
+                                />
+                            )}
                         </View>
-                    );
-                })}
+                        {expanded && exercise.sets.map(set => (
+                            <View key={set.number} style={styles.setDetailRow} accessible accessibilityLabel={`Set ${set.number}, ${set.label}${set.isPR ? ', personal record' : ''}`}>
+                                <Text style={styles.setDetailLabel}>Set {set.number}</Text>
+                                <SetValue
+                                    weight={set.weight}
+                                    reps={set.reps}
+                                    isPR={set.isPR}
+                                    highlight={set.isPR}
+                                    textStyle={styles.setDetailValue}
+                                />
+                            </View>
+                        ))}
+                    </View>
+                ))}
             </View>
-            {cardData.exercises.length > 0 && (
+
+            <View style={styles.footerRow}>
+                {cardData.exercises.length > 0 ? (
+                    <TouchableOpacity
+                        style={styles.expandButton}
+                        onPress={toggle}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={expanded ? 'Collapse full workout' : 'Show full workout'}
+                    >
+                        <Text style={styles.expandButtonText}>
+                            {expanded ? 'Show less' : 'View full workout'}
+                        </Text>
+                        <Ionicons
+                            name={expanded ? 'chevron-up' : 'chevron-down'}
+                            size={14}
+                            color={colors.text.secondary}
+                        />
+                    </TouchableOpacity>
+                ) : <View />}
                 <TouchableOpacity
-                    style={styles.expandButton}
-                    onPress={() => setExpanded(value => !value)}
+                    style={[styles.repeatButton, activeWorkout && styles.repeatButtonDisabled]}
+                    onPress={() => onPress(item)}
                     activeOpacity={0.7}
+                    disabled={!!activeWorkout}
                     accessibilityRole="button"
-                    accessibilityLabel={expanded ? 'Collapse full workout' : 'Show full workout'}
+                    accessibilityLabel={activeWorkout ? 'A workout is already in progress' : `Repeat ${cardData.workoutTitle}`}
                 >
-                    <Text style={styles.expandButtonText}>
-                        {expanded ? 'Show less' : 'View full workout'}
-                    </Text>
                     <Ionicons
-                        name={expanded ? 'chevron-up' : 'chevron-down'}
+                        name={activeWorkout ? 'pause-circle-outline' : 'repeat-outline'}
                         size={14}
-                        color={colors.accent.primary}
+                        color={activeWorkout ? colors.text.quaternary : colors.accent.primary}
                     />
+                    <Text style={[styles.repeatButtonText, activeWorkout && styles.repeatButtonTextDisabled]}>
+                        {activeWorkout ? 'In progress' : 'Repeat'}
+                    </Text>
                 </TouchableOpacity>
-            )}
-            <TouchableOpacity
-                style={[styles.repeatButton, activeWorkout && styles.repeatButtonDisabled]}
-                onPress={() => onPress(item)}
-                activeOpacity={0.7}
-                disabled={!!activeWorkout}
-                accessibilityRole="button"
-                accessibilityLabel={activeWorkout ? 'A workout is already in progress' : `Repeat ${cardData.workoutTitle}`}
-            >
-                <Ionicons
-                    name={activeWorkout ? 'pause-circle-outline' : 'repeat-outline'}
-                    size={16}
-                    color={activeWorkout ? colors.text.quaternary : colors.accent.primary}
-                />
-                <Text style={[styles.repeatButtonText, activeWorkout && styles.repeatButtonTextDisabled]}>
-                    {activeWorkout ? 'Workout in progress' : 'Repeat workout'}
-                </Text>
-            </TouchableOpacity>
+            </View>
         </View>
     );
 };
@@ -151,8 +208,8 @@ const WorkoutHistoryScreen = () => {
 
     const sections = useMemo(() => {
         return groupWorkoutHistoryByMonth(
-            workoutHistory,
-            workout => workout['timestamp'] as WorkoutHistoryTimestamp,
+            workoutHistory as unknown as HistoryWorkout[],
+            workout => workout.timestamp,
         );
     }, [workoutHistory]);
 
@@ -175,14 +232,14 @@ const WorkoutHistoryScreen = () => {
             </View>
             <SectionList
                 style={styles.list}
-                sections={sections as any}
+                sections={sections}
                 renderItem={({ item }) => (
                     <WorkoutCard item={item} activeWorkout={!!activeWorkout} onPress={handleStartWorkout} />
                 )}
                 renderSectionHeader={({ section: { title } }) => (
                     <Text style={styles.monthDivider}>{title}</Text>
                 )}
-                keyExtractor={(item, index) => (typeof item['id'] === 'string' && item['id'] ? item['id'] : `${getWorkoutMonthYear(item['timestamp'] as WorkoutHistoryTimestamp)}_${index}`)}
+                keyExtractor={(item, index) => item.id || `${getWorkoutMonthYear(item.timestamp)}_${index}`}
                 ListEmptyComponent={
                     workoutHistoryLoading ? (
                         <View style={styles.emptyContainer}>
