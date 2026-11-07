@@ -34,6 +34,11 @@ export const getWorkoutHistoryCardData = (item: WorkoutHistoryCardItem) => {
         exercises: exercises.map(exercise => ({
             exerciseName: exercise.exerciseName,
             setCount: exercise.sets.length,
+            sets: exercise.sets.map((set, index) => ({
+                number: index + 1,
+                label: formatBestSet(set) || '-',
+                isPR: !!set.isPR,
+            })),
             bestSetLabel: formatBestSet(findBestSet(exercise.sets)) || '-',
             hasPR: exercise.sets.some(set => set.isPR),
         })),

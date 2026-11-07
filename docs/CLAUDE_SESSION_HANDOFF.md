@@ -1,6 +1,6 @@
 # Claude session handoff
 
-Updated 2026-11-04. Start with this handoff, then read `AGENTS.md` before changing code.
+Updated 2026-11-07. Start with this handoff, then read `AGENTS.md` before changing code.
 
 ## Repository snapshot
 
@@ -9,6 +9,13 @@ Updated 2026-11-04. Start with this handoff, then read `AGENTS.md` before changi
 - The future-dated completion-summary fix was published in `8cbd45f fix: ignore future workouts in completion summaries`; the weekly Workout count follow-up is recorded below.
 - Three patch files mentioned in an earlier handoff (`0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`) are not present in this checkout at the current base commit.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
+
+## Current batch: Workout history screen UX
+
+- Added a consistent back/title header and toned down date badges to match the app's secondary screens.
+- Workout cards now show a compact exercise preview and an explicit Repeat workout action, avoiding an unexpected session start when a card is tapped.
+- View full workout expands any session to show every exercise and its individual sets, weights/reps, and PR markers.
+- Workout History tests passed (4 suites / 9 tests); `npx tsc --noEmit` and `git diff --check` passed.
 
 ## Current batch: Exercise history screen UX
 
@@ -32,8 +39,11 @@ Updated 2026-11-04. Start with this handoff, then read `AGENTS.md` before changi
 ## Current batch: Investigating inflated Android step totals
 
 - Device logs showed a single Health Connect bucket of 16,691 steps for 2026-11-01, which matches the value delivered to Nutrition. The duplicate-bucket hypothesis was not supported, so same-date bucket summing remains unchanged.
-- Logs later showed 16,760 steps across Google Fit, Samsung Health, and the Health Connect phone provider. Per-origin totals showed Samsung Health at 7,606, Google Fit at 9,397, and the phone provider at 9,760; the user's Google Fit display was 9,398. Android now uses Google Fit's origin total when available, falling back to the highest other origin, instead of summing sources.
-- Development logs include the unfiltered total, readable per-origin totals, and selected total for today. Focused step tests (2 suites / 15 tests), `npx tsc --noEmit`, Android Expo export, and `git diff --check` pass after source-selection changes.
+- Logs later showed 16,760 steps across Google Fit, Samsung Health, and the Health Connect phone provider. Per-origin totals showed Samsung Health at 7,606, Google Fit at 9,397, and the phone provider at 9,760; the user's Google Fit display was 9,398. Android now prefers Samsung Health's origin total when present, then Google Fit, then the highest available other source; source totals are never added together.
+- When Google Fit returns an empty zero bucket for a date where another provider has steps, that zero no longer overrides the available source total. If all providers report zero, the unfiltered zero remains.
+- Device logs from Nov 7 show Google Fit's Health Connect origin at 33,106 and 33,496 steps on Nov 2–3, compared with about 17.9k–18.3k from Samsung Health and the phone provider; on Nov 4 Google Fit reports 11,631 versus about 6.4k from those sources. The user confirmed Samsung Health is the accurate source and noted it is connected to Google Fit, consistent with duplication within Google Fit. The app does not add Samsung Health's total to Google Fit's. Where Samsung Health is available, Health Connect now uses that origin first; Google Fit remains a fallback on devices without Samsung Health. The five logged qualifying days then average 14,002 steps, excluding Saturday's 170 under the existing 1,000-step daily minimum.
+- Removed the always-visible refresh affordance from the Dashboard weekly steps stat; the permission notice can still retry the Health Connect connection flow.
+- Development logs include per-day unfiltered/source/selected totals and the Dashboard rolling-week average, day count, and per-day inputs. Focused Health Connect and nutrition tests pass (5 suites / 130 tests), as do `npx tsc --noEmit`, Android Expo export (9.44 MB bundle), and `git diff --check`. Jest reports an existing lingering async handle after tests pass. A fresh on-device Health Connect sync is still needed to verify the historical corrected values are persisted.
 
 ## Current batch: Progress screen visual cleanup
 

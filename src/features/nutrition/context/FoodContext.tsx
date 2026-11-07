@@ -36,6 +36,7 @@ import {
 } from './nutritionSummaries';
 import { handleSelectedDateChange } from './selectedDateMealChange';
 import { useFoodBackgroundEvaluations } from './useFoodBackgroundEvaluations';
+import { getLocalWeekStart } from '../helpers/weightTrackerUtils';
 import { formatDate } from '../utils/dateUtils';
 import { isCurrentUserRequest } from '../utils/userRequest';
 import { StepsFlusher } from './StepsFlusher';
@@ -168,9 +169,21 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         [cacheVersion, localDayKey],
     );
 
-    const rollingWeekStats = useMemo(() =>
-        getCurrentWeekRollingStats(mealCache.current, userData?.weightIns),
-    [cacheVersion, stepsVersion, userData?.weightIns]);
+    const rollingWeekStats = useMemo(() => {
+        const stats = getCurrentWeekRollingStats(mealCache.current, userData?.weightIns);
+        if (__DEV__) {
+            const weekStart = getLocalWeekStart(new Date());
+            const [year, month, day] = weekStart.split('-').map(Number);
+            const weekStartDate = new Date(year, month - 1, day);
+            console.log('[Steps] Dashboard rolling week', {
+                weekStart,
+                avgSteps: stats.avgSteps,
+                daysLoggedSteps: stats.daysLoggedSteps,
+                perDay: JSON.stringify(mealCache.current.getStepsRange(weekStartDate, new Date())),
+            });
+        }
+        return stats;
+    }, [cacheVersion, stepsVersion, userData?.weightIns]);
 
     useEffect(() => {
         const id = setTimeout(() => {

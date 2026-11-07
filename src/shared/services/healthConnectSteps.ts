@@ -19,6 +19,7 @@ const INSTALL_URL =
   'market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding';
 
 const STEPS_READ = { accessType: 'read', recordType: 'Steps' } as const;
+const SAMSUNG_HEALTH_ORIGIN = 'com.sec.android.app.shealth';
 const GOOGLE_FIT_ORIGIN = 'com.google.android.apps.fitness';
 
 const hasStepsRead = (granted: ReadonlyArray<{ recordType: string }>): boolean =>
@@ -75,9 +76,12 @@ export const readDailySteps = async (from: Date, to: Date): Promise<DailySteps> 
     Object.keys(allSourceSteps).forEach(dateKey => {
       const sourceTotals = sourceSteps
         .map(source => ({ origin: source.origin, total: source.dailySteps[dateKey] }))
-        .filter((source): source is { origin: string; total: number } => source.total !== undefined);
+        .filter((source): source is { origin: string; total: number } => source.total !== undefined && source.total > 0);
+      const samsungHealthSteps = sourceTotals.find(source => source.origin === SAMSUNG_HEALTH_ORIGIN)?.total;
       const googleFitSteps = sourceTotals.find(source => source.origin === GOOGLE_FIT_ORIGIN)?.total;
-      if (googleFitSteps !== undefined) {
+      if (samsungHealthSteps !== undefined) {
+        dailySteps[dateKey] = samsungHealthSteps;
+      } else if (googleFitSteps !== undefined) {
         dailySteps[dateKey] = googleFitSteps;
       } else if (sourceTotals.length) {
         dailySteps[dateKey] = Math.max(...sourceTotals.map(source => source.total));
@@ -85,6 +89,13 @@ export const readDailySteps = async (from: Date, to: Date): Promise<DailySteps> 
     });
   }
   if (__DEV__) {
+    Object.keys(allSourceSteps).sort().forEach(k => {
+      console.log('[Steps] Health Connect day', k, JSON.stringify({
+        all: allSourceSteps[k],
+        picked: dailySteps[k],
+        sources: Object.fromEntries(sourceSteps.map(s => [s.origin, s.dailySteps[k] ?? null])),
+      }));
+    });
     const dateKey = formatLocalDateKey(to);
     console.log('[Steps] Health Connect aggregate', {
       requestedStart: start.toISOString(),

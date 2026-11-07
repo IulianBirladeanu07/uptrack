@@ -28,12 +28,17 @@ describe('getWorkoutHistoryCardData', () => {
                 {
                     exerciseName: 'Bench Press',
                     setCount: 2,
+                    sets: [
+                        { number: 1, label: '60kg × 8', isPR: true },
+                        { number: 2, label: '50kg × 12', isPR: false },
+                    ],
                     bestSetLabel: '60kg × 8',
                     hasPR: true,
                 },
                 {
                     exerciseName: 'Push-up',
                     setCount: 1,
+                    sets: [{ number: 1, label: '15 reps', isPR: false }],
                     bestSetLabel: '15 reps',
                     hasPR: false,
                 },

@@ -396,8 +396,6 @@ const DashboardScreen = () => {
                                 goalDir={goalDir}
                                 getCaloriesForDateRange={getCaloriesForDateRange}
                                 onWeightPress={() => navigation.navigate('WeightTracker')}
-                                onStepsRefresh={retryStepsConnection}
-                                stepsLoading={stepsLoading}
                                 dataReady={initialLoadComplete}
                             />
                             {stepsPermissionNotice && (

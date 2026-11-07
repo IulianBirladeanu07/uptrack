@@ -120,7 +120,7 @@ describe('healthConnectSteps', () => {
     expect(request.timeRangeSlicer).toEqual({ period: 'DAYS', length: 1 });
   });
 
-  it('uses Google Fit instead of combining synced source totals', async () => {
+  it('uses Samsung Health instead of combining synced source totals', async () => {
     (aggregateGroupByPeriod as jest.Mock)
       .mockResolvedValueOnce([{
         startTime: '2026-11-01T00:00',
@@ -151,7 +151,7 @@ describe('healthConnectSteps', () => {
       }]);
 
     await expect(readDailySteps(new Date('2026-11-01T00:00:00'), new Date('2026-11-01T18:00:00')))
-      .resolves.toEqual({ '2026-11-01': 9397 });
+      .resolves.toEqual({ '2026-11-01': 7606 });
     expect(aggregateGroupByPeriod).toHaveBeenNthCalledWith(2, expect.objectContaining({
       dataOriginFilter: ['com.google.android.apps.fitness'],
     }));
@@ -161,6 +161,40 @@ describe('healthConnectSteps', () => {
     expect(aggregateGroupByPeriod).toHaveBeenNthCalledWith(4, expect.objectContaining({
       dataOriginFilter: ['com.android.healthconnect.phone.test'],
     }));
+  });
+
+  it('prefers Samsung Health when Google Fit reports a higher total', async () => {
+    (aggregateGroupByPeriod as jest.Mock)
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-02T00:00',
+        endTime: '2026-11-03T00:00',
+        result: {
+          COUNT_TOTAL: 33106,
+          dataOrigins: [
+            'com.google.android.apps.fitness',
+            'com.sec.android.app.shealth',
+            'com.android.healthconnect.phone',
+          ],
+        },
+      }])
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-02T00:00',
+        endTime: '2026-11-03T00:00',
+        result: { COUNT_TOTAL: 33106, dataOrigins: ['com.google.android.apps.fitness'] },
+      }])
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-02T00:00',
+        endTime: '2026-11-03T00:00',
+        result: { COUNT_TOTAL: 17861, dataOrigins: ['com.sec.android.app.shealth'] },
+      }])
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-02T00:00',
+        endTime: '2026-11-03T00:00',
+        result: { COUNT_TOTAL: 17880, dataOrigins: ['com.android.healthconnect.phone'] },
+      }]);
+
+    await expect(readDailySteps(new Date('2026-11-02T00:00:00'), new Date('2026-11-02T18:00:00')))
+      .resolves.toEqual({ '2026-11-02': 17861 });
   });
 
   it('uses the available source when neither preferred app contributes', async () => {
@@ -176,7 +210,50 @@ describe('healthConnectSteps', () => {
     expect(aggregateGroupByPeriod).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to the highest available source when Google Fit is absent', async () => {
+  it('uses Samsung Health when Google Fit has an empty bucket for a day', async () => {
+    (aggregateGroupByPeriod as jest.Mock)
+      .mockResolvedValueOnce([
+        {
+          startTime: '2026-11-01T00:00',
+          endTime: '2026-11-02T00:00',
+          result: { COUNT_TOTAL: 17000, dataOrigins: ['com.google.android.apps.fitness', 'com.sec.android.app.shealth'] },
+        },
+        {
+          startTime: '2026-11-02T00:00',
+          endTime: '2026-11-03T00:00',
+          result: { COUNT_TOTAL: 8000, dataOrigins: ['com.sec.android.app.shealth'] },
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          startTime: '2026-11-01T00:00',
+          endTime: '2026-11-02T00:00',
+          result: { COUNT_TOTAL: 9000, dataOrigins: ['com.google.android.apps.fitness'] },
+        },
+        {
+          startTime: '2026-11-02T00:00',
+          endTime: '2026-11-03T00:00',
+          result: { COUNT_TOTAL: 0, dataOrigins: [] },
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          startTime: '2026-11-01T00:00',
+          endTime: '2026-11-02T00:00',
+          result: { COUNT_TOTAL: 8000, dataOrigins: ['com.sec.android.app.shealth'] },
+        },
+        {
+          startTime: '2026-11-02T00:00',
+          endTime: '2026-11-03T00:00',
+          result: { COUNT_TOTAL: 8000, dataOrigins: ['com.sec.android.app.shealth'] },
+        },
+      ]);
+
+    await expect(readDailySteps(new Date('2026-11-01T00:00:00'), new Date('2026-11-02T18:00:00')))
+      .resolves.toEqual({ '2026-11-01': 8000, '2026-11-02': 8000 });
+  });
+
+  it('uses Samsung Health when Google Fit is absent', async () => {
     (aggregateGroupByPeriod as jest.Mock)
       .mockResolvedValueOnce([{
         startTime: '2026-11-01T00:00',
@@ -195,6 +272,28 @@ describe('healthConnectSteps', () => {
       }]);
 
     await expect(readDailySteps(new Date('2026-11-01T00:00:00'), new Date('2026-11-01T18:00:00')))
-      .resolves.toEqual({ '2026-11-01': 9760 });
+      .resolves.toEqual({ '2026-11-01': 7606 });
+  });
+
+  it('falls back to the highest available source when Samsung Health and Google Fit are absent', async () => {
+    (aggregateGroupByPeriod as jest.Mock)
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-01T00:00',
+        endTime: '2026-11-02T00:00',
+        result: { COUNT_TOTAL: 17000, dataOrigins: ['com.example.source-a', 'com.example.source-b'] },
+      }])
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-01T00:00',
+        endTime: '2026-11-02T00:00',
+        result: { COUNT_TOTAL: 7000, dataOrigins: ['com.example.source-a'] },
+      }])
+      .mockResolvedValueOnce([{
+        startTime: '2026-11-01T00:00',
+        endTime: '2026-11-02T00:00',
+        result: { COUNT_TOTAL: 10000, dataOrigins: ['com.example.source-b'] },
+      }]);
+
+    await expect(readDailySteps(new Date('2026-11-01T00:00:00'), new Date('2026-11-01T18:00:00')))
+      .resolves.toEqual({ '2026-11-01': 10000 });
   });
 });

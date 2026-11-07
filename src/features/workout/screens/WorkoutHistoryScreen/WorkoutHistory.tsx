@@ -1,4 +1,4 @@
-import { useCallback, useContext, useMemo } from 'react';
+import { useCallback, useContext, useMemo, useState } from 'react';
 import { View, Text, SectionList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -21,14 +21,11 @@ type HistoryWorkout = WorkoutHistoryCardItem & WorkoutHistoryForSelection;
 
 const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; activeWorkout?: boolean; onPress: (item: HistoryWorkout) => void }) => {
     const cardData = getWorkoutHistoryCardData(item);
+    const [expanded, setExpanded] = useState(false);
+    const visibleExercises = expanded ? cardData.exercises : cardData.exercises.slice(0, 3);
 
     return (
-        <TouchableOpacity
-            style={[styles.workoutCard, activeWorkout && styles.workoutCardDisabled]}
-            onPress={() => onPress(item)}
-            activeOpacity={activeWorkout ? 1 : 0.7}
-            disabled={!!activeWorkout}
-        >
+        <View style={styles.workoutCard}>
             <View style={styles.cardHeader}>
                 <Text style={styles.workoutTitle} numberOfLines={1}>{cardData.workoutTitle}</Text>
                 <View style={styles.headerRight}>
@@ -65,23 +62,68 @@ const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; a
             </View>
 
             <View style={styles.exercisesList}>
-                {cardData.exercises.map((exercise, i) => {
+                {visibleExercises.map((exercise, i) => {
                     return (
-                        <View key={i} style={[styles.exerciseRow, i === cardData.exercises.length - 1 && styles.exerciseRowLast]}>
-                            <View style={styles.exerciseLeft}>
-                                <Text style={styles.exerciseSets}>{exercise.setCount}x</Text>
-                                <Text style={styles.exerciseName} numberOfLines={1}>{exercise.exerciseName}</Text>
+                        <View key={i}>
+                            <View style={[styles.exerciseRow, !expanded && i === visibleExercises.length - 1 && styles.exerciseRowLast]}>
+                                <View style={styles.exerciseLeft}>
+                                    <Text style={styles.exerciseSets}>{exercise.setCount}x</Text>
+                                    <Text style={styles.exerciseName} numberOfLines={1}>{exercise.exerciseName}</Text>
+                                </View>
+                                <View style={styles.bestSetContainer}>
+                                    <Text style={[styles.bestSetValue, exercise.hasPR && styles.bestSetValuePR]}>
+                                        {exercise.bestSetLabel}
+                                    </Text>
+                                </View>
                             </View>
-                            <View style={styles.bestSetContainer}>
-                                <Text style={[styles.bestSetValue, exercise.hasPR && styles.bestSetValuePR]}>
-                                    {exercise.bestSetLabel}
-                                </Text>
-                            </View>
+                            {expanded && exercise.sets.map(set => (
+                                <View key={set.number} style={styles.setDetailRow}>
+                                    <Text style={styles.setDetailLabel}>Set {set.number}</Text>
+                                    <Text style={[styles.setDetailValue, set.isPR && styles.bestSetValuePR]}>
+                                        {set.label}{set.isPR ? ' · PR' : ''}
+                                    </Text>
+                                </View>
+                            ))}
                         </View>
                     );
                 })}
             </View>
-        </TouchableOpacity>
+            {cardData.exercises.length > 0 && (
+                <TouchableOpacity
+                    style={styles.expandButton}
+                    onPress={() => setExpanded(value => !value)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={expanded ? 'Collapse full workout' : 'Show full workout'}
+                >
+                    <Text style={styles.expandButtonText}>
+                        {expanded ? 'Show less' : 'View full workout'}
+                    </Text>
+                    <Ionicons
+                        name={expanded ? 'chevron-up' : 'chevron-down'}
+                        size={14}
+                        color={colors.accent.primary}
+                    />
+                </TouchableOpacity>
+            )}
+            <TouchableOpacity
+                style={[styles.repeatButton, activeWorkout && styles.repeatButtonDisabled]}
+                onPress={() => onPress(item)}
+                activeOpacity={0.7}
+                disabled={!!activeWorkout}
+                accessibilityRole="button"
+                accessibilityLabel={activeWorkout ? 'A workout is already in progress' : `Repeat ${cardData.workoutTitle}`}
+            >
+                <Ionicons
+                    name={activeWorkout ? 'pause-circle-outline' : 'repeat-outline'}
+                    size={16}
+                    color={activeWorkout ? colors.text.quaternary : colors.accent.primary}
+                />
+                <Text style={[styles.repeatButtonText, activeWorkout && styles.repeatButtonTextDisabled]}>
+                    {activeWorkout ? 'Workout in progress' : 'Repeat workout'}
+                </Text>
+            </TouchableOpacity>
+        </View>
     );
 };
 
@@ -116,25 +158,31 @@ const WorkoutHistoryScreen = () => {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]} edges={['top']}>
+            <View style={styles.header}>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => navigation.goBack()}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Go back"
+                >
+                    <Ionicons name="chevron-back" size={20} color={colors.text.primary} />
+                </TouchableOpacity>
+                <Text style={styles.heading}>Workout history</Text>
+                <View style={styles.headerTrailing}>
+                    {workoutHistoryRefreshing && <ActivityIndicator color={colors.accent.primary} />}
+                </View>
+            </View>
             <SectionList
+                style={styles.list}
                 sections={sections as any}
                 renderItem={({ item }) => (
-                    <WorkoutCard
-                        item={item}
-                        activeWorkout={!!activeWorkout}
-                        onPress={handleStartWorkout}
-                    />
+                    <WorkoutCard item={item} activeWorkout={!!activeWorkout} onPress={handleStartWorkout} />
                 )}
                 renderSectionHeader={({ section: { title } }) => (
                     <Text style={styles.monthDivider}>{title}</Text>
                 )}
                 keyExtractor={(item, index) => (typeof item['id'] === 'string' && item['id'] ? item['id'] : `${getWorkoutMonthYear(item['timestamp'] as WorkoutHistoryTimestamp)}_${index}`)}
-                ListHeaderComponent={
-                    <View style={styles.header}>
-                        <Text style={styles.heading}>History</Text>
-                        {workoutHistoryRefreshing && <ActivityIndicator color={colors.accent.primary} />}
-                    </View>
-                }
                 ListEmptyComponent={
                     workoutHistoryLoading ? (
                         <View style={styles.emptyContainer}>
