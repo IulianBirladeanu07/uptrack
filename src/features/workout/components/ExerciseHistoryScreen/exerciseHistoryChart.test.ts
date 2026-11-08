@@ -48,13 +48,13 @@ describe('exercise history chart model', () => {
         ], 100, 8, 72);
 
         expect(model?.points[0]).toMatchObject({
-            tooltipLabel: 'Oct 19, 2026',
+            tooltipLabel: 'Mon, Oct 19, 2026',
             weight: 32.5,
             reps: 10,
             e1rm: 43.3,
         });
         expect(model?.points[1]).toMatchObject({
-            tooltipLabel: 'Oct 26, 2026',
+            tooltipLabel: 'Mon, Oct 26, 2026',
             weight: 35,
             reps: 11,
             e1rm: 48.5,

@@ -25,6 +25,12 @@ Updated 2026-11-08. Start with this handoff, then read `AGENTS.md` before changi
 - Android navigation-bar contrast is disabled with a dark background and light icons through `androidNavigationBar` config; generated native files remain untouched.
 - Current Workout History tests cover collapsed/expanded row consistency, mixed weights, PR set highlighting, footer and bottom padding. TypeScript and `git diff --check` pass. Font-scale layout and Android system-bar rendering still need a device check.
 
+## Current batch: Workout Story sharing
+
+- Workout Details is a simple Story composer with a fixed 9:16 preview, full-bleed optional camera/library photo, compact workout metrics and exercise highlights, PR accents, and a native share-sheet action. When there is no photo, a dark branded gradient fills the Story canvas.
+- The preview captures only the Story artwork, not the surrounding controls. Camera and library images are cropped to 9:16; long workouts show the first eight exercise highlights and a remaining-exercise count.
+- Device verification is still needed for photo permissions, image capture quality, and sharing into Instagram Stories.
+
 ## Current batch: Exercise history screen UX
 
 - Restyled Exercise History into a compact title bar, a contained best/progress summary, a clearly labeled session count, and individual session cards matching the Workout surfaces.

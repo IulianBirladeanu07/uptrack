@@ -58,8 +58,8 @@ describe('Android release configuration', () => {
 });
 
 describe('EAS build profiles', () => {
-  it('builds an app bundle for production and APKs for internal profiles', () => {
-    expect(easConfig.build.production.android.buildType).toBe('app-bundle');
+  it('builds APKs for every Android profile', () => {
+    expect(easConfig.build.production.android.buildType).toBe('apk');
     expect(easConfig.build.preview.android.buildType).toBe('apk');
     expect(easConfig.build.development.android.buildType).toBe('apk');
   });

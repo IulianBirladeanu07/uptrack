@@ -8,7 +8,7 @@ The current repo has useful automated Jest and TypeScript checks, but those alon
 
 Two repo-specific items need early attention:
 
-1. `eas.json` now configures the **production Android build type as `app-bundle`**, producing an `.aab`; development and preview profiles remain APKs for direct installation.
+1. `eas.json` currently configures the **production Android build type as `apk`**, like development and preview. An APK is not the Android App Bundle required for a standard Google Play production release; change production to `app-bundle` and verify the resulting `.aab` before submission.
 2. `app.config.js` now explicitly sets compile and target SDK to API 36, the current minimum for new apps and updates submitted from August 31, 2026 (subject to the stated extension and exceptions). The actual **release artifact** still needs inspection before submission.
 3. EAS profiles explicitly select matching remote environments. The former profile-local `${NAME}` strings were literal values that override EAS-hosted values; they have been removed. Required variables and service config files must be configured in EAS before cloud builds.
 
@@ -40,7 +40,7 @@ The current working tree configures Expo's `appVersion` runtime policy and bumps
 ### Build and artifact
 
 - [ ] Confirm whether this is a new Play listing or an update to an existing published app; confirm the Play developer account type and creation date.
-- [x] Configure the production EAS profile to output an Android App Bundle (`.aab`) for Play distribution. Development and preview remain APK profiles.
+- [ ] Configure the production EAS profile to output an Android App Bundle (`.aab`) for Play distribution. It currently outputs an APK; development and preview also remain APK profiles.
 - [ ] Build and inspect the exact candidate artifact before submission. Record package ID, version name/code, target and minimum SDK, signing identity, merged permissions, backup behavior, and artifact type. Never infer the release manifest from the workstation's generated native directory.
 - [x] Explicitly configure compile/target API 36. Confirm target API and merged permissions in the exact built release artifact; if relying on an extension or exception, verify it in Play Console.
 - [ ] Confirm the package ID remains `com.iulianbirladeanu.uptrack`, the version code is greater than any version already uploaded to that Play app, and the signing key / Play App Signing arrangement is understood and backed up.
