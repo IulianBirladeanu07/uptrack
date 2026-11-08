@@ -1,6 +1,7 @@
-import { useState, useCallback, useMemo, memo, type ReactElement } from 'react';
+import { useState, useCallback, memo, type ReactElement } from 'react';
 import { FlatList, Alert } from 'react-native';
 import { normalize } from '../../../../shared/hooks/useResponsive';
+import { formatWorkoutDate } from '../../utils/formatWorkoutDate';
 import TemplateItemJS from './components/TemplateItem';
 const TemplateItem = TemplateItemJS as any;
 import EmptyState from './components/EmptyState';
@@ -25,35 +26,7 @@ type WorkoutTemplateLibraryProps = {
 const WorkoutTemplateLibrary = ({ templates, navigation, refreshControl, hasActiveWorkout, onCreateTemplate, onDeleteTemplate }: WorkoutTemplateLibraryProps) => {
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
 
-  const formatDate = useMemo(() => {
-    const cache = new Map<string, string>();
-    return (timestamp: any): string => {
-      if (!timestamp) return 'N/A';
-      const key = timestamp.seconds || timestamp._seconds || timestamp.toString();
-      if (cache.has(String(key))) return cache.get(String(key))!;
-      try {
-        let date;
-        if (timestamp.seconds) {
-          date = new Date(timestamp.seconds * 1000);
-        } else if (timestamp.toDate && typeof timestamp.toDate === 'function') {
-          date = timestamp.toDate();
-        } else if (timestamp._seconds) {
-          date = new Date(timestamp._seconds * 1000);
-        } else {
-          date = new Date(timestamp);
-        }
-        const formatted = date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        });
-        cache.set(String(key), formatted);
-        return formatted;
-      } catch (error) {
-        return 'N/A';
-      }
-    };
-  }, []);
+  const formatDate = useCallback((timestamp: unknown) => formatWorkoutDate(timestamp, 'N/A'), []);
 
   const handleEditTemplate = useCallback((template: any) => {
     const id = template.id;

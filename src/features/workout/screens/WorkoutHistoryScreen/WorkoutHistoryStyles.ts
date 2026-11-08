@@ -35,80 +35,118 @@ const styles = createStyles(() => ({
         fontSize: fontSize[22],
         fontWeight: fontWeight.bold,
         color: colors.text.primary,
-        letterSpacing: -0.3,
     },
     list: {
         flex: 1,
-    },
-    monthDivider: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.tertiary,
-        letterSpacing: 0.4,
-        marginBottom: spacing[3],
-        marginTop: spacing[1],
     },
     workoutCard: {
         backgroundColor: colors.background.secondary,
         borderRadius: radius[4],
         borderWidth: 1,
         borderColor: colors.border.default,
-        padding: spacing[3],
-        paddingBottom: spacing[0],
+        padding: 0,
         marginBottom: spacing[3],
+        overflow: 'hidden',
+    },
+    cardContent: {
+        paddingHorizontal: spacing[4],
+        paddingTop: spacing[4],
     },
     cardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing[2],
-        marginBottom: spacing[3],
+        marginBottom: spacing[1],
+    },
+    dateText: {
+        maxWidth: '55%',
+        fontSize: fontSize[14],
+        color: colors.text.secondary,
+        fontWeight: fontWeight.medium,
+        flexShrink: 0,
+        textAlign: 'right',
     },
     cardHeaderTitle: {
         flex: 1,
         minWidth: 0,
         justifyContent: 'center',
     },
-    repeatButton: {
-        height: spacing[8],
-        paddingHorizontal: spacing[1],
+    workoutTitle: {
+        fontSize: fontSize[20],
+        fontWeight: fontWeight.bold,
+        color: colors.text.primary,
+        flex: 1,
+    },
+    statsMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        justifyContent: 'flex-start',
+        columnGap: spacing[3],
+        rowGap: spacing[2],
+        marginBottom: spacing[3],
+    },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing[1],
+    },
+    statsMetaText: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.medium,
+        color: colors.text.secondary,
+    },
+    prText: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.bold,
+        color: colors.accent.primary,
+    },
+    monthHeading: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: colors.background.primary,
+        paddingVertical: spacing[2],
+        marginBottom: spacing[2],
+    },
+    monthTitle: {
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.primary,
+    },
+    monthCount: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.secondary,
+    },
+    exercisesList: {},
+    cardActions: {
+        flexDirection: 'row',
+        minHeight: spacing[12],
+        borderTopWidth: 1,
+        borderTopColor: colors.border.light,
+    },
+    secondaryAction: {
+        flex: 1,
+        minHeight: spacing[12],
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: spacing[1],
-        backgroundColor: colors.faded.surface,
-        borderRadius: radius[2],
-        borderWidth: 1,
-        borderColor: colors.border.default,
+        paddingHorizontal: spacing[2],
     },
-    repeatButtonText: {
+    secondaryActionDivider: {
+        borderLeftWidth: 1,
+        borderLeftColor: colors.border.light,
+    },
+    secondaryActionText: {
         fontSize: fontSize[14],
         fontWeight: fontWeight.semibold,
         color: colors.text.secondary,
     },
-    repeatButtonDisabled: {
-        opacity: 0.65,
+    secondaryActionDisabled: {
+        opacity: 0.5,
     },
-    workoutTitle: {
-        fontSize: fontSize[18],
-        fontWeight: fontWeight.bold,
-        color: colors.text.primary,
-        letterSpacing: -0.3,
-        flex: 1,
-    },
-    statsMeta: {
-        marginBottom: spacing[3],
-    },
-    statsMetaText: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.medium,
-        color: colors.text.secondary,
-        lineHeight: 18,
-    },
-    prText: {
-        fontWeight: fontWeight.bold,
-        color: colors.accent.primary,
-    },
-    exercisesList: {},
     exerciseGroup: {
         paddingVertical: spacing[0],
     },
@@ -132,6 +170,11 @@ const styles = createStyles(() => ({
         alignItems: 'center',
         gap: spacing[1],
     },
+    prIndicator: {
+        width: spacing[4],
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     setDetails: {
         width: '100%',
     },
@@ -139,13 +182,9 @@ const styles = createStyles(() => ({
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
         color: colors.text.secondary,
-        lineHeight: 16,
     },
     setDetailsSeparator: {
         color: colors.text.tertiary,
-    },
-    setDetailsPR: {
-        color: colors.accent.primary,
     },
     exerciseName: {
         flex: 1,
@@ -183,7 +222,6 @@ const styles = createStyles(() => ({
         fontSize: fontSize[14],
         color: colors.text.secondary,
         textAlign: 'center',
-        lineHeight: 20,
     },
 }));
 

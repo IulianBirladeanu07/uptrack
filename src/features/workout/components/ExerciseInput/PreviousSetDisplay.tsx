@@ -1,6 +1,7 @@
 import { Text, TouchableOpacity } from 'react-native';
 import { colors, spacing, fontSize, fontWeight } from '../../../../shared/theme';
 import { createStyles } from '../../../../shared/theme/createStyles';
+import { formatBestSet } from '../../utils/workoutMetrics';
 
 type PreviousSetData = {
   weight?: string | number | null;
@@ -26,7 +27,10 @@ const PreviousSetDisplay = ({ previousSetData, onPress, setIndex, isCompleted }:
     >
       {hasPreviousData ? (
         <Text style={[styles.previousText, isCompleted && styles.previousTextCompleted]}>
-          {previousSetData.weight || '0'}kg ×{previousSetData.reps || '0'}
+          {formatBestSet({
+            weight: previousSetData.weight ?? 0,
+            reps: previousSetData.reps ?? 0,
+          }) ?? '—'}
         </Text>
       ) : (
         <Text style={styles.emptyStateText}>—</Text>

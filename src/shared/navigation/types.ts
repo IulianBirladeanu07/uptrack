@@ -1,4 +1,10 @@
-import type { FoodFormData, OnboardingFormData, PlanType, WeightInWeek } from '../types';
+import type {
+  CompletedWorkoutExercise,
+  FoodFormData,
+  OnboardingFormData,
+  PlanType,
+  WeightInWeek,
+} from '../types';
 import type { WorkoutSplit } from '../../features/workout/types';
 
 export type RootStackParamList = {
@@ -22,7 +28,7 @@ export type AuthenticatedStackParamList = {
   WorkoutDetails: {
     duration?: string;
     notes?: string;
-    exercises?: unknown[];
+    exercises?: CompletedWorkoutExercise[];
     timestamp?: string;
     workoutName?: string | null;
   };

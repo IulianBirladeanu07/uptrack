@@ -52,6 +52,18 @@ export type DailySteps = Record<string, number>;
 
 export type Numeric = number | string;
 
+export type CompletedWorkoutSet = {
+  weight?: Numeric;
+  reps?: Numeric;
+  estimated1RM?: Numeric;
+  isPR?: boolean;
+};
+
+export type CompletedWorkoutExercise = {
+  exerciseName?: string;
+  sets: CompletedWorkoutSet[];
+};
+
 export type PlanType = 'weight_loss' | 'muscle_gain' | 'maintenance';
 
 export type Macros = {

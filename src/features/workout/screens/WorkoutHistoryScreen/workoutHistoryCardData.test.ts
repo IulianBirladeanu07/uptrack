@@ -1,4 +1,5 @@
 import { getWorkoutHistoryCardData } from './workoutHistoryCardData';
+import { formatWorkoutHistoryDate } from './workoutHistoryPresentation';
 
 describe('getWorkoutHistoryCardData', () => {
     it('projects card totals, labels, and per-set PR details', () => {
@@ -47,7 +48,7 @@ describe('getWorkoutHistoryCardData', () => {
             totalSets: 3,
             durationMinutes: 85,
             workoutTitle: 'Upper A',
-            dateLabel: 'Today',
+            dateLabel: formatWorkoutHistoryDate(timestamp),
             totalPRs: 1,
             hasPRs: true,
         });

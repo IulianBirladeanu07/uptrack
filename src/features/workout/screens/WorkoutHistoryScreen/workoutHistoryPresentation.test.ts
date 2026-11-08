@@ -6,12 +6,16 @@ import {
 const toTimestamp = (date: Date) => ({ seconds: date.getTime() / 1000 });
 
 describe('Workout history presentation', () => {
-    it('formats relative dates and short local dates', () => {
+    it('formats local dates without repeating the section year', () => {
         expect(formatWorkoutHistoryDate(undefined)).toBe('Recent');
+        expect(formatWorkoutHistoryDate(toTimestamp(new Date(2025, 5, 15, 12)), new Date(2025, 5, 20))).toBe('Sun, Jun 15');
+    });
+
+    it('uses Today and Yesterday for recent workout dates', () => {
         const now = new Date(2025, 5, 15, 12);
+
         expect(formatWorkoutHistoryDate(toTimestamp(now), now)).toBe('Today');
-        expect(formatWorkoutHistoryDate(toTimestamp(new Date(2025, 5, 14, 12)), now)).toBe('Yesterday');
-        expect(formatWorkoutHistoryDate(toTimestamp(new Date(2025, 5, 13, 12)), now)).toBe('Jun 13');
+        expect(formatWorkoutHistoryDate(toTimestamp(new Date(2025, 5, 14, 23)), now)).toBe('Yesterday');
     });
 
     it('labels workouts by local hour and prefers a non-default template name', () => {

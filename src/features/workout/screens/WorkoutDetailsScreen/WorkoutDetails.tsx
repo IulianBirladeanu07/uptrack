@@ -15,25 +15,33 @@ import { colors, spacing } from '../../../../shared/theme';
 import { findBestSet, formatBestSet } from '../../handlers/WorkoutHandler';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
 import { getWorkoutCardSummary } from './workoutCardSummary';
+import { formatWorkoutDate } from '../../utils/formatWorkoutDate';
+import { getWorkoutDetailsBackCount } from './workoutDetailsNavigation';
 
 const WorkoutDetails = () => {
     const navigation = useAppNavigation();
     const route = useAppRoute<'WorkoutDetails'>();
-    const { duration, exercises: rawExercises, workoutName } = route.params;
-    const exercises = (rawExercises ?? []) as any[];
+    const { duration, exercises: rawExercises, workoutName, timestamp } = route.params;
+    const exercises = rawExercises ?? [];
     const [selfieUri, setSelfieUri] = useState<string | null>(null);
     const [isSharing, setIsSharing] = useState(false);
     const insets = useSafeAreaInsets();
-    const workoutCardRef = useRef<any>(null);
+    const workoutCardRef = useRef<ViewShot>(null);
+
+    const handleClose = useCallback(() => {
+        const state = navigation.getState();
+        const previousRoute = state.routes[state.index - 1]?.name;
+        navigation.pop(getWorkoutDetailsBackCount(previousRoute));
+    }, [navigation]);
 
     useFocusEffect(
         useCallback(() => {
             const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-                navigation.pop(2);
+                handleClose();
                 return true;
             });
             return () => backHandler.remove();
-        }, [navigation])
+        }, [handleClose])
     );
 
     const translateX = useSharedValue(0);
@@ -42,12 +50,6 @@ const WorkoutDetails = () => {
     const savedTranslateX = useSharedValue(0);
     const savedTranslateY = useSharedValue(0);
     const savedScale = useSharedValue(1);
-
-    const formatDate = () => {
-        const now = new Date();
-        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-        return `${months[now.getMonth()]} ${now.getDate()}`;
-    };
 
     const totalMinutes = useMemo(() => {
         if (!duration) return 0;
@@ -137,7 +139,7 @@ const WorkoutDetails = () => {
             {!isSharing && (
                 <TouchableOpacity
                     style={[styles.closeBtn, { top: insets.top + spacing[3] }]}
-                    onPress={() => navigation.pop(2)}
+                    onPress={handleClose}
                 >
                     <Ionicons name="close" size={spacing.iconMd} color={colors.text.primary} />
                 </TouchableOpacity>
@@ -174,7 +176,7 @@ const WorkoutDetails = () => {
                                     <Text style={styles.brandText}>UPTRACK</Text>
                                 </View>
                                 <View style={styles.dayBadge}>
-                                    <Text style={styles.dayBadgeText}>{formatDate()}</Text>
+                                    <Text style={styles.dayBadgeText}>{formatWorkoutDate(timestamp || new Date())}</Text>
                                 </View>
                             </View>
 
@@ -207,7 +209,7 @@ const WorkoutDetails = () => {
                                 </View>
                                 {exercises.map((ex, i) => {
                                     const best = findBestSet(ex.sets);
-                                    const hasPR = ex.sets.some((s: any) => s.isPR);
+                                    const hasPR = ex.sets.some(set => set.isPR);
                                     return (
                                         <View
                                             key={i}
@@ -219,7 +221,7 @@ const WorkoutDetails = () => {
                                             <View style={styles.exerciseLeft}>
                                                 <Text style={styles.exerciseSets}>{ex.sets.length}x</Text>
                                                 <Text style={styles.exerciseName} numberOfLines={1}>
-                                                    {ex.exerciseName}
+                                                    {ex.exerciseName || 'Exercise'}
                                                 </Text>
                                             </View>
                                             <View style={styles.bestSetContainer}>

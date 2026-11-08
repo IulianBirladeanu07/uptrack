@@ -2,15 +2,25 @@ import type { WorkoutHistoryTimestamp } from './workoutHistorySections';
 
 export const formatWorkoutHistoryDate = (
     timestamp: WorkoutHistoryTimestamp,
-    now: Date = new Date(),
+    now = new Date(),
 ): string => {
-    if (timestamp?.seconds == null) return 'Recent';
+    if (timestamp?.seconds == null || !Number.isFinite(timestamp.seconds)) return 'Recent';
+
     const date = new Date(timestamp.seconds * 1000);
-    const yesterday = new Date(now);
+    if (Number.isNaN(date.getTime())) return 'Recent';
+
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    if (date.toDateString() === now.toDateString()) return 'Today';
-    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const workoutDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    if (workoutDay.getTime() === today.getTime()) return 'Today';
+    if (workoutDay.getTime() === yesterday.getTime()) return 'Yesterday';
+
+    return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+    });
 };
 
 export const getWorkoutHistoryLabel = (

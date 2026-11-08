@@ -51,6 +51,11 @@ module.exports = {
       bundleIdentifier: "com.iulianbirladeanu.uptrack",
       googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST,
     },
+    androidNavigationBar: {
+      backgroundColor: "#0A0E13",
+      barStyle: "light-content",
+      enforceContrast: false,
+    },
     android: {
       backgroundColor: "#0A0E13",
       jsEngine: "hermes",

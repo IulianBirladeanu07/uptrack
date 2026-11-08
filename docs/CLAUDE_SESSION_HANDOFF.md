@@ -12,20 +12,19 @@ Updated 2026-11-08. Start with this handoff, then read `AGENTS.md` before changi
 
 ## Current batch: Workout history screen UX
 
-- Added a consistent, left-aligned back/title header and moved the plain date label into the summary row.
-- Workout cards use a compact relative date in the stats line, followed by duration, exercise count, total sets, and PR count.
-- Metadata uses full duration/exercise labels and dot separators; the line wraps naturally with system font scaling.
-- Card title and stats spacing is 12dp on both sides of the stats line; the title/repeat row is centered without a fixed height, and long titles truncate before the repeat control.
-- Collapsed and expanded exercise rows share the same two-line layout and show every performed set, grouped by weight. The collapsed preview selects PR exercises first but displays the selected rows in performed order; expansion preserves the full performed order.
-- Exercise dividers appear in both collapsed and expanded states. A shared centered orange toggle is used by History and the workout template library; it reports hidden PR counts where applicable. The workout title header also toggles the list.
-- Repeat is a compact 32dp visual secondary button with a 44dp touch target, aligned to the card content edge; tapping it opens Start Workout and tapping the card body never starts a workout.
-- Canceling a repeated workout returns to the screen that launched it (including Workout History), rather than skipping back to the Workout screen.
-- The screen header no longer reserves a blank trailing slot; the refresh indicator appears only while refreshing, and metadata contrast/size is raised for easier scanning.
-- Exercise names are white, set counts and ordinary set results are muted, PR sets and record count are orange, and expanded rows retain subtle dividers. Only the exact set marked as a PR is highlighted.
-- The PR badge counts exercises with at least one PR-marked set, matching the highlighted exercise rows.
-- Existing PR flags compare the workout's best estimated 1RM with the previous workout's best for weighted exercises, and highest reps with the previous workout for bodyweight exercises. They do not measure volume or all-time records.
-- The relative date, duration, exercise/set counts, and PR count are in a wrapping, font-scalable dot-separated stats line without the three metric icons. PR exercises are identified by orange set values and the accessible “Personal record” row label, while the header PR count is theme-accented. Exercise names and set results are capped at one and two lines respectively.
-- Workout History tests, TypeScript, and `git diff --check` pass.
+- History cards match the Library/Home card shell and use plain right-aligned secondary date text beside the title, plus icon-and-value metadata; all text remains font-scalable. The sentence-case title truncates before the date.
+- Shared dates use local formatting; Workout History shows Today, Yesterday, or weekday/month/day without repeating the year in its month section. Workout Library, Exercise History, and Workout Details retain the full date. Date-only strings are interpreted in local time.
+- Month headers show the loaded workout count and stay sticky. The SectionList bottom padding includes the device safe-area inset and an additional 48dp clearance.
+- Exercise rows stay in performed order in both states and use the same two-line name/set layout; collapsing limits the number of rows without changing their shape. Each PR set value is orange, and the exercise row keeps its trophy. Different weight groups use a centered dot (for example `100kg × 8 · 90kg × 10`); repeated sets at the same weight remain comma-separated. The shared `formatBestSet` formatter is used in History, Workout Details, Exercise History, and Active Workout “Previous”.
+- History uses “Show N more” and “Show less”, with the collapsed label between hairlines and the expanded label centered without rules. The visual row has compact vertical spacing while `hitSlop` preserves touch access. The Library retains its own shared toggle style.
+- History rows omit thumbnails/muscle groups for density and because historical records may not include those fields. Set details remain capped at two lines.
+- The screen title is “Workout history”; month headings are smaller than card titles, and section counts say “workouts”.
+- PRs use a small trophy icon at the end of each exercise-name row, an accessible “Personal record” row label, and the header trophy count; set values stay neutral.
+- The History expand toggle has no divider; the card footer is a flat, edge-to-edge 48dp action bar below a top divider, with a hairline between View workout and Repeat.
+- “View workout” opens Workout Details; close and hardware-back return to History. Details opened after completing a workout still returns to the Workout screen. “Repeat” opens Start Workout with the recorded workout selected and is disabled while another workout is active; tapping the card body does not start a session.
+- Search/filtering was not added because it would require defining filter behavior across the paginated history data source. Home’s “more” action remains a preview modal rather than becoming an inline expand control.
+- Android navigation-bar contrast is disabled with a dark background and light icons through `androidNavigationBar` config; generated native files remain untouched.
+- Current Workout History tests cover collapsed/expanded row consistency, mixed weights, PR set highlighting, footer and bottom padding. TypeScript and `git diff --check` pass. Font-scale layout and Android system-bar rendering still need a device check.
 
 ## Current batch: Exercise history screen UX
 
