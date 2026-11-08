@@ -1,7 +1,7 @@
 import React from 'react';
-import { SectionList, StyleSheet } from 'react-native';
+import { SectionList, StyleSheet, type StyleProp, type TextStyle } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { colors } from '../../../../shared/theme';
+import { colors, fontSize, spacing } from '../../../../shared/theme';
 import { normalize } from '../../../../shared/hooks/useResponsive';
 import { WorkoutContext } from '../../context/WorkoutContext';
 import WorkoutHistoryScreen from './WorkoutHistory';
@@ -37,6 +37,13 @@ const flattenText = (node: unknown): string => {
     if (Array.isArray(node)) return node.map(flattenText).join('');
     if (React.isValidElement<{ children?: React.ReactNode }>(node)) return flattenText(node.props.children);
     return '';
+};
+
+const hasPRTextStyle = (node: unknown): boolean => {
+    if (Array.isArray(node)) return node.some(hasPRTextStyle);
+    if (!React.isValidElement<{ children?: React.ReactNode; style?: StyleProp<TextStyle> }>(node)) return false;
+    return StyleSheet.flatten(node.props.style)?.color === colors.accent.primary ||
+        hasPRTextStyle(node.props.children);
 };
 
 const workout = {
@@ -86,23 +93,33 @@ const renderScreenWithHistory = (workoutItems: typeof workout[], activeWorkout: 
 };
 
 describe('WorkoutHistoryScreen card', () => {
-    it('shows the first three exercises with full set details in performed order', () => {
+    it('shows every exercise with set count and best set by default', () => {
         renderScreen();
 
-        const rows = [0, 1, 2].map(index => screen.getByTestId(`exercise-row-${index}`));
-        expect(rows.map(row => row.props.accessibilityLabel.split(',')[0])).toEqual(['Squat', 'Deadlift', 'Leg Press']);
-        expect(screen.getByLabelText('Squat, 1 set, 100kg × 5')).toBeTruthy();
-        expect(screen.getByLabelText('Deadlift, 1 set, 120kg × 5')).toBeTruthy();
-        expect(screen.getByLabelText('Leg Press, 1 set, 200kg × 10')).toBeTruthy();
-        expect(screen.queryByText('3x')).toBeNull();
-        expect(screen.queryByText('1x')).toBeNull();
+        const rows = [0, 1, 2, 3, 4].map(index => screen.getByTestId(`exercise-group-${index}`));
+        expect(rows.map(row => row.props.accessibilityLabel.split(',')[1].trim())).toEqual([
+            'Squat',
+            'Deadlift',
+            'Leg Press',
+            'Calf Raise',
+            'Hip Abduction',
+        ]);
+        expect(screen.queryByTestId('exercise-table-header')).toBeNull();
+        expect(screen.getAllByText('1x')).toHaveLength(4);
+        expect(screen.getByText('3x')).toBeTruthy();
+        expect(screen.getByText('100kg × 5')).toBeTruthy();
+        expect(screen.getByText('200kg × 10')).toBeTruthy();
+        expect(screen.getByTestId('best-set-4').props.children).toBe('108kg × 12');
+        expect(screen.queryByTestId('exercise-set-details-0')).toBeNull();
+        expect(StyleSheet.flatten(screen.getByTestId('best-set-4').props.style).color).toBe(colors.accent.primary);
+        expect(StyleSheet.flatten(screen.getByTestId('exercise-row-0').props.children[0].props.style).color).toBe(colors.text.tertiary);
+        expect(screen.getByLabelText('3 sets, Hip Abduction, best 108kg × 12, Personal record, show set details')).toBeTruthy();
+        expect(screen.getByLabelText('3 sets, Hip Abduction, best 108kg × 12, Personal record, show set details').props.accessibilityHint).toBe('Shows every set for Hip Abduction');
         expect(StyleSheet.flatten(screen.getByTestId('exercise-group-0').props.style).borderBottomWidth).toBe(1);
         expect(screen.getAllByText('trophy')).toHaveLength(1);
         expect(screen.queryByText('PR')).toBeNull();
-        expect(StyleSheet.flatten(screen.getByTestId('pr-indicator-0').props.style).width).toBe(normalize(16));
-        expect(screen.queryByText('Calf Raise')).toBeNull();
-        expect(screen.queryByText('Hip Abduction')).toBeNull();
-        expect(screen.getByLabelText('Sets: 100kg × 5')).toBeTruthy();
+        expect(screen.getByLabelText('3 sets, Hip Abduction, best 108kg × 12, Personal record, show set details')).toBeTruthy();
+        expect(StyleSheet.flatten(screen.getByTestId('exercise-group-0').props.style).minHeight).toBeUndefined();
         expect(screen.getByText('60 min').props.allowFontScaling).toBe(true);
         expect(screen.getByText('Lower II').props.allowFontScaling).toBe(true);
         expect(screen.getByText('Workout history')).toBeTruthy();
@@ -116,8 +133,6 @@ describe('WorkoutHistoryScreen card', () => {
         expect(dateTextStyle.textAlign).toBe('right');
         expect(dateTextStyle.backgroundColor).toBeUndefined();
         expect(dateTextStyle.borderWidth).toBeUndefined();
-        expect(screen.queryByText('EXERCISE')).toBeNull();
-        expect(screen.queryByText('BEST')).toBeNull();
         const repeatButtonStyle = StyleSheet.flatten(screen.getByLabelText('Repeat Lower II').props.style);
         expect(repeatButtonStyle.width).toBeUndefined();
         expect(repeatButtonStyle.minHeight).toBe(normalize(48));
@@ -131,81 +146,108 @@ describe('WorkoutHistoryScreen card', () => {
         expect(StyleSheet.flatten(screen.getByTestId('workout-stats-meta').props.style).marginBottom).toBe(normalize(12));
         expect(StyleSheet.flatten(screen.getByTestId('workout-stats-meta').props.style).flexWrap).toBe('wrap');
         expect(StyleSheet.flatten(screen.getByTestId('workout-card').props.style).marginBottom).toBe(normalize(12));
-        expect(StyleSheet.flatten(screen.getByTestId('exercise-group-0').props.children.props.style).paddingVertical).toBe(normalize(4));
+        expect(StyleSheet.flatten(screen.getByTestId('exercise-row-0').props.style).paddingVertical).toBe(normalize(4));
+        expect(StyleSheet.flatten(screen.getByTestId('exercise-row-0').props.style).alignItems).toBe('center');
+        expect(StyleSheet.flatten(screen.getByTestId('exercise-row-0').props.children[0].props.style).paddingTop).toBeUndefined();
+        expect(StyleSheet.flatten(screen.getByTestId('best-set-0').props.style).paddingTop).toBeUndefined();
         const cardStyle = StyleSheet.flatten(screen.getByTestId('workout-card').props.style);
         expect(cardStyle.padding).toBe(0);
         expect(cardStyle.overflow).toBe('hidden');
         const cardContentStyle = StyleSheet.flatten(screen.getByTestId('workout-card-content').props.style);
         expect(cardContentStyle.paddingHorizontal).toBe(normalize(16));
         expect(cardContentStyle.paddingTop).toBe(normalize(16));
-        expect(screen.getByText('Show 2 more')).toBeTruthy();
+        expect(screen.queryByText('Show set details')).toBeNull();
         const cardActionsStyle = StyleSheet.flatten(screen.getByTestId('workout-card-actions').props.style);
         expect(cardActionsStyle.minHeight).toBe(normalize(48));
         expect(cardActionsStyle.paddingTop).toBeUndefined();
         expect(cardActionsStyle.gap).toBeUndefined();
         expect(cardActionsStyle.borderTopWidth).toBe(1);
-        const toggleTextStyle = StyleSheet.flatten(screen.getByText('Show 2 more').props.style);
-        expect(toggleTextStyle.color).toBe(colors.accent.primary);
-        expect(toggleTextStyle.fontSize).toBe(normalize(12));
-        const toggle = screen.getByLabelText('Show 2 more exercises');
-        const toggleStyle = StyleSheet.flatten(toggle.props.style);
-        expect(toggleStyle.justifyContent).toBe('center');
-        expect(toggleStyle.minHeight).toBe(normalize(24));
-        expect(toggle.props.hitSlop).toEqual({ top: 12, bottom: 12 });
-        expect(toggleStyle.borderBottomWidth).toBeUndefined();
-        expect(StyleSheet.flatten(screen.getByTestId('exercise-list-toggle-leading-line').props.style).flex).toBe(1);
-        expect(StyleSheet.flatten(screen.getByTestId('exercise-list-toggle-leading-line').props.style).height).toBe(1);
-        expect(StyleSheet.flatten(screen.getByTestId('exercise-list-toggle-trailing-line').props.style).flex).toBe(1);
-        expect(screen.queryByText('chevron-down')).toBeNull();
+        expect(cardActionsStyle.borderTopColor).toBe(colors.border.default);
+        expect(StyleSheet.flatten(screen.getByTestId('exercise-group-0').props.style).borderBottomColor).toBe(colors.border.default);
+        expect(StyleSheet.flatten(screen.getByLabelText('View Lower II details').props.style).flex).toBe(1);
+        expect(StyleSheet.flatten(screen.getByLabelText('Repeat Lower II').props.style).flex).toBe(1);
+        expect(StyleSheet.flatten(screen.getByLabelText('Repeat Lower II').props.style).minHeight).toBe(normalize(48));
+        expect(screen.getAllByText('chevron-down')).toHaveLength(5);
     });
 
-    it('reveals all exercises from a show-more action and can collapse the preview again', () => {
+    it('expands set details independently for each exercise row', () => {
         renderScreen();
 
-        fireEvent.press(screen.getByLabelText('Show 2 more exercises'));
+        fireEvent.press(screen.getByLabelText('3 sets, Hip Abduction, best 108kg × 12, Personal record, show set details'));
 
         expect(screen.getByText('Hip Abduction')).toBeTruthy();
-        expect(screen.queryByText('3x')).toBeNull();
+        expect(screen.getByText('Calf Raise')).toBeTruthy();
+        expect(screen.getByText('3x')).toBeTruthy();
         expect(StyleSheet.flatten(screen.getByTestId('exercise-group-0').props.style).borderBottomWidth).toBe(1);
-        expect(screen.getByLabelText('Hip Abduction, 3 sets, 108kg × 12, 10 · 105kg × 9, personal record set: 108kg × 12')).toBeTruthy();
-        expect(screen.getByLabelText('Sets: 108kg × 12, 10 · 105kg × 9, personal record set: 108kg × 12')).toBeTruthy();
-        expect(StyleSheet.flatten(screen.getByTestId('exercise-set-details-4').props.children.props.style).color).toBe(colors.text.secondary);
-        const rows = screen.getAllByLabelText(/, \d+ sets?,/);
-        expect(rows.map(row => row.props.accessibilityLabel.split(',')[0])).toEqual([
-            'Squat',
-            'Deadlift',
-            'Leg Press',
-            'Calf Raise',
-            'Hip Abduction',
-        ]);
+        expect(screen.getByLabelText('3 sets, Hip Abduction, best 108kg × 12, Personal record, all sets 108kg × 12, 10 · 105kg × 9, personal record set 108kg × 12, hide set details')).toBeTruthy();
+        expect(screen.queryByTestId('exercise-set-details-0')).toBeNull();
+        expect(screen.queryByTestId('exercise-set-details-3')).toBeNull();
+        const expandedSets = screen.getByTestId('exercise-set-details-4');
+        expect(expandedSets.props.horizontal).toBe(true);
+        expect(StyleSheet.flatten(expandedSets.props.style).flexGrow).toBeUndefined();
+        expect(StyleSheet.flatten(expandedSets.props.style).flexWrap).toBeUndefined();
+        expect(StyleSheet.flatten(expandedSets.props.style).flex).toBe(1);
+        const setsText = screen.getByLabelText('Sets: 108kg × 12, 10 · 105kg × 9');
+        expect(flattenText(setsText.props.children)).toBe('108kg × 12, 10 · 105kg × 9');
+        expect(screen.queryByTestId('best-set-4')).toBeNull();
+        expect(StyleSheet.flatten(screen.getByTestId('exercise-row-4').props.children[1].props.style).flex).toBe(1.1);
+        expect(hasPRTextStyle(setsText.props.children)).toBe(true);
+        expect(screen.getByText('chevron-up')).toBeTruthy();
         expect(screen.getByText('Hip Abduction').props.numberOfLines).toBe(1);
-        expect(screen.queryByText('1 set')).toBeNull();
-        expect(screen.queryByText('BEST')).toBeNull();
-        expect(screen.queryByText('EXERCISE')).toBeNull();
         expect(screen.queryByText(/^Set \d/)).toBeNull();
-        expect(screen.getByLabelText('Show fewer exercises')).toBeTruthy();
+        expect(screen.getByLabelText('1 set, Squat, best 100kg × 5, show set details')).toBeTruthy();
+        fireEvent.press(screen.getByLabelText('1 set, Squat, best 100kg × 5, show set details'));
+        expect(screen.getByTestId('exercise-set-details-0')).toBeTruthy();
+        expect(screen.getByTestId('exercise-set-details-4')).toBeTruthy();
+        fireEvent.press(screen.getByLabelText('1 set, Squat, best 100kg × 5, all sets 100kg × 5, hide set details'));
+        expect(screen.queryByTestId('exercise-set-details-0')).toBeNull();
+        expect(screen.getByTestId('exercise-set-details-4')).toBeTruthy();
         expect(screen.getByLabelText('Repeat Lower II')).toBeTruthy();
-        expect(StyleSheet.flatten(screen.getByText('Show less').props.style).color).toBe(colors.accent.primary);
-        const showLess = screen.getByLabelText('Show fewer exercises');
-        expect(StyleSheet.flatten(showLess.props.style).minHeight).toBe(normalize(24));
-        expect(showLess.props.hitSlop).toEqual({ top: 12, bottom: 12 });
         const expandedActionsStyle = StyleSheet.flatten(screen.getByTestId('workout-card-actions').props.style);
         expect(expandedActionsStyle.minHeight).toBe(normalize(48));
         expect(expandedActionsStyle.paddingTop).toBeUndefined();
         expect(expandedActionsStyle.borderTopWidth).toBe(1);
-        expect(screen.queryByTestId('exercise-list-toggle-leading-line')).toBeNull();
-        expect(screen.queryByTestId('exercise-list-toggle-trailing-line')).toBeNull();
         expect(screen.queryByText('Repeat workout')).toBeNull();
 
-        fireEvent.press(screen.getByLabelText('Show fewer exercises'));
+        fireEvent.press(screen.getByLabelText('3 sets, Hip Abduction, best 108kg × 12, Personal record, all sets 108kg × 12, 10 · 105kg × 9, personal record set 108kg × 12, hide set details'));
 
-        expect(screen.queryByText('Calf Raise')).toBeNull();
-        expect(screen.queryByText('Hip Abduction')).toBeNull();
+        expect(screen.getByText('Calf Raise')).toBeTruthy();
+        expect(screen.getByText('Hip Abduction')).toBeTruthy();
         expect(screen.getByText('Leg Press')).toBeTruthy();
-        expect(screen.getByLabelText('Show 2 more exercises')).toBeTruthy();
+        expect(screen.queryByTestId('exercise-set-details-4')).toBeNull();
+        expect(screen.queryByTestId('exercise-set-details-0')).toBeNull();
+        expect(screen.getByLabelText('3 sets, Hip Abduction, best 108kg × 12, Personal record, show set details')).toBeTruthy();
     });
 
-    it('keeps the collapsed toggle label focused on the exercise count', () => {
+    it('aligns expanded set details with the total-sets metadata label', () => {
+        renderScreen();
+        fireEvent(screen.getByLabelText('7 sets'), 'layout', {
+            nativeEvent: { layout: { x: 200, y: 0, width: 90, height: 20 } },
+        });
+        fireEvent(screen.getByText('7 sets'), 'layout', {
+            nativeEvent: { layout: { x: 18, y: 0, width: 42, height: 20 } },
+        });
+
+        fireEvent.press(screen.getByLabelText('3 sets, Hip Abduction, best 108kg × 12, Personal record, show set details'));
+
+        const row = screen.getByTestId('exercise-row-4');
+        const nameColumn = StyleSheet.flatten(row.props.children[1].props.style);
+        expect(nameColumn.width).toBe(200 + 18 - spacing[7] - spacing[2] * 2);
+
+        const weightValues = [
+            screen.getByTestId('exercise-set-weight-4-0'),
+            screen.getByTestId('exercise-set-weight-4-1'),
+        ];
+        expect(weightValues.map(value => StyleSheet.flatten(value.props.style).width)).toEqual([
+            3 * fontSize[12] * 0.62,
+            3 * fontSize[12] * 0.62,
+        ]);
+        expect(weightValues.every(value => StyleSheet.flatten(value.props.style).textAlign === 'right')).toBe(true);
+        expect(screen.getByTestId('exercise-set-unit-4-0')).toBeTruthy();
+        expect(screen.getByTestId('exercise-set-unit-4-1')).toBeTruthy();
+    });
+
+    it('shows all exercises before expanding set details', () => {
         const upperWorkout = {
             ...workout,
             workoutName: 'Upper II',
@@ -225,12 +267,11 @@ describe('WorkoutHistoryScreen card', () => {
 
         expect(screen.getByLabelText('9 exercises')).toBeTruthy();
         expect(screen.getByLabelText('4 personal records')).toBeTruthy();
-        expect(screen.getByText('Show 6 more')).toBeTruthy();
-        expect(screen.getByLabelText('Show 6 more exercises')).toBeTruthy();
-        expect(screen.queryByText(/Show 6 more.*PR/)).toBeNull();
+        expect(screen.getByText('Exercise 9')).toBeTruthy();
+        expect(screen.getByLabelText('1 set, Exercise 9, best 20kg × 8, show set details')).toBeTruthy();
     });
 
-    it('uses a trophy in collapsed rows and keeps two-line set details in both states', () => {
+    it('shows compact best-set rows while collapsed and all sets when expanded', () => {
         const longWorkout = {
             ...workout,
             workoutName: 'A Very Long Workout Name That Must Truncate Before the Repeat Control',
@@ -255,22 +296,23 @@ describe('WorkoutHistoryScreen card', () => {
         const name = screen.getByText('Very Long Exercise Name That Must Truncate Before Its PR Icon');
         expect(name.props.numberOfLines).toBe(1);
         expect(name.props.ellipsizeMode).toBe('tail');
-        expect(screen.getAllByText('trophy')).toHaveLength(2);
+        expect(screen.getAllByText('trophy')).toHaveLength(1);
         expect(screen.queryByText('PR')).toBeNull();
-        expect(screen.getByLabelText(/Very Long Exercise Name.*5 sets.*personal record set: 240kg × 12/)).toBeTruthy();
-        const collapsedSetDetails = screen.getByTestId('exercise-set-details-0').props.children;
-        expect(collapsedSetDetails.props.numberOfLines).toBe(2);
-        expect(collapsedSetDetails.props.ellipsizeMode).toBe('tail');
-        expect(flattenText(collapsedSetDetails)).toBe('240kg × 12 · 230kg × 12 · 220kg × 10 · 210kg × 9 · 200kg × 8');
-        fireEvent.press(screen.getByLabelText('Show 1 more exercise'));
-        const setDetails = screen.getByTestId('exercise-set-details-0').props.children;
-        expect(setDetails.props.numberOfLines).toBe(2);
-        expect(setDetails.props.ellipsizeMode).toBe('tail');
-        expect(flattenText(setDetails)).toBe(flattenText(collapsedSetDetails));
+        expect(screen.getByLabelText('5 sets, Very Long Exercise Name That Must Truncate Before Its PR Icon, best 240kg × 12, Personal record, show set details')).toBeTruthy();
+        expect(screen.queryByTestId('exercise-set-details-0')).toBeNull();
+        fireEvent.press(screen.getByLabelText('5 sets, Very Long Exercise Name That Must Truncate Before Its PR Icon, best 240kg × 12, Personal record, show set details'));
+        const setScroller = screen.getByTestId('exercise-set-details-0');
+        expect(setScroller.props.horizontal).toBe(true);
+        const setText = screen.getByLabelText('Sets: 240kg × 12 · 230kg × 12 · 220kg × 10 · 210kg × 9 · 200kg × 8');
+        expect(flattenText(setText.props.children)).toBe(
+            '240kg × 12 · 230kg × 12 · 220kg × 10 · 210kg × 9 · 200kg × 8',
+        );
+        expect(hasPRTextStyle(setText.props.children)).toBe(true);
+        expect(screen.queryByTestId('best-set-0')).toBeNull();
         expect(screen.getByLabelText(`Repeat ${longWorkout.workoutName}`)).toBeTruthy();
     });
 
-    it('highlights the marked PR set in the collapsed row when it is not the strongest set', () => {
+    it('does not imply a non-best PR set is the best set', () => {
         renderScreenWithWorkout({
             ...workout,
             exercises: [
@@ -281,11 +323,17 @@ describe('WorkoutHistoryScreen card', () => {
             ],
         });
 
-        expect(screen.getByLabelText('Squat, 2 sets, 80kg × 10 · 100kg × 5, personal record set: 80kg × 10')).toBeTruthy();
-        expect(StyleSheet.flatten(screen.getByTestId('exercise-set-details-0').props.children.props.style).color).toBe(colors.text.secondary);
+        expect(screen.getByLabelText('2 sets, Squat, best 100kg × 5, show set details')).toBeTruthy();
+        expect(StyleSheet.flatten(screen.getByTestId('best-set-0').props.style).color).toBe(colors.text.secondary);
+        expect(screen.queryByTestId('exercise-set-details-0')).toBeNull();
+        fireEvent.press(screen.getByLabelText('2 sets, Squat, best 100kg × 5, show set details'));
+        expect(screen.getByLabelText('2 sets, Squat, best 100kg × 5, all sets 80kg × 10 · 100kg × 5, personal record set 80kg × 10, hide set details')).toBeTruthy();
+        const setsText = flattenText(screen.getByLabelText('Sets: 80kg × 10 · 100kg × 5').props.children);
+        expect(setsText).toBe('80kg × 10 · 100kg × 5');
+        expect(setsText).toContain('100kg × 5');
     });
 
-    it('separates mixed weights and highlights the PR value', () => {
+    it('separates mixed weights in the best-set list and details', () => {
         renderScreenWithWorkout({
             ...workout,
             exercises: [
@@ -297,13 +345,16 @@ describe('WorkoutHistoryScreen card', () => {
             ],
         });
 
+        expect(screen.getByTestId('best-set-0').props.children).toBe('100kg × 8');
+        expect(screen.queryByTestId('exercise-set-details-0')).toBeNull();
+        fireEvent.press(screen.getByLabelText('3 sets, Drop Set, best 100kg × 8, show set details'));
         const details = screen.getByTestId('exercise-set-details-0');
-        expect(flattenText(details.props.children)).toBe('100kg × 8 · 90kg × 10, 8');
-        expect(screen.getByLabelText('Sets: 100kg × 8 · 90kg × 10, 8, personal record set: 90kg × 10')).toBeTruthy();
-        expect(StyleSheet.flatten(details.props.children.props.style).color).toBe(colors.text.secondary);
+        expect(flattenText(screen.getByLabelText('Sets: 100kg × 8 · 90kg × 10, 8').props.children)).toBe('100kg × 8 · 90kg × 10, 8');
+        expect(screen.getByLabelText('3 sets, Drop Set, best 100kg × 8, all sets 100kg × 8 · 90kg × 10, 8, personal record set 90kg × 10, hide set details')).toBeTruthy();
+        expect(hasPRTextStyle(screen.getByLabelText('Sets: 100kg × 8 · 90kg × 10, 8').props.children)).toBe(true);
     });
 
-    it('shows a single exercise without PR or expansion controls', () => {
+    it('shows a single exercise with a per-row set-details control', () => {
         renderScreenWithWorkout({
             ...workout,
             exercises: [exercise('Bench Press', [{ weight: 60, reps: 8 }])],
@@ -312,7 +363,8 @@ describe('WorkoutHistoryScreen card', () => {
         expect(screen.getByText('Bench Press')).toBeTruthy();
         expect(screen.getByLabelText('1 exercise')).toBeTruthy();
         expect(screen.queryByText('PR')).toBeNull();
-        expect(screen.queryByLabelText(/Show \d+ more exercises/)).toBeNull();
+        expect(screen.getByLabelText('1 set, Bench Press, best 60kg × 8, show set details')).toBeTruthy();
+        expect(screen.queryByTestId('exercise-set-details-0')).toBeNull();
         expect(screen.queryByLabelText(/personal records/)).toBeNull();
     });
 

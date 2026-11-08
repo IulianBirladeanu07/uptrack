@@ -1,9 +1,8 @@
 import { useCallback, useContext, useMemo, useState } from 'react';
-import { View, Text, SectionList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, SectionList, TouchableOpacity, ActivityIndicator, ScrollView, LayoutAnimation } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { WorkoutContext } from '../../context/WorkoutContext';
-import ExerciseListToggle from '../../components/ExerciseListToggle';
 import { colors, fontSize, spacing } from '../../../../shared/theme';
 import { formatWorkoutDate } from '../../utils/formatWorkoutDate';
 import styles from './WorkoutHistoryStyles';
@@ -13,7 +12,7 @@ import {
     toHistorySelectedWorkout,
     type WorkoutHistoryForSelection,
 } from './workoutHistorySelection';
-import { getWorkoutHistoryCardData, PREVIEW_EXERCISE_COUNT, type WorkoutHistoryCardItem } from './workoutHistoryCardData';
+import { getWorkoutHistoryCardData, type WorkoutHistoryCardItem } from './workoutHistoryCardData';
 
 type HistoryWorkout = WorkoutHistoryCardItem & WorkoutHistoryForSelection & { id?: string };
 
@@ -38,15 +37,35 @@ const WorkoutCard = ({
     onView: (item: HistoryWorkout) => void;
 }) => {
     const cardData = getWorkoutHistoryCardData(item);
-    const [expanded, setExpanded] = useState(false);
-    const canExpand = cardData.exercises.length > PREVIEW_EXERCISE_COUNT;
-    const remainingExercises = cardData.exercises.slice(PREVIEW_EXERCISE_COUNT);
-    const visibleExercises = expanded
-        ? cardData.exercises
-        : cardData.exercises.slice(0, PREVIEW_EXERCISE_COUNT);
-    const showMoreLabel = `Show ${remainingExercises.length} more`;
-    const showMoreAccessibilityLabel = `Show ${remainingExercises.length} more ${remainingExercises.length === 1 ? 'exercise' : 'exercises'}`;
-    const toggle = () => setExpanded(value => !value);
+    const [expandedExercises, setExpandedExercises] = useState<Set<number>>(() => new Set());
+    const [totalSetsMetaX, setTotalSetsMetaX] = useState<number>();
+    const [totalSetsLabelX, setTotalSetsLabelX] = useState<number>();
+    const totalSetsColumnX = totalSetsMetaX === undefined || totalSetsLabelX === undefined
+        ? undefined
+        : totalSetsMetaX + totalSetsLabelX;
+    const expandedNameWidth = totalSetsColumnX === undefined
+        ? undefined
+        : Math.max(0, totalSetsColumnX - spacing[7] - spacing[2] * 2);
+    const weightValueWidth = Math.max(
+        0,
+        ...cardData.exercises.flatMap(exercise => exercise.setGroups
+            .filter(group => group.weight.endsWith('kg'))
+            .map(group => group.weight.slice(0, -2).length * fontSize[12] * 0.62)),
+    );
+    const toggleExercise = (index: number) => {
+        LayoutAnimation.configureNext({
+            duration: 220,
+            update: { type: LayoutAnimation.Types.easeInEaseOut, duration: 220 },
+            create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity, duration: 160 },
+            delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity, duration: 120 },
+        });
+        setExpandedExercises(current => {
+            const next = new Set(current);
+            if (next.has(index)) next.delete(index);
+            else next.add(index);
+            return next;
+        });
+    };
 
     return (
         <View style={styles.workoutCard} testID="workout-card">
@@ -79,9 +98,18 @@ const WorkoutCard = ({
                             {cardData.exercises.length} {cardData.exercises.length === 1 ? 'exercise' : 'exercises'}
                         </Text>
                     </View>
-                    <View style={styles.metaItem} accessible accessibilityLabel={`${cardData.totalSets} sets`}>
+                    <View
+                        style={styles.metaItem}
+                        accessible
+                        accessibilityLabel={`${cardData.totalSets} sets`}
+                        onLayout={event => setTotalSetsMetaX(event.nativeEvent.layout.x)}
+                    >
                         <Ionicons name="layers-outline" size={fontSize[14]} color={colors.text.secondary} />
-                        <Text style={styles.statsMetaText} allowFontScaling>
+                        <Text
+                            style={styles.statsMetaText}
+                            allowFontScaling
+                            onLayout={event => setTotalSetsLabelX(event.nativeEvent.layout.x)}
+                        >
                             {cardData.totalSets} {cardData.totalSets === 1 ? 'set' : 'sets'}
                         </Text>
                     </View>
@@ -95,80 +123,106 @@ const WorkoutCard = ({
                 </View>
 
                 <View style={styles.exercisesList}>
-                {visibleExercises.map((exercise, i) => (
-                    <View
+                {cardData.exercises.map((exercise, i) => (
+                    <TouchableOpacity
                         key={`${exercise.exerciseName}-${i}`}
                         testID={`exercise-group-${i}`}
                         style={[
                             styles.exerciseGroup,
-                            i < visibleExercises.length - 1 && styles.exerciseGroupDivider,
+                            i < cardData.exercises.length - 1 && styles.exerciseGroupDivider,
                         ]}
+                        onPress={() => toggleExercise(i)}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: expandedExercises.has(i) }}
+                        accessibilityHint={expandedExercises.has(i)
+                            ? 'Hides the set details'
+                            : `Shows every set for ${exercise.exerciseName}`}
+                        accessibilityLabel={`${exercise.setCount} ${exercise.setCount === 1 ? 'set' : 'sets'}, ${exercise.exerciseName}, best ${exercise.bestSet}${exercise.bestSetIsPR ? ', Personal record' : ''}${expandedExercises.has(i)
+                            ? `, all sets ${getExerciseSetLabel(exercise)}${exercise.hasPR ? `, personal record set ${getPRSetLabel(exercise)}` : ''}, hide set details`
+                            : ', show set details'}`}
                     >
                         <View
                             style={styles.exerciseRow}
                             testID={`exercise-row-${i}`}
-                            accessible
-                            accessibilityLabel={`${exercise.exerciseName}, ${exercise.setCount} ${exercise.setCount === 1 ? 'set' : 'sets'}, ${getExerciseSetLabel(exercise)}${exercise.hasPR ? `, personal record set: ${getPRSetLabel(exercise)}` : ''}`}
                         >
-                            <View style={styles.exerciseContent}>
+                            <Text style={styles.exerciseSetCount} allowFontScaling>{exercise.setCount}x</Text>
+                            <View style={[
+                                styles.exerciseContent,
+                                expandedExercises.has(i) && (expandedNameWidth === undefined
+                                    ? styles.exerciseContentExpanded
+                                    : { flex: 0, width: expandedNameWidth }),
+                            ]}>
                                 <View style={styles.exerciseNameRow} testID={`exercise-name-row-${i}`}>
                                     <Text style={styles.exerciseName} numberOfLines={1} ellipsizeMode="tail" allowFontScaling>
                                         {exercise.exerciseName}
                                     </Text>
-                                    <View style={styles.prIndicator} testID={`pr-indicator-${i}`}>
-                                        {exercise.hasPR && (
-                                            <Ionicons
-                                                name="trophy"
-                                                size={fontSize[12]}
-                                                color={colors.accent.primary}
-                                                accessibilityLabel="Personal record"
-                                            />
-                                        )}
-                                    </View>
                                 </View>
-                                <View
+                            </View>
+                            {expandedExercises.has(i) ? (
+                                <ScrollView
+                                    horizontal
+                                    nestedScrollEnabled
+                                    showsHorizontalScrollIndicator={false}
                                     style={styles.setDetails}
                                     testID={`exercise-set-details-${i}`}
-                                    accessible
-                                    accessibilityLabel={`Sets: ${getExerciseSetLabel(exercise)}${exercise.hasPR ? `, personal record set: ${getPRSetLabel(exercise)}` : ''}`}
                                 >
-                                    <Text style={styles.setDetailsText} numberOfLines={2} ellipsizeMode="tail" allowFontScaling>
-                                        {exercise.setGroups.map((group, g) => {
-                                            const hasRepUnit = !group.weight && group.reps.every(set => set.label.endsWith(' reps'));
-                                            return (
-                                                <Text key={g}>
-                                                    {g > 0 && <Text style={styles.setDetailsSeparator}> · </Text>}
-                                                    {group.weight && <Text>{`${group.weight} × `}</Text>}
+                                    <View
+                                        style={styles.setDetailsContent}
+                                        accessible
+                                        accessibilityLabel={`Sets: ${getExerciseSetLabel(exercise)}`}
+                                    >
+                                        {exercise.setGroups.map((group, groupIndex) => (
+                                            <View key={groupIndex} style={styles.setDetailsGroup}>
+                                                {groupIndex > 0 && <Text style={styles.setDetailsSeparator}> · </Text>}
+                                                {group.weight.endsWith('kg') ? (
+                                                    <View style={styles.setWeight}>
+                                                        <Text
+                                                            style={[styles.setWeightValue, { width: weightValueWidth }]}
+                                                            numberOfLines={1}
+                                                            allowFontScaling
+                                                            testID={`exercise-set-weight-${i}-${groupIndex}`}
+                                                        >
+                                                            {group.weight.slice(0, -2)}
+                                                        </Text>
+                                                        <Text style={styles.setDetailsText} testID={`exercise-set-unit-${i}-${groupIndex}`}>kg</Text>
+                                                    </View>
+                                                ) : null}
+                                                {group.weight ? <Text style={styles.setDetailsText}> × </Text> : null}
+                                                <Text style={styles.setDetailsText} numberOfLines={1} allowFontScaling>
                                                     {group.reps.map((set, setIndex) => (
                                                         <Text key={setIndex}>
                                                             {setIndex > 0 && ', '}
-                                                            <Text>
-                                                                {hasRepUnit ? set.label.slice(0, -5) : set.label}
+                                                            <Text style={set.isPR ? styles.setDetailsPR : undefined}>
+                                                                {set.label}
                                                             </Text>
                                                         </Text>
                                                     ))}
-                                                    {hasRepUnit && <Text> reps</Text>}
                                                 </Text>
-                                            );
-                                        })}
-                                    </Text>
-                                </View>
-                            </View>
+                                            </View>
+                                        ))}
+                                    </View>
+                                </ScrollView>
+                            ) : (
+                                <Text
+                                    style={[styles.bestSetText, exercise.bestSetIsPR && styles.bestSetPR]}
+                                    testID={`best-set-${i}`}
+                                    numberOfLines={1}
+                                    allowFontScaling
+                                >
+                                    {exercise.bestSet}
+                                </Text>
+                            )}
+                            <Ionicons
+                                name={expandedExercises.has(i) ? 'chevron-up' : 'chevron-down'}
+                                size={fontSize[14]}
+                                color={colors.text.tertiary}
+                            />
                         </View>
-                    </View>
+                    </TouchableOpacity>
                 ))}
                 </View>
 
-                {canExpand && (
-                    <ExerciseListToggle
-                        expanded={expanded}
-                        collapsedLabel={showMoreLabel}
-                        collapsedAccessibilityLabel={showMoreAccessibilityLabel}
-                        layout="inline"
-                        showDivider={false}
-                        onPress={toggle}
-                    />
-                )}
             </View>
             <View style={styles.cardActions} testID="workout-card-actions">
                 <TouchableOpacity

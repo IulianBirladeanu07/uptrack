@@ -209,7 +209,11 @@ const WorkoutDetails = () => {
                                 </View>
                                 {exercises.map((ex, i) => {
                                     const best = findBestSet(ex.sets);
-                                    const hasPR = ex.sets.some(set => set.isPR);
+                                    const bestSetIsPR = ex.sets.some(set =>
+                                        !!set.isPR &&
+                                        Number(set.weight ?? 0) === best.weight &&
+                                        Number(set.reps ?? 0) === best.reps,
+                                    );
                                     return (
                                         <View
                                             key={i}
@@ -217,6 +221,8 @@ const WorkoutDetails = () => {
                                                 styles.exerciseRow,
                                                 i === exercises.length - 1 && styles.exerciseRowLast,
                                             ]}
+                                            accessible
+                                            accessibilityLabel={`${ex.sets.length} ${ex.sets.length === 1 ? 'set' : 'sets'}, ${ex.exerciseName || 'Exercise'}, best set ${formatBestSet(best) || '-'}${bestSetIsPR ? ', Personal record' : ''}`}
                                         >
                                             <View style={styles.exerciseLeft}>
                                                 <Text style={styles.exerciseSets}>{ex.sets.length}x</Text>
@@ -225,7 +231,7 @@ const WorkoutDetails = () => {
                                                 </Text>
                                             </View>
                                             <View style={styles.bestSetContainer}>
-                                                <Text style={[styles.bestSetValue, hasPR && styles.bestSetValuePR]}>
+                                                <Text style={[styles.bestSetValue, bestSetIsPR && styles.bestSetValuePR]}>
                                                     {formatBestSet(best) || '-'}
                                                 </Text>
                                             </View>

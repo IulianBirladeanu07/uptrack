@@ -1,5 +1,5 @@
 import { durationToMinutes } from '../../utils/durationUtils';
-import { formatBestSet } from '../../utils/workoutMetrics';
+import { findBestSet, formatBestSet } from '../../utils/workoutMetrics';
 import {
     formatWorkoutHistoryDate,
     getWorkoutHistoryLabel,
@@ -26,7 +26,6 @@ export type WorkoutHistoryCardItem = {
 };
 
 const MISSING_LABEL = '-';
-export const PREVIEW_EXERCISE_COUNT = 3;
 
 const splitLabel = (label: string) => {
     const i = label.indexOf(' × ');
@@ -64,15 +63,24 @@ const groupSets = (sets: SetParts[]) => {
 export const getWorkoutHistoryCardData = (item: WorkoutHistoryCardItem) => {
     const exercises = item.exercises || [];
     const dateLabel = formatWorkoutHistoryDate(item.timestamp);
-    const historyExercises = exercises.map(exercise => ({
-        exerciseName: exercise.exerciseName,
-        setCount: exercise.sets.length,
-        setGroups: groupSets(exercise.sets.map(set => ({
-            ...splitLabel(formatBestSet(set) || MISSING_LABEL),
-            isPR: !!set.isPR,
-        }))),
-        hasPR: exercise.sets.some(set => set.isPR),
-    }));
+    const historyExercises = exercises.map(exercise => {
+        const bestSet = findBestSet(exercise.sets);
+        return {
+            exerciseName: exercise.exerciseName,
+            setCount: exercise.sets.length,
+            bestSet: formatBestSet(bestSet) || MISSING_LABEL,
+            bestSetIsPR: exercise.sets.some(set =>
+                !!set.isPR &&
+                Number(set.weight ?? 0) === bestSet.weight &&
+                Number(set.reps ?? 0) === bestSet.reps,
+            ),
+            setGroups: groupSets(exercise.sets.map(set => ({
+                ...splitLabel(formatBestSet(set) || MISSING_LABEL),
+                isPR: !!set.isPR,
+            }))),
+            hasPR: exercise.sets.some(set => set.isPR),
+        };
+    });
     const totalPRs = historyExercises.filter(exercise => exercise.hasPR).length;
     return {
         exercises: historyExercises,

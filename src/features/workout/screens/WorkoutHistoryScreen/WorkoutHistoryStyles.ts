@@ -124,7 +124,7 @@ const styles = createStyles(() => ({
         flexDirection: 'row',
         minHeight: spacing[12],
         borderTopWidth: 1,
-        borderTopColor: colors.border.light,
+        borderTopColor: colors.border.default,
     },
     secondaryAction: {
         flex: 1,
@@ -137,7 +137,7 @@ const styles = createStyles(() => ({
     },
     secondaryActionDivider: {
         borderLeftWidth: 1,
-        borderLeftColor: colors.border.light,
+        borderLeftColor: colors.border.default,
     },
     secondaryActionText: {
         fontSize: fontSize[14],
@@ -152,39 +152,76 @@ const styles = createStyles(() => ({
     },
     exerciseGroupDivider: {
         borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
+        borderBottomColor: colors.border.default,
     },
     exerciseRow: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: spacing[0],
+        alignItems: 'center',
+        gap: spacing[2],
         paddingVertical: spacing[1],
+    },
+    exerciseSetCount: {
+        width: spacing[7],
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.tertiary,
     },
     exerciseContent: {
         flex: 1,
         minWidth: 0,
         gap: spacing[0],
     },
+    exerciseContentExpanded: {
+        flex: 1.1,
+    },
     exerciseNameRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing[1],
     },
-    prIndicator: {
-        width: spacing[4],
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     setDetails: {
-        width: '100%',
+        flex: 1,
+        minWidth: 0,
+        flexShrink: 1,
+    },
+    setDetailsContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    setDetailsGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    setWeight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    setWeightValue: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.secondary,
+        textAlign: 'right',
     },
     setDetailsText: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
         color: colors.text.secondary,
     },
+    setDetailsPR: {
+        color: colors.accent.primary,
+    },
     setDetailsSeparator: {
         color: colors.text.tertiary,
+    },
+    bestSetText: {
+        maxWidth: '40%',
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.secondary,
+        textAlign: 'right',
+    },
+    bestSetPR: {
+        color: colors.accent.primary,
     },
     exerciseName: {
         flex: 1,

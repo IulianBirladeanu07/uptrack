@@ -28,6 +28,8 @@ describe('getWorkoutHistoryCardData', () => {
                 {
                     exerciseName: 'Bench Press',
                     setCount: 2,
+                    bestSet: '60kg × 8',
+                    bestSetIsPR: true,
                     setGroups: [
                         { weight: '60kg', reps: [{ label: '8', isPR: true }], label: '60kg × 8' },
                         { weight: '50kg', reps: [{ label: '12', isPR: false }], label: '50kg × 12' },
@@ -37,6 +39,8 @@ describe('getWorkoutHistoryCardData', () => {
                 {
                     exerciseName: 'Push-up',
                     setCount: 1,
+                    bestSet: '15 reps',
+                    bestSetIsPR: false,
                     setGroups: [{
                         weight: '',
                         reps: [{ label: '15 reps', isPR: false }],

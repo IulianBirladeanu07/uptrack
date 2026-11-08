@@ -160,7 +160,7 @@ export const styles = createStyles(() => ({
     exerciseSets: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.bold,
-        color: colors.accent.primary,
+        color: colors.text.tertiary,
         marginRight: spacing[3],
     },
     exerciseName: {
