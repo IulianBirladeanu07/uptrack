@@ -148,13 +148,28 @@ New per-user data needs the uid in its key, or an entry in the sign-out `multiRe
 
 ## Conventions
 
-- Match the surrounding code. No comments unless they state a constraint the code cannot show. No emojis anywhere, including strings.
+- Match the surrounding code. Do not add code comments or emojis in code, strings, or user-facing text.
 - Short names where idiomatic (`i`, `e`, `el`). No drive-by refactors or style churn.
 - Confirm a bug by reading the code, and by running something when possible, before editing it.
+- Make surgical edits; change only what was asked. If an adjacent issue is found, mention it without fixing it unless it blocks the requested change.
+- Edit workspace files directly. Provide a `git am`-format patch only when the user explicitly asks for a patch instead of in-place edits.
+- When providing code in chat rather than editing the workspace, provide the full file instead of fragments.
+- In user-facing responses, state the answer or change directly; avoid unnecessary preambles, pleasantries, and hedging.
+- Be candid about design and UX; recommend against an approach when it is a poor fit.
+- When asked whether an existing solution needs improvement, assess whether there is a concrete benefit; recommend leaving it alone when it works and no meaningful issue is present.
+- Provide complete, working code without placeholders or truncation.
+- In reviews, report only actual correctness, performance, security, or maintainability issues. Do not invent issues or suggest refactors without a concrete benefit.
 - One logical change per commit. The message says what was broken for the user and why the fix is safe.
 - If a change turns on code that has never run in production, such as a button that had no handler, say so in the commit message.
 - Behavior changes that need a product call go to the owner as a question, not into a commit.
 - Do not push, force-push or open pull requests unless the owner asks. Never print secrets.
+
+UI and design:
+- Reuse existing components and patterns before creating new ones.
+- Use theme tokens for colors, spacing and typography; do not introduce colors outside the theme.
+- Keep cards and dashboards focused. Each card should support a user decision; remove redundant stats and filler copy.
+- Progress surfaces should emphasize long-term trends; weekly views already exist in the Weight, Nutrition and Workout dashboards.
+- Preserve the established component and style-file organization rather than imposing a new styling pattern.
 
 TypeScript:
 - Convert files with `git mv` so `git log --follow` keeps their history.
@@ -181,6 +196,13 @@ Dates:
 - `workoutService` (`WorkoutService.ts`) is a singleton. Its in-memory workout survives sign-out.
 - Firestore rules in `firebase/firestore.rules` deny reading a document that does not exist wherever the read rule uses `resource.data` (`workoutHistory`, `measurements`, `workoutTemplates`, `workoutSplits`, `customExercises`). Never `getDoc` or `transaction.get` an id that may be missing in those collections; check existence with a uid-filtered query instead. `users`, `meals` and `exercises` allow it. Jest mocks cannot show this; run `npm run test:rules` when changing rules or Firestore access.
 - Native configuration goes through `app.config.js` or `plugins/`, never through edits to generated `android/` or `ios/` folders.
+
+## Environment
+
+- Use syntax compatible with the active terminal. In this Windows workspace, PowerShell is the default; do not assume Git Bash.
+- Android builds can run locally. Do not suggest cloud-only fixes without saying so.
+- Tests and CI are the source of truth for TypeScript and release work. Do not claim a check passed unless it was run.
+- Pushes to `master` are made by the developer. Do not propose force pushes or history rewrites.
 
 ## Open work
 

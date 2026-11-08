@@ -185,7 +185,7 @@ describe('useWorkoutSessionActions', () => {
         });
     });
 
-    it('clears the session and returns directly to an existing Workout screen when confirmed', async () => {
+    it('clears the session and returns to the previous screen when confirmed', async () => {
         const options = makeOptions();
         const { result } = renderHook(() => useWorkoutSessionActions(options));
 
@@ -213,8 +213,25 @@ describe('useWorkoutSessionActions', () => {
         expect(options.navigation.replace).not.toHaveBeenCalled();
     });
 
-    it('replaces the session screen with Workout when there is no Workout route underneath', async () => {
-        const options = makeOptions(['Dashboard', 'StartWorkout']);
+    it('returns to Workout History when the session was launched from history', async () => {
+        const options = makeOptions(['Dashboard', 'Workout', 'WorkoutHistory', 'StartWorkout']);
+        const { result } = renderHook(() => useWorkoutSessionActions(options));
+
+        act(() => result.current.handleExit());
+        const alertActions = (Alert.alert as jest.Mock).mock.calls[0]?.[2] as Array<{
+            text: string;
+            onPress?: () => void | Promise<void>;
+        }>;
+        await act(async () => {
+            await alertActions.find(action => action.text === 'YES')?.onPress?.();
+        });
+
+        expect(options.navigation.pop).toHaveBeenCalledWith(1);
+        expect(options.navigation.replace).not.toHaveBeenCalled();
+    });
+
+    it('replaces the session screen with Workout when it is the only route', async () => {
+        const options = makeOptions(['StartWorkout']);
         const { result } = renderHook(() => useWorkoutSessionActions(options));
 
         act(() => result.current.handleExit());

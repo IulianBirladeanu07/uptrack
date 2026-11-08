@@ -1,3 +1,17 @@
+export const getFoodSelectionDisplayedCalories = (
+  currentCalories: number,
+  selectedFoodsCalories: number,
+  caloriesAtSubmission?: number,
+): number => {
+  if (caloriesAtSubmission !== undefined && Number.isFinite(caloriesAtSubmission)) {
+    return Math.max(caloriesAtSubmission, 0);
+  }
+
+  const consumedCalories = Number.isFinite(currentCalories) ? Math.max(currentCalories, 0) : 0;
+  const selectedCalories = Number.isFinite(selectedFoodsCalories) ? Math.max(selectedFoodsCalories, 0) : 0;
+  return consumedCalories + selectedCalories;
+};
+
 export const getFoodSelectionCalorieProgress = (currentCalories: number, targetCalories?: number) => {
   if (!targetCalories || !Number.isFinite(targetCalories) || targetCalories <= 0) {
     return { fillRatio: 0, status: null as string | null };

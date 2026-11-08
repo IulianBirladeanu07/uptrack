@@ -1,4 +1,21 @@
-import { getFoodSelectionCalorieProgress } from './foodSelectionCalorieProgress';
+import {
+  getFoodSelectionCalorieProgress,
+  getFoodSelectionDisplayedCalories,
+} from './foodSelectionCalorieProgress';
+
+describe('getFoodSelectionDisplayedCalories', () => {
+  it('adds selected calories before submission', () => {
+    expect(getFoodSelectionDisplayedCalories(482.4, 85.9)).toBeCloseTo(568.3);
+  });
+
+  it('keeps the submitted calorie preview fixed as the meal total updates', () => {
+    expect(getFoodSelectionDisplayedCalories(1330, 85.9, 568.3)).toBeCloseTo(568.3);
+  });
+
+  it('ignores intermediate meal totals while submission is pending', () => {
+    expect(getFoodSelectionDisplayedCalories(1330, 850, 999)).toBe(999);
+  });
+});
 
 describe('getFoodSelectionCalorieProgress', () => {
   it('shows calories remaining below the target', () => {

@@ -1,6 +1,6 @@
 # Claude session handoff
 
-Updated 2026-11-07. Start with this handoff, then read `AGENTS.md` before changing code.
+Updated 2026-11-08. Start with this handoff, then read `AGENTS.md` before changing code.
 
 ## Repository snapshot
 
@@ -12,10 +12,20 @@ Updated 2026-11-07. Start with this handoff, then read `AGENTS.md` before changi
 
 ## Current batch: Workout history screen UX
 
-- Added a consistent back/title header and toned down date badges to match the app's secondary screens.
-- Workout cards now show a compact exercise preview and an explicit Repeat workout action, avoiding an unexpected session start when a card is tapped.
-- View full workout expands any session to show every exercise and its individual sets, weights/reps, and PR markers.
-- Workout History tests passed (4 suites / 9 tests); `npx tsc --noEmit` and `git diff --check` passed.
+- Added a consistent, left-aligned back/title header and moved the plain date label into the summary row.
+- Workout cards use a compact relative date in the stats line, followed by duration, exercise count, total sets, and PR count.
+- Metadata uses full duration/exercise labels and dot separators; the line wraps naturally with system font scaling.
+- Card title and stats spacing is 12dp on both sides of the stats line; the title/repeat row is centered without a fixed height, and long titles truncate before the repeat control.
+- Collapsed and expanded exercise rows share the same two-line layout and show every performed set, grouped by weight. The collapsed preview selects PR exercises first but displays the selected rows in performed order; expansion preserves the full performed order.
+- Exercise dividers appear in both collapsed and expanded states. A shared centered orange toggle is used by History and the workout template library; it reports hidden PR counts where applicable. The workout title header also toggles the list.
+- Repeat is a compact 32dp visual secondary button with a 44dp touch target, aligned to the card content edge; tapping it opens Start Workout and tapping the card body never starts a workout.
+- Canceling a repeated workout returns to the screen that launched it (including Workout History), rather than skipping back to the Workout screen.
+- The screen header no longer reserves a blank trailing slot; the refresh indicator appears only while refreshing, and metadata contrast/size is raised for easier scanning.
+- Exercise names are white, set counts and ordinary set results are muted, PR sets and record count are orange, and expanded rows retain subtle dividers. Only the exact set marked as a PR is highlighted.
+- The PR badge counts exercises with at least one PR-marked set, matching the highlighted exercise rows.
+- Existing PR flags compare the workout's best estimated 1RM with the previous workout's best for weighted exercises, and highest reps with the previous workout for bodyweight exercises. They do not measure volume or all-time records.
+- The relative date, duration, exercise/set counts, and PR count are in a wrapping, font-scalable dot-separated stats line without the three metric icons. PR exercises are identified by orange set values and the accessible “Personal record” row label, while the header PR count is theme-accented. Exercise names and set results are capped at one and two lines respectively.
+- Workout History tests, TypeScript, and `git diff --check` pass.
 
 ## Current batch: Exercise history screen UX
 
@@ -87,6 +97,7 @@ Updated 2026-11-07. Start with this handoff, then read `AGENTS.md` before changi
 - `FoodListItem.tsx` no longer gives the Frequent and Recent `FlatList`s fixed row sizes even though their rows/cards can have different heights. This prevents incorrect offsets during list scrolling; visual styles and ordering are unchanged.
 - `FoodSelectionHeader.tsx` keeps the calorie progress summary and removes the macro-balance row, which competed with food browsing and repeated macro information already visible on food rows and the Nutrition screen.
 - The Food Selection calorie card is labeled “Calories today”; its remaining/over amount includes `kcal` for clarity. The calorie number, flame, and progress fill use the existing orange accent. The Scan button matches the search field's 52-point height.
+- While Add Food commits optimistically, the header freezes its displayed calorie total at the submission-time preview, preventing intermediate meal updates from making the same selection appear twice. On success, selection and the frozen preview remain stable through navigation and are cleared only when Food Selection loses focus; on failure, the selection remains and the live preview resumes.
 - Added `progressChartWidth.test.ts` for inset calculations and narrow/unmeasured widths, FoodListItem checks that both lists use measured layouts, and FoodSelectionHeader rendering/helper checks for the calorie card.
 - Validation: focused Jest passed (2 suites / 5 tests); `npx tsc --noEmit`, Android Expo export and `git diff --check` passed. The full Jest suite passed earlier in this batch (167 suites / 1,279 tests), before the last Food Selection refinements. No device preview was run.
 

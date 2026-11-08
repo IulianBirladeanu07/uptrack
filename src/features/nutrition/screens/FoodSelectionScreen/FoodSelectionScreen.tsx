@@ -76,6 +76,7 @@ const FoodSelectionScreen = () => {
 
     const [selectedFoods, setSelectedFoods] = useState<FoodItemData[]>([]);
     const [submissionCategoryFoods, setSubmissionCategoryFoods] = useState<typeof categoryFoods | null>(null);
+    const [caloriesAtSubmission, setCaloriesAtSubmission] = useState<number | undefined>();
     const [isSearching, setIsSearching] = useState(false);
     const [isQuickActionsExpanded, setIsQuickActionsExpanded] = useState(false);
 
@@ -137,6 +138,16 @@ const FoodSelectionScreen = () => {
         }, [isSearching, isQuickActionsExpanded])
     );
 
+    useFocusEffect(
+        useCallback(() => () => {
+            if (!isSubmittingRef.current) return;
+            isSubmittingRef.current = false;
+            setSelectedFoods([]);
+            setCaloriesAtSubmission(undefined);
+            setSubmissionCategoryFoods(null);
+        }, [])
+    );
+
     const handleNavigateToFoodDetail = useCallback(async (food: FoodItemData) => {
         if (isSearching && searchQuery && searchQuery.trim().length >= 3) {
             await handleSearchComplete(searchQuery);
@@ -182,6 +193,11 @@ const FoodSelectionScreen = () => {
             return;
         }
         isSubmittingRef.current = true;
+        const selectedCalories = selectedFoods.reduce((total, food) => {
+            const calories = Number(food.calories);
+            return total + (Number.isFinite(calories) ? Math.max(calories, 0) : 0);
+        }, 0);
+        setCaloriesAtSubmission(Math.max(dailyNutrition.calories, 0) + selectedCalories);
         setSubmissionCategoryFoods(categoryFoods);
         const validatedFoods = selectedFoods.map(food => {
             const validatedFood = {
@@ -205,9 +221,10 @@ const FoodSelectionScreen = () => {
             });
         } catch {
             isSubmittingRef.current = false;
+            setCaloriesAtSubmission(undefined);
             setSubmissionCategoryFoods(null);
         }
-    }, [categoryFoods, selectedFoods, handleAddMeal, meal, selectedDate, navigation]);
+    }, [categoryFoods, dailyNutrition.calories, selectedFoods, handleAddMeal, meal, selectedDate, navigation]);
 
     const handleEnterSearch = useCallback(() => {
         setIsSearching(true);
@@ -269,6 +286,7 @@ const FoodSelectionScreen = () => {
                     meal={meal}
                     selectedFoods={selectedFoods}
                     currentCalories={dailyNutrition?.calories || 0}
+                    caloriesAtSubmission={caloriesAtSubmission}
                     targetCalories={targetCalories ?? undefined}
                     onQuickActionsPress={handleQuickActionsPress}
                 />

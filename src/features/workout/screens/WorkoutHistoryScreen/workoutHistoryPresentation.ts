@@ -4,14 +4,13 @@ export const formatWorkoutHistoryDate = (
     timestamp: WorkoutHistoryTimestamp,
     now: Date = new Date(),
 ): string => {
-    if (!timestamp?.seconds) return 'RECENT';
+    if (timestamp?.seconds == null) return 'Recent';
     const date = new Date(timestamp.seconds * 1000);
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
-    if (date.toDateString() === now.toDateString()) return 'TODAY';
-    if (date.toDateString() === yesterday.toDateString()) return 'YESTERDAY';
-    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-    return `${months[date.getMonth()]} ${date.getDate()}`;
+    if (date.toDateString() === now.toDateString()) return 'Today';
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
 export const getWorkoutHistoryLabel = (

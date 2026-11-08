@@ -6,19 +6,12 @@ import {
 const toTimestamp = (date: Date) => ({ seconds: date.getTime() / 1000 });
 
 describe('Workout history presentation', () => {
-    it('formats recent, today, yesterday and older date labels', () => {
-        const today = new Date(2025, 5, 15, 12);
-
-        expect(formatWorkoutHistoryDate(undefined, today)).toBe('RECENT');
-        expect(formatWorkoutHistoryDate(toTimestamp(today), today)).toBe('TODAY');
-        expect(formatWorkoutHistoryDate(
-            toTimestamp(new Date(2025, 5, 14, 12)),
-            today,
-        )).toBe('YESTERDAY');
-        expect(formatWorkoutHistoryDate(
-            toTimestamp(new Date(2025, 5, 13, 12)),
-            today,
-        )).toBe('JUN 13');
+    it('formats relative dates and short local dates', () => {
+        expect(formatWorkoutHistoryDate(undefined)).toBe('Recent');
+        const now = new Date(2025, 5, 15, 12);
+        expect(formatWorkoutHistoryDate(toTimestamp(now), now)).toBe('Today');
+        expect(formatWorkoutHistoryDate(toTimestamp(new Date(2025, 5, 14, 12)), now)).toBe('Yesterday');
+        expect(formatWorkoutHistoryDate(toTimestamp(new Date(2025, 5, 13, 12)), now)).toBe('Jun 13');
     });
 
     it('labels workouts by local hour and prefers a non-default template name', () => {

@@ -1,5 +1,5 @@
 import { durationToMinutes } from '../../utils/durationUtils';
-import { findBestSet, formatBestSet } from '../../utils/workoutMetrics';
+import { formatBestSet } from '../../utils/workoutMetrics';
 import {
     formatWorkoutHistoryDate,
     getWorkoutHistoryLabel,
@@ -42,51 +42,44 @@ const joinReps = (reps: string[]) => {
     return reps.join(', ');
 };
 
-const groupSets = (sets: SetParts[]): { label: string; isPR: boolean }[] => {
-    const groups: { weight: string; reps: string[]; isPR: boolean }[] = [];
+const groupSets = (sets: SetParts[]) => {
+    const groups: { weight: string; reps: { label: string; isPR: boolean }[] }[] = [];
     sets.forEach(set => {
         const last = groups[groups.length - 1];
         if (last && last.weight === set.weight) {
-            last.reps.push(set.reps);
-            last.isPR = last.isPR || set.isPR;
+            last.reps.push({ label: set.reps, isPR: set.isPR });
         } else {
-            groups.push({ weight: set.weight, reps: [set.reps], isPR: set.isPR });
+            groups.push({ weight: set.weight, reps: [{ label: set.reps, isPR: set.isPR }] });
         }
     });
     return groups.map(group => ({
-        label: group.weight ? `${group.weight} × ${joinReps(group.reps)}` : joinReps(group.reps),
-        isPR: group.isPR,
+        weight: group.weight,
+        reps: group.reps,
+        label: group.weight
+            ? `${group.weight} × ${joinReps(group.reps.map(set => set.label))}`
+            : joinReps(group.reps.map(set => set.label)),
     }));
 };
 
 export const getWorkoutHistoryCardData = (item: WorkoutHistoryCardItem) => {
     const exercises = item.exercises || [];
     const dateLabel = formatWorkoutHistoryDate(item.timestamp);
-    const totalPRs = exercises.reduce(
-        (total, exercise) => total + exercise.sets.filter(set => set.isPR).length,
-        0,
-    );
-
+    const historyExercises = exercises.map(exercise => ({
+        exerciseName: exercise.exerciseName,
+        setCount: exercise.sets.length,
+        setGroups: groupSets(exercise.sets.map(set => ({
+            ...splitLabel(formatBestSet(set) || MISSING_LABEL),
+            isPR: !!set.isPR,
+        }))),
+        hasPR: exercise.sets.some(set => set.isPR),
+    }));
+    const totalPRs = historyExercises.filter(exercise => exercise.hasPR).length;
     return {
-        exercises: exercises.map(exercise => {
-            const bestSetLabel = formatBestSet(findBestSet(exercise.sets)) || MISSING_LABEL;
-            return {
-                exerciseName: exercise.exerciseName,
-                setCount: exercise.sets.length,
-                setGroups: groupSets(exercise.sets.map(set => ({
-                    ...splitLabel(formatBestSet(set) || MISSING_LABEL),
-                    isPR: !!set.isPR,
-                }))),
-                bestSetLabel,
-                best: splitLabel(bestSetLabel),
-                hasPR: exercise.sets.some(set => set.isPR),
-            };
-        }),
+        exercises: historyExercises,
         totalSets: exercises.reduce((total, exercise) => total + exercise.sets.length, 0),
         durationMinutes: durationToMinutes(item.duration) ?? 0,
         workoutTitle: getWorkoutHistoryLabel(item.timestamp, item.workoutName),
         dateLabel,
-        isToday: dateLabel === 'TODAY',
         totalPRs,
         hasPRs: totalPRs > 0,
     };

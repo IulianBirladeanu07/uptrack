@@ -13,6 +13,7 @@ import Animated, {
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { normalize } from '../../../../../shared/hooks/useResponsive';
 import { colors, spacing } from '../../../../../shared/theme';
+import ExerciseListToggle from '../../../components/ExerciseListToggle';
 import styles from '../WorkoutLibraryScreenStyle';
 import type { WorkoutTemplate, TemplateExercise } from '../../../types';
 
@@ -182,14 +183,11 @@ const TemplateItem = memo(({ item, expandedCards, onToggleExpanded, onEdit, onSt
                                     })}
                                 />
                                 {hasMoreExercises && (
-                                    <TouchableOpacity
-                                        style={styles.showMore}
+                                    <ExerciseListToggle
+                                        expanded={isExpanded}
+                                        collapsedLabel={`Show ${exercises.length - 3} more exercises`}
                                         onPress={() => onToggleExpanded(templateId)}
-                                    >
-                                        <Text style={styles.showMoreText}>
-                                            {isExpanded ? 'Show less exercises ↑' : `Show ${exercises.length - 3} more exercises ↓`}
-                                        </Text>
-                                    </TouchableOpacity>
+                                    />
                                 )}
                             </View>
                         )}

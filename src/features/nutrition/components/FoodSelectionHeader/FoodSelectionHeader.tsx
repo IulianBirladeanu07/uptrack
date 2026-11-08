@@ -3,7 +3,10 @@ import { View, Text, StyleSheet, StatusBar, Animated, Easing, TouchableOpacity }
 import { Flame } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../../../shared/theme';
 import type { FoodItem } from '../../../../shared/types';
-import { getFoodSelectionCalorieProgress } from '../../helpers/foodSelectionCalorieProgress';
+import {
+  getFoodSelectionCalorieProgress,
+  getFoodSelectionDisplayedCalories,
+} from '../../helpers/foodSelectionCalorieProgress';
 
 type FoodSelectionHeaderProps = {
   date?: string | undefined;
@@ -11,6 +14,7 @@ type FoodSelectionHeaderProps = {
   meal?: string | undefined;
   currentCalories?: number | undefined;
   targetCalories?: number | undefined;
+  caloriesAtSubmission?: number | undefined;
   onQuickActionsPress: () => void;
 };
 
@@ -20,6 +24,7 @@ const FoodSelectionHeader = ({
   meal,
   currentCalories = 0,
   targetCalories,
+  caloriesAtSubmission,
   onQuickActionsPress,
 }: FoodSelectionHeaderProps) => {
   const { calculatedCurrentCalories, foodCount } = useMemo(() => {
@@ -27,15 +32,15 @@ const FoodSelectionHeader = ({
       const calories = Number(food.calories);
       return total + (Number.isFinite(calories) ? Math.max(calories, 0) : 0);
     }, 0);
-    const currentDayCalories = Number(currentCalories);
-    const totalCurrentCalories = (Number.isFinite(currentDayCalories) ? Math.max(currentDayCalories, 0) : 0)
-      + selectedFoodsCalories;
-
     return {
-      calculatedCurrentCalories: totalCurrentCalories,
+      calculatedCurrentCalories: getFoodSelectionDisplayedCalories(
+        Number(currentCalories),
+        selectedFoodsCalories,
+        caloriesAtSubmission,
+      ),
       foodCount: selectedFoods.length,
     };
-  }, [selectedFoods, currentCalories]);
+  }, [selectedFoods, currentCalories, caloriesAtSubmission]);
   const calorieProgress = getFoodSelectionCalorieProgress(calculatedCurrentCalories, targetCalories);
 
   const formattedDate = useMemo(() => {

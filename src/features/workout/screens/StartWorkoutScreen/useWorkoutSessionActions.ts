@@ -34,14 +34,11 @@ export const useWorkoutSessionActions = ({
     initializationGeneration,
     isFinishingWorkout,
 }: WorkoutSessionActionsOptions) => {
-    const returnToWorkout = useCallback(() => {
+    const returnToPreviousScreen = useCallback(() => {
         const state = navigation.getState();
-        const workoutRouteIndex = state.routes.findIndex(
-            (route, index) => index < state.index && route.name === 'Workout',
-        );
 
-        if (workoutRouteIndex >= 0) {
-            navigation.pop(state.index - workoutRouteIndex);
+        if (state.index > 0) {
+            navigation.pop(1);
         } else {
             navigation.replace('Workout');
         }
@@ -55,8 +52,8 @@ export const useWorkoutSessionActions = ({
         if (!isCurrentWorkoutUser(uid) || workoutService.uid !== uid) return;
         setActiveWorkout(null);
         setInputText('');
-        returnToWorkout();
-    }, [initializationGeneration, returnToWorkout, setActiveWorkout, setInputText]);
+        returnToPreviousScreen();
+    }, [initializationGeneration, returnToPreviousScreen, setActiveWorkout, setInputText]);
 
     const handleExit = useCallback(() => {
         if (isFinishingWorkout.current) return;

@@ -41,6 +41,27 @@ describe('FoodSelectionHeader', () => {
     });
   });
 
+  it('keeps the submitted calorie preview steady while the meal total updates', () => {
+    const props = {
+      selectedFoods: [{ calories: 85.5 }, { calories: '0.4' }],
+      targetCalories: 3209,
+      caloriesAtSubmission: 568.3,
+      onQuickActionsPress: jest.fn(),
+    };
+    const { rerender } = render(
+      <FoodSelectionHeader {...props} currentCalories={482.4} />,
+    );
+
+    expect(screen.getByText('2,641 kcal left')).toBeTruthy();
+
+    rerender(
+      <FoodSelectionHeader {...props} currentCalories={1330} />,
+    );
+
+    expect(screen.getByText('2,641 kcal left')).toBeTruthy();
+    expect(screen.getByRole('progressbar', { name: 'Daily calorie progress' }).props.accessibilityValue.now).toBe(568.3);
+  });
+
   it('shows consumed calories when there is no valid target', () => {
     render(
       <FoodSelectionHeader

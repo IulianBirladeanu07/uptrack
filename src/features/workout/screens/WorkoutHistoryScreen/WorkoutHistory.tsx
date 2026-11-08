@@ -3,6 +3,7 @@ import { View, Text, SectionList, TouchableOpacity, ActivityIndicator } from 're
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { WorkoutContext } from '../../context/WorkoutContext';
+import ExerciseListToggle from '../../components/ExerciseListToggle';
 import { colors } from '../../../../shared/theme';
 import styles from './WorkoutHistoryStyles';
 import { useAppNavigation } from '../../../../shared/navigation';
@@ -15,157 +16,154 @@ import { getWorkoutHistoryCardData, PREVIEW_EXERCISE_COUNT, type WorkoutHistoryC
 
 type HistoryWorkout = WorkoutHistoryCardItem & WorkoutHistoryForSelection & { id?: string };
 
-const BestValue = ({ weight, reps, highlight }: { weight: string; reps: string; highlight: boolean }) => (
-    <View style={styles.valueRow}>
-        {weight ? (
-            <>
-                <Text style={[styles.valueWeight, styles.bestSetValue, highlight && styles.bestSetValuePR]}>{weight}</Text>
-                <Text style={[styles.valueTimes, styles.bestSetValue, highlight && styles.bestSetValuePR]}>×</Text>
-                <Text style={[styles.valueReps, styles.bestSetValue, highlight && styles.bestSetValuePR]}>{reps}</Text>
-            </>
-        ) : (
-            <Text style={[styles.valueBodyweight, styles.bestSetValue, highlight && styles.bestSetValuePR]}>{reps}</Text>
-        )}
-    </View>
-);
-
 const WorkoutCard = ({ item, activeWorkout, onPress }: { item: HistoryWorkout; activeWorkout?: boolean; onPress: (item: HistoryWorkout) => void }) => {
     const cardData = getWorkoutHistoryCardData(item);
     const [expanded, setExpanded] = useState(false);
-    const visibleExercises = expanded ? cardData.exercises : cardData.exercises.slice(0, PREVIEW_EXERCISE_COUNT);
+    const canExpand = cardData.exercises.length > PREVIEW_EXERCISE_COUNT;
+    const previewIndices = new Set(
+        cardData.exercises
+            .map((exercise, index) => ({ exercise, index }))
+            .sort((a, b) => Number(b.exercise.hasPR) - Number(a.exercise.hasPR) || a.index - b.index)
+            .slice(0, PREVIEW_EXERCISE_COUNT)
+            .map(({ index }) => index),
+    );
+    const remainingExercises = cardData.exercises.filter((_, index) => !previewIndices.has(index));
+    const hiddenPRCount = remainingExercises.filter(exercise => exercise.hasPR).length;
+    const visibleExercises = expanded
+        ? cardData.exercises
+        : cardData.exercises.filter((_, index) => previewIndices.has(index));
+    const showMoreLabel = hiddenPRCount > 0
+        ? `Show ${remainingExercises.length} more · ${hiddenPRCount} ${hiddenPRCount === 1 ? 'PR' : 'PRs'}`
+        : `Show ${remainingExercises.length} more exercises`;
     const toggle = () => setExpanded(value => !value);
 
     return (
-        <View style={styles.workoutCard}>
-            <TouchableOpacity
-                onPress={toggle}
-                activeOpacity={0.7}
-                disabled={cardData.exercises.length === 0}
-                accessibilityRole="button"
-                accessibilityState={{ expanded }}
-                accessibilityLabel={`${cardData.workoutTitle}, ${cardData.dateLabel}. ${expanded ? 'Collapse' : 'Expand'} full workout`}
-            >
-                <View style={styles.cardHeader}>
-                    <Text style={styles.workoutTitle} numberOfLines={1}>{cardData.workoutTitle}</Text>
-                    <View style={styles.headerRight}>
+        <View style={styles.workoutCard} testID="workout-card">
+            <View>
+                <View style={styles.cardHeader} testID="workout-card-header">
+                    <TouchableOpacity
+                        style={styles.cardHeaderTitle}
+                        onPress={toggle}
+                        disabled={!canExpand}
+                        activeOpacity={0.7}
+                        accessibilityRole={canExpand ? 'button' : undefined}
+                        accessibilityState={canExpand ? { expanded } : undefined}
+                        accessibilityLabel={canExpand
+                            ? `${expanded ? 'Collapse' : 'Expand'} ${cardData.workoutTitle} exercises`
+                            : undefined}
+                    >
+                        <Text style={styles.workoutTitle} numberOfLines={1} ellipsizeMode="tail">
+                            {cardData.workoutTitle}
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.repeatButton, activeWorkout && styles.repeatButtonDisabled]}
+                        onPress={() => onPress(item)}
+                        activeOpacity={0.7}
+                        hitSlop={6}
+                        disabled={!!activeWorkout}
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: !!activeWorkout }}
+                        accessibilityLabel={activeWorkout
+                            ? 'A workout is already in progress'
+                            : `Repeat ${cardData.workoutTitle}`}
+                    >
+                        <Ionicons
+                            name={activeWorkout ? 'pause-circle-outline' : 'repeat-outline'}
+                            size={18}
+                            color={activeWorkout ? colors.text.quaternary : colors.text.secondary}
+                        />
+                        <Text style={styles.repeatButtonText}>Repeat</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <View
+                    style={styles.statsMeta}
+                    testID="workout-stats-meta"
+                    accessible
+                    accessibilityLabel={`${cardData.dateLabel} · ${cardData.durationMinutes} min · ${cardData.exercises.length} exercises · ${cardData.totalSets} sets${cardData.hasPRs ? ` · ${cardData.totalPRs} ${cardData.totalPRs === 1 ? 'PR' : 'PRs'}` : ''}`}
+                >
+                    <Text style={styles.statsMetaText} allowFontScaling>
+                        {cardData.dateLabel} · {cardData.durationMinutes} min · {cardData.exercises.length} exercises · {cardData.totalSets} sets
                         {cardData.hasPRs && (
-                            <View
-                                style={styles.prBadge}
-                                accessible
-                                accessibilityLabel={`${cardData.totalPRs} personal ${cardData.totalPRs === 1 ? 'record' : 'records'}`}
-                            >
-                                <Ionicons name="trophy" size={10} color={colors.accent.primary} />
-                                <Text style={styles.prText}>{cardData.totalPRs}</Text>
-                            </View>
+                            <Text style={styles.prText}>
+                                {' · '}
+                                <Ionicons name="trophy" size={12} color={colors.accent.primary} />
+                                {' '}{cardData.totalPRs} {cardData.totalPRs === 1 ? 'PR' : 'PRs'}
+                            </Text>
                         )}
-                        <View style={[styles.dateBadge, cardData.isToday && styles.dateBadgeToday]}>
-                            <Text style={[styles.dateText, cardData.isToday && styles.dateTextToday]}>{cardData.dateLabel}</Text>
-                        </View>
-                        {cardData.exercises.length > 0 && (
-                            <Ionicons
-                                name={expanded ? 'chevron-up' : 'chevron-down'}
-                                size={16}
-                                color={colors.text.tertiary}
-                            />
-                        )}
-                    </View>
+                    </Text>
                 </View>
-
-                <View style={styles.statsMeta}>
-                    <View style={styles.statsMetaItem}>
-                        <Ionicons name="time-outline" size={12} color={colors.text.tertiary} />
-                        <Text style={styles.statsMetaText}>{cardData.durationMinutes}m</Text>
-                    </View>
-                    <View style={styles.statsMetaItem}>
-                        <Ionicons name="layers-outline" size={12} color={colors.text.tertiary} />
-                        <Text style={styles.statsMetaText}>{cardData.totalSets} sets</Text>
-                    </View>
-                    <View style={styles.statsMetaItem}>
-                        <Ionicons name="barbell-outline" size={12} color={colors.text.tertiary} />
-                        <Text style={styles.statsMetaText}>{cardData.exercises.length} exercises</Text>
-                    </View>
-                </View>
-            </TouchableOpacity>
-
-            <View style={styles.exerciseListHeader}>
-                <Text style={styles.exerciseListHeaderLabel}>EXERCISE</Text>
-                <Text style={styles.exerciseListHeaderLabel}>BEST</Text>
             </View>
 
             <View style={styles.exercisesList}>
                 {visibleExercises.map((exercise, i) => (
                     <View
                         key={`${exercise.exerciseName}-${i}`}
-                        style={[styles.exerciseGroup, i < visibleExercises.length - 1 && styles.exerciseGroupDivider]}
+                        testID={`exercise-group-${i}`}
+                        style={[
+                            styles.exerciseGroup,
+                            i < visibleExercises.length - 1 && styles.exerciseGroupDivider,
+                        ]}
                     >
                         <View
                             style={styles.exerciseRow}
                             accessible
-                            accessibilityLabel={`${exercise.exerciseName}, ${exercise.setCount} sets, best ${exercise.bestSetLabel}${exercise.hasPR ? ', personal record' : ''}`}
+                            accessibilityLabel={`${exercise.exerciseName}, ${exercise.setCount} ${exercise.setCount === 1 ? 'set' : 'sets'}, ${exercise.setGroups.map(group => group.label).join(', ')}${exercise.hasPR ? ', personal record' : ''}`}
                         >
-                            <View style={styles.exerciseLeft}>
-                                <Text style={styles.exerciseSets}>{exercise.setCount}x</Text>
-                                <View style={styles.exerciseNameRow}>
-                                    <Text style={styles.exerciseName} numberOfLines={1}>{exercise.exerciseName}</Text>
-                                    {exercise.hasPR && <Ionicons name="trophy" size={12} color={colors.accent.primary} />}
+                            <View style={styles.exerciseContent}>
+                                <View style={styles.exerciseNameRow} testID={`exercise-name-row-${i}`}>
+                                    <Text style={styles.exerciseName} numberOfLines={1} ellipsizeMode="tail">
+                                        {exercise.exerciseName}
+                                    </Text>
+                                </View>
+                                <View
+                                    style={styles.setDetails}
+                                    testID={`exercise-set-details-${i}`}
+                                    accessible
+                                    accessibilityLabel={`Sets: ${exercise.setGroups.map(group => group.label).join(', ')}`}
+                                >
+                                    <Text style={styles.setDetailsText} numberOfLines={2} ellipsizeMode="tail">
+                                        {exercise.setGroups.map((group, g) => {
+                                            const hasRepUnit = !group.weight && group.reps.every(set => set.label.endsWith(' reps'));
+                                            return (
+                                                <Text key={g}>
+                                                    {g > 0 && <Text style={styles.setDetailsSeparator}> · </Text>}
+                                                    {group.weight && (
+                                                        <Text style={group.reps.some(set => set.isPR) ? styles.setDetailsPR : undefined}>
+                                                            {`${group.weight} × `}
+                                                        </Text>
+                                                    )}
+                                                    {group.reps.map((set, setIndex) => (
+                                                        <Text
+                                                            key={setIndex}
+                                                            testID={set.isPR ? `pr-set-${i}-${g}-${setIndex}` : undefined}
+                                                            style={set.isPR ? styles.setDetailsPR : undefined}
+                                                        >
+                                                            {setIndex > 0 && ', '}
+                                                            {hasRepUnit ? set.label.slice(0, -5) : set.label}
+                                                        </Text>
+                                                    ))}
+                                                    {hasRepUnit && <Text> reps</Text>}
+                                                </Text>
+                                            );
+                                        })}
+                                    </Text>
                                 </View>
                             </View>
-                            <BestValue weight={exercise.best.weight} reps={exercise.best.reps} highlight={exercise.hasPR} />
                         </View>
-                        {expanded && (
-                            <View
-                                style={styles.setChips}
-                                accessible
-                                accessibilityLabel={`Sets: ${exercise.setGroups.map(group => group.label).join(', ')}`}
-                            >
-                                {exercise.setGroups.map((group, g) => (
-                                    <View key={g} style={[styles.setChip, group.isPR && styles.setChipPR]}>
-                                        <Text style={[styles.setChipText, group.isPR && styles.setChipTextPR]}>{group.label}</Text>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
                     </View>
                 ))}
             </View>
 
-            <View style={styles.footerRow}>
-                {cardData.exercises.length > 0 ? (
-                    <TouchableOpacity
-                        style={styles.expandButton}
-                        onPress={toggle}
-                        activeOpacity={0.7}
-                        accessibilityRole="button"
-                        accessibilityLabel={expanded ? 'Collapse full workout' : 'Show full workout'}
-                    >
-                        <Text style={styles.expandButtonText}>
-                            {expanded ? 'Show less' : 'View full workout'}
-                        </Text>
-                        <Ionicons
-                            name={expanded ? 'chevron-up' : 'chevron-down'}
-                            size={14}
-                            color={colors.text.secondary}
-                        />
-                    </TouchableOpacity>
-                ) : <View />}
-                <TouchableOpacity
-                    style={[styles.repeatButton, activeWorkout && styles.repeatButtonDisabled]}
-                    onPress={() => onPress(item)}
-                    activeOpacity={0.7}
-                    disabled={!!activeWorkout}
-                    accessibilityRole="button"
-                    accessibilityLabel={activeWorkout ? 'A workout is already in progress' : `Repeat ${cardData.workoutTitle}`}
-                >
-                    <Ionicons
-                        name={activeWorkout ? 'pause-circle-outline' : 'repeat-outline'}
-                        size={14}
-                        color={activeWorkout ? colors.text.quaternary : colors.accent.primary}
-                    />
-                    <Text style={[styles.repeatButtonText, activeWorkout && styles.repeatButtonTextDisabled]}>
-                        {activeWorkout ? 'In progress' : 'Repeat'}
-                    </Text>
-                </TouchableOpacity>
-            </View>
+            {canExpand && (
+                <ExerciseListToggle
+                    expanded={expanded}
+                    collapsedLabel={showMoreLabel}
+                    collapsedAccessibilityLabel={`Show ${remainingExercises.length} more exercises${hiddenPRCount > 0 ? `, including ${hiddenPRCount} personal ${hiddenPRCount === 1 ? 'record' : 'records'}` : ''}`}
+                    onPress={toggle}
+                />
+            )}
         </View>
     );
 };
@@ -212,9 +210,7 @@ const WorkoutHistoryScreen = () => {
                     <Ionicons name="chevron-back" size={20} color={colors.text.primary} />
                 </TouchableOpacity>
                 <Text style={styles.heading}>Workout history</Text>
-                <View style={styles.headerTrailing}>
-                    {workoutHistoryRefreshing && <ActivityIndicator color={colors.accent.primary} />}
-                </View>
+                {workoutHistoryRefreshing && <ActivityIndicator color={colors.accent.primary} />}
             </View>
             <SectionList
                 style={styles.list}
