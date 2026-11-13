@@ -39,6 +39,7 @@ Updated 2026-11-08. Start with this handoff, then read `AGENTS.md` before changi
 - Photo selection does not force a crop. The foreground photo preserves its aspect ratio and is contained in the Story frame; pinch zoom ranges from 35% to 4x and drag repositions it. A fixed, blurred cover version of the same photo colors/fills the full Story background when the foreground is smaller or moved.
 - The Story artwork omits the app logo and date/“Recent” header; it retains one small “Trained with Uptrack” attribution directly below the exercise list. Without a photo, the artwork uses a subtle theme-token gradient behind the centered workout recap and secondary-surface stats/exercise panels; the editor adds a short photo prompt above the original Camera/Choose photo/Share controls. The overlay controls retain the original app styling: Camera and Choose/Change photo actions above the solid accent Share story button.
 - The preview captures only the Story artwork, not the surrounding controls. Workout Story transform tests, TypeScript, and Android bundle export pass. Device verification is still needed for photo permissions, gesture feel, image capture quality, and sharing into Instagram Stories.
+- Story drag and pinch apply translation before scale, so the recap card and the photo follow the finger one-to-one at any zoom. The card hit test assumes this order, so a drag that starts on the card moves only the card and one that starts elsewhere moves only the photo. Still needs a device check for gesture feel.
 
 ## Current batch: Exercise history screen UX
 
