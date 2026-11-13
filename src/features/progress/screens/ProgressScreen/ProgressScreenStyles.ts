@@ -438,43 +438,6 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.medium,
         color: colors.text.secondary,
     },
-    planLink: {
-        fontSize: fontSize[10],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.tertiary,
-    },
-    averageList: {
-        marginTop: spacing[2],
-        borderTopWidth: 1,
-        borderTopColor: colors.border.default,
-    },
-    averageRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: spacing[2],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
-    },
-    averageDate: {
-        flex: 1,
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.medium,
-        color: colors.text.tertiary,
-    },
-    averageValue: {
-        width: spacing[20],
-        textAlign: 'right',
-        fontSize: fontSize[14],
-        fontWeight: fontWeight.semibold,
-        color: colors.text.primary,
-    },
-    averageChange: {
-        width: spacing[20],
-        textAlign: 'right',
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.medium,
-        color: colors.text.secondary,
-    },
     tiles: {
         flexDirection: 'row',
         gap: spacing[2],

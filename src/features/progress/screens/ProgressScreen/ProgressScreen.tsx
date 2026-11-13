@@ -11,8 +11,7 @@ import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { formatDate } from '../../../nutrition/utils/dateUtils';
 import { colors, spacing } from '../../../../shared/theme';
 import { useAppNavigation } from '../../../../shared/navigation';
-import { PaceChart, BalanceChart, StrengthChart, WeightTrendChart } from '../../components/ProgressCharts';
-import type { WeightTrendPoint } from '../../components/ProgressCharts';
+import { PaceChart, BalanceChart, StrengthChart } from '../../components/ProgressCharts';
 import {
     SETS_LOW,
     recapTip,
@@ -49,12 +48,6 @@ const TONES = {
     purple: { bg: colors.faded.purple, fg: colors.macro.protein },
     flat: { bg: colors.faded.surface, fg: colors.text.secondary },
 };
-
-const PHASE_PRESENTATION = {
-    muscle_gain: { verb: 'Gain' },
-    weight_loss: { verb: 'Lose' },
-    maintenance: { verb: 'Hold' },
-} as const;
 
 const HEAT_KEY = [
     { label: '<6', a: 0.08 },
@@ -185,9 +178,6 @@ const PaceCard = ({
     n,
     rangeKey,
     phaseWeekCount,
-    averages,
-    planSummary,
-    onProfile,
     chartWidth,
 }: {
     m: PaceModel | null;
@@ -195,9 +185,6 @@ const PaceCard = ({
     n: number;
     rangeKey: string;
     phaseWeekCount: number;
-    averages: (WeightTrendPoint & { change: number | null; gap: number | null })[];
-    planSummary: string;
-    onProfile: () => void;
     chartWidth: number;
 }) => {
     const [sel, setSel] = useState<number | null>(null);
@@ -206,67 +193,8 @@ const PaceCard = ({
         setSel(null);
     }, [n, phaseStart, info.type]);
 
-    const mature = m != null && m.count >= 4;
     const title = info.dir < 0 ? 'Weight loss pace' : info.dir > 0 ? 'Weight gain pace' : 'Weight drift';
-    if (!mature || !m) {
-        const remainingChanges = Math.max(0, 4 - Math.max(0, averages.length - 1));
-        const latestAverage = averages[averages.length - 1];
-        return (
-            <View style={styles.card}>
-                <View style={styles.rowBetween}>
-                    <Text style={styles.cap}>{title}</Text>
-                    <TouchableOpacity
-                        onPress={onProfile}
-                        activeOpacity={0.7}
-                        accessibilityRole="button"
-                        accessibilityLabel="Change weight goal in Profile"
-                    >
-                        <Text style={styles.planLink}>{planSummary}</Text>
-                    </TouchableOpacity>
-                </View>
-                {latestAverage && (
-                    <>
-                        <Hero value={fmt1(latestAverage.average)} unit="kg" />
-                        <Text style={styles.heroNote}>
-                            Weekly average · week of {shortDate(latestAverage.monday)}
-                        </Text>
-                    </>
-                )}
-                {averages.length >= 2 && (
-                    <ChartBox width={chartWidth}>
-                        {w => <WeightTrendChart points={averages} width={w} />}
-                    </ChartBox>
-                )}
-                <Text style={styles.empty}>
-                    {averages.length === 0
-                        ? 'Your trend starts after your first weekly average.'
-                        : averages.length === 1
-                            ? 'Pace appears after another weekly average.'
-                            : remainingChanges > 0
-                                ? `${remainingChanges} more weekly ${remainingChanges === 1 ? 'change' : 'changes'} to estimate pace.`
-                                : 'Building a reliable pace estimate.'}
-                </Text>
-                <Stats
-                    items={[
-                        {
-                            value: info.dir === 0 ? 'Hold' : info.planRate != null ? fmt1(info.planRate) : '--',
-                            unit: info.dir !== 0 && info.planRate != null ? 'kg/wk' : undefined,
-                            label: 'Plan',
-                        },
-                        {
-                            value: info.goal != null && info.remaining != null ? fmt1(info.remaining) : '--',
-                            unit: info.goal != null && info.remaining != null ? 'kg' : undefined,
-                            label: 'To goal',
-                        },
-                        { value: String(averages.length), unit: 'wk', label: 'Weeks logged' },
-                    ]}
-                />
-                {rangeKey !== 'PHASE' && info.phaseStart && phaseWeekCount < n && (
-                    <Text style={styles.heroNote}>Pace uses this phase only; earlier weeks are excluded.</Text>
-                )}
-            </View>
-        );
-    }
+    if (!m) return <EmptyCard cap={title} text="Log your weight for two weeks to see your pace." />;
 
     const pills: Record<PaceStatus, DeltaProps | null> = {
         on: { tone: 'good', icon: 'checkmark', text: 'on plan' },
@@ -691,7 +619,6 @@ const ProgressScreen = () => {
         range,
         n,
         pace,
-        paceAverages,
         phaseWeekCount,
         energy,
         strength,
@@ -720,12 +647,7 @@ const ProgressScreen = () => {
     const openProfile = useCallback(() => navigation.navigate('Profile'), [navigation]);
 
     const { switching, onSwitch } = useMaintenanceSwitch({ recap, userData, refreshUserData });
-    const phasePresentation = PHASE_PRESENTATION[info.type];
-    const planSummary = info.dir === 0
-        ? 'Hold steady · Profile'
-        : info.planRate != null
-            ? `${phasePresentation.verb} ${fmt1(info.planRate)} kg/wk · Profile`
-            : `${phasePresentation.verb} · Profile`;
+
     return (
         <ApplicationCustomScreen>
             <ScrollView
@@ -825,9 +747,6 @@ const ProgressScreen = () => {
                                     n={n}
                                     rangeKey={range.key}
                                     phaseWeekCount={phaseWeekCount}
-                                    averages={paceAverages}
-                                    planSummary={planSummary}
-                                    onProfile={openProfile}
                                     chartWidth={chartWidth}
                                 />
                                 <EnergyCard m={energy} info={info} n={n} chartWidth={chartWidth} />
