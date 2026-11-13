@@ -701,6 +701,9 @@ const ProgressScreen = () => {
                             );
                         })}
                     </View>
+                </View>
+                <View style={styles.metaRow}>
+                    <Text style={styles.phaseMeta} numberOfLines={1}>{info.label} · week {info.phaseWeeks}</Text>
                     {weeks.length >= 2 && (
                         <View style={styles.rangeSelector}>
                             {ranges.map(r => {
@@ -708,7 +711,7 @@ const ProgressScreen = () => {
                                 return (
                                     <TouchableOpacity
                                         key={r.key}
-                                        style={styles.rangeOption}
+                                        style={[styles.rangeOption, selected && styles.rangeOptionActive]}
                                         onPress={() => setRangeKey(r.key)}
                                         activeOpacity={0.7}
                                         hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
@@ -729,7 +732,6 @@ const ProgressScreen = () => {
                         </View>
                     )}
                 </View>
-                <Text style={styles.phaseMeta}>{info.label} · week {info.phaseWeeks}</Text>
                 {workoutHistoryLoadMoreError && hasMoreWorkoutHistory && (
                     <TouchableOpacity onPress={() => void loadMoreWorkoutHistory()}>
                         <Text style={styles.emptySub}>
