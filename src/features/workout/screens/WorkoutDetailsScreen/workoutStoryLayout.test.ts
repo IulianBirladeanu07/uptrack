@@ -1,18 +1,19 @@
-import { getWorkoutStorySize } from './workoutStoryLayout';
+import { getWorkoutPhotoFrame, getWorkoutStorySize } from './workoutStoryLayout';
 
 describe('getWorkoutStorySize', () => {
-    it('returns a 9:16 canvas that fits the available screen width and height', () => {
-        const size = getWorkoutStorySize(393, 852, 40, 24);
-
-        expect(size.height / size.width).toBeCloseTo(16 / 9);
-        expect(size.width).toBeLessThanOrEqual(393 - 32);
-        expect(size.height).toBeLessThanOrEqual(852 - 40 - 24 - 196);
+    it('uses the full measured screen area for an edge-to-edge story canvas', () => {
+        expect(getWorkoutStorySize(393, 850)).toEqual({ width: 393, height: 850 });
     });
 
-    it('uses the screen width limit on narrow screens', () => {
-        const size = getWorkoutStorySize(320, 900, 24, 24);
+    it('guards against zero-size layouts before measurement', () => {
+        expect(getWorkoutStorySize(0, 0)).toEqual({ width: 1, height: 1 });
+    });
 
-        expect(size.width).toBe(320 - 32);
-        expect(size.height / size.width).toBeCloseTo(16 / 9);
+    it('contains portrait, landscape, and square photos without changing their aspect ratios', () => {
+        expect(getWorkoutPhotoFrame(1080, 1920, 360, 640)).toEqual({ width: 360, height: 640 });
+        const landscapeFrame = getWorkoutPhotoFrame(1920, 1080, 360, 640);
+        expect(landscapeFrame.width).toBe(360);
+        expect(landscapeFrame.height).toBe(202.5);
+        expect(getWorkoutPhotoFrame(1000, 1000, 360, 640)).toEqual({ width: 360, height: 360 });
     });
 });

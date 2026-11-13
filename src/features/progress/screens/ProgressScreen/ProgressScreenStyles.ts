@@ -10,7 +10,13 @@ const styles = createStyles(() => ({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        marginBottom: spacing[1],
+    },
+    phaseMeta: {
         marginBottom: spacing[3],
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
     },
     viewRow: {
         flexDirection: 'row',
@@ -345,6 +351,11 @@ const styles = createStyles(() => ({
         flex: 1,
         borderRadius: 3,
     },
+    heatCurrentCell: {
+        borderWidth: 1.5,
+        borderColor: colors.accent.primary,
+        backgroundColor: 'transparent',
+    },
     heatAvg: {
         width: 34,
         textAlign: 'right',
@@ -456,7 +467,11 @@ const styles = createStyles(() => ({
     monthChange: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
-        color: colors.text.secondary,
+    },
+    monthChangeBadge: {
+        paddingHorizontal: spacing[2],
+        paddingVertical: spacing[1],
+        borderRadius: radius[2],
     },
     planLink: {
         fontSize: fontSize[10],

@@ -124,6 +124,7 @@ const Stats = ({ items }: { items: StatItem[] }) => (
 const Tip = ({ text }: { text: string | null | undefined }) =>
     text ? (
         <View style={styles.tip}>
+            <Ionicons name="sparkles-outline" size={spacing.iconMd} color={colors.accent.primary} />
             <Text style={styles.tipText}>{text}</Text>
         </View>
     ) : null;
@@ -473,6 +474,7 @@ const SetsCard = ({ m }: { m: SetsModel | null }) => {
                             {r.cells.slice(0, -1).map((v, i) => (
                                 <View key={i} style={[styles.heatCell, { backgroundColor: orange(heatAlpha(v)) }]} />
                             ))}
+                            <View style={[styles.heatCell, styles.heatCurrentCell]} />
                         </View>
                         <Text style={[styles.heatAvg, r.shown < SETS_LOW && styles.heatAvgLow]}>{r.shown}</Text>
                     </View>
@@ -480,7 +482,7 @@ const SetsCard = ({ m }: { m: SetsModel | null }) => {
             </View>
             <View style={styles.heatAxis}>
                 <Text style={styles.heatAxisText}>{shortDate(m.first)}</Text>
-                <Text style={styles.heatAxisText}>last week</Text>
+                <Text style={styles.heatAxisText}>this week</Text>
             </View>
             <View style={styles.key}>
                 {HEAT_KEY.map(k => (
@@ -508,9 +510,9 @@ const Tile = ({ label, dot, value, sub }: { label: string; dot: string; value: s
 
 const vs = (v: number | null | undefined, d: number, suffix = '') => (v != null ? `${sg(v, d)}${suffix} vs prev` : null);
 
-type MonthRowProps = { m: MonthData; kind: 'n' | 't'; open: boolean; onToggle: () => void; last: boolean };
+type MonthRowProps = { m: MonthData; kind: 'n' | 't'; dir: number; open: boolean; onToggle: () => void; last: boolean };
 
-const MonthRow = ({ m, kind, open, onToggle, last }: MonthRowProps) => {
+const MonthRow = ({ m, kind, dir, open, onToggle, last }: MonthRowProps) => {
     let right: ReactNode;
     let tiles: ReactNode;
 
@@ -523,7 +525,35 @@ const MonthRow = ({ m, kind, open, onToggle, last }: MonthRowProps) => {
                         <Text style={styles.monthUnit}>kg</Text>
                     </View>
                 )}
-                {m.change != null && <Text style={styles.monthChange}>{sg(m.change, 1)}</Text>}
+                {m.change != null && (
+                    <View
+                        style={[
+                            styles.monthChangeBadge,
+                            {
+                                backgroundColor: dir === 0
+                                    ? TONES.flat.bg
+                                    : m.change * dir > 0
+                                        ? TONES.warn.bg
+                                        : TONES.good.bg,
+                            },
+                        ]}
+                    >
+                        <Text
+                            style={[
+                                styles.monthChange,
+                                {
+                                    color: dir === 0
+                                        ? TONES.flat.fg
+                                        : m.change * dir > 0
+                                            ? TONES.warn.fg
+                                            : TONES.good.fg,
+                                },
+                            ]}
+                        >
+                            {sg(m.change, 1)}
+                        </Text>
+                    </View>
+                )}
             </>
         );
         tiles = (
@@ -577,13 +607,14 @@ const MonthRow = ({ m, kind, open, onToggle, last }: MonthRowProps) => {
 type MonthsCardProps = {
     months: MonthData[];
     kind: 'n' | 't';
+    dir: number;
     open: Record<string, boolean>;
     setOpen: Dispatch<SetStateAction<Record<string, boolean>>>;
     all: boolean;
     setAll: (v: boolean) => void;
 };
 
-const MonthsCard = ({ months, kind, open, setOpen, all, setAll }: MonthsCardProps) => {
+const MonthsCard = ({ months, kind, dir, open, setOpen, all, setAll }: MonthsCardProps) => {
     if (!months.length) return null;
     const shown = all ? months.slice(0, 12) : months.slice(0, 3);
 
@@ -605,6 +636,7 @@ const MonthsCard = ({ months, kind, open, setOpen, all, setAll }: MonthsCardProp
                         key={m.key}
                         m={m}
                         kind={kind}
+                        dir={dir}
                         open={isOpen}
                         onToggle={() => setOpen(o => ({ ...o, [k]: !isOpen }))}
                         last={i === shown.length - 1}
@@ -801,7 +833,7 @@ const ProgressScreen = () => {
                                             adjustsFontSizeToFit
                                             maxFontSizeMultiplier={1.2}
                                         >
-                                            {r.label}
+                                            {r.label.replace(' wk', 'W')}
                                         </Text>
                                     </TouchableOpacity>
                                 );
@@ -809,6 +841,7 @@ const ProgressScreen = () => {
                         </View>
                     )}
                 </View>
+                <Text style={styles.phaseMeta}>{info.label} · week {info.phaseWeeks}</Text>
                 {workoutHistoryLoadMoreError && hasMoreWorkoutHistory && (
                     <TouchableOpacity onPress={() => void loadMoreWorkoutHistory()}>
                         <Text style={styles.emptySub}>
@@ -853,6 +886,7 @@ const ProgressScreen = () => {
                                 <MonthsCard
                                     months={months}
                                     kind="n"
+                                    dir={info.dir}
                                     open={open}
                                     setOpen={setOpen}
                                     all={all.n}
@@ -866,6 +900,7 @@ const ProgressScreen = () => {
                                 <MonthsCard
                                     months={months}
                                     kind="t"
+                                    dir={info.dir}
                                     open={open}
                                     setOpen={setOpen}
                                     all={all.t}

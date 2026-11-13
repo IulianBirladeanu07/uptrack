@@ -10,6 +10,12 @@ Updated 2026-11-08. Start with this handoff, then read `AGENTS.md` before changi
 - Three patch files mentioned in an earlier handoff (`0001-document-firebase-and-supabase-structure.patch`, `0001-move-step-flushing-into-steps-flusher.patch`, and `0002-share-meal-write-wiring-in-food-provider.patch`) are not present in this checkout at the current base commit.
 - This is an inventory-based repository review, not a claim that every source file received a line-by-line bug audit.
 
+## Current batch: Progress dashboard visual alignment
+
+- Progress adds the active phase and week count below Nutrition/Training and uses the compact `8W`/`12W` range labels.
+- Monthly nutrition weight changes use direction-aware status pills; the training hard-set heatmap shows the current week as an outlined cell, and insight callouts use the orange sparkles accent.
+- Existing chart calculations, navigation, and monthly expansion behavior remain unchanged.
+
 ## Current batch: Workout history screen UX
 
 - History cards match the Library/Home card shell and use plain right-aligned secondary date text beside the title, plus icon-and-value metadata; all text remains font-scalable. The sentence-case title truncates before the date.
@@ -27,9 +33,12 @@ Updated 2026-11-08. Start with this handoff, then read `AGENTS.md` before changi
 
 ## Current batch: Workout Story sharing
 
-- Workout Details is a simple Story composer with a fixed 9:16 preview, full-bleed optional camera/library photo, compact workout metrics and exercise highlights, PR accents, and a native share-sheet action. When there is no photo, a dark branded gradient fills the Story canvas.
-- The preview captures only the Story artwork, not the surrounding controls. Camera and library images are cropped to 9:16; long workouts show the first eight exercise highlights and a remaining-exercise count.
-- Device verification is still needed for photo permissions, image capture quality, and sharing into Instagram Stories.
+- Finishing a workout opens a dedicated finish screen using the app’s standard dark card surfaces and borders, with an orange top accent, completion mark, oversized duration, set/PR stats, exercise details, and optional workout note. “Share story” and “Done” sit side by side at the bottom; Back from the editor returns to the completion recap. Opening Workout Details from History still goes directly to the Story editor.
+- Workout Details' edge-to-edge, device-sized share canvas supports a full-bleed camera/library photo, compact workout metrics and exercise highlights, PR accents, and the native share sheet. The no-photo artwork uses a subtle app-theme gradient behind the recap. Header and share/photo controls overlay the canvas, and are excluded from the captured image.
+- The workout recap card can be dragged anywhere on the canvas and pinch-resized down to 20% scale. Gestures starting on the recap move/resize it; gestures starting on the exposed photo reframe/zoom the photo, without a separate mode toggle. Pan and pinch keep independent layer targets to avoid one gesture changing the other's selection. Drag activates after a 2dp threshold and follows the finger directly; either layer snaps to center axes with temporary alignment guides. The canvas fills the measured screen area behind compact controls. Longer workouts start scaled to fit and every exercise is included. Double-tap cycles the workout panels between clear, glass, and solid; a compact reset control resets both layers.
+- Photo selection does not force a crop. The foreground photo preserves its aspect ratio and is contained in the Story frame; pinch zoom ranges from 35% to 4x and drag repositions it. A fixed, blurred cover version of the same photo colors/fills the full Story background when the foreground is smaller or moved.
+- The Story artwork omits the app logo and date/“Recent” header; it retains one small “Trained with Uptrack” attribution directly below the exercise list. Without a photo, the artwork uses a subtle theme-token gradient behind the centered workout recap and secondary-surface stats/exercise panels; the editor adds a short photo prompt above the original Camera/Choose photo/Share controls. The overlay controls retain the original app styling: Camera and Choose/Change photo actions above the solid accent Share story button.
+- The preview captures only the Story artwork, not the surrounding controls. Workout Story transform tests, TypeScript, and Android bundle export pass. Device verification is still needed for photo permissions, gesture feel, image capture quality, and sharing into Instagram Stories.
 
 ## Current batch: Exercise history screen UX
 
