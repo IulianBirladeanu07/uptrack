@@ -14,7 +14,7 @@ const styles = createStyles(() => ({
     },
     phaseMeta: {
         marginBottom: spacing[3],
-        fontSize: fontSize[14],
+        fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
         color: colors.text.tertiary,
     },
@@ -49,11 +49,11 @@ const styles = createStyles(() => ({
         minHeight: spacing[12],
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: spacing[3],
+        paddingHorizontal: spacing[2],
         borderRadius: radius[2],
     },
     rangeText: {
-        fontSize: fontSize[12],
+        fontSize: fontSize[14],
         fontWeight: fontWeight.semibold,
         color: colors.text.quaternary,
         textAlign: 'center',
@@ -166,8 +166,7 @@ const styles = createStyles(() => ({
     linkText: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
-        color: colors.accent.primary,
-        textDecorationLine: 'underline',
+        color: colors.text.secondary,
     },
 
     stats: {
@@ -249,48 +248,23 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.medium,
         color: colors.text.secondary,
     },
-    maintenanceNote: {
-        marginTop: spacing[3],
-        padding: spacing[3],
-        borderRadius: radius[3],
-        backgroundColor: colors.faded.surface,
-        alignItems: 'center',
-    },
-    maintenanceNoteText: {
-        textAlign: 'center',
-    },
-    maintenanceNoteAdvice: {
-        marginTop: spacing[1],
-        fontSize: fontSize[12],
-        lineHeight: 18,
-        fontWeight: fontWeight.medium,
-        color: colors.text.tertiary,
-        textAlign: 'center',
-    },
 
     cta: {
-        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: spacing[2],
+        minHeight: spacing[10],
         marginTop: spacing[3],
-        paddingVertical: spacing[4],
+        paddingHorizontal: spacing[4],
         borderRadius: radius[3],
         backgroundColor: colors.accent.primary,
-        shadowColor: colors.accent.primary,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 6,
     },
     ctaBusy: {
         opacity: 0.6,
     },
     ctaText: {
-        fontSize: fontSize[16],
-        fontWeight: fontWeight.bold,
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
         color: colors.accent.buttonText,
-        letterSpacing: 0.3,
     },
     alert: {
         flexDirection: 'row',
@@ -352,7 +326,7 @@ const styles = createStyles(() => ({
         borderRadius: 3,
     },
     heatCurrentCell: {
-        borderWidth: 1.5,
+        borderWidth: 1,
         borderColor: colors.accent.primary,
         backgroundColor: 'transparent',
     },
@@ -463,15 +437,6 @@ const styles = createStyles(() => ({
         fontSize: fontSize[12],
         fontWeight: fontWeight.medium,
         color: colors.text.secondary,
-    },
-    monthChange: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.semibold,
-    },
-    monthChangeBadge: {
-        paddingHorizontal: spacing[2],
-        paddingVertical: spacing[1],
-        borderRadius: radius[2],
     },
     planLink: {
         fontSize: fontSize[10],

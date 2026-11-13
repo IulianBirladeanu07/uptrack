@@ -84,6 +84,7 @@ export type PaceModel = {
   total: number;
   spanWeeks: number;
   lastRate: number;
+  best: number;
   spike: boolean;
   status: PaceStatus;
   eta: Date | null;
@@ -599,6 +600,7 @@ export const paceModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, now: D
     recentWeeks,
     total,
     lastRate,
+    best: Math.max(...win.map(w => w.rate)),
     spanWeeks,
     spike,
     status,

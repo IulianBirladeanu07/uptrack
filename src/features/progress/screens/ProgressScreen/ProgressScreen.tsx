@@ -18,7 +18,6 @@ import {
     recapTip,
     paceTip,
     energyTip,
-    maintenanceRangeNote,
     liftStats,
     strengthTip,
     setsTip,
@@ -129,19 +128,6 @@ const Tip = ({ text }: { text: string | null | undefined }) =>
         </View>
     ) : null;
 
-const MaintenanceNote = ({ recap }: { recap: PhaseRecap }) => {
-    const note = maintenanceRangeNote(recap);
-    if (!note) return <Tip text={recapTip(recap)} />;
-
-    return (
-        <View style={styles.maintenanceNote}>
-            <Text style={[styles.tipText, styles.maintenanceNoteText]}>{note.headline}</Text>
-            <Text style={styles.maintenanceNoteAdvice}>{note.basis}</Text>
-            <Text style={styles.maintenanceNoteAdvice}>{note.advice}</Text>
-        </View>
-    );
-};
-
 const ChartBox = ({ width, children }: { width: number; children: (w: number) => ReactNode }) => (
     <View>{width > 0 && children(width)}</View>
 );
@@ -155,47 +141,39 @@ const EmptyCard = ({ cap, text }: { cap: string; text: string }) => (
 
 const RecapCard = ({ r, busy, onSwitch, onProfile }: { r: PhaseRecap; busy: boolean; onSwitch: () => void; onProfile: () => void }) => {
     const third = r.dir < 0
-        ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Rel. strength', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
+        ? { value: r.perKg != null ? sg(r.perKg, 0) : '--', unit: r.perKg != null ? '%' : undefined, label: 'Str / kg', color: r.perKg != null && r.perKg > 0 ? colors.accent.success : undefined }
         : { value: r.strengthPct != null ? sg(r.strengthPct, 0) : '--', unit: r.strengthPct != null ? '%' : undefined, label: 'Strength', color: r.strengthPct != null && r.strengthPct > 0 ? colors.accent.success : undefined };
-    const phaseLabel = r.dir < 0 ? 'Cutting' : 'Bulking';
 
     return (
         <View style={styles.card}>
             <View style={styles.rowBetween}>
-                <Text style={styles.cap}>{phaseLabel} phase recap</Text>
+                <Text style={styles.cap}>Phase recap</Text>
             </View>
             <Hero value={sg(r.change, 1)} unit="kg">
                 <Delta tone="good" icon="checkmark" text="goal reached" />
             </Hero>
             <Stats
                 items={[
-                    {
-                        value: fmt1(r.rate),
-                        unit: 'kg/wk',
-                        label: r.dir < 0 ? 'Avg loss' : 'Avg gain',
-                    },
+                    { value: kfmt(r.avgKcal), label: 'Avg kcal' },
                     { value: String(r.weeks), unit: 'wk', label: 'Duration' },
                     third,
                 ]}
             />
-            {r.maintenanceSource === 'recent'
-                ? <MaintenanceNote recap={r} />
-                : <Tip text={recapTip(r)} />}
+            {!(r.maintenanceSource === 'recent' && r.maintenance != null) && <Tip text={recapTip(r)} />}
             {r.maintenanceSource === 'recent' && r.maintenance != null && (
                 <TouchableOpacity
                     style={[styles.cta, busy && styles.ctaBusy]}
                     onPress={onSwitch}
                     disabled={busy}
-                    activeOpacity={0.8}
+                    activeOpacity={0.9}
                 >
-                    <Ionicons name="swap-horizontal" size={spacing.iconSm} color={colors.accent.buttonText} />
                     <Text style={styles.ctaText}>
-                        {busy ? 'Switching...' : `Switch to maintenance · ~${kfmt(r.maintenance)} kcal`}
+                        {busy ? 'Switching...' : `Switch to maintenance · ${kfmt(r.maintenance)} kcal`}
                     </Text>
                 </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.link} onPress={onProfile} activeOpacity={0.7}>
-                <Text style={styles.linkText}>Choose another goal in Profile</Text>
+                <Text style={styles.linkText}>Set a different goal</Text>
             </TouchableOpacity>
         </View>
     );
@@ -229,7 +207,7 @@ const PaceCard = ({
     }, [n, phaseStart, info.type]);
 
     const mature = m != null && m.count >= 4;
-    const title = info.dir < 0 ? 'Rate of loss' : info.dir > 0 ? 'Rate of gain' : 'Weight stability';
+    const title = info.dir < 0 ? 'Weight loss pace' : info.dir > 0 ? 'Weight gain pace' : 'Weight drift';
     if (!mature || !m) {
         const remainingChanges = Math.max(0, 4 - Math.max(0, averages.length - 1));
         const latestAverage = averages[averages.length - 1];
@@ -307,28 +285,23 @@ const PaceCard = ({
         : m.eta
             ? `${shortDate(m.eta)}${m.eta.getFullYear() !== new Date().getFullYear() ? ` ${m.eta.getFullYear()}` : ''}`
             : '--';
-    const goalStat = m.reached
-        ? { value: fmt1(info.remaining ?? 0), unit: 'kg', label: 'To goal' }
-        : { value: eta, label: 'Goal ETA' };
-    const latestIsPartial = [...m.slots].reverse().find(slot => slot.v != null)?.cur ?? false;
-
-    const recent = m.rate4 ?? m.rate;
-    const headerNote = picked
+    const pickedText = picked
         ? `week of ${shortDate(picked.monday)}${(picked.gap ?? 0) > 1 ? ` · ${picked.gap}-wk avg` : ''}`
-        : info.remaining != null && !info.reached
-            ? `${info.remaining.toFixed(1)} kg to go`
-            : null;
+        : null;
 
     return (
         <View style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.cap}>{title}</Text>
-                {headerNote != null && <Text style={styles.capRight}>{headerNote}</Text>}
+                {info.remaining != null && !info.reached && (
+                    <Text style={styles.capRight}>{`${info.remaining.toFixed(1)} kg to go`}</Text>
+                )}
             </View>
-            <Hero value={fmt1(picked ? picked.v : recent)} unit="kg/wk">
-                {!picked && pill ? <Delta {...pill} /> : null}
+            <Hero value={fmt1(picked ? picked.v : m.rate)} unit="kg/wk">
+                {pickedText
+                    ? <Delta tone="flat" text={pickedText} />
+                    : pill ? <Delta {...pill} /> : <Delta tone="flat" text={`${m.count}-week avg`} />}
             </Hero>
-            {!picked && <Text style={styles.heroNote}>{`last ${m.recentWeeks}-week average`}</Text>}
             <ChartBox width={chartWidth}>
                 {w => <PaceChart slots={m.slots} plan={m.plan} width={w} sel={sel} onSelect={setSel} />}
             </ChartBox>
@@ -336,18 +309,19 @@ const PaceCard = ({
                 <Text style={styles.heroNote}>Pace uses this phase only; earlier weeks are excluded.</Text>
             )}
             <Stats
-                items={[
-                    {
-                        value: fmt1(m.lastRate),
-                        unit: 'kg/wk',
-                        label: latestIsPartial ? 'This week · partial' : 'Latest week',
-                        ...(latestIsPartial ? {
-                            accessibilityLabel: `This week, partial: ${fmt1(m.lastRate)} kilograms per week`,
-                        } : {}),
-                    },
-                    { value: fmt1(m.rate), unit: 'kg/wk', label: 'Range avg' },
-                    goalStat,
-                ]}
+                items={
+                    m.status === 'reached'
+                        ? [
+                            { value: fmt1(m.rate4), unit: 'kg/wk', label: '4W rate' },
+                            { value: fmt1(m.lastRate), unit: 'kg/wk', label: 'Last week' },
+                            { value: fmt1(m.best), unit: 'kg/wk', label: 'Best week' },
+                        ]
+                        : [
+                            { value: fmt1(m.rate4), unit: 'kg', label: '4W rate' },
+                            { value: fmt1(m.total), unit: 'kg', label: info.dir < 0 ? 'Lost' : info.dir > 0 ? 'Gained' : 'Moved' },
+                            { value: eta, label: 'Goal ETA' },
+                        ]
+                }
             />
             <Tip text={paceTip(m, info)} />
         </View>
@@ -381,9 +355,9 @@ const EnergyCard = ({ m, info, n, chartWidth }: { m: EnergyModel | null; info: P
             </ChartBox>
             <Stats
                 items={[
-                    { value: `~${kfmt(m.maintNow)}`, unit: m.margin != null ? `\u00b1${kfmt(m.margin)}` : undefined, label: 'Est. maintenance' },
+                    { value: kfmt(m.maintNow), unit: m.margin != null ? `\u00b1${kfmt(m.margin)}` : undefined, label: 'Maintenance' },
                     { value: kfmt(m.eatNow), label: 'Eating' },
-                    { value: m.target != null ? kfmt(m.target) : '--', label: 'Eat target' },
+                    { value: m.target != null ? kfmt(m.target) : '--', label: 'Target' },
                 ]}
             />
             <Tip text={energyTip(m, info)} />
@@ -414,7 +388,9 @@ const StrengthCard = ({ m, lifts, info, onLift, chartWidth }: { m: StrengthModel
                 </View>
             </View>
             <Hero value={perKgPill ? sg(m.perKg!, 0) : sg(m.sNow as number, 1)} unit={perKgPill ? '% per kg' : '%'}>
-                {!perKgPill && m.wNow != null && <Delta tone="purple" text={`weight ${sg(m.wNow, 1)}%`} />}
+                {perKgPill
+                    ? <Delta tone="flat" text={`strength ${sg(m.sNow as number, 1)}%`} />
+                    : m.wNow != null && <Delta tone="purple" text={`weight ${sg(m.wNow, 1)}%`} />}
             </Hero>
             <ChartBox width={chartWidth}>
                 {w => <StrengthChart strength={m.strength} weight={m.weight} slots={m.slots} width={w} />}
@@ -440,7 +416,6 @@ const StrengthCard = ({ m, lifts, info, onLift, chartWidth }: { m: StrengthModel
                     <View style={styles.alertBody}>
                         <Text style={styles.alertTitle} numberOfLines={1}>{lifts.stalled[0].name}</Text>
                         <Text style={styles.alertSub}>
-                            {lifts.stalled[0].muscleGroup ? `${lifts.stalled[0].muscleGroup} · ` : ''}
                             No progress in {lifts.stalled[0].weeks} weeks{more > 0 ? ` · +${more} more stalled` : ''}
                         </Text>
                     </View>
@@ -504,7 +479,7 @@ const Tile = ({ label, dot, value, sub }: { label: string; dot: string; value: s
             <Text style={styles.tileLabel}>{label}</Text>
         </View>
         <Text style={styles.tileValue}>{value}</Text>
-        {sub ? <Text style={styles.tileDelta}>{sub}</Text> : null}
+        <Text style={styles.tileDelta}>{sub || ' '}</Text>
     </View>
 );
 
@@ -517,6 +492,7 @@ const MonthRow = ({ m, kind, dir, open, onToggle, last }: MonthRowProps) => {
     let tiles: ReactNode;
 
     if (kind === 'n') {
+        const good = m.change != null && (dir === 0 ? Math.abs(m.change) < 0.5 : dir * m.change > 0);
         right = (
             <>
                 {m.wEnd != null && (
@@ -525,35 +501,7 @@ const MonthRow = ({ m, kind, dir, open, onToggle, last }: MonthRowProps) => {
                         <Text style={styles.monthUnit}>kg</Text>
                     </View>
                 )}
-                {m.change != null && (
-                    <View
-                        style={[
-                            styles.monthChangeBadge,
-                            {
-                                backgroundColor: dir === 0
-                                    ? TONES.flat.bg
-                                    : m.change * dir > 0
-                                        ? TONES.warn.bg
-                                        : TONES.good.bg,
-                            },
-                        ]}
-                    >
-                        <Text
-                            style={[
-                                styles.monthChange,
-                                {
-                                    color: dir === 0
-                                        ? TONES.flat.fg
-                                        : m.change * dir > 0
-                                            ? TONES.warn.fg
-                                            : TONES.good.fg,
-                                },
-                            ]}
-                        >
-                            {sg(m.change, 1)}
-                        </Text>
-                    </View>
-                )}
+                {m.change != null && <Delta tone={good ? 'good' : 'flat'} text={sg(m.change, 1)} />}
             </>
         );
         tiles = (

@@ -10,6 +10,7 @@ const AX = colors.text.tertiary;
 const GRID = colors.border.default;
 const PLAN = colors.text.primary;
 const EAT = colors.accent.primary;
+const TARGET = colors.accent.amber;
 const PACE = colors.accent.primary;
 const WEIGHT = colors.macro.protein;
 const STRENGTH = colors.accent.cyan;
@@ -76,9 +77,9 @@ type PaceChartProps = {
 
 export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChartProps) => {
   const n = slots.length;
-  const H = 160;
-  const top = 12;
-  const bot = 22;
+  const H = 176;
+  const top = 18;
+  const bot = 24;
   const gut = 52;
   const pw = width - gut - LP;
   const gap = n > 12 ? 3 : 5;
@@ -97,7 +98,7 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
   const li = lastIdx(slots.map(s => s.v));
   const active = sel != null && slots[sel]?.v != null ? sel : li;
   const py = plan != null ? y(plan) : null;
-  const trend = n >= 12 ? slots.map((s, i) => (s.avg != null ? [i * (bw + gap) + bw / 2, y(s.avg)] : null)).filter((pt): pt is number[] => pt != null) : [];
+  const trend = slots.map((s, i) => (s.avg != null ? [i * (bw + gap) + bw / 2, y(s.avg)] : null)).filter((pt): pt is number[] => pt != null);
   const ts = tickStep(Math.max(Math.abs(lo), Math.abs(hi)));
   const ticks: number[] = [];
   for (let t = Math.ceil(chartLo / ts) * ts; t <= chartHi; t += ts) {
@@ -169,7 +170,7 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
             );
           })}
           {trend.length > 1 && (
-            <Path d={trend.map((p, k) => `${k ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')} stroke={PLAN} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" fill="none" />
+            <Path d={trend.map((p, k) => `${k ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')} stroke={PLAN} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" fill="none" />
           )}
           {trend.length > 1 && <Circle cx={trend[trend.length - 1][0]} cy={trend[trend.length - 1][1]} r={3.5} fill={PLAN} stroke={BG} strokeWidth={1.5} />}
           {activeLabel && (
@@ -400,9 +401,9 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
           })}
           {ty != null && (
             <>
-              <Line x1={-LP} x2={pw} y1={ty} y2={ty} stroke={PLAN} strokeOpacity={0.75} strokeWidth={1.5} strokeDasharray="4 4" />
+              <Line x1={-LP} x2={pw} y1={ty} y2={ty} stroke={TARGET} strokeOpacity={0.85} strokeWidth={1.5} strokeDasharray="4 4" />
               <SvgText x={width - LP} y={ty - 3} fontSize={10} fill={AX} textAnchor="end">target</SvgText>
-              <SvgText x={width - LP} y={ty + 10} fontSize={10} fontWeight="700" fill={PLAN} textAnchor="end">{kfmt(target)}</SvgText>
+              <SvgText x={width - LP} y={ty + 10} fontSize={10} fontWeight="700" fill={TARGET} textAnchor="end">{kfmt(target)}</SvgText>
             </>
           )}
           </G>
