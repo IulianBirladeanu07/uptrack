@@ -46,9 +46,9 @@ const styles = createStyles(() => ({
         flexShrink: 1,
     },
     rangeOption: {
-        minHeight: spacing[12],
         alignItems: 'center',
         justifyContent: 'center',
+        paddingVertical: spacing[1],
         paddingHorizontal: spacing[2],
         borderRadius: radius[2],
     },
