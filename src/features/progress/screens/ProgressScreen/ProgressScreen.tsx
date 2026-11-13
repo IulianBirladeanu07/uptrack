@@ -178,6 +178,7 @@ const PaceCard = ({
     n,
     rangeKey,
     phaseWeekCount,
+    phaseRatedWeeks,
     chartWidth,
 }: {
     m: PaceModel | null;
@@ -185,6 +186,7 @@ const PaceCard = ({
     n: number;
     rangeKey: string;
     phaseWeekCount: number;
+    phaseRatedWeeks: number;
     chartWidth: number;
 }) => {
     const [sel, setSel] = useState<number | null>(null);
@@ -194,7 +196,22 @@ const PaceCard = ({
     }, [n, phaseStart, info.type]);
 
     const title = info.dir < 0 ? 'Weight loss pace' : info.dir > 0 ? 'Weight gain pace' : 'Weight drift';
-    if (!m) return <EmptyCard cap={title} text="Log your weight for two weeks to see your pace." />;
+    if (!m) {
+        const text = info.phaseStart && phaseRatedWeeks < 2
+            ? `Pace appears after two weeks of weight change in this phase (${phaseRatedWeeks} of 2 so far).`
+            : 'Log your weight for two weeks to see your pace.';
+        return (
+            <View style={styles.card}>
+                <View style={styles.rowBetween}>
+                    <Text style={styles.cap}>{title}</Text>
+                    {info.remaining != null && !info.reached && (
+                        <Text style={styles.capRight}>{`${info.remaining.toFixed(1)} kg to go`}</Text>
+                    )}
+                </View>
+                <Text style={styles.empty}>{text}</Text>
+            </View>
+        );
+    }
 
     const pills: Record<PaceStatus, DeltaProps | null> = {
         on: { tone: 'good', icon: 'checkmark', text: 'on plan' },
@@ -620,6 +637,7 @@ const ProgressScreen = () => {
         n,
         pace,
         phaseWeekCount,
+        phaseRatedWeeks,
         energy,
         strength,
         lifts,
@@ -747,6 +765,7 @@ const ProgressScreen = () => {
                                     n={n}
                                     rangeKey={range.key}
                                     phaseWeekCount={phaseWeekCount}
+                                    phaseRatedWeeks={phaseRatedWeeks}
                                     chartWidth={chartWidth}
                                 />
                                 <EnergyCard m={energy} info={info} n={n} chartWidth={chartWidth} />

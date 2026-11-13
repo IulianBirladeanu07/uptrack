@@ -97,6 +97,7 @@ export const useProgressScreenModel = ({
         pace,
         paceAverages,
         phaseWeekCount: phasePaceWeeks.length,
+        phaseRatedWeeks: phasePaceWeeks.filter(week => week.rate != null).length,
         energy,
         strength,
         lifts,
