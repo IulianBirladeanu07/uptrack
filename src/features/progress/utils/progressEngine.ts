@@ -1,16 +1,16 @@
-import { calculateRealTDEE, KCAL_PER_KG } from '../../profile/utils/nutritionPlanEngine';
+import { calculateRealTDEE, KCAL_PER_KG, WEEKS_PER_MONTH } from '../../profile/utils/nutritionPlanEngine';
 import { estimateMaintenanceRegression, maintenanceSeries } from '../../profile/utils/maintenanceEstimator';
 import { getPhaseLabel, isGoalReached } from '../../profile/utils/weightTrendEngine';
 import { overlayWeekSteps } from '../../nutrition/helpers/stepStats';
 import type { StepSnapshot } from '../../nutrition/helpers/stepStats';
-import type { DailySteps, PlanType, UserData, WeekStats, WeightInWeek } from '../../../shared/types';
+import type { DailySteps, PlanType, UserData, WeekStats, WeeklySnapshot, WeightInWeek } from '../../../shared/types';
 import { formatLocalDateKey } from '../../../shared/utils/localDateKey';
 
 type Maybe = number | null | undefined;
 type Slot = { e: number | null; r: number | null };
 type TsLike = { toDate: () => Date };
 
-export type NutritionSnap = StepSnapshot & {
+export type NutritionSnap = StepSnapshot & Partial<Pick<WeeklySnapshot, 'weightAverage'>> & {
   daysLoggedNutrition?: number;
   avgCalories?: number;
   avgProtein?: number;
@@ -187,6 +187,7 @@ export const STALL_DROP = 0.03;
 const MAX_HISTORY_WEEKS = 104;
 const LIVE_WEEKS = 10;
 const RATE_WINDOW = 12;
+const MIN_ETA_COMPLETED_RATES = 8;
 const TDEE_WINDOW = 4;
 const MUSCLE_ORDER = ['Back', 'Chest', 'Delts', 'Biceps', 'Triceps', 'Quads', 'Hamstring', 'Glutes', 'Calves', 'Core'];
 const MUSCLE_ALIAS: Record<string, string> = {
@@ -331,8 +332,9 @@ export const buildWeeks = (src: BuildSource, now: Date = new Date()): { weeks: W
 
     const we = wMap.get(key);
     const wVals = we?.days ? Object.values(we.days).filter(v => v != null && !Number.isNaN(Number(v))).map(Number) : [];
-    const wDays = wVals.length || (we?.average != null ? 1 : 0);
-    const wAvg = we ? (we.average ?? mean(wVals)) : null;
+    const snapshotWeight = isCurrent ? null : nMap.get(key)?.weightAverage;
+    const wAvg = we?.average ?? mean(wVals) ?? snapshotWeight ?? null;
+    const wDays = wVals.length || (we?.average != null || snapshotWeight != null ? 1 : 0);
     const w = wAvg != null && wDays >= (isCurrent ? MIN_CURRENT_DAYS : 1) ? Number(wAvg) : null;
 
     let kcal: number | null = null;
@@ -509,7 +511,11 @@ export const phaseInfo = (userData: UserData | null | undefined, weeks: WeekRow[
   const phaseWeeks = gs && hasSwitch
     ? Math.max(1, Math.round((mondayOf(now).getTime() - mondayOf(gs).getTime()) / WEEK_MS) + 1)
     : Math.max(1, weeks.length);
-  const planRate = plan?.ratePerWeek != null && plan.ratePerWeek !== 0 ? Math.abs(plan.ratePerWeek) : null;
+  const planRate = plan?.targetRatePerWeek != null && plan.targetRatePerWeek > 0
+    ? plan.targetRatePerWeek
+    : plan?.ratePerWeek != null && plan.ratePerWeek !== 0
+      ? Math.abs(plan.ratePerWeek)
+      : null;
   const latest = lastWeight(weeks);
   let remaining: number | null = null;
   if (goal != null && latest != null) {
@@ -575,9 +581,11 @@ export const paceModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, now: D
     const trail = win.slice(Math.max(0, k - 3), k + 1);
     roll.set(w.i, trail.length >= 3 ? mean(trail.map(x => x.rate)) : null);
   });
-  const recent12 = slots.filter(w => w.rate != null).slice(-RATE_WINDOW);
+  const recent12 = slots.filter(w => w.rate != null && !w.isCurrent).slice(-RATE_WINDOW);
   const recent12Weeks = sum(recent12.map(w => w.gap));
-  const rate12 = recent12Weeks > 0 ? sum(recent12.map(w => w.chg)) / recent12Weeks : null;
+  const rate12 = recent12.length >= MIN_ETA_COMPLETED_RATES && recent12Weeks > 0
+    ? sum(recent12.map(w => w.chg)) / recent12Weeks
+    : null;
   let eta: Date | null = null;
   let reached = false;
   if (info.dir !== 0 && info.remaining != null) {
@@ -586,12 +594,9 @@ export const paceModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, now: D
   }
 
   const chartSlots = slots.map(w => ({ v: w.rate, monday: w.monday, gap: w.gap, avg: roll.get(w.i) ?? null, cur: w.isCurrent }));
-  const firstRate = chartSlots.findIndex(slot => slot.v != null);
-  let lastRateIndex = chartSlots.length - 1;
-  while (lastRateIndex > firstRate && chartSlots[lastRateIndex].v == null) lastRateIndex -= 1;
 
   return {
-    slots: chartSlots.slice(firstRate, lastRateIndex + 1),
+    slots: chartSlots,
     plan,
     diff,
     rate,
@@ -611,6 +616,10 @@ export const paceModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, now: D
 export const paceTip = (m: PaceModel, info: PhaseInfo): string => {
   if (m.status === 'reached') return '';
   const word = info.dir > 0 ? 'bulk' : 'cut';
+  const scale = info.dir > 0 ? WEEKS_PER_MONTH : 1;
+  const unit = info.dir > 0 ? 'kg/month' : 'kg/wk';
+  const recentRate = m.rate4 ?? m.rate;
+  const recentRateText = recentRate == null ? '--' : fmt1(recentRate * scale);
   if (info.dir === 0) {
     return m.status === 'steady'
       ? `Weight is holding steady, drifting ${fmt1(m.rate4 ?? m.rate)} kg a week on average over the last ${m.recentWeeks} weeks.`
@@ -618,11 +627,12 @@ export const paceTip = (m: PaceModel, info: PhaseInfo): string => {
   }
   if (m.spike) {
     const s = info.dir < 0 ? '-' : '+';
-    return `Last week's ${s}${fmt1(m.lastRate)} kg looks like water. Judge the ${word} by the ${fmt1(m.rate4 ?? m.rate)} kg/wk average over the last ${m.recentWeeks} weeks, not the spike.`;
+    return `Last week's ${s}${fmt1(m.lastRate * scale)} ${unit} looks like water. Judge the ${word} by the ${recentRateText} ${unit} average over the last ${m.recentWeeks} weeks, not the spike.`;
   }
   if (m.status === 'behind') {
     const tail = m.eta ? ` The longer-term trend puts the goal around ${shortDate(m.eta)}.` : '';
-    return `Averaging ${fmt1(m.rate4 ?? m.rate)} kg/wk over the last ${m.recentWeeks} weeks against a ${fmt1(m.plan)} plan.${tail}`;
+    const planText = m.plan == null ? 'no target rate' : `${fmt1(m.plan * scale)} ${unit} plan`;
+    return `Averaging ${recentRateText} ${unit} over the last ${m.recentWeeks} weeks against a ${planText}.${tail}`;
   }
   if (m.status === 'ahead') {
     return info.dir < 0

@@ -15,7 +15,7 @@ export type ProfileIdentityErrors = {
     [K in keyof ProfileIdentitySeed]?: string | undefined;
 };
 
-type StepKey = 'age' | 'height' | 'currentWeight' | 'targetWeight';
+type StepKey = 'age' | 'height' | 'currentWeight' | 'targetWeight' | 'targetRatePerWeek';
 
 type ProfileFormState = {
     form: ProfileFormSeed;

@@ -169,7 +169,6 @@ const styles = createStyles(() => ({
         color: colors.accent.primary,
         textDecorationLine: 'underline',
     },
-
     stats: {
         flexDirection: 'row',
         marginTop: spacing[2],

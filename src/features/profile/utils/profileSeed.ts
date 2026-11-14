@@ -9,6 +9,7 @@ export type ProfileFormSeed = {
   gender: string;
   currentWeight: number;
   targetWeight: number;
+  targetRatePerWeek: number;
   activityLevel: string;
   experienceLevel: string;
   stressLevel: string;
@@ -35,6 +36,9 @@ export const seedProfileForm = (userData: UserDataLike): ProfileFormSeed => {
     gender: userData?.gender || 'male',
     currentWeight,
     targetWeight,
+    targetRatePerWeek: userData?.weightChangePlan?.targetRatePerWeek
+      || userData?.weightChangePlan?.ratePerWeek
+      || 0.3,
     activityLevel: userData?.activityLevel || 'moderately_active',
     experienceLevel: userData?.experienceLevel || 'intermediate',
     stressLevel: userData?.stressLevel || 'moderate',

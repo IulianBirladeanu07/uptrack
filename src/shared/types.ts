@@ -76,6 +76,7 @@ export type WeightChangePlan = {
   type: PlanType;
   ratePerWeek: number;
   ratePerMonth: number;
+  targetRatePerWeek?: number;
   goalCalories: number;
   macros: Macros;
   bmr: number;
@@ -89,6 +90,7 @@ export type WeightChangePlan = {
 export type PlanFormData = {
   currentWeight?: Numeric | null;
   targetWeight?: Numeric | null;
+  targetRatePerWeek?: number | null;
   fitnessGoals?: PlanType | null;
   activityLevel?: string | null;
   gender?: string | null;

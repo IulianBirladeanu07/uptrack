@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Switch, Linking } from 'react-native';
 import type { TextInputProps } from 'react-native';
@@ -21,8 +21,10 @@ import type { ProfileIdentityErrors } from './useProfileFormState';
 import { useProfileSave } from './useProfileSave';
 import { privacyPolicyUrl, accountDeletionUrl } from '../../../../shared/services/legalUrls';
 import type { AuthenticatedStackParamList } from '../../../../shared/navigation';
+import { WEEKS_PER_MONTH } from '../../utils/nutritionPlanEngine';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+type RateUnit = 'week' | 'month';
 
 type InputRowProps = TextInputProps & { label: string; error?: string | undefined };
 
@@ -71,12 +73,20 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
     stepNutritionValue,
   } = useProfileFormState(userData, auth.currentUser?.email);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [rateUnit, setRateUnit] = useState<RateUnit>(
+    userData?.weightChangePlan?.type === 'muscle_gain' || userData?.fitnessGoals === 'muscle_gain'
+      ? 'month'
+      : 'week',
+  );
 
   const view = planView({ userData, form, original });
   const previewGoal = view.goal;
   const currentPlan = view.base;
   const previewPlan = view.next;
   const isGaining = previewGoal === 'muscle_gain';
+  useEffect(() => {
+    setRateUnit(isGaining ? 'month' : 'week');
+  }, [isGaining]);
   const savedGoal = userData?.weightChangePlan?.type ?? userData?.fitnessGoals ?? original.fitnessGoals;
   const phaseChanged = previewGoal !== savedGoal;
   const calDiff = previewPlan.goalCalories - currentPlan.goalCalories;
@@ -303,6 +313,58 @@ const ProfileScreen = ({ navigation }: NativeStackScreenProps<AuthenticatedStack
             </View>
           ))}
         </View>
+
+        {previewGoal !== 'maintenance' && (
+          <>
+            <SectionTitle>Target Pace</SectionTitle>
+            <View style={styles.card}>
+              <View style={styles.rateUnitRow}>
+                <Text style={styles.stepperLabel}>Set target per</Text>
+                <View style={styles.rateUnitOptions}>
+                  {(['week', 'month'] as const).map(unit => (
+                    <TouchableOpacity
+                      key={unit}
+                      style={[styles.rateUnitButton, rateUnit === unit && styles.rateUnitButtonSelected]}
+                      onPress={() => setRateUnit(unit)}
+                      activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: rateUnit === unit }}
+                    >
+                      <Text style={[styles.rateUnitText, rateUnit === unit && styles.rateUnitTextSelected]}>
+                        {unit === 'week' ? 'Week' : 'Month'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <View style={styles.divider} />
+              <NumberStepper
+                label={previewGoal === 'muscle_gain' ? 'Gain' : 'Loss'}
+                value={rateUnit === 'week'
+                  ? Number(form.targetRatePerWeek.toFixed(2))
+                  : Number((form.targetRatePerWeek * WEEKS_PER_MONTH).toFixed(1))}
+                unit={rateUnit === 'week' ? 'kg/week' : 'kg/month'}
+                onDecrement={() => stepValue(
+                  'targetRatePerWeek',
+                  rateUnit === 'week' ? -0.01 : -0.1 / WEEKS_PER_MONTH,
+                  0.01,
+                  Math.max(0.01, form.currentWeight * 0.01),
+                  rateUnit === 'week' ? 2 : 3,
+                )}
+                onIncrement={() => stepValue(
+                  'targetRatePerWeek',
+                  rateUnit === 'week' ? 0.01 : 0.1 / WEEKS_PER_MONTH,
+                  0.01,
+                  Math.max(0.01, form.currentWeight * 0.01),
+                  rateUnit === 'week' ? 2 : 3,
+                )}
+              />
+              <Text style={styles.rateHint}>
+                This adjusts your calorie target. The plan applies safety limits to the rate.
+              </Text>
+            </View>
+          </>
+        )}
 
         <SectionTitle>Weight</SectionTitle>
         <View style={styles.card}>
@@ -561,6 +623,13 @@ const styles = createStyles(() => ({
   genderBtnText:       { fontSize: fontSize[14], fontWeight: fontWeight.semibold, color: colors.text.tertiary },
   genderBtnTextSelected: { color: colors.accent.buttonText, fontWeight: fontWeight.bold },
   optionDesc:          { fontSize: fontSize[12], color: colors.text.quaternary, fontWeight: fontWeight.medium, marginTop: spacing[1] },
+  rateUnitRow:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing[4], paddingVertical: spacing[3] },
+  rateUnitOptions:     { flexDirection: 'row', gap: spacing[1], backgroundColor: colors.background.tertiary, borderRadius: radius[3], padding: spacing[1] },
+  rateUnitButton:      { paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius[2] },
+  rateUnitButtonSelected: { backgroundColor: colors.accent.primary },
+  rateUnitText:        { fontSize: fontSize[12], fontWeight: fontWeight.semibold, color: colors.text.tertiary },
+  rateUnitTextSelected: { color: colors.accent.buttonText },
+  rateHint:            { fontSize: fontSize[12], color: colors.text.tertiary, lineHeight: fontSize[18], paddingHorizontal: spacing[4], paddingBottom: spacing[3] },
   nutritionHint:       { fontSize: fontSize[12], color: colors.text.tertiary, lineHeight: fontSize[18], paddingHorizontal: spacing[4], paddingBottom: spacing[3] },
   automationTextCol:   { flex: 1, paddingRight: spacing[4] },
   logoutButton:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2], backgroundColor: colors.faded.errorAlt, borderRadius: radius[4], height: spacing.buttonHeight, borderWidth: 1, borderColor: colors.border.error, marginTop: spacing[2] },

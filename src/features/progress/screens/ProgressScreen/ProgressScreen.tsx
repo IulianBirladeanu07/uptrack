@@ -10,6 +10,7 @@ import { WorkoutContext } from '../../../workout/context/WorkoutContext';
 import { useFoodContext } from '../../../nutrition/context/FoodContext';
 import { formatDate } from '../../../nutrition/utils/dateUtils';
 import { colors, spacing } from '../../../../shared/theme';
+import { WEEKS_PER_MONTH } from '../../../profile/utils/nutritionPlanEngine';
 import { useAppNavigation } from '../../../../shared/navigation';
 import { PaceChart, BalanceChart, StrengthChart, WeightTrendChart } from '../../components/ProgressCharts';
 import type { WeightTrendPoint } from '../../components/ProgressCharts';
@@ -228,9 +229,8 @@ const PaceCard = ({
         setSel(null);
     }, [n, phaseStart, info.type]);
 
-    const mature = m != null && m.count >= 4;
-    const title = info.dir < 0 ? 'Rate of loss' : info.dir > 0 ? 'Rate of gain' : 'Weight stability';
-    if (!mature || !m) {
+    const title = info.dir < 0 ? 'Weight loss pace' : info.dir > 0 ? 'Weight gain pace' : 'Weight stability';
+    if (!m) {
         const remainingChanges = Math.max(0, 4 - Math.max(0, averages.length - 1));
         const latestAverage = averages[averages.length - 1];
         return (
@@ -301,23 +301,35 @@ const PaceCard = ({
     };
     const pill = pills[m.status];
 
+    const isBulk = info.dir > 0;
+    const rateScale = isBulk ? WEEKS_PER_MONTH : 1;
+    const rateUnit = isBulk ? 'kg/month' : 'kg/wk';
     const picked = sel != null && m.slots[sel]?.v != null ? m.slots[sel] : null;
-    const eta = m.reached
-        ? 'Reached'
-        : m.eta
-            ? `${shortDate(m.eta)}${m.eta.getFullYear() !== new Date().getFullYear() ? ` ${m.eta.getFullYear()}` : ''}`
-            : '--';
-    const goalStat = m.reached
-        ? { value: fmt1(info.remaining ?? 0), unit: 'kg', label: 'To goal' }
-        : { value: eta, label: 'Goal ETA' };
-    const latestIsPartial = [...m.slots].reverse().find(slot => slot.v != null)?.cur ?? false;
-
     const recent = m.rate4 ?? m.rate;
+    const selectedRate = recent;
+    const latestCompletedRate = [...m.slots].reverse().find(slot => slot.v != null && !slot.cur)?.v;
+    const chartSlots = m.slots.map(slot => ({
+        ...slot,
+        v: slot.v == null ? null : slot.v * rateScale,
+        avg: slot.avg == null ? null : slot.avg * rateScale,
+    }));
+    const goalStat = m.reached
+        ? { value: 'Reached', label: 'Goal' }
+        : {
+            value: info.dir === 0 ? 'Hold' : m.plan != null ? fmt1(m.plan * rateScale) : '--',
+            unit: info.dir !== 0 && m.plan != null ? rateUnit : undefined,
+            label: 'Target rate',
+        };
     const headerNote = picked
         ? `week of ${shortDate(picked.monday)}${(picked.gap ?? 0) > 1 ? ` · ${picked.gap}-wk avg` : ''}`
         : info.remaining != null && !info.reached
             ? `${info.remaining.toFixed(1)} kg to go`
             : null;
+    const diff = m.diff == null ? null : m.diff * rateScale;
+    const scaledPill = pill == null ? null : {
+        ...pill,
+        text: m.status === 'ahead' ? `${fmt1(diff)} ahead` : m.status === 'behind' ? `${fmt1(-(diff ?? 0))} behind` : pill.text,
+    };
 
     return (
         <View style={styles.card}>
@@ -325,30 +337,54 @@ const PaceCard = ({
                 <Text style={styles.cap}>{title}</Text>
                 {headerNote != null && <Text style={styles.capRight}>{headerNote}</Text>}
             </View>
-            <Hero value={fmt1(picked ? picked.v : recent)} unit="kg/wk">
-                {!picked && pill ? <Delta {...pill} /> : null}
+            <Hero
+                value={selectedRate == null ? '--' : fmt1(selectedRate * rateScale)}
+                unit={rateUnit}
+            >
+                {!picked && scaledPill ? <Delta {...scaledPill} /> : null}
             </Hero>
-            {!picked && <Text style={styles.heroNote}>{`last ${m.recentWeeks}-week average`}</Text>}
+            {!picked && (
+                <Text style={styles.heroNote}>
+                    {isBulk
+                        ? `Recent pace · last ${m.recentWeeks} weeks · monthly equivalent`
+                        : `last ${m.recentWeeks}-week average`}
+                </Text>
+            )}
             <ChartBox width={chartWidth}>
-                {w => <PaceChart slots={m.slots} plan={m.plan} width={w} sel={sel} onSelect={setSel} />}
+                {w => (
+                    <PaceChart
+                        slots={chartSlots}
+                        plan={m.plan == null ? null : m.plan * rateScale}
+                        width={w}
+                        sel={sel}
+                        onSelect={setSel}
+                    />
+                )}
             </ChartBox>
+            {picked?.v != null && (
+                <Text style={styles.heroNote}>
+                    Selected rate: {sg(picked.v, 1)} kg/week{isBulk ? ' · bar shows monthly equivalent' : ''}
+                </Text>
+            )}
             {rangeKey !== 'PHASE' && info.phaseStart && phaseWeekCount < n && (
                 <Text style={styles.heroNote}>Pace uses this phase only; earlier weeks are excluded.</Text>
             )}
             <Stats
                 items={[
                     {
-                        value: fmt1(m.lastRate),
-                        unit: 'kg/wk',
-                        label: latestIsPartial ? 'This week · partial' : 'Latest week',
-                        ...(latestIsPartial ? {
-                            accessibilityLabel: `This week, partial: ${fmt1(m.lastRate)} kilograms per week`,
-                        } : {}),
+                        value: latestCompletedRate == null ? '--' : fmt1(latestCompletedRate * rateScale),
+                        unit: rateUnit,
+                        label: 'Latest full week',
                     },
-                    { value: fmt1(m.rate), unit: 'kg/wk', label: 'Range avg' },
+                    { value: m.rate == null ? '--' : fmt1(m.rate * rateScale), unit: rateUnit, label: 'Range avg' },
                     goalStat,
                 ]}
             />
+            {m.eta && (
+                <Text style={styles.heroNote}>
+                    Estimated goal date · {shortDate(m.eta)}{m.eta.getFullYear() !== new Date().getFullYear() ? ` ${m.eta.getFullYear()}` : ''}
+                </Text>
+            )}
             <Tip text={paceTip(m, info)} />
         </View>
     );

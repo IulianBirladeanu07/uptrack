@@ -14,7 +14,9 @@ Updated 2026-11-08. Start with this handoff, then read `AGENTS.md` before changi
 
 - Progress adds the active phase and week count below Nutrition/Training and uses the compact `8W`/`12W` range labels.
 - Monthly nutrition weight changes use direction-aware status pills; the training hard-set heatmap shows the current week as an outlined cell, and insight callouts use the orange sparkles accent.
-- Existing chart calculations, navigation, and monthly expansion behavior remain unchanged.
+- Rate cards show the goal-relative bar chart as soon as two weekly rate changes are available, while retaining every week in the selected range on the x-axis when some rates are missing; the rolling average line is shown for shorter as well as longer ranges, including when gaining. Saved weekly nutrition weight averages fill in past weeks without a matching `weightIns` entry. For a midweek goal switch, post-switch weigh-ins provide a partial first-week average and the previous weekly average provides a baseline; current-week weigh-ins remain available when there are at least three. Profile lets users set their target rate per week or month; calorie recalculation applies existing safety limits and preserves the requested rate separately from the achieved plan rate. Pace stats show the latest completed week, range average, and target rate; estimated goal dates are shown only with at least eight completed weekly rates. Gain and loss use the same pace-chart card presentation.
+- Bulk and cut keep the same pace-card structure, chart, target comparison, and ETA rules. Bulk pace values (headline, chart bars, stats, and target) are monthly equivalents; the headline stays on the recent multi-week average when a bar is selected, and the selected bar's actual kg/week rate is shown separately. Cut rates remain weekly. The pace chart omits its redundant rolling-average line; the headline and range stat provide the summaries.
+- Navigation and monthly expansion behavior remain unchanged.
 
 ## Current batch: Workout history screen UX
 

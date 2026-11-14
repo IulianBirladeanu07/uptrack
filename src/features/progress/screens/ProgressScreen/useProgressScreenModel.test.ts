@@ -126,4 +126,70 @@ describe('useProgressScreenModel', () => {
             .filter((rate): rate is number => rate != null)
             .map(rate => Number(rate.toFixed(1)))).toEqual([0.2, 0.2, 0.2]);
     });
+
+    it('uses the post-switch weigh-ins as a baseline and includes a current partial week', () => {
+        const currentMonday = mondayOf(new Date());
+        const weekStart = (offset: number) => {
+            const date = new Date(currentMonday);
+            date.setDate(date.getDate() + offset * 7);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+        const phaseStart = new Date(currentMonday);
+        phaseStart.setDate(phaseStart.getDate() - 20);
+        const { result } = renderHook(() => useProgressScreenModel(createParams({
+            rangeKey: 'PHASE',
+            userData: {
+                goalSwitchDate: phaseStart.toISOString(),
+                targetWeight: 85,
+                weightChangePlan: {
+                    type: 'muscle_gain',
+                    ratePerWeek: 0.3,
+                    ratePerMonth: 1.2,
+                    goalCalories: 2500,
+                    macros: { protein: 150, carbs: 250, fats: 70 },
+                    bmr: 1800,
+                    tdee: 2200,
+                    weeksToGoal: 10,
+                    estimatedDate: '',
+                    isEstimate: false,
+                },
+                weeklyNutrition: [
+                    { weekStart: weekStart(-4), weightAverage: 79.41 },
+                ],
+                weightIns: [
+                    {
+                        weekStart: weekStart(-3),
+                        average: 79.46,
+                        days: {
+                            monday: 79.6,
+                            tuesday: 79.5,
+                            wednesday: 79.4,
+                            thursday: 79,
+                            friday: 79.5,
+                            saturday: 79.4,
+                            sunday: 79.8,
+                        },
+                    },
+                    { weekStart: weekStart(-2), average: 79.91 },
+                    { weekStart: weekStart(-1), average: 80.06 },
+                    {
+                        weekStart: weekStart(0),
+                        average: 79.83,
+                        days: { monday: 80, tuesday: 80.5, wednesday: 79.7, thursday: 79.8, friday: 79.3, saturday: 79.7 },
+                    },
+                ],
+            },
+        })));
+
+        expect(result.current.paceAverages).toHaveLength(4);
+        expect(result.current.paceAverages[0].average).toBeCloseTo((79.5 + 79.4 + 79 + 79.5 + 79.4 + 79.8) / 6, 5);
+        expect(result.current.paceAverages[3].average).toBe(79.83);
+        expect(result.current.pace?.slots).toHaveLength(4);
+        expect(result.current.pace?.slots.map(slot => slot.v == null ? null : Number(slot.v.toFixed(2))))
+            .toEqual([0.02, 0.48, 0.15, -0.23]);
+        expect(result.current.pace?.slots[3].cur).toBe(true);
+    });
 });

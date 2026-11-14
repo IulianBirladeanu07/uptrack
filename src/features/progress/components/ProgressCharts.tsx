@@ -97,7 +97,6 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
   const li = lastIdx(slots.map(s => s.v));
   const active = sel != null && slots[sel]?.v != null ? sel : li;
   const py = plan != null ? y(plan) : null;
-  const trend = n >= 12 ? slots.map((s, i) => (s.avg != null ? [i * (bw + gap) + bw / 2, y(s.avg)] : null)).filter((pt): pt is number[] => pt != null) : [];
   const ts = tickStep(Math.max(Math.abs(lo), Math.abs(hi)));
   const ticks: number[] = [];
   for (let t = Math.ceil(chartLo / ts) * ts; t <= chartHi; t += ts) {
@@ -168,10 +167,6 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
               </React.Fragment>
             );
           })}
-          {trend.length > 1 && (
-            <Path d={trend.map((p, k) => `${k ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')} stroke={PLAN} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" fill="none" />
-          )}
-          {trend.length > 1 && <Circle cx={trend[trend.length - 1][0]} cy={trend[trend.length - 1][1]} r={3.5} fill={PLAN} stroke={BG} strokeWidth={1.5} />}
           {activeLabel && (
             <SvgText x={activeLabel.x} y={activeLabel.y} fontSize={10} fontWeight="600" fill={PACE} textAnchor="middle">
               {activeLabel.text}

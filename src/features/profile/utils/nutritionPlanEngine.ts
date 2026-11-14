@@ -13,7 +13,7 @@ import { KCAL_PER_KG, estimateMaintenanceRegression } from './maintenanceEstimat
 import type { Macros, MaintenanceResult, PlanAdjustment, PlanFormData, PlanType, UserData, WeekStats, WeightChangePlan } from '../../../shared/types';
 
 export { KCAL_PER_KG };
-const WEEKS_PER_MONTH = 4.34524;
+export const WEEKS_PER_MONTH = 4.34524;
 
 const ACTIVITY_MULTIPLIERS: Record<string, number> = {
   sedentary:         1.2,
@@ -173,7 +173,7 @@ export const deriveFitnessGoal = (currentWeight: number | string | null | undefi
 export const calculateWeightChangePlan = (formData: PlanFormData): WeightChangePlan => {
   const {
     currentWeight, targetWeight, fitnessGoals,
-    activityLevel, gender, height, age,
+    activityLevel, gender, height, age, targetRatePerWeek,
     stressLevel, avgDailySteps, experienceLevel,
   } = formData;
 
@@ -197,9 +197,11 @@ export const calculateWeightChangePlan = (formData: PlanFormData): WeightChangeP
   let weeksToGoal = 0;
 
   if (goal === 'weight_loss') {
-    const targetRatePerWeek = getTargetWeeklyRateKg(weight, stressLevel);
+    const targetRate = targetRatePerWeek && targetRatePerWeek > 0
+      ? targetRatePerWeek
+      : getTargetWeeklyRateKg(weight, stressLevel);
     const deficitPct = pick(DEFICIT_PERCENT, expLevel) || 0.18;
-    const dailyDeltaTarget = (targetRatePerWeek * KCAL_PER_KG) / 7;
+    const dailyDeltaTarget = (targetRate * KCAL_PER_KG) / 7;
     const maxDailyDelta = tdee * deficitPct;
     const dailyDelta = Math.min(dailyDeltaTarget, maxDailyDelta);
 
@@ -215,11 +217,12 @@ export const calculateWeightChangePlan = (formData: PlanFormData): WeightChangeP
   } else if (goal === 'muscle_gain') {
     const bulkRates = pick(BULKING_RATE_KG_PER_MONTH, gender) || BULKING_RATE_KG_PER_MONTH['male'];
     const baseRate = pick(bulkRates, expLevel) || bulkRates['intermediate'];
-    const targetRatePerMonth = baseRate * stressMultiplier;
-    const targetRatePerWeek = targetRatePerMonth / WEEKS_PER_MONTH;
+    const targetRate = targetRatePerWeek && targetRatePerWeek > 0
+      ? targetRatePerWeek
+      : (baseRate * stressMultiplier) / WEEKS_PER_MONTH;
 
     const surplusPct = pick(SURPLUS_PERCENT, expLevel) || 0.08;
-    const dailyDeltaTarget = (targetRatePerWeek * KCAL_PER_KG) / 7;
+    const dailyDeltaTarget = (targetRate * KCAL_PER_KG) / 7;
     const maxDailyDelta = tdee * surplusPct;
     const dailyDelta = Math.min(dailyDeltaTarget, maxDailyDelta);
 
@@ -242,6 +245,7 @@ export const calculateWeightChangePlan = (formData: PlanFormData): WeightChangeP
     type: goal,
     ratePerWeek,
     ratePerMonth,
+    ...(goal !== 'maintenance' && targetRatePerWeek && targetRatePerWeek > 0 ? { targetRatePerWeek } : {}),
     goalCalories,
     macros,
     bmr: Math.round(bmr),
@@ -403,10 +407,10 @@ export const calculatePlanAdjustment = (userData: UserData | null | undefined, w
   const referenceWeight = recentAverageWeight ?? currentTrendWeight;
   const targetRate = isLoss
     ? Math.min(
-        getTargetWeeklyRateKg(referenceWeight, userData.stressLevel),
+        plan.targetRatePerWeek ?? getTargetWeeklyRateKg(referenceWeight, userData.stressLevel),
         (realTDEE * (pick(DEFICIT_PERCENT, expLevel) || 0.18) * 7) / KCAL_PER_KG
       )
-    : plan.ratePerWeek;
+    : plan.targetRatePerWeek ?? plan.ratePerWeek;
   const actualMagnitude = isLoss ? -actualRateKgPerWeek : actualRateKgPerWeek;
   const progressRatio = actualMagnitude / targetRate;
   const reportedRate = parseFloat(targetRate.toFixed(2));

@@ -4,12 +4,14 @@ import type { UserData } from '../../../../shared/types';
 import type { BuildSource } from '../../utils/progressEngine';
 import {
     MAX_WEEKS,
+    MIN_CURRENT_DAYS,
     addDays,
     buildWeeks,
     dirOf,
     energyModel,
     liftSpan,
     liftStats,
+    mean,
     monthsModel,
     mondayOf,
     paceModel,
@@ -18,8 +20,11 @@ import {
     rangeOptions,
     setsModel,
     strengthModel,
+    toKey,
     withRates,
 } from '../../utils/progressEngine';
+
+const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
 type ProgressScreenModelParams = {
     userData: UserData | null | undefined;
@@ -63,11 +68,36 @@ export const useProgressScreenModel = ({
     const phasePaceWeeks = useMemo(() => {
         if (!info.phaseStart) return withRates(built.weeks, dir);
         const phaseWeek = mondayOf(info.phaseStart);
-        const firstFullPhaseWeek = phaseWeek.getTime() < info.phaseStart.getTime()
-            ? addDays(phaseWeek, 7)
-            : phaseWeek;
-        return withRates(built.weeks.filter(week => week.monday >= firstFullPhaseWeek), dir);
-    }, [built.weeks, info.phaseStart, dir]);
+        const startsMidweek = phaseWeek.getTime() < info.phaseStart.getTime();
+        const phaseWeekIndex = built.weeks.findIndex(week => week.monday.getTime() === phaseWeek.getTime());
+        if (phaseWeekIndex < 0) return withRates(built.weeks.filter(week => week.monday > phaseWeek), dir);
+
+        const phaseRows = built.weeks.slice(phaseWeekIndex);
+        if (startsMidweek) {
+            const phaseDay = new Date(
+                info.phaseStart.getFullYear(),
+                info.phaseStart.getMonth(),
+                info.phaseStart.getDate(),
+            );
+            const phaseWeightIn = userData?.weightIns?.find(entry => entry.weekStart === toKey(phaseWeek));
+            const phaseValues = WEEKDAYS.flatMap((day, index) => {
+                if (addDays(phaseWeek, index) < phaseDay) return [];
+                const raw = phaseWeightIn?.days?.[day];
+                if (raw == null) return [];
+                const value = Number(raw);
+                return Number.isFinite(value) ? [value] : [];
+            });
+            const phaseAverage = phaseValues.length >= MIN_CURRENT_DAYS ? mean(phaseValues) : null;
+            if (phaseAverage != null) {
+                phaseRows[0] = { ...phaseRows[0], w: phaseAverage };
+            } else {
+                return withRates(phaseRows.slice(1), dir);
+            }
+        }
+        const baseline = phaseWeekIndex > 0 ? built.weeks[phaseWeekIndex - 1] : null;
+        const rated = withRates(baseline ? [baseline, ...phaseRows] : phaseRows, dir);
+        return rated.filter(week => week.monday >= phaseWeek);
+    }, [built.weeks, info.phaseStart, userData?.weightIns, dir]);
     const ranges = useMemo(() => rangeOptions(info, weeks.length), [info, weeks.length]);
     const range = ranges.find(option => option.key === rangeKey) ?? ranges[0]!;
     const n = range.n;

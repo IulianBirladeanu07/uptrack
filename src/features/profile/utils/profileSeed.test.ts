@@ -17,6 +17,7 @@ describe('seedProfileForm', () => {
       stressLevel: 'moderate',
       autoAdjustEnabled: true,
       fitnessGoals: 'maintenance',
+      targetRatePerWeek: 0.3,
       targetCalories: 2000,
       targetProtein: 150,
       targetCarbs: 200,
@@ -40,12 +41,26 @@ describe('seedProfileForm', () => {
       targetProtein: 140,
       targetCarbs: 210,
       targetFats: 55,
+      weightChangePlan: {
+        type: 'weight_loss',
+        ratePerWeek: 0.4,
+        ratePerMonth: 1.7,
+        targetRatePerWeek: 0.55,
+        goalCalories: 1800,
+        macros: { protein: 140, carbs: 210, fats: 55 },
+        bmr: 1500,
+        tdee: 2200,
+        weeksToGoal: 10,
+        estimatedDate: '',
+        isEstimate: true,
+      },
     });
     expect(seeded.age).toBe(30);
     expect(seeded.autoAdjustEnabled).toBe(false);
     expect(seeded.gender).toBe('female');
     expect(seeded.fitnessGoals).toBe('weight_loss');
     expect(seeded.targetCalories).toBe(1900);
+    expect(seeded.targetRatePerWeek).toBe(0.55);
   });
 });
 

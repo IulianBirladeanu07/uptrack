@@ -224,6 +224,28 @@ describe('calculateWeightChangePlan', () => {
     expect(plan.ratePerWeek).toBeGreaterThan(0);
   });
 
+  test('uses the selected target rate for a cut and retains it separately from the achieved rate', () => {
+    const plan = calculateWeightChangePlan({ ...baseFormData, targetRatePerWeek: 0.2 });
+
+    expect(plan.targetRatePerWeek).toBe(0.2);
+    expect(plan.ratePerWeek).toBeCloseTo(0.2, 2);
+    expect(plan.goalCalories).toBeGreaterThan(0);
+  });
+
+  test('uses the selected target rate for a bulk', () => {
+    const plan = calculateWeightChangePlan({
+      ...baseFormData,
+      currentWeight: '70',
+      targetWeight: '78',
+      fitnessGoals: 'muscle_gain',
+      targetRatePerWeek: 0.1,
+    });
+
+    expect(plan.targetRatePerWeek).toBe(0.1);
+    expect(plan.ratePerWeek).toBeCloseTo(0.1, 2);
+    expect(plan.goalCalories).toBeGreaterThan(plan.tdee);
+  });
+
   test('maintenance branch targets tdee directly with zero projected rate', () => {
     const plan = calculateWeightChangePlan({ ...baseFormData, currentWeight: '75', targetWeight: '75', fitnessGoals: 'maintenance' });
     expect(plan.type).toBe('maintenance');

@@ -169,6 +169,27 @@ describe('buildWeeks', () => {
     expect(weeks[20].steps).toBe(14800);
   });
 
+  test('uses saved weekly weight averages when weigh-in weeks are missing', () => {
+    const snapshots = [
+      { weekStart: '2026-10-05', weightAverage: 79.64 },
+      { weekStart: '2026-10-12', weightAverage: 79.41 },
+      { weekStart: '2026-10-19', weightAverage: 79.46 },
+      { weekStart: '2026-10-26', weightAverage: 79.91 },
+      { weekStart: '2026-11-02', weightAverage: 80.06 },
+      { weekStart: '2026-11-09', weightAverage: 81 },
+    ];
+    const { weeks } = buildWeeks(
+      { weeklyNutrition: snapshots, calc1RM },
+      new Date(2026, 10, 14, 14, 0, 0),
+    );
+    const phaseWeeks = withRates(weeks.filter(week => week.key >= '2026-10-26'), 1);
+
+    expect(weeks.find(week => week.key === '2026-10-05')?.w).toBeCloseTo(79.64, 5);
+    expect(weeks.find(week => week.key === '2026-11-09')?.w).toBeNull();
+    expect(phaseWeeks.find(week => week.key === '2026-10-26')?.rate).toBeNull();
+    expect(phaseWeeks.find(week => week.key === '2026-11-02')?.rate).toBeCloseTo(0.15, 5);
+  });
+
   test('drops nutrition from under-logged weeks', () => {
     const src = buildSrc();
     src.weeklyNutrition[5].daysLoggedNutrition = 2;
@@ -300,8 +321,40 @@ describe('paceModel', () => {
     expect(model.recentWeeks).toBe(4);
     expect(model.status).toBe('behind');
     expect(paceTip({ ...model, spike: false }, { ...info, planRate: 0.5 })).toMatch(
-      /over the last 4 weeks against a 0.5 plan/,
+      /over the last 4 weeks against a 0.5 kg\/wk plan/,
     );
+  });
+
+  test('provides positive rate-of-gain bars and monthly-equivalent guidance for a bulk', () => {
+    const gaining = weeks.slice(-4).map((week, index) => ({ ...week, w: 70 + index * 0.3 }));
+    const bulkInfo = { ...info, dir: 1, planRate: 0.5, reached: false };
+    const bulkWeeks = withRates(gaining, 1);
+    const model = paceModel(bulkWeeks, 4, bulkInfo, NOW);
+    const bars = model.slots.flatMap(slot => slot.v == null ? [] : [slot.v]);
+
+    expect(model.count).toBe(3);
+    expect(bars).toHaveLength(3);
+    expect(bars.every(value => value > 0)).toBe(true);
+    expect(model.slots[3].avg).toBeCloseTo(0.3, 5);
+    expect(paceTip({ ...model, spike: false }, bulkInfo)).toMatch(/1\.3 kg\/month.*2\.2 kg\/month plan/);
+  });
+
+  test('keeps all selected weeks visible when some weeks have no rate', () => {
+    const window = weeks.slice(-4).map((week, index) => ({
+      ...week,
+      w: [70, 70.2, null, 70.6][index],
+    }));
+    const model = paceModel(
+      withRates(window, 1),
+      4,
+      { ...info, dir: 1, planRate: 0.3, reached: false },
+      NOW,
+    );
+
+    expect(model.count).toBe(2);
+    expect(model.slots).toHaveLength(4);
+    expect(model.slots.map(slot => slot.v == null ? null : Number(slot.v.toFixed(5))))
+      .toEqual([null, 0.2, null, 0.2]);
   });
 
   test('eta uses the 12 week rate and remaining distance', () => {
@@ -309,13 +362,22 @@ describe('paceModel', () => {
     expect(info.remaining).toBeCloseTo(1.4, 5);
     const days = (m.eta - NOW) / 86400000;
     expect(days).toBeGreaterThan(17);
-    expect(days).toBeLessThan(21);
+    expect(days).toBeLessThan(22);
+  });
+
+  test('hides the eta until eight completed weekly rates are available', () => {
+    const shortHistory = withRates(weeks.slice(-5), -1);
+    const m = paceModel(shortHistory, 5, info, NOW);
+
+    expect(m).not.toBeNull();
+    expect(m.count).toBeGreaterThanOrEqual(2);
+    expect(m.eta).toBeNull();
   });
 
   test('reports behind plan when the plan rate is higher', () => {
     const m = paceModel(rated, 12, { ...info, planRate: 0.9 }, NOW);
     expect(m.status).toBe('behind');
-    expect(paceTip({ ...m, spike: false }, { ...info, planRate: 0.9 })).toMatch(/against a 0.9 plan/);
+    expect(paceTip({ ...m, spike: false }, { ...info, planRate: 0.9 })).toMatch(/against a 0.9 kg\/wk plan/);
   });
 
   test('reached goal suppresses eta', () => {
@@ -388,6 +450,18 @@ describe('phaseInfo and ranges', () => {
     expect(info.tab).toBe('Cut');
     expect(info.goal).toBe(80);
     expect(info.planRate).toBe(0.5);
+  });
+
+  test('prefers the requested target rate over the calorie-plan rate', () => {
+    const info = phaseInfo({
+      weightChangePlan: {
+        type: 'muscle_gain',
+        targetRatePerWeek: 0.25,
+        ratePerWeek: 0.12,
+      },
+    }, rated, NOW);
+
+    expect(info.planRate).toBe(0.25);
   });
 
   test('uses goalSwitchDate for phase weeks and adds a phase range when long', () => {

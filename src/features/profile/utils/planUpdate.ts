@@ -3,6 +3,7 @@ import type { PlanFormData, PlanType, UserData, WeightChangePlan } from '../../.
 
 type EditablePlanForm = PlanFormData & {
   fitnessGoals?: PlanType;
+  targetRatePerWeek?: number;
   targetCalories?: number;
   targetProtein?: number;
   targetCarbs?: number;
@@ -51,7 +52,8 @@ export const planView = ({ userData, form, original }: { userData: UserData | nu
   const targetWeightOnly = isTargetWeightOnlyChange(diff);
   const { previous, next } = goalsOf(userData, form, original, targetWeightOnly);
   const goalChanged = !targetWeightOnly && previous !== next;
-  const replan = !targetWeightOnly && shouldReplan(userData, goalChanged);
+  const rateChanged = Object.prototype.hasOwnProperty.call(diff, 'targetRatePerWeek');
+  const replan = !targetWeightOnly && (shouldReplan(userData, goalChanged) || rateChanged);
   const steps = stepsOf(userData);
   const formulaNow = calculateWeightChangePlan({ ...original, avgDailySteps: steps, fitnessGoals: previous });
   const formula = calculateWeightChangePlan({ ...form, avgDailySteps: steps, fitnessGoals: next });
@@ -105,11 +107,14 @@ export const buildPlanUpdate = ({ userData, form, original, now }: { userData: U
   const targetWeightOnly = isTargetWeightOnlyChange(diff);
   const { previous, next } = goalsOf(userData, form, original, targetWeightOnly);
   const goalChanged = !targetWeightOnly && previous !== next;
-  const payload: Record<string, unknown> = { ...diff };
+  const rateChanged = Object.prototype.hasOwnProperty.call(diff, 'targetRatePerWeek');
+  const profileDiff = { ...diff };
+  delete profileDiff.targetRatePerWeek;
+  const payload: Record<string, unknown> = { ...profileDiff };
   const hasManualTargetChanges = ['targetCalories', 'targetProtein', 'targetCarbs', 'targetFats']
     .some(key => Object.prototype.hasOwnProperty.call(diff, key));
 
-  if (!targetWeightOnly && shouldReplan(userData, goalChanged)) {
+  if (!targetWeightOnly && (shouldReplan(userData, goalChanged) || rateChanged)) {
     const calculated = calculateWeightChangePlan({ ...form, avgDailySteps: stepsOf(userData), fitnessGoals: next });
     const plan: WeightChangePlan = {
       ...calculated,

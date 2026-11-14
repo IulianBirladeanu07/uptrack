@@ -64,6 +64,24 @@ describe('buildPlanUpdate', () => {
     expect(p.weightChangePlan).toBeTruthy();
   });
 
+  test('a target-rate edit recalculates calories and stores the preference in the plan', () => {
+    const original = form({ targetRatePerWeek: 0.5 });
+    const edited = form({ targetRatePerWeek: 0.2 });
+    const p = buildPlanUpdate({
+      userData: makeUser('calibrated'),
+      form: edited,
+      original,
+      now: NOW,
+    });
+
+    expect(p).not.toHaveProperty('targetRatePerWeek');
+    expect(p).toMatchObject({
+      targetCalories: expect.any(Number),
+      weightChangePlan: { targetRatePerWeek: 0.2 },
+      planConfidence: 'estimated',
+    });
+  });
+
   test('an estimated plan recalculates from the formula and resets adaptive state', () => {
     const user = makeUser('estimated');
     const p = buildPlanUpdate({ userData: user, form: form({ activityLevel: 'very_active' }), original: base, now: NOW });
