@@ -78,16 +78,16 @@ const WorkoutDetails = () => {
         : { width: storySize.width, height: storySize.height };
     const photoStyle = useAnimatedStyle(() => ({
         transform: [
-            { scale: photoScale.value },
             { translateX: photoTranslateX.value },
             { translateY: photoTranslateY.value },
+            { scale: photoScale.value },
         ],
     }));
     const storyContentStyle = useAnimatedStyle(() => ({
         transform: [
-            { scale: storyScale.value },
             { translateX: storyTranslateX.value },
             { translateY: storyTranslateY.value },
+            { scale: storyScale.value },
         ],
     }));
     const verticalGuideStyle = useAnimatedStyle(() => ({ opacity: showVerticalGuide.value }));
