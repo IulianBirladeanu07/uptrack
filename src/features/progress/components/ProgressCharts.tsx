@@ -497,6 +497,9 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
         <Svg width={width} height={H}>
           <G transform={`translate(${LP} 0)`}>
           <Line x1={-LP} x2={chartW} y1={y0} y2={y0} stroke={GRID} strokeWidth={1} />
+          {ty != null && (
+            <Line x1={-LP} x2={chartW} y1={ty} y2={ty} stroke={PLAN} strokeOpacity={0.5} strokeWidth={1} strokeDasharray="4 4" />
+          )}
           {brk.map((on, i) =>
             on ? (
               <Line
@@ -516,6 +519,7 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
             const hot = i === active;
             const showLabel = lab.has(i);
             const showValue = hot || n <= 6;
+            const inside = v != null && ty != null && v > 0 && Math.abs(y(v) - ty) < 14 && y0 - y(v) >= 22;
             return (
               <React.Fragment key={i}>
                 {v != null && (
@@ -532,10 +536,10 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
                     {showValue && (
                       <SvgText
                         x={centers[i]}
-                        y={v < 0 ? y(v) + 12 : y(v) - 5}
+                        y={v < 0 ? y(v) + 12 : inside ? y(v) + 13 : y(v) - 5}
                         fontSize={10}
                         fontWeight={hot ? '600' : '400'}
-                        fill={hot ? EAT : AX}
+                        fill={inside ? PLAN : hot ? EAT : AX}
                         textAnchor="middle"
                       >
                         {kfmt(v)}
@@ -560,7 +564,6 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
           <SvgText x={chartW + 6} y={y0 + 3} fontSize={10} fill={AX}>maint</SvgText>
           {ty != null && target != null && (
             <>
-              <Line x1={-LP} x2={chartW} y1={ty} y2={ty} stroke={PLAN} strokeOpacity={0.75} strokeWidth={1.5} strokeDasharray="4 4" />
               <SvgText x={chartW + 6} y={ty - 3} fontSize={10} fill={AX}>target</SvgText>
               <SvgText x={chartW + 6} y={ty + 10} fontSize={10} fontWeight="700" fill={PLAN}>{kfmt(target)}</SvgText>
             </>
