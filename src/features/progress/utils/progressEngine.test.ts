@@ -9,6 +9,7 @@ import {
   paceModel,
   isWeightWeekComplete,
   linearWeightRate,
+  monthlyHistoryModel,
   paceTip,
   energyModel,
   balanceNote,
@@ -561,7 +562,7 @@ describe('balanceNote', () => {
 
   test('includes the estimate window dates', () => {
     expect(balanceNote(207, 4, { start: '2026-10-12', end: '2026-11-08' }))
-      .toBe('above maintenance \u00b7 recent 4-week estimate \u00b7 2026-10-12\u20132026-11-08');
+      .toBe('Oct 12\u2013Nov 8 \u00b7 4-week estimate');
   });
 });
 
@@ -634,7 +635,9 @@ describe('energyModel', () => {
     expect(m.maintNow).toBeGreaterThan(m.eatNow);
     expect(m.realRate).toBeGreaterThan(0.3);
     expect(m.maint.filter(v => v != null).pop()).toBe(m.maintNow);
-    expect(m.balNote).toContain(`${m.maintenanceWindow.start}\u2013${m.maintenanceWindow.end}`);
+    expect(m.balNote).toBe(
+      `${shortDate(dateFromKey(m.maintenanceWindow.start))}\u2013${shortDate(dateFromKey(m.maintenanceWindow.end))} \u00b7 ${m.statsWeeks}-week estimate`,
+    );
   });
 
   test('the chart line ends on the maintenance shown in the stats', () => {
@@ -644,8 +647,9 @@ describe('energyModel', () => {
 
   test('describes the balance in plain words with the averaging window', () => {
     const m = energyModel(rated, 12, info);
-    expect(m.balNote).toBe(`below maintenance \u00b7 recent ${m.statsWeeks}-week estimate \u00b7 ${m.maintenanceWindow.start}\u2013${m.maintenanceWindow.end}`);
-    expect(m.balNote).toContain(`${m.maintenanceWindow.start}\u2013${m.maintenanceWindow.end}`);
+    expect(m.balNote).toBe(
+      `${shortDate(dateFromKey(m.maintenanceWindow.start))}\u2013${shortDate(dateFromKey(m.maintenanceWindow.end))} \u00b7 ${m.statsWeeks}-week estimate`,
+    );
   });
 
   test('drops gap weeks so every slot has a balance, keeping real dates', () => {
@@ -664,8 +668,7 @@ describe('energyModel', () => {
     const bulk = { ...info, dir: 1, planRate: 0.14, target: 3704 };
     const model = energyModel(rated, 12, bulk);
     const m = { ...model, realRate: 0.05, target: 3704 };
-    expect(energyTip(m, bulk)).toMatch(/below your 0.6 kg\/month gain goal/);
-    expect(energyTip(m, bulk)).toMatch(/eat target is 3,704 kcal\/day/);
+    expect(energyTip(m, bulk)).toBe('Your weight is rising at 0.2 kg/month, below your 0.6 kg/month gain goal.');
   });
 
   test('does not flag a rate within 20 percent of the plan as behind', () => {
@@ -929,12 +932,10 @@ describe('monthsModel', () => {
   const { weeks } = buildWeeks(buildSrc(), NOW);
   const rated = withRates(weeks, -1);
 
-  test('groups weeks by month newest first with deltas', () => {
+  test('groups workout weeks by month newest first', () => {
     const m = monthsModel(rated, 5);
     expect(m[0].name).toBe('September');
-    expect(m[0].partial).toBe(true);
-    expect(m[0].wEnd).toBeCloseTo(81.4, 5);
-    expect(m[0].change).toBeLessThan(0);
+    expect(m[0].sessions).toBeGreaterThan(0);
     expect(m[0].d).not.toBeNull();
     expect(m[m.length - 1].d).toBeNull();
     expect(m[1].name).toBe('August');
@@ -942,13 +943,167 @@ describe('monthsModel', () => {
 
   test('plan and sessions exclude the current week', () => {
     const m = monthsModel(rated, 5);
-    const sep = m[0];
+    const sep = m.find(month => month.name === 'September');
+    expect(sep).toBeDefined();
     expect(sep.planDone).toBe(5 * (sep.count - 1));
     expect(sep.sessionsDone).toBe(5 * (sep.count - 1));
   });
 
   test('plan is null when no split is known', () => {
     expect(monthsModel(rated, null)[0].planDone).toBeNull();
+  });
+
+});
+
+describe('monthlyHistoryModel', () => {
+  const { weeks: sourceWeeks } = buildWeeks(buildSrc(), NOW);
+  const week = (
+    key: string,
+    w: number | null,
+    kcal: number | null,
+    nd: number,
+    isCurrent = false,
+  ) => ({
+    ...withRates([{
+      ...sourceWeeks[0],
+      key,
+      monday: dateFromKey(key),
+      isCurrent,
+      w,
+      kcal,
+      nd,
+    }], 1)[0],
+  });
+
+  test('shows completed months only and uses the month containing the week start', () => {
+    const rows = monthlyHistoryModel([
+      week('2026-10-05', 80, 3000, 7),
+      week('2026-10-12', 80.1, 3100, 7),
+      week('2026-10-19', 80.2, 3200, 7),
+      week('2026-10-26', 80.3, 3300, 7),
+      week('2026-11-02', 80.4, 3400, 7, true),
+    ], null, 'muscle_gain');
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ name: 'October', year: 2026, endedAt: 80.3 });
+  });
+
+  test('shows actual weight change only with four weekly averages and weights calories by qualifying logged days', () => {
+    const rows = monthlyHistoryModel([
+      week('2026-10-05', 80, 3000, 7),
+      week('2026-10-12', 80.2, 4000, 4),
+      week('2026-10-19', 80.3, 6000, 3),
+      week('2026-10-26', 80.5, 3500, 7),
+    ], null, 'muscle_gain');
+
+    expect(rows[0]).toMatchObject({
+      endedAt: 80.5,
+      change: 0.5,
+      changeWeeks: 3,
+      avgKcal: (3000 * 7 + 4000 * 4 + 3500 * 7) / 18,
+      avgKcalDays: 18,
+    });
+  });
+
+  test('does not show change with fewer than four weekly averages', () => {
+    const few = monthlyHistoryModel([
+      week('2026-10-05', 80, 3000, 7),
+      week('2026-10-12', 80.2, 3000, 7),
+      week('2026-10-19', 80.3, 3000, 7),
+    ], null, 'muscle_gain');
+
+    expect(few[0].change).toBeNull();
+  });
+
+  test('assigns the transition week to the phase with the majority of its days', () => {
+    const rows = monthlyHistoryModel([
+      week('2026-10-05', 79.6, 3163, 7),
+      week('2026-10-12', 79.4, 3501, 7),
+      week('2026-10-19', 79.5, 3821, 7),
+      week('2026-10-26', 79.9, 3806, 7),
+    ], '2026-10-20T12:00:00.000Z', 'muscle_gain', [{
+      type: 'weight_loss',
+      startDate: '2026-09-20',
+      endDate: '2026-10-19',
+      weeks: 4,
+      startWeight: 82,
+      endWeight: 79.5,
+      avgKcal: 3332,
+      strengthPct: null,
+      weightPct: null,
+    }]);
+
+    const bulk = rows.find(row => row.phaseLabel === 'Bulk');
+    const cut = rows.find(row => row.phaseLabel === 'Cut');
+    expect(rows).toHaveLength(2);
+    expect(bulk?.weeks.map(item => item.key)).toEqual(['2026-10-19', '2026-10-26']);
+    expect(bulk).toMatchObject({ endedAt: 79.9, avgKcal: 3813.5, avgKcalDays: 14, changeReason: 'settling' });
+    expect(cut?.weeks.map(item => item.key)).toEqual(['2026-10-05', '2026-10-12']);
+    expect(cut).toMatchObject({ avgKcal: 3332, avgKcalDays: 14 });
+  });
+
+  test('assigns each transition week to one phase using the local switch date', () => {
+    const rows = monthlyHistoryModel([
+      week('2026-10-19', 80.2, 3200, 7),
+    ], '2026-10-20T12:00:00.000Z', 'muscle_gain');
+    const transitionWeek = rows.flatMap(row => row.weeks).filter(item => item.key === '2026-10-19');
+
+    expect(transitionWeek).toHaveLength(1);
+    expect(rows.find(row => row.phaseLabel === 'Bulk')?.weeks).toContain(transitionWeek[0]);
+  });
+
+  test('shows average calories with one qualifying week and null with none', () => {
+    const oneWeek = monthlyHistoryModel([
+      week('2026-10-05', 80, 3000, 3),
+      week('2026-10-12', 80.1, 4000, 4),
+    ], null, 'maintenance');
+    const noWeeks = monthlyHistoryModel([
+      week('2026-10-05', 80, 3000, 3),
+      week('2026-10-12', 80.1, 4000, 3),
+    ], null, 'maintenance');
+
+    expect(oneWeek[0]).toMatchObject({ avgKcal: 4000, avgKcalDays: 4 });
+    expect(noWeeks[0]).toMatchObject({ avgKcal: null, avgKcalDays: 0 });
+  });
+
+  test('weights average calories by qualifying logged days', () => {
+    const rows = monthlyHistoryModel([
+      week('2026-10-05', 80, 3000, 7),
+      week('2026-10-12', 80.1, 4000, 4),
+    ], null, 'maintenance');
+
+    expect(rows[0].avgKcal).toBeCloseTo(3364, 0);
+    expect(rows[0].avgKcalDays).toBe(11);
+  });
+
+  test('excludes the first 14 days after a goal switch from weight change', () => {
+    const rows = monthlyHistoryModel([
+      week('2026-10-05', 80, 3000, 7),
+      week('2026-10-12', 80.1, 3000, 7),
+      week('2026-10-19', 80.2, 3000, 7),
+      week('2026-10-26', 80.3, 3000, 7),
+    ], '2026-10-12', 'muscle_gain');
+
+    expect(rows[0].endedAt).toBe(80.3);
+    expect(rows[0].change).toBeNull();
+    expect(rows[0].changeReason).toBe('settling');
+    expect(rows[0].weeks.map(item => item.w)).toEqual([80.1, 80.2, 80.3]);
+  });
+
+  test('reports short history and weigh-in gaps when change cannot be calculated', () => {
+    const short = monthlyHistoryModel([
+      week('2026-10-05', 80, 3000, 7),
+      week('2026-10-12', 80.2, 3000, 7),
+      week('2026-10-19', 80.3, 3000, 7),
+    ], null, 'maintenance');
+    const gap = monthlyHistoryModel([
+      week('2026-08-03', 80, 3000, 7),
+      week('2026-08-10', 80.2, 3000, 7),
+      week('2026-08-31', 80.3, 3000, 7),
+    ], null, 'maintenance');
+
+    expect(short[0].changeReason).toBe('short');
+    expect(gap[0].changeReason).toBe('gap');
   });
 });
 

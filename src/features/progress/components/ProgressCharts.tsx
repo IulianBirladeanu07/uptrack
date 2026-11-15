@@ -443,10 +443,10 @@ type BalanceChartProps = {
 export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }: BalanceChartProps) => {
   const n = bal.length;
   const H = 176;
-  const top = 18;
+  const top = 14;
   const bot = 24;
-  const gut = 52;
-  const pw = width - gut - LP;
+  const gut = 20;
+  const chartW = width - gut - LP;
   const gap = n > 12 ? 3 : 5;
   const brk = slots.map((s, i) => i > 0 && Math.round((s.monday.getTime() - slots[i - 1].monday.getTime()) / DAY_MS) > 8);
   const nb = brk.filter(Boolean).length;
@@ -458,14 +458,15 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
       if (k + 1 < n && !brk[k + 1]) lab.delete(k + 1);
     }
   });
-  const bw = Math.min(36, (pw - gap * (n - 1) - BREAK * nb) / n);
-  let acc = 0;
+  const pw = chartW - gap * (n - 1) - BREAK * nb;
+  const slotW = pw / n;
+  const bw = Math.min(slotW * 0.7, 56);
+  let breakOffset = 0;
   const xs = bal.map((_, i) => {
-    if (i > 0) acc += gap + (brk[i] ? BREAK : 0);
-    const x = acc;
-    acc += bw;
-    return x;
+    if (i > 0 && brk[i]) breakOffset += BREAK;
+    return i * (slotW + gap) + breakOffset + (slotW - bw) / 2;
   });
+  const centers = xs.map(x => x + bw / 2);
   const base = H - bot;
   const vals = bal.filter((v): v is number => v != null);
   const lo = Math.min(0, ...vals, target ?? 0);
@@ -480,11 +481,12 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
   const onPress = (e: GestureResponderEvent) => {
     if (!onSelect) return;
     const x = e.nativeEvent.locationX - LP;
-    if (x < 0 || x > pw) return;
+    if (x < 0 || x > chartW) return;
     let i = 0;
-    xs.forEach((bx, k) => {
-      if (x >= bx - gap / 2) i = k;
-    });
+    for (let k = 1; k < n; k++) {
+      if (x < (centers[k - 1] + centers[k]) / 2) break;
+      i = k;
+    }
     if (bal[i] == null) return;
     onSelect(i === sel ? null : i);
   };
@@ -494,16 +496,14 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
       <View pointerEvents="none">
         <Svg width={width} height={H}>
           <G transform={`translate(${LP} 0)`}>
-          <Line x1={-LP} x2={pw} y1={y0} y2={y0} stroke={GRID} strokeWidth={1} />
-          {(ty == null || Math.abs(ty - y0) >= 26) && (
-            <SvgText x={width - LP} y={y0 + 3} fontSize={10} fill={AX} textAnchor="end">maint</SvgText>
-          )}
+          <Line x1={-LP} x2={chartW} y1={y0} y2={y0} stroke={GRID} strokeWidth={1} />
+          <SvgText x={-LP + 2} y={y0 - 4} fontSize={10} fill={AX} textAnchor="start">maintenance</SvgText>
           {brk.map((on, i) =>
             on ? (
               <Line
                 key={`b${i}`}
-                x1={xs[i] - (gap + BREAK) / 2}
-                x2={xs[i] - (gap + BREAK) / 2}
+                x1={centers[i] - (slotW + gap + BREAK) / 2}
+                x2={centers[i] - (slotW + gap + BREAK) / 2}
                 y1={top}
                 y2={base}
                 stroke={GRID}
@@ -531,12 +531,12 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
                     />
                     {hot && (
                       <SvgText
-                        x={x + bw / 2}
+                        x={centers[i] + 40 > chartW ? chartW - 2 : centers[i]}
                         y={v < 0 ? y(v) + 12 : y(v) - 5}
                         fontSize={10}
                         fontWeight="600"
                         fill={EAT}
-                        textAnchor="middle"
+                        textAnchor={centers[i] + 40 > chartW ? 'end' : 'middle'}
                       >
                         {kfmt(v)}
                       </SvgText>
@@ -558,11 +558,7 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
             );
           })}
           {ty != null && (
-            <>
-              <Line x1={-LP} x2={pw} y1={ty} y2={ty} stroke={PLAN} strokeOpacity={0.75} strokeWidth={1.5} strokeDasharray="4 4" />
-              <SvgText x={width - LP} y={ty - 3} fontSize={10} fill={AX} textAnchor="end">target</SvgText>
-              <SvgText x={width - LP} y={ty + 10} fontSize={10} fontWeight="700" fill={PLAN} textAnchor="end">{kfmt(target)}</SvgText>
-            </>
+            <Line x1={-LP} x2={chartW} y1={ty} y2={ty} stroke={PLAN} strokeOpacity={0.75} strokeWidth={1.5} strokeDasharray="4 4" />
           )}
           </G>
         </Svg>

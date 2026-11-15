@@ -29,7 +29,7 @@ import {
     kfmt,
     energyBalanceDisplay,
 } from '../../utils/progressEngine';
-import type { EnergyModel, MonthRow as MonthData, NutritionDay, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
+import type { EnergyModel, MonthRow as MonthData, MonthlyHistoryRow, NutritionDay, PaceModel, PaceStatus, PhaseInfo, PhaseRecap, SetsModel, StrengthModel } from '../../utils/progressEngine';
 import { useProgressScreenModel } from './useProgressScreenModel';
 import { useMaintenanceSwitch } from './useMaintenanceSwitch';
 import { usePlannedWorkouts } from './usePlannedWorkouts';
@@ -566,9 +566,16 @@ const EnergyCard = ({ m, info, n, chartWidth }: { m: EnergyModel | null; info: P
         <View style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.cap}>Energy balance</Text>
+                {m.targetBal != null && (
+                    <Text style={styles.capRight}>
+                        Target {m.targetBal > 0 ? '+' : ''}{kfmt(m.targetBal)} kcal/day
+                    </Text>
+                )}
             </View>
             <Hero value={heroText} unit={unit} />
-            <Text style={styles.heroNote}>{picked != null ? `week of ${shortDate(m.slots[picked].monday)}` : m.balNote}</Text>
+            <Text style={[styles.heroNote, styles.energyBalanceNote]}>
+                {picked != null ? `week of ${shortDate(m.slots[picked].monday)}` : m.balNote}
+            </Text>
             <ChartBox width={chartWidth}>
                 {w => <BalanceChart bal={bars} target={goal} slots={m.slots} width={w} sel={sel} onSelect={setSel} />}
             </ChartBox>
@@ -704,91 +711,44 @@ const Tile = ({ label, dot, value, sub }: { label: string; dot: string; value: s
 
 const vs = (v: number | null | undefined, d: number, suffix = '') => (v != null ? `${sg(v, d)}${suffix} vs prev` : null);
 
-type MonthRowProps = { m: MonthData; kind: 'n' | 't'; dir: number; open: boolean; onToggle: () => void; last: boolean };
+type MonthRowProps = {
+    m: MonthData;
+    open: boolean;
+    onToggle: () => void;
+    last: boolean;
+};
 
-const MonthRow = ({ m, kind, dir, open, onToggle, last }: MonthRowProps) => {
-    let right: ReactNode;
-    let tiles: ReactNode;
-
-    if (kind === 'n') {
-        right = (
-            <>
-                {m.wEnd != null && (
-                    <View style={styles.monthValueRow}>
-                        <Text style={styles.monthValue}>{fmt1(m.wEnd)}</Text>
-                        <Text style={styles.monthUnit}>kg</Text>
-                    </View>
-                )}
-                {m.change != null && (
-                    <View
-                        style={[
-                            styles.monthChangeBadge,
-                            {
-                                backgroundColor: dir === 0
-                                    ? TONES.flat.bg
-                                    : m.change * dir > 0
-                                        ? TONES.warn.bg
-                                        : TONES.good.bg,
-                            },
-                        ]}
-                    >
-                        <Text
-                            style={[
-                                styles.monthChange,
-                                {
-                                    color: dir === 0
-                                        ? TONES.flat.fg
-                                        : m.change * dir > 0
-                                            ? TONES.warn.fg
-                                            : TONES.good.fg,
-                                },
-                            ]}
-                        >
-                            {sg(m.change, 1)}
-                        </Text>
-                    </View>
-                )}
-            </>
-        );
-        tiles = (
-            <>
-                <Tile label="Avg kcal" dot={colors.accent.primary} value={kfmt(m.kcal)} sub={vs(m.d?.kcal, 0)} />
-                <Tile label="Protein" dot={colors.macro.protein} value={m.protein != null ? `${Math.round(m.protein)}g` : '--'} sub={vs(m.d?.protein, 0, 'g')} />
-                <Tile label="Steps" dot={colors.accent.stepsRed} value={m.steps != null ? `${(m.steps / 1000).toFixed(1)}k` : '--'} sub={vs(m.d?.steps != null ? m.d.steps / 1000 : null, 1, 'k')} />
-            </>
-        );
-    } else {
-        const hasPlan = m.planDone != null && m.planDone > 0;
-        const on = hasPlan && m.sessionsDone >= m.planDone!;
-        right = (
-            <>
-                <View style={styles.monthValueRow}>
-                    <Text style={styles.monthValue}>{m.sessions}</Text>
-                    <Text style={styles.monthUnit}>sessions</Text>
-                </View>
-                {hasPlan && <Delta tone={on ? 'good' : 'warn'} text={on ? 'on plan' : `${m.planDone! - m.sessionsDone} missed`} />}
-            </>
-        );
-        tiles = (
-            <>
-                <Tile
-                    label={hasPlan ? 'On plan' : 'Sessions'}
-                    dot={colors.accent.cyan}
-                    value={hasPlan ? `${m.sessionsDone}/${m.planDone!}` : String(m.sessions)}
-                    sub={hasPlan ? `${Math.round((m.sessionsDone / m.planDone!) * 100)}%` : null}
-                />
-                <Tile label="Hard sets" dot={colors.accent.cyan} value={kfmt(m.sets)} sub={vs(m.d?.setsPerWeek, 0, '/wk')} />
-                <Tile label="New PRs" dot={colors.accent.cyan} value={String(m.prs)} />
-            </>
-        );
-    }
+const MonthRow = ({ m, open, onToggle, last }: MonthRowProps) => {
+    const hasPlan = m.planDone != null && m.planDone > 0;
+    const on = hasPlan && m.sessionsDone >= m.planDone!;
+    const right = (
+        <>
+            <View style={styles.monthValueRow}>
+                <Text style={styles.monthValue}>{m.sessions}</Text>
+                <Text style={styles.monthUnit}>sessions</Text>
+            </View>
+            {hasPlan && <Delta tone={on ? 'good' : 'warn'} text={on ? 'on plan' : `${m.planDone! - m.sessionsDone} missed`} />}
+        </>
+    );
+    const tiles = (
+        <>
+            <Tile
+                label={hasPlan ? 'On plan' : 'Sessions'}
+                dot={colors.accent.cyan}
+                value={hasPlan ? `${m.sessionsDone}/${m.planDone!}` : String(m.sessions)}
+                sub={hasPlan ? `${Math.round((m.sessionsDone / m.planDone!) * 100)}%` : null}
+            />
+            <Tile label="Hard sets" dot={colors.accent.cyan} value={kfmt(m.sets)} sub={vs(m.d?.setsPerWeek, 0, '/wk')} />
+            <Tile label="New PRs" dot={colors.accent.cyan} value={String(m.prs)} />
+        </>
+    );
 
     return (
         <View style={[styles.monthRow, last && styles.monthRowLast]}>
             <TouchableOpacity style={styles.monthHead} activeOpacity={0.7} onPress={onToggle}>
                 <View style={styles.monthLeft}>
                     <Text style={styles.monthName}>{m.name}</Text>
-                    <Text style={styles.monthMeta}>{m.count === 1 && m.partial ? 'this week' : `${m.count} ${m.count === 1 ? 'week' : 'weeks'}${m.partial ? ' · to date' : ''}`}</Text>
+                    <Text style={styles.monthMeta}>{`${m.count} ${m.count === 1 ? 'week' : 'weeks'}`}</Text>
                 </View>
                 {right}
                 <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={spacing.iconMd} color={colors.text.quaternary} />
@@ -800,15 +760,13 @@ const MonthRow = ({ m, kind, dir, open, onToggle, last }: MonthRowProps) => {
 
 type MonthsCardProps = {
     months: MonthData[];
-    kind: 'n' | 't';
-    dir: number;
     open: Record<string, boolean>;
     setOpen: Dispatch<SetStateAction<Record<string, boolean>>>;
     all: boolean;
     setAll: (v: boolean) => void;
 };
 
-const MonthsCard = ({ months, kind, dir, open, setOpen, all, setAll }: MonthsCardProps) => {
+const MonthsCard = ({ months, open, setOpen, all, setAll }: MonthsCardProps) => {
     if (!months.length) return null;
     const shown = all ? months.slice(0, 12) : months.slice(0, 3);
 
@@ -823,20 +781,77 @@ const MonthsCard = ({ months, kind, dir, open, setOpen, all, setAll }: MonthsCar
                 )}
             </View>
             {shown.map((m, i) => {
-                const k = `${kind}:${m.key}`;
+                const k = `t:${m.key}`;
                 const isOpen = open[k] ?? i === 0;
                 return (
                     <MonthRow
                         key={m.key}
                         m={m}
-                        kind={kind}
-                        dir={dir}
                         open={isOpen}
                         onToggle={() => setOpen(o => ({ ...o, [k]: !isOpen }))}
                         last={i === shown.length - 1}
                     />
                 );
             })}
+        </View>
+    );
+};
+
+const PastMonthRow = ({ month, last }: { month: MonthlyHistoryRow; last: boolean }) => (
+    <View style={[styles.historyMonth, last && styles.monthRowLast]}>
+        <View style={styles.historyMonthTitle}>
+            <Text style={styles.monthName}>{month.name} {month.year}</Text>
+            {month.phaseLabel && <Text style={styles.monthMeta}>{month.phaseLabel}</Text>}
+        </View>
+        <View style={styles.historyMetrics}>
+            <View style={styles.historyMetric}>
+                <Text style={styles.historyLabel}>Ended at</Text>
+                <Text style={styles.historyValue}>{month.endedAt == null ? '--' : `${fmt1(month.endedAt)} kg`}</Text>
+            </View>
+            <View style={styles.historyMetric}>
+                <Text style={styles.historyLabel}>Change</Text>
+                <Text style={styles.historyValue}>{month.change == null ? '--' : `${sg(month.change, 1)} kg`}</Text>
+                {month.changeWeeks != null && (
+                    <Text style={styles.historyMeta}>over {month.changeWeeks} weeks</Text>
+                )}
+                {month.change == null && month.changeReason != null && (
+                    <Text style={styles.historyMeta}>
+                        {month.changeReason === 'settling'
+                            ? 'settling after switch'
+                            : month.changeReason === 'gap'
+                                ? 'gap in weigh-ins'
+                                : 'needs 4 weeks'}
+                    </Text>
+                )}
+            </View>
+            <View style={styles.historyMetric}>
+                <Text style={styles.historyLabel}>Avg kcal</Text>
+                <Text style={styles.historyValue}>{month.avgKcal == null ? '--' : kfmt(month.avgKcal)}</Text>
+                {month.avgKcal != null && (
+                    <Text style={styles.historyMeta}>{month.avgKcalDays} logged days</Text>
+                )}
+            </View>
+        </View>
+    </View>
+);
+
+const PastMonthsCard = ({ months, all, setAll }: { months: MonthlyHistoryRow[]; all: boolean; setAll: (value: boolean) => void }) => {
+    if (!months.length) return null;
+    const shown = all ? months.slice(0, 12) : months.slice(0, 3);
+
+    return (
+        <View style={styles.cardFlush}>
+            <View style={styles.listHead}>
+                <Text style={styles.listTitle}>Past months</Text>
+                {months.length > 3 && (
+                    <TouchableOpacity onPress={() => setAll(!all)} activeOpacity={0.7}>
+                        <Text style={styles.viewAll}>{all ? 'Show less' : 'View all'}</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+            {shown.map((month, index) => (
+                <PastMonthRow key={`${month.key}:${month.phaseLabel ?? 'history'}:${index}`} month={month} last={index === shown.length - 1} />
+            ))}
         </View>
     );
 };
@@ -950,6 +965,7 @@ const ProgressScreen = () => {
         recap,
         sets,
         months,
+        pastMonths,
     } = useProgressScreenModel({
         userData,
         workoutHistory,
@@ -1086,15 +1102,7 @@ const ProgressScreen = () => {
                                     chartWidth={chartWidth}
                                 />
                                 <EnergyCard m={energy} info={info} n={n} chartWidth={chartWidth} />
-                                <MonthsCard
-                                    months={months}
-                                    kind="n"
-                                    dir={info.dir}
-                                    open={open}
-                                    setOpen={setOpen}
-                                    all={all.n}
-                                    setAll={v => setAll(a => ({ ...a, n: v }))}
-                                />
+                                <PastMonthsCard months={pastMonths} all={all.n} setAll={v => setAll(a => ({ ...a, n: v }))} />
                             </>
                         ) : (
                             <>
@@ -1102,8 +1110,6 @@ const ProgressScreen = () => {
                                 <SetsCard m={sets} />
                                 <MonthsCard
                                     months={months}
-                                    kind="t"
-                                    dir={info.dir}
                                     open={open}
                                     setOpen={setOpen}
                                     all={all.t}

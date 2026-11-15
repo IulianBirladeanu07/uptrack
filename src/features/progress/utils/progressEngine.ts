@@ -3,7 +3,7 @@ import { estimateMaintenanceRegression, maintenanceSeries } from '../../profile/
 import { getPhaseLabel, isGoalReached } from '../../profile/utils/weightTrendEngine';
 import { overlayWeekSteps } from '../../nutrition/helpers/stepStats';
 import type { StepSnapshot } from '../../nutrition/helpers/stepStats';
-import type { DailySteps, PlanType, UserData, WeekStats, WeeklySnapshot, WeightInWeek } from '../../../shared/types';
+import type { DailySteps, PhaseHistoryEntry, PlanType, UserData, WeekStats, WeeklySnapshot, WeightInWeek } from '../../../shared/types';
 import { formatLocalDateKey } from '../../../shared/utils/localDateKey';
 
 type Maybe = number | null | undefined;
@@ -156,12 +156,6 @@ export type MonthRow = {
   name: string;
   year: number;
   count: number;
-  partial: boolean;
-  wEnd: number | null;
-  change: number | null;
-  kcal: number | null;
-  protein: number | null;
-  steps: number | null;
   sessions: number;
   sessionsDone: number;
   planDone: number | null;
@@ -169,7 +163,21 @@ export type MonthRow = {
   setsPerWeek: number | null;
   prs: number;
   hasData: boolean;
-  d: { kcal: number | null; protein: number | null; steps: number | null; setsPerWeek: number | null } | null;
+  d: { setsPerWeek: number | null } | null;
+};
+
+export type MonthlyHistoryRow = {
+  key: string;
+  name: string;
+  year: number;
+  phaseLabel: string | null;
+  weeks: RatedWeek[];
+  endedAt: number | null;
+  change: number | null;
+  changeWeeks: number | null;
+  changeReason: 'settling' | 'short' | 'gap' | null;
+  avgKcal: number | null;
+  avgKcalDays: number;
 };
 
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -676,9 +684,9 @@ const maintSeries = (weeks: RatedWeek[]): (number | null)[] =>
   });
 
 export const balanceNote = (balance: number, weeks: number, window?: { start: string; end: string } | null): string => {
+  if (window) return `${shortDate(parseKey(window.start))}\u2013${shortDate(parseKey(window.end))} \u00b7 ${weeks}-week estimate`;
   const side = Math.abs(balance) < 50 ? 'around' : balance < 0 ? 'below' : 'above';
-  const dates = window ? ` \u00b7 ${window.start}\u2013${window.end}` : '';
-  return `${side} maintenance \u00b7 recent ${weeks}-week estimate${dates}`;
+  return `${side} maintenance \u00b7 recent ${weeks}-week estimate`;
 };
 
 export const energyBalanceDisplay = (balance: number, margin: number | null = null): { value: string; unit: string } => ({
@@ -785,10 +793,7 @@ export const energyTip = (m: EnergyModel, info: PhaseInfo): string => {
     const goalDescription = info.dir === 0
       ? 'your maintenance goal'
       : `your ${fmt1(plan * WEEKS_PER_MONTH)} kg/month ${info.dir > 0 ? 'gain' : 'loss'} goal`;
-    const targetDescription = m.target == null
-      ? 'follow the eat target shown above'
-      : `your eat target is ${kfmt(m.target)} kcal/day`;
-    return `${rateDescription}, below ${goalDescription}. Estimated maintenance is ${kfmt(m.maintNow)} kcal; ${targetDescription}.`;
+    return `${rateDescription}, below ${goalDescription}.`;
   }
   const gap = m.gapToTarget ?? 0;
   const adverse = info.dir < 0 ? gap < 0 : info.dir > 0 ? gap > 0 : true;
@@ -1095,26 +1100,19 @@ export const monthsModel = (weeks: RatedWeek[], planned: number | null = null): 
 
   const list = [...g.values()]
     .map(({ key, month, year, ws }) => {
-      const wl = ws.filter(w => w.w != null);
       const done = ws.filter(w => !w.isCurrent);
       return {
         key,
         name: MONTHS[month],
         year,
         count: ws.length,
-        partial: ws.some(w => w.isCurrent),
-        wEnd: wl.length ? wl[wl.length - 1].w : null,
-        change: nums(ws.map(w => w.delta)).length ? sum(ws.map(w => w.delta)) : null,
-        kcal: mean(ws.map(w => w.kcal)),
-        protein: mean(ws.map(w => w.protein)),
-        steps: mean(ws.map(w => w.steps)),
         sessions: sum(ws.map(w => w.sessions)),
         sessionsDone: sum(done.map(w => w.sessions)),
         planDone: planned != null ? planned * done.length : null,
         sets: sum(ws.map(w => w.setsTotal)),
         setsPerWeek: done.length ? sum(done.map(w => w.setsTotal)) / done.length : null,
         prs: sum(ws.map(w => w.prs)),
-        hasData: wl.length > 0 || ws.some(w => w.kcal != null || w.sessions > 0),
+        hasData: ws.some(w => w.sessions > 0),
       };
     })
     .filter(m => m.hasData)
@@ -1122,19 +1120,154 @@ export const monthsModel = (weeks: RatedWeek[], planned: number | null = null): 
 
   return list.map((m, i): MonthRow => {
     const p = list[i + 1];
-    const diff = (a: number | null, b: number | null): number | null => (a != null && b != null ? a - b : null);
     return {
       ...m,
       d: p
         ? {
-            kcal: diff(m.kcal, p.kcal),
-            protein: diff(m.protein, p.protein),
-            steps: diff(m.steps, p.steps),
-            setsPerWeek: diff(m.setsPerWeek, p.setsPerWeek),
+            setsPerWeek: m.setsPerWeek != null && p.setsPerWeek != null ? m.setsPerWeek - p.setsPerWeek : null,
           }
         : null,
     };
   });
+};
+
+const dateKey = (value: string): string | null => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : toKey(date);
+};
+
+const phaseLabelOf = (type: PlanType): string =>
+  type === 'muscle_gain' ? 'Bulk' : type === 'weight_loss' ? 'Cut' : 'Maintenance';
+
+export const monthlyHistoryModel = (
+  weeks: RatedWeek[],
+  switchDate: string | null | undefined,
+  currentType: PlanType,
+  phaseHistory: PhaseHistoryEntry[] = [],
+): MonthlyHistoryRow[] => {
+  const currentMonthKeys = new Set(
+    weeks.filter(w => w.isCurrent).map(w => `${w.monday.getFullYear()}-${pad(w.monday.getMonth() + 1)}`),
+  );
+  const switchKey = switchDate ? dateKey(switchDate) : null;
+  const historyPhases = phaseHistory.map((phase, index) => {
+    const endKey = dateKey(phase.endDate);
+    const startKey = phase.startDate
+      ? dateKey(phase.startDate)
+      : endKey && phase.weeks > 0
+        ? toKey(addDays(parseKey(endKey), -phase.weeks * 7))
+        : null;
+    return { id: `history:${index}`, label: phaseLabelOf(phase.type), startKey, endKey };
+  });
+  type PhaseAtDate = { id: string; label: string | null; startKey: string | null };
+  const currentPhase = {
+    id: 'current',
+    label: phaseLabelOf(currentType),
+    startKey: switchKey,
+  };
+  const phaseAt = (key: string): PhaseAtDate => {
+    if (switchKey != null && key >= switchKey) return currentPhase;
+    const historical = historyPhases.find(phase =>
+      phase.endKey != null && key <= phase.endKey && (phase.startKey == null || key >= phase.startKey),
+    );
+    if (historical) return historical;
+    return {
+      id: 'earlier',
+      label: switchKey == null && historyPhases.length === 0 ? null : 'Earlier phase',
+      startKey: null,
+    };
+  };
+  const groups = new Map<string, {
+    key: string;
+    name: string;
+    year: number;
+    phaseLabel: string | null;
+    weeks: RatedWeek[];
+    phaseStartKey: string | null;
+  }>();
+
+  weeks.forEach(week => {
+    const monthKey = `${week.monday.getFullYear()}-${pad(week.monday.getMonth() + 1)}`;
+    if (currentMonthKeys.has(monthKey)) return;
+
+    const counts = new Map<string, { phase: PhaseAtDate; count: number }>();
+    for (let day = 0; day < 7; day += 1) {
+      const phase = phaseAt(toKey(addDays(week.monday, day)));
+      const entry = counts.get(phase.id);
+      counts.set(phase.id, { phase, count: (entry?.count ?? 0) + 1 });
+    }
+    const phase = [...counts.values()].sort((a, b) => b.count - a.count)[0]!.phase;
+    const key = `${monthKey}:${phase.id}`;
+    const group = groups.get(key) ?? {
+      key: monthKey,
+      name: MONTHS[week.monday.getMonth()],
+      year: week.monday.getFullYear(),
+      phaseLabel: phase.label,
+      weeks: [],
+      phaseStartKey: phase.startKey,
+    };
+    group.weeks.push(week);
+    groups.set(key, group);
+  });
+
+  return [...groups.values()]
+    .map(group => {
+      const sorted = [...group.weeks].sort((a, b) => a.monday.getTime() - b.monday.getTime());
+      const settleEnd = group.phaseStartKey
+        ? toKey(addDays(parseKey(group.phaseStartKey), 14))
+        : null;
+      const weightWeeks = sorted.filter((week): week is RatedWeek & { w: number } => {
+        if (week.w == null) return false;
+        return settleEnd == null || week.key >= settleEnd;
+      });
+      const observedWeightWeeks = sorted.filter(
+        (week): week is RatedWeek & { w: number } => week.w != null,
+      );
+      const first = weightWeeks[0];
+      const last = weightWeeks[weightWeeks.length - 1];
+      const endedAt = observedWeightWeeks[observedWeightWeeks.length - 1]?.w ?? null;
+      const span = first && last
+        ? Math.round((last.monday.getTime() - first.monday.getTime()) / WEEK_MS)
+        : 0;
+      const noLongGaps = weightWeeks.every((week, index) =>
+        index === 0 || Math.round((week.monday.getTime() - weightWeeks[index - 1].monday.getTime()) / WEEK_MS) <= 2,
+      );
+      const change = weightWeeks.length >= 4 && span >= 3 && noLongGaps && first && last ? last.w - first.w : null;
+      const changeWeeks = change != null ? span : null;
+      const settling = group.phaseStartKey != null && sorted.some(week =>
+        week.key <= settleEnd! && toKey(addDays(week.monday, 6)) >= group.phaseStartKey!,
+      );
+      const changeReason: MonthlyHistoryRow['changeReason'] = change != null
+        ? null
+        : settling
+          ? 'settling'
+          : weightWeeks.some((week, index) =>
+              index > 0 && Math.round((week.monday.getTime() - weightWeeks[index - 1].monday.getTime()) / WEEK_MS) > 2,
+            )
+            ? 'gap'
+            : 'short';
+      const calorieWeeks = sorted.filter(
+        (week): week is RatedWeek & { kcal: number } =>
+          !week.isCurrent && week.kcal != null && week.nd >= MIN_LOGGED_DAYS,
+      );
+      const avgKcalDays = sum(calorieWeeks.map(week => week.nd));
+      const avgKcal = calorieWeeks.length >= 1
+        ? sum(calorieWeeks.map(week => week.kcal * week.nd)) / avgKcalDays
+        : null;
+
+      return {
+        ...group,
+        weeks: sorted,
+        endedAt,
+        change,
+        changeWeeks,
+        changeReason,
+        avgKcal,
+        avgKcalDays,
+      };
+    })
+    .filter(row => row.endedAt != null || row.avgKcal != null)
+    .sort((a, b) => b.key.localeCompare(a.key) || b.weeks[0].key.localeCompare(a.weeks[0].key));
 };
 
 export const countPlanned = (schedule: Record<string, { exercises?: unknown[] } | null | undefined> | null | undefined): number | null => {

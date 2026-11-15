@@ -11,6 +11,7 @@ import {
     energyModel,
     liftSpan,
     liftStats,
+    monthlyHistoryModel,
     isWeightWeekComplete,
     linearWeightRate,
     mean,
@@ -140,6 +141,15 @@ export const useProgressScreenModel = ({
     const recap = useMemo(() => phaseRecap(userData, weeks, info, energy, phaseStrength), [userData, weeks, info, energy, phaseStrength]);
     const sets = useMemo(() => setsModel(weeks, n), [weeks, n]);
     const months = useMemo(() => monthsModel(weeks, planned), [weeks, planned]);
+    const pastMonths = useMemo(
+        () => monthlyHistoryModel(
+            weeks,
+            userData?.goalSwitchDate,
+            userData?.weightChangePlan?.type ?? 'maintenance',
+            userData?.phaseHistory,
+        ),
+        [weeks, userData?.goalSwitchDate, userData?.weightChangePlan?.type, userData?.phaseHistory],
+    );
 
     return {
         weeks,
@@ -161,5 +171,6 @@ export const useProgressScreenModel = ({
         recap,
         sets,
         months,
+        pastMonths,
     };
 };

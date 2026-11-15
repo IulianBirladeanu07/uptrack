@@ -145,6 +145,9 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.medium,
         color: colors.text.tertiary,
     },
+    energyBalanceNote: {
+        marginBottom: 0,
+    },
     dp: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -514,14 +517,41 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.medium,
         color: colors.text.secondary,
     },
-    monthChange: {
-        fontSize: fontSize[12],
-        fontWeight: fontWeight.semibold,
+    historyMonth: {
+        paddingHorizontal: spacing[4],
+        paddingVertical: spacing[3],
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border.light,
     },
-    monthChangeBadge: {
-        paddingHorizontal: spacing[2],
-        paddingVertical: spacing[1],
-        borderRadius: radius[2],
+    historyMonthTitle: {
+        marginBottom: spacing[2],
+    },
+    historyMetrics: {
+        flexDirection: 'row',
+        gap: spacing[2],
+    },
+    historyMetric: {
+        flex: 1,
+        minWidth: 0,
+    },
+    historyLabel: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+    },
+    historyValue: {
+        marginTop: spacing[1],
+        fontSize: fontSize[14],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.primary,
+    },
+    historyMeta: {
+        marginTop: 2,
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.medium,
+        color: colors.text.quaternary,
     },
     planLink: {
         fontSize: fontSize[10],
