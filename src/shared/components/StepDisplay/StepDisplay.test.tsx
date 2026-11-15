@@ -2,11 +2,12 @@ import React, { createRef } from 'react';
 import { act, render, waitFor } from '@testing-library/react-native';
 import { Platform } from 'react-native';
 import type { StepDisplayHandle } from './StepDisplay';
-import { ensureStepsAccess, readDailySteps } from '../../services/healthConnectSteps';
+import { ensureStepsAccess, readDailySteps, readStepsBySource } from '../../services/healthConnectSteps';
 
 jest.mock('../../services/healthConnectSteps', () => ({
     ensureStepsAccess: jest.fn(),
     readDailySteps: jest.fn(),
+    readStepsBySource: jest.fn(),
     openAccessHelp: jest.fn(),
 }));
 
@@ -21,6 +22,7 @@ jest.mock('firebase/auth', () => ({
 
 const checkAccess = jest.mocked(ensureStepsAccess);
 const readSteps = jest.mocked(readDailySteps);
+const readSourceSteps = jest.mocked(readStepsBySource);
 Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
 const { default: StepDisplay } = require('./StepDisplay') as typeof import('./StepDisplay');
 
@@ -29,6 +31,7 @@ describe('StepDisplay', () => {
         jest.clearAllMocks();
         checkAccess.mockResolvedValue('ready');
         readSteps.mockResolvedValue({});
+        readSourceSteps.mockResolvedValue({});
     });
 
     it('re-reads recent history when manually retried after initialization', async () => {
@@ -46,6 +49,8 @@ describe('StepDisplay', () => {
         );
 
         await waitFor(() => expect(onStepsHistory).toHaveBeenCalledTimes(1), { timeout: 3000 });
+        await waitFor(() => expect(readSourceSteps).toHaveBeenCalledTimes(1));
+        expect(onStepsHistory.mock.invocationCallOrder[0]).toBeLessThan(readSourceSteps.mock.invocationCallOrder[0]);
         expect(checkAccess).toHaveBeenCalledWith({ request: false });
 
         await act(async () => {
@@ -53,6 +58,7 @@ describe('StepDisplay', () => {
         });
 
         await waitFor(() => expect(onStepsHistory).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(readSourceSteps).toHaveBeenCalledTimes(2));
         expect(checkAccess).toHaveBeenLastCalledWith({ request: false });
         expect(onConnectedChange).toHaveBeenLastCalledWith(true);
         expect(onStepsLoading).toHaveBeenLastCalledWith(false);

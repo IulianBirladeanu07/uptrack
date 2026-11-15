@@ -1,6 +1,6 @@
 import { mergeUserProfile } from '../../auth/services/userProfileQuery';
 import { diffPastSteps } from './stepStats';
-import type { DailySteps, DateInput } from '../../../shared/types';
+import type { DailySteps, DateInput, WeeklySnapshot } from '../../../shared/types';
 
 export const STEPS_BACKFILL_FROM = '2026-01-01';
 
@@ -30,12 +30,14 @@ export const persistDailySteps = async (
   uid: string | null | undefined,
   entries: DailySteps | null | undefined,
   markBackfilled = false,
+  weeklyNutrition?: WeeklySnapshot[],
 ): Promise<boolean> => {
   const has = entries && Object.keys(entries).length > 0;
-  if (!uid || (!has && !markBackfilled)) return false;
+  if (!uid || (!has && !markBackfilled && !weeklyNutrition)) return false;
   await mergeUserProfile(uid, {
       ...(has ? { dailySteps: entries } : {}),
       ...(markBackfilled ? { stepsBackfilledAt: new Date().toISOString() } : {}),
+      ...(weeklyNutrition ? { weeklyNutrition } : {}),
     });
   return true;
 };

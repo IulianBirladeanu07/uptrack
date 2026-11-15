@@ -12,6 +12,8 @@ Updated 2026-11-15. Start with this handoff, then read `AGENTS.md` before changi
 
 ## Current batch: Progress dashboard visual alignment
 
+- Health Connect step selection prefers Samsung Health, then `com.android.healthconnect.phone*`, then Google Fit, and finally the maximum individual origin total; weekly nutrition step fields are recomputed from stored `dailySteps`, and stale snapshots represented in a successful history sync self-heal in the same profile merge write even when daily values are unchanged.
+- Android dev builds can emit a read-only 29-day step audit comparing stored daily steps with Health Connect aggregate, Samsung Health, Health Connect phone sources, Google Fit, and the selected value. It excludes today and does not write audit data.
 - Energy balance guidance allows a 20% tolerance around the planned rate before warning that weight change is behind target. When it does show guidance, rate and goal use kg/month and the calorie recommendation matches the Eat target shown in the card.
 - Progress keeps Nutrition/Training page tabs and compact phase/8W/12W range tabs on the same row to use the available width; the active phase and week context sits below.
 - Page and range options share the same understated underline-tab styling for visual consistency; their labels distinguish page navigation from time-range selection.

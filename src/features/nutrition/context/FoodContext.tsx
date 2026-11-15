@@ -276,6 +276,8 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         flushSteps();
     }, [flushSteps]);
 
+    const getStoredSteps = useCallback(() => userDataRef.current?.dailySteps ?? {}, []);
+
     useEffect(() => {
         userDataRef.current = userData;
         flushSteps();
@@ -646,6 +648,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
                 onStepsError={handleStepsError}
                 onStepsLoading={handleStepsLoading}
                 onConnectedChange={handleStepsConnectedChange}
+                getStoredSteps={getStoredSteps}
             />
             {children}
         </FoodContext.Provider>

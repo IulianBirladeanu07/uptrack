@@ -63,6 +63,19 @@ describe('persistDailySteps', () => {
     expect(setDoc).toHaveBeenCalledWith({ db: {}, collection: 'users', id: 'u1' }, { dailySteps: { '2026-10-03': 8000 } }, { merge: true });
   });
 
+  test('writes corrected weekly snapshots in the same user merge', async () => {
+    setDoc.mockClear();
+    const weeklyNutrition = [{ weekStart: '2026-11-02', avgSteps: 13081, totalSteps: 91570, daysLoggedSteps: 7 }];
+    await persistDailySteps('u1', { '2026-11-02': 13000 }, false, weeklyNutrition);
+
+    expect(setDoc).toHaveBeenCalledTimes(1);
+    expect(setDoc).toHaveBeenCalledWith(
+      { db: {}, collection: 'users', id: 'u1' },
+      { dailySteps: { '2026-11-02': 13000 }, weeklyNutrition },
+      { merge: true },
+    );
+  });
+
   test('adds stepsBackfilledAt when marking backfill', async () => {
     await persistDailySteps('u1', { a: 1 }, true);
     const payload = setDoc.mock.calls[0][1];

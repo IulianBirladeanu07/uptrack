@@ -178,11 +178,14 @@ describe('snapshotPreviousWeek', () => {
     const mealCache = new MealCache();
     const weekStart = new Date(2026, 0, 26);
     for (let i = 0; i < 6; i++) {
-      putDay(mealCache, addDays(weekStart, i), { calories: 2200, protein: 160, carbs: 220, fats: 65, steps: 9000 });
+      putDay(mealCache, addDays(weekStart, i), { calories: 2200, protein: 160, carbs: 220, fats: 65, steps: 12000 });
     }
 
+    const dailySteps = Object.fromEntries(
+      Array.from({ length: 6 }, (_, index) => [mealCache.formatDate(addDays(weekStart, index)), 9000]),
+    );
     const previousWeekEntry = { weekStart: '2026-01-26', average: 88.2 };
-    const userData = { weightChangePlan: { type: 'weight_loss' } };
+    const userData = { weightChangePlan: { type: 'weight_loss' }, dailySteps };
     const result = await snapshotPreviousWeek('u1', previousWeekEntry, mealCache, userData);
 
     expect(result.daysLoggedNutrition).toBe(6);

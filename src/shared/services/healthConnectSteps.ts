@@ -21,6 +21,15 @@ const INSTALL_URL =
 const STEPS_READ = { accessType: 'read', recordType: 'Steps' } as const;
 const SAMSUNG_HEALTH_ORIGIN = 'com.sec.android.app.shealth';
 const GOOGLE_FIT_ORIGIN = 'com.google.android.apps.fitness';
+const HEALTH_CONNECT_PHONE_ORIGIN_PREFIX = 'com.android.healthconnect.phone';
+
+export type StepsBySourceRow = {
+  all: number;
+  picked: number;
+  sources: Record<string, number>;
+};
+
+export type StepsBySource = Record<string, StepsBySourceRow>;
 
 const hasStepsRead = (granted: ReadonlyArray<{ recordType: string }>): boolean =>
   granted.some(p => p.recordType === 'Steps' && 'accessType' in p && p.accessType === 'read');
@@ -48,7 +57,7 @@ export const openAccessHelp = (access: StepsAccess): void => {
   if (access === 'permission_denied') openHealthConnectSettings();
 };
 
-export const readDailySteps = async (from: Date, to: Date): Promise<DailySteps> => {
+const readStepSourceData = async (from: Date, to: Date, includeKnownSources = false) => {
   const earliest = new Date(to);
   earliest.setDate(earliest.getDate() - MAX_LOOKBACK_DAYS);
   earliest.setHours(0, 0, 0, 0);
@@ -60,8 +69,11 @@ export const readDailySteps = async (from: Date, to: Date): Promise<DailySteps> 
   });
   const allSourceSteps = bucketsToDailySteps(groups);
   const foundOrigins = [...new Set(groups.flatMap(({ result }) => result.dataOrigins ?? []))];
-  const sourceSteps = foundOrigins.length > 1
-    ? await Promise.all(foundOrigins.map(async origin => ({
+  const sourceOrigins = includeKnownSources
+    ? [...new Set([...foundOrigins, SAMSUNG_HEALTH_ORIGIN, GOOGLE_FIT_ORIGIN])]
+    : foundOrigins;
+  const sourceSteps = sourceOrigins.length > 0
+    ? await Promise.all(sourceOrigins.map(async origin => ({
       origin,
       dailySteps: bucketsToDailySteps(await aggregateGroupByPeriod({
         recordType: 'Steps',
@@ -71,28 +83,50 @@ export const readDailySteps = async (from: Date, to: Date): Promise<DailySteps> 
       })),
     })))
     : [];
+  const dateKeys = new Set([
+    ...Object.keys(allSourceSteps),
+    ...sourceSteps.flatMap(source => Object.keys(source.dailySteps)),
+  ]);
+  const rows: StepsBySource = Object.fromEntries([...dateKeys].map(dateKey => {
+    const sources = Object.fromEntries(sourceSteps.flatMap(source => {
+      const total = source.dailySteps[dateKey];
+      return total === undefined ? [] : [[source.origin, total]];
+    }));
+    const sourceTotals = Object.values(sources).filter(total => total > 0);
+    const samsungHealthSteps = sources[SAMSUNG_HEALTH_ORIGIN];
+    const googleFitSteps = sources[GOOGLE_FIT_ORIGIN];
+    const phoneSteps = Object.entries(sources)
+      .filter(([origin, total]) => origin.startsWith(HEALTH_CONNECT_PHONE_ORIGIN_PREFIX) && total > 0)
+      .map(([, total]) => total);
+    let picked = allSourceSteps[dateKey] ?? 0;
+    if (samsungHealthSteps != null && samsungHealthSteps > 0) {
+      picked = samsungHealthSteps;
+    } else if (phoneSteps.length) {
+      picked = Math.max(...phoneSteps);
+    } else if (googleFitSteps != null && googleFitSteps > 0) {
+      picked = googleFitSteps;
+    } else if (sourceTotals.length) {
+      picked = Math.max(...sourceTotals);
+    }
+    return [dateKey, { all: allSourceSteps[dateKey] ?? 0, picked, sources }];
+  }));
+  return { start, groups, allSourceSteps, sourceSteps, rows };
+};
+
+export const readStepsBySource = async (from: Date, to: Date): Promise<StepsBySource> =>
+  (await readStepSourceData(from, to, true)).rows;
+
+export const readDailySteps = async (from: Date, to: Date): Promise<DailySteps> => {
+  const { start, groups, allSourceSteps, sourceSteps, rows } = await readStepSourceData(from, to);
   const dailySteps = { ...allSourceSteps };
-  if (sourceSteps.length > 1) {
-    Object.keys(allSourceSteps).forEach(dateKey => {
-      const sourceTotals = sourceSteps
-        .map(source => ({ origin: source.origin, total: source.dailySteps[dateKey] }))
-        .filter((source): source is { origin: string; total: number } => source.total !== undefined && source.total > 0);
-      const samsungHealthSteps = sourceTotals.find(source => source.origin === SAMSUNG_HEALTH_ORIGIN)?.total;
-      const googleFitSteps = sourceTotals.find(source => source.origin === GOOGLE_FIT_ORIGIN)?.total;
-      if (samsungHealthSteps !== undefined) {
-        dailySteps[dateKey] = samsungHealthSteps;
-      } else if (googleFitSteps !== undefined) {
-        dailySteps[dateKey] = googleFitSteps;
-      } else if (sourceTotals.length) {
-        dailySteps[dateKey] = Math.max(...sourceTotals.map(source => source.total));
-      }
-    });
-  }
+  Object.keys(allSourceSteps).forEach(dateKey => {
+    dailySteps[dateKey] = rows[dateKey].picked;
+  });
   if (__DEV__) {
     Object.keys(allSourceSteps).sort().forEach(k => {
       console.log('[Steps] Health Connect day', k, JSON.stringify({
         all: allSourceSteps[k],
-        picked: dailySteps[k],
+        picked: rows[k].picked,
         sources: Object.fromEntries(sourceSteps.map(s => [s.origin, s.dailySteps[k] ?? null])),
       }));
     });

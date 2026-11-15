@@ -92,11 +92,8 @@ export const snapshotPreviousWeek = async (
     .map(({ meals }) => calculateDailyNutritionFromMeals(meals))
     .filter(d => d.calories > 0);
 
-  const stepDays = mealCache.getStepsRange(start, end)
-    .filter(d => d.date !== todayKey && d.steps > 0);
-  const cacheSteps = new Map(stepDays.map(d => [d.date, d.steps]));
-
-  if (!nutritionDays.length && !stepDays.length) return null;
+  const knownStepStats = weekStepStats(userData?.dailySteps, weekStart, todayKey);
+  if (!nutritionDays.length && !knownStepStats.days) return null;
 
   const snapshot: WeeklySnapshot = {
     weekStart,
@@ -105,9 +102,9 @@ export const snapshotPreviousWeek = async (
     avgProtein:  avg(nutritionDays, 'protein'),
     avgCarbs:    avg(nutritionDays, 'carbs'),
     avgFats:     avg(nutritionDays, 'fat'),
-    daysLoggedSteps: stepDays.length,
-    avgSteps:    avg(stepDays, 'steps'),
-    totalSteps:  stepDays.reduce((s, d) => s + d.steps, 0),
+    daysLoggedSteps: 0,
+    avgSteps: 0,
+    totalSteps: 0,
     weightAverage: previousWeekEntry.average ?? null,
     createdAt: new Date().toISOString(),
   };
@@ -115,7 +112,7 @@ export const snapshotPreviousWeek = async (
   try {
     const stored = await fetchUserProfileDocument(userId);
     const existing: WeeklySnapshot[] = stored?.weeklyNutrition || [];
-    const st = weekStepStats(stored?.dailySteps, weekStart, k => cacheSteps.get(k), todayKey);
+    const st = weekStepStats(stored?.dailySteps ?? userData?.dailySteps, weekStart, todayKey);
     snapshot.daysLoggedSteps = st.days;
     snapshot.avgSteps = st.avg;
     snapshot.totalSteps = st.total;

@@ -58,6 +58,52 @@ describe('StepsFlusher', () => {
         expect(persist).toHaveBeenCalledWith('user-1', { '2026-10-10': 5500, '2026-10-11': 6000 });
     });
 
+    test('recomputes only affected weekly step snapshots from stored daily totals', async () => {
+        const weekStart = new Date(2026, 10, 2);
+        const dates = Array.from({ length: 7 }, (_, index) => {
+            const date = new Date(weekStart);
+            date.setDate(date.getDate() + index);
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        });
+        const dailySteps = Object.fromEntries(dates.map((date, index) => [date, index === 6 ? 13570 : 13000]));
+        const staleSnapshot = {
+            weekStart: '2026-11-02',
+            daysLoggedNutrition: 7,
+            avgCalories: 3000,
+            avgProtein: 180,
+            avgCarbs: 300,
+            avgFats: 80,
+            daysLoggedSteps: 7,
+            avgSteps: 23027,
+            totalSteps: 161191,
+            weightAverage: 80,
+            createdAt: '2026-11-09T00:00:00.000Z',
+        };
+        const unchangedSnapshot = {
+            ...staleSnapshot,
+            weekStart: '2026-11-09',
+            avgSteps: 8000,
+            totalSteps: 56000,
+        };
+        const { flusher } = makeFlusher({
+            userData: {
+                uid: 'user-1',
+                dailySteps,
+                weeklyNutrition: [staleSnapshot, unchangedSnapshot],
+            } as UserData,
+        });
+        flusher.queue(dailySteps);
+
+        await flusher.flush();
+
+        expect(persist).toHaveBeenCalledTimes(1);
+        expect(persist).toHaveBeenCalledWith('user-1', {}, false, [
+            { ...staleSnapshot, daysLoggedSteps: 7, avgSteps: 13081, totalSteps: 91570 },
+            unchangedSnapshot,
+        ]);
+        expect(persist.mock.calls[0][3][1]).toBe(unchangedSnapshot);
+    });
+
     test('keeps entries queued while the uid or user data is missing or mismatched', async () => {
         const { flusher, state } = makeFlusher({ userData: null });
         flusher.queue({ '2026-10-10': 5000 });

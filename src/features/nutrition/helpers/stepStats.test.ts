@@ -17,13 +17,13 @@ describe('weekStepStats', () => {
     expect(s.avg).toBe(Math.round((9972 + 9972 + 8531) / 3));
   });
 
-  test('takes the larger of stored and cached value per day', () => {
-    const s = weekStepStats({ '2026-10-01': 8000 }, '2026-09-28', k => (k === '2026-10-01' ? 12000 : 0));
-    expect(s.total).toBe(12000);
+  test('uses only the stored daily values', () => {
+    const s = weekStepStats({ '2026-10-01': 8000 }, '2026-09-28');
+    expect(s.total).toBe(8000);
   });
 
   test('skips the given key', () => {
-    const s = weekStepStats({ '2026-10-01': 8000, '2026-10-02': 9000 }, '2026-09-28', null, '2026-10-02');
+    const s = weekStepStats({ '2026-10-01': 8000, '2026-10-02': 9000 }, '2026-09-28', '2026-10-02');
     expect(s.days).toBe(1);
   });
 
@@ -44,8 +44,15 @@ describe('overlayWeekSteps', () => {
   });
 
   test('keeps a snapshot that is already as complete', () => {
-    const snap = { weekStart: '2026-08-03', avgSteps: 15000, daysLoggedSteps: 7 };
+    const snap = { weekStart: '2026-08-03', avgSteps: 13000, daysLoggedSteps: 7, totalSteps: 91000 };
     expect(overlayWeekSteps(snap, days)).toBe(snap);
+  });
+
+  test('replaces an equally complete snapshot when totals differ', () => {
+    const snap = { weekStart: '2026-08-03', avgSteps: 15000, daysLoggedSteps: 7, totalSteps: 105000 };
+    const out = overlayWeekSteps(snap, days);
+    expect(out).not.toBe(snap);
+    expect(out).toEqual({ ...snap, avgSteps: 13000, totalSteps: 91000 });
   });
 
   test('passes through without dailySteps or weekStart', () => {

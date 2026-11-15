@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth } from 'firebase/auth';
 import type { DailySteps } from '../../types';
 import { formatLocalDateKey } from '../../utils/localDateKey';
+import { auditSteps } from '../../../features/nutrition/helpers/stepAudit';
 import type { StepsAccess } from '../../services/healthConnectSteps';
 
 const stepsConnectRequestedKey = (uid: string) => `steps_connect_requested_${uid}`;
@@ -25,6 +26,7 @@ export type StepDisplayProps = {
     onStepsError?: (errorCode: string) => void;
     onStepsLoading?: (isLoading: boolean) => void;
     onConnectedChange?: (connected: boolean) => void;
+    getStoredSteps?: () => DailySteps;
 };
 
 const backend: Backend = Platform.OS === 'ios'
@@ -40,7 +42,7 @@ const ACCESS_ERRORS: Record<Exclude<StepsAccess, 'ready'>, string> = {
 const STEPS_LOOKBACK_DAYS = 30;
 const ROLLOVER_LOOKBACK_DAYS = 3;
 
-const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUpdate, onStepsHistory, onStepsError, onStepsLoading, onConnectedChange }, ref) => {
+const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUpdate, onStepsHistory, onStepsError, onStepsLoading, onConnectedChange, getStoredSteps }, ref) => {
     const [initialized, setInitialized] = useState(false);
     const initializingRef = useRef(false);
     const lastDayKeyRef = useRef<string | null>(null);
@@ -121,6 +123,7 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
 
         try {
             const byDate = await backend.hc.readDailySteps(startDate, now);
+            const storedSteps = __DEV__ ? getStoredSteps?.() : undefined;
             if (__DEV__) {
                 const todayKey = formatLocalDateKey(now);
                 console.log('[Steps] Recent Health Connect results', {
@@ -134,6 +137,18 @@ const StepDisplay = forwardRef<StepDisplayHandle, StepDisplayProps>(({ onStepsUp
                 onStepsUpdate?.(totalSteps, dateKey);
             });
             onStepsHistory?.(entries);
+            if (__DEV__) {
+                try {
+                    const rows = await backend.hc.readStepsBySource(startDate, now);
+                    const audit = auditSteps(storedSteps, rows);
+                    audit.days.forEach(day => {
+                        console.log(`[Steps audit] ${day.date} | ${day.stored ?? 'null'} | ${day.all ?? 'null'} | ${day.samsung ?? 'null'} | ${day.phone ?? 'null'} | ${day.googleFit ?? 'null'} | ${day.picked ?? 'null'} | ${day.flags.join(',') || 'none'}`);
+                    });
+                    console.log('[Steps audit] summary', JSON.stringify(audit.summary));
+                } catch (err) {
+                    console.error('[Steps] audit failed:', err);
+                }
+            }
             return true;
         } catch (err) {
             console.log('[Steps] fetchRecent error:', err);
