@@ -838,7 +838,7 @@ const PastMonthRow = ({ month, last }: { month: MonthlyHistoryRow; last: boolean
 };
 
 const PastMonthsCard = ({ months, all, setAll }: { months: MonthlyHistoryRow[]; all: boolean; setAll: (value: boolean) => void }) => {
-    if (!months.length) return null;
+    if (!months.some(month => month.change != null)) return null;
     const shown = all ? months.slice(0, 12) : months.slice(0, 3);
 
     return (
