@@ -108,6 +108,38 @@ describe('buildPlanUpdate', () => {
     expect(p.startWeight).toBe(82);
   });
 
+  test('a goal change records the ended phase and keeps earlier entries', () => {
+    const earlier = { type: 'maintenance', startDate: null, endDate: '2026-06-01T00:00:00.000Z', weeks: 4, startWeight: 80, endWeight: 81, avgKcal: null, strengthPct: null, weightPct: null };
+    const user = makeUser('calibrated', { goalSwitchDate: '2026-09-09T10:00:00.000Z', startWeight: 84, phaseHistory: [earlier] });
+    const p = buildPlanUpdate({
+      userData: user,
+      form: form({ fitnessGoals: 'muscle_gain' }),
+      original: base,
+      now: NOW,
+    });
+    expect(p.phaseHistory).toEqual([
+      earlier,
+      { type: 'weight_loss', startDate: '2026-09-09T10:00:00.000Z', endDate: NOW, weeks: 4, startWeight: 84, endWeight: 82, avgKcal: null, strengthPct: null, weightPct: null },
+    ]);
+  });
+
+  test('a goal change without a stored phase start records an open-ended entry', () => {
+    const p = buildPlanUpdate({
+      userData: makeUser('calibrated'),
+      form: form({ fitnessGoals: 'muscle_gain' }),
+      original: base,
+      now: NOW,
+    });
+    expect(p.phaseHistory).toEqual([
+      { type: 'weight_loss', startDate: null, endDate: NOW, weeks: 0, startWeight: 82, endWeight: 82, avgKcal: null, strengthPct: null, weightPct: null },
+    ]);
+  });
+
+  test('edits that keep the goal never touch phase history', () => {
+    const p = buildPlanUpdate({ userData: makeUser('calibrated'), form: form({ height: 181 }), original: base, now: NOW });
+    expect(p).not.toHaveProperty('phaseHistory');
+  });
+
   test.each(['estimated', 'calibrated'])('a target-weight-only edit preserves an %s plan even if it crosses current weight', confidence => {
     const p = buildPlanUpdate({
       userData: makeUser(confidence),

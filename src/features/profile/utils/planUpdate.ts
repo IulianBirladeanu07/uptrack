@@ -1,5 +1,5 @@
 import { calculateWeightChangePlan, deriveFitnessGoal, refreshWeightChangePlan } from './nutritionPlanEngine';
-import type { PlanFormData, PlanType, UserData, WeightChangePlan } from '../../../shared/types';
+import type { PhaseHistoryEntry, PlanFormData, PlanType, UserData, WeightChangePlan } from '../../../shared/types';
 
 type EditablePlanForm = PlanFormData & {
   fitnessGoals?: PlanType;
@@ -102,6 +102,24 @@ export const planView = ({ userData, form, original }: { userData: UserData | nu
   };
 };
 
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+const endedPhase = (userData: UserData | null | undefined, type: PlanType, endWeight: number, now: string): PhaseHistoryEntry => {
+  const startDate = userData?.goalSwitchDate ?? null;
+  const span = startDate ? Date.parse(now) - Date.parse(startDate) : NaN;
+  return {
+    type,
+    startDate,
+    endDate: now,
+    weeks: Number.isFinite(span) && span > 0 ? Math.round(span / WEEK_MS) : 0,
+    startWeight: Number(userData?.startWeight ?? endWeight),
+    endWeight,
+    avgKcal: null,
+    strengthPct: null,
+    weightPct: null,
+  };
+};
+
 export const buildPlanUpdate = ({ userData, form, original, now }: { userData: UserData | null | undefined; form: EditablePlanForm; original: EditablePlanForm; now: string }): Record<string, unknown> => {
   const diff = changedFields(form, original);
   const targetWeightOnly = isTargetWeightOnlyChange(diff);
@@ -162,7 +180,12 @@ export const buildPlanUpdate = ({ userData, form, original, now }: { userData: U
   }
 
   if (goalChanged) {
-    Object.assign(payload, { goalSwitchDate: now, weeksSinceCutStart: 0, startWeight: form.currentWeight });
+    Object.assign(payload, {
+      goalSwitchDate: now,
+      weeksSinceCutStart: 0,
+      startWeight: form.currentWeight,
+      phaseHistory: [...(userData?.phaseHistory ?? []), endedPhase(userData, previous, Number(form.currentWeight), now)],
+    });
   }
 
   return payload;
