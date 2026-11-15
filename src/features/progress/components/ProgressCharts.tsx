@@ -460,7 +460,7 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
   });
   const pw = chartW - gap * (n - 1) - BREAK * nb;
   const slotW = pw / n;
-  const bw = Math.min(slotW * 0.7, 56);
+  const bw = Math.min(slotW * 0.7, 40);
   let breakOffset = 0;
   const xs = bal.map((_, i) => {
     if (i > 0 && brk[i]) breakOffset += BREAK;
@@ -497,7 +497,6 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
         <Svg width={width} height={H}>
           <G transform={`translate(${LP} 0)`}>
           <Line x1={-LP} x2={chartW} y1={y0} y2={y0} stroke={GRID} strokeWidth={1} />
-          <SvgText x={-LP + 2} y={y0 - 4} fontSize={10} fill={AX} textAnchor="start">maintenance</SvgText>
           {brk.map((on, i) =>
             on ? (
               <Line
