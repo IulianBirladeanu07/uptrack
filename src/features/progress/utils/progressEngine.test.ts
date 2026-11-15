@@ -7,6 +7,8 @@ import {
   recapEntry,
   rangeOptions,
   paceModel,
+  isWeightWeekComplete,
+  linearWeightRate,
   paceTip,
   energyModel,
   balanceNote,
@@ -51,6 +53,26 @@ describe('isToGoalReached', () => {
     expect(isToGoalReached(-0.01)).toBe(true);
     expect(isToGoalReached(0.01)).toBe(false);
     expect(isToGoalReached(null)).toBe(false);
+  });
+
+  describe('linearWeightRate', () => {
+    it('estimates the trend across complete weekly averages and requires three points', () => {
+      const points = [0, 1, 2, 3].map((week, index) => ({
+        monday: new Date(2026, 9, 5 + week * 7),
+        average: 80 + index * 0.1,
+      }));
+
+      expect(linearWeightRate(points)).toBeCloseTo(0.1, 3);
+      expect(linearWeightRate(points.slice(0, 2))).toBeNull();
+    });
+
+    describe('isWeightWeekComplete', () => {
+      it('treats the current week as complete on Sunday but not earlier in the week', () => {
+        expect(isWeightWeekComplete(true, 6)).toBe(false);
+        expect(isWeightWeekComplete(true, 0)).toBe(true);
+        expect(isWeightWeekComplete(false, 2)).toBe(true);
+      });
+    });
   });
 });
 
@@ -623,15 +645,25 @@ describe('energyModel', () => {
   });
 
   test('says behind-plan when real rate is far below plan', () => {
-    const m = energyModel(rated, 12, { ...info, planRate: 1.2 });
-    expect(energyTip(m, { ...info, planRate: 1.2 })).toMatch(/aim for about/);
+    const bulk = { ...info, dir: 1, planRate: 0.14, target: 3704 };
+    const model = energyModel(rated, 12, bulk);
+    const m = { ...model, realRate: 0.05, target: 3704 };
+    expect(energyTip(m, bulk)).toMatch(/below your 0.6 kg\/month gain goal/);
+    expect(energyTip(m, bulk)).toMatch(/eat target is 3,704 kcal\/day/);
+  });
+
+  test('does not flag a rate within 20 percent of the plan as behind', () => {
+    const bulk = { ...info, dir: 1, planRate: 0.14, target: 3704 };
+    const model = energyModel(rated, 12, bulk);
+    const m = { ...model, realRate: 0.13, target: 3704, gapToTarget: 0 };
+    expect(energyTip(m, bulk)).toBe('');
   });
 
   test('describes weight loss as opposite to a bulk goal without a negative gain rate', () => {
     const bulk = { ...info, dir: 1, planRate: 0.2 };
     const m = energyModel(rated, 12, bulk, buildSrc().weightIns, NOW);
     expect(m.realRate).toBeLessThan(0);
-    expect(energyTip(m, bulk)).toMatch(/weight is falling at .* below your 0.2 kg\/wk gain goal/);
+    expect(energyTip(m, bulk)).toMatch(/weight is falling at .* below your 0.9 kg\/month gain goal/);
   });
 
   test('stays silent when target matches intake', () => {

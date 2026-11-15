@@ -12,7 +12,7 @@ import { formatDate } from '../../../nutrition/utils/dateUtils';
 import { colors, spacing } from '../../../../shared/theme';
 import { WEEKS_PER_MONTH } from '../../../profile/utils/nutritionPlanEngine';
 import { useAppNavigation } from '../../../../shared/navigation';
-import { PaceChart, BalanceChart, StrengthChart, WeightTrendChart } from '../../components/ProgressCharts';
+import { BulkTrendChart, PaceChart, BalanceChart, StrengthChart, WeightTrendChart } from '../../components/ProgressCharts';
 import type { WeightTrendPoint } from '../../components/ProgressCharts';
 import {
     SETS_LOW,
@@ -48,6 +48,7 @@ const TABS: { key: TabKey; label: string }[] = [
 const TONES = {
     good: { bg: colors.faded.successAlt, fg: colors.accent.success },
     warn: { bg: colors.faded.primary, fg: colors.accent.primary },
+    error: { bg: colors.faded.errorAlt, fg: colors.accent.error },
     purple: { bg: colors.faded.purple, fg: colors.macro.protein },
     flat: { bg: colors.faded.surface, fg: colors.text.secondary },
 };
@@ -93,6 +94,9 @@ const Hero = ({ value, unit, children }: { value: string; unit?: string | undefi
         {children}
     </View>
 );
+
+const phaseWeekSubtitle = (info: PhaseInfo, subtitle?: string) =>
+    `Week ${info.phaseWeeks} of ${info.dir > 0 ? 'bulking' : info.dir < 0 ? 'cutting' : info.label.toLowerCase()}${subtitle ? ` · ${subtitle}` : ''}`;
 
 type StatItem = { value: string; unit?: string | undefined; label: string; detail?: string; color?: string | undefined; dot?: string; dash?: boolean; accessibilityLabel?: string };
 
@@ -147,9 +151,10 @@ const ChartBox = ({ width, children }: { width: number; children: (w: number) =>
     <View>{width > 0 && children(width)}</View>
 );
 
-const EmptyCard = ({ cap, text }: { cap: string; text: string }) => (
+const EmptyCard = ({ cap, text, subtitle }: { cap: string; text: string; subtitle?: string }) => (
     <View style={styles.card}>
         <Text style={styles.cap}>{cap}</Text>
+        {subtitle && <Text style={styles.heroNote}>{subtitle}</Text>}
         <Text style={styles.empty}>{text}</Text>
     </View>
 );
@@ -211,6 +216,11 @@ const PaceCard = ({
     averages,
     planSummary,
     onProfile,
+    gainRatePerWeek,
+    gainTrendWeeks,
+    gainTrendStart,
+    currentWeekHasWeight,
+    bulkSettlingPeriod,
     chartWidth,
 }: {
     m: PaceModel | null;
@@ -221,6 +231,11 @@ const PaceCard = ({
     averages: (WeightTrendPoint & { change: number | null; gap: number | null })[];
     planSummary: string;
     onProfile: () => void;
+    gainRatePerWeek: number | null;
+    gainTrendWeeks: number;
+    gainTrendStart: Date | null;
+    currentWeekHasWeight: boolean;
+    bulkSettlingPeriod: boolean;
     chartWidth: number;
 }) => {
     const [sel, setSel] = useState<number | null>(null);
@@ -230,6 +245,40 @@ const PaceCard = ({
     }, [n, phaseStart, info.type]);
 
     const title = info.dir < 0 ? 'Weight loss pace' : info.dir > 0 ? 'Weight gain pace' : 'Weight stability';
+    if (!m && info.dir > 0) {
+        const completeWeeks = averages.filter(point => !point.current).length;
+        const remainingWeeks = Math.max(0, 3 - completeWeeks);
+        const targetMonthly = info.planRate == null ? null : info.planRate * WEEKS_PER_MONTH;
+        return (
+            <View style={styles.card}>
+                <View style={styles.rowBetween}>
+                    <Text style={styles.cap}>{title}</Text>
+                    <TouchableOpacity
+                        onPress={onProfile}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Change gain target in Profile"
+                    >
+                        <Text style={styles.planLink}>
+                            {targetMonthly == null ? 'Set target · Profile' : `Target ${fmt1(targetMonthly)} kg/month`}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+                <Hero value="--" unit="kg/month">
+                    <Delta tone="flat" text="Building trend" />
+                </Hero>
+                <Text style={styles.heroNote}>
+                    {phaseWeekSubtitle(info, currentWeekHasWeight ? 'This week is still in progress and is not included in the trend' : undefined)}
+                </Text>
+                <Text style={styles.empty}>
+                    {completeWeeks === 0
+                        ? 'Add complete weekly averages to start seeing your gain trend.'
+                        : `Need ${remainingWeeks} more complete ${remainingWeeks === 1 ? 'week' : 'weeks'} to estimate your pace.`}
+                </Text>
+            </View>
+        );
+    }
+
     if (!m) {
         const remainingChanges = Math.max(0, 4 - Math.max(0, averages.length - 1));
         const latestAverage = averages[averages.length - 1];
@@ -250,7 +299,7 @@ const PaceCard = ({
                     <>
                         <Hero value={fmt1(latestAverage.average)} unit="kg" />
                         <Text style={styles.heroNote}>
-                            Weekly average · week of {shortDate(latestAverage.monday)}
+                            {phaseWeekSubtitle(info, `Weekly average · week of ${shortDate(latestAverage.monday)}`)}
                         </Text>
                     </>
                 )}
@@ -290,6 +339,132 @@ const PaceCard = ({
         );
     }
 
+    if (info.dir > 0) {
+        const points = averages;
+        const monthlyRate = gainRatePerWeek == null ? null : gainRatePerWeek * WEEKS_PER_MONTH;
+        const targetMonthly = info.planRate == null ? null : info.planRate * WEEKS_PER_MONTH;
+        const tolerance = targetMonthly == null ? 0.15 : Math.max(targetMonthly * 0.25, 0.15);
+        const verdict: DeltaProps | null = monthlyRate == null || targetMonthly == null || gainTrendWeeks < 3
+            ? null
+            : monthlyRate < targetMonthly - tolerance
+                ? { tone: 'warn', icon: 'arrow-down', text: 'Below target' }
+                : monthlyRate > targetMonthly + tolerance
+                    ? { tone: 'warn', icon: 'arrow-up', text: 'Above target' }
+                    : { tone: 'good', icon: 'checkmark', text: 'On track' };
+        const latest = [...points].reverse().find(point => !point.current);
+        const currentWeekPoint = points.find(point => point.current);
+        const latestWeight = currentWeekPoint ?? latest;
+        const latestWeightChange = latestWeight?.change == null
+            ? null
+            : Number(latestWeight.change.toFixed(1));
+        const latestWeightChangeLabel = latestWeightChange == null || latestWeight?.gap == null
+            ? null
+            : `${latestWeightChange > 0 ? '+' : ''}${fmt1(latestWeightChange)} kg vs ${
+                latestWeight.gap === 1 ? 'last week' : `${latestWeight.gap} weeks ago`
+            }`;
+        const fourWeekFactor = 4 / WEEKS_PER_MONTH;
+        const projectedWeight = latest && monthlyRate != null
+            ? latest.average + monthlyRate * fourWeekFactor
+            : null;
+        const targetWeight = latest && targetMonthly != null
+            ? latest.average + targetMonthly * fourWeekFactor
+            : null;
+        const outlookDate = latest ? new Date(latest.monday) : null;
+        outlookDate?.setDate(outlookDate.getDate() + 28);
+        const outlookDifference = projectedWeight != null && targetWeight != null
+            ? projectedWeight - targetWeight
+            : null;
+        const outlookOnTarget = outlookDifference != null &&
+            Math.abs(outlookDifference) <= tolerance * fourWeekFactor;
+        const trendWeeks = Math.min(gainTrendWeeks, 4);
+        const trendTip = bulkSettlingPeriod
+            ? null
+            : verdict && verdict.text !== 'On track' && gainTrendWeeks >= 4
+                ? 'If this pace stays off target, review calories in Profile.'
+                : null;
+        return (
+            <View style={styles.card}>
+                <View style={styles.rowBetween}>
+                    <Text style={styles.cap}>Weight gain pace</Text>
+                    <TouchableOpacity
+                        onPress={onProfile}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Change gain target in Profile"
+                    >
+                        <Text style={styles.planLink}>
+                            {targetMonthly == null ? 'Set target · Profile' : `Target ${fmt1(targetMonthly)} kg/month`}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+                <Hero
+                    value={monthlyRate == null
+                        ? latestWeight ? fmt1(latestWeight.average) : '--'
+                        : fmt1(monthlyRate)}
+                    unit={monthlyRate == null ? 'kg' : 'kg/month'}
+                >
+                    {monthlyRate == null
+                        ? <Delta
+                            tone="flat"
+                            text={bulkSettlingPeriod
+                                ? 'Settling'
+                                : latestWeightChangeLabel ?? (currentWeekPoint ? 'This week so far' : 'Latest weekly avg')}
+                        />
+                        : verdict && <Delta {...verdict} />}
+                </Hero>
+                <Text style={styles.heroNote}>
+                    {phaseWeekSubtitle(info, monthlyRate != null
+                        ? `${trendWeeks}-week trend · monthly`
+                        : bulkSettlingPeriod
+                            ? 'After a cut, glycogen and water can raise weight quickly. Follow the trend as it settles over the next few weeks.'
+                            : `${Math.max(1, 3 - gainTrendWeeks)} more full ${Math.max(1, 3 - gainTrendWeeks) === 1 ? 'week' : 'weeks'} for a trend.`)}
+                </Text>
+                {points.length >= 2 ? (
+                    <ChartBox width={chartWidth}>
+                        {w => (
+                            <BulkTrendChart
+                                points={points}
+                                targetRatePerMonth={bulkSettlingPeriod ? null : targetMonthly}
+                                tolerancePerMonth={tolerance}
+                                targetStart={bulkSettlingPeriod ? null : gainTrendStart}
+                                width={w}
+                            />
+                        )}
+                    </ChartBox>
+                ) : (
+                    <Text style={styles.empty}>Building your trend from full weeks.</Text>
+                )}
+                {projectedWeight != null && targetWeight != null && (
+                    <View style={styles.outlook}>
+                        <View style={styles.outlookHeader}>
+                            <Text style={styles.cap}>4-week outlook</Text>
+                            {outlookDate && <Text style={styles.outlookDate}>By {shortDate(outlookDate)}</Text>}
+                        </View>
+                        <View style={styles.outlookValues}>
+                            <View style={styles.outlookValueBlock}>
+                                <Text style={styles.outlookValue}>{fmt1(projectedWeight)} kg</Text>
+                                <Text style={styles.outlookLabel}>At this pace</Text>
+                            </View>
+                            <View style={styles.outlookDivider} />
+                            <View style={styles.outlookValueBlock}>
+                                <Text style={styles.outlookValue}>{fmt1(targetWeight)} kg</Text>
+                                <Text style={styles.outlookLabel}>At target pace</Text>
+                            </View>
+                        </View>
+                        {outlookDifference != null && (
+                            <Text style={[styles.outlookDifference, outlookOnTarget && styles.outlookOnTarget]}>
+                                {outlookOnTarget
+                                    ? 'Within target range'
+                                    : `${fmt1(Math.abs(outlookDifference))} kg ${outlookDifference > 0 ? 'above' : 'below'} target path`}
+                            </Text>
+                        )}
+                    </View>
+                )}
+                {trendTip && <Tip text={trendTip} />}
+            </View>
+        );
+    }
+
     const pills: Record<PaceStatus, DeltaProps | null> = {
         on: { tone: 'good', icon: 'checkmark', text: 'on plan' },
         'slightly-ahead': { tone: 'good', icon: 'checkmark', text: 'on plan' },
@@ -301,23 +476,14 @@ const PaceCard = ({
     };
     const pill = pills[m.status];
 
-    const isBulk = info.dir > 0;
-    const rateScale = isBulk ? WEEKS_PER_MONTH : 1;
-    const rateUnit = isBulk ? 'kg/month' : 'kg/wk';
     const picked = sel != null && m.slots[sel]?.v != null ? m.slots[sel] : null;
     const recent = m.rate4 ?? m.rate;
-    const selectedRate = recent;
     const latestCompletedRate = [...m.slots].reverse().find(slot => slot.v != null && !slot.cur)?.v;
-    const chartSlots = m.slots.map(slot => ({
-        ...slot,
-        v: slot.v == null ? null : slot.v * rateScale,
-        avg: slot.avg == null ? null : slot.avg * rateScale,
-    }));
     const goalStat = m.reached
         ? { value: 'Reached', label: 'Goal' }
         : {
-            value: info.dir === 0 ? 'Hold' : m.plan != null ? fmt1(m.plan * rateScale) : '--',
-            unit: info.dir !== 0 && m.plan != null ? rateUnit : undefined,
+            value: info.dir === 0 ? 'Hold' : m.plan != null ? fmt1(m.plan) : '--',
+            unit: info.dir !== 0 && m.plan != null ? 'kg/wk' : undefined,
             label: 'Target rate',
         };
     const headerNote = picked
@@ -325,7 +491,7 @@ const PaceCard = ({
         : info.remaining != null && !info.reached
             ? `${info.remaining.toFixed(1)} kg to go`
             : null;
-    const diff = m.diff == null ? null : m.diff * rateScale;
+    const diff = m.diff;
     const scaledPill = pill == null ? null : {
         ...pill,
         text: m.status === 'ahead' ? `${fmt1(diff)} ahead` : m.status === 'behind' ? `${fmt1(-(diff ?? 0))} behind` : pill.text,
@@ -338,45 +504,36 @@ const PaceCard = ({
                 {headerNote != null && <Text style={styles.capRight}>{headerNote}</Text>}
             </View>
             <Hero
-                value={selectedRate == null ? '--' : fmt1(selectedRate * rateScale)}
-                unit={rateUnit}
+                value={fmt1(picked ? picked.v : recent)}
+                unit="kg/wk"
             >
                 {!picked && scaledPill ? <Delta {...scaledPill} /> : null}
             </Hero>
-            {!picked && (
-                <Text style={styles.heroNote}>
-                    {isBulk
-                        ? `Recent pace · last ${m.recentWeeks} weeks · monthly equivalent`
-                        : `last ${m.recentWeeks}-week average`}
-                </Text>
-            )}
+            <Text style={styles.heroNote}>
+                {phaseWeekSubtitle(info, !picked ? `last ${m.recentWeeks}-week average` : undefined)}
+            </Text>
             <ChartBox width={chartWidth}>
                 {w => (
                     <PaceChart
-                        slots={chartSlots}
-                        plan={m.plan == null ? null : m.plan * rateScale}
+                        slots={m.slots}
+                        plan={m.plan}
                         width={w}
                         sel={sel}
                         onSelect={setSel}
                     />
                 )}
             </ChartBox>
-            {picked?.v != null && (
-                <Text style={styles.heroNote}>
-                    Selected rate: {sg(picked.v, 1)} kg/week{isBulk ? ' · bar shows monthly equivalent' : ''}
-                </Text>
-            )}
             {rangeKey !== 'PHASE' && info.phaseStart && phaseWeekCount < n && (
                 <Text style={styles.heroNote}>Pace uses this phase only; earlier weeks are excluded.</Text>
             )}
             <Stats
                 items={[
                     {
-                        value: latestCompletedRate == null ? '--' : fmt1(latestCompletedRate * rateScale),
-                        unit: rateUnit,
+                        value: latestCompletedRate == null ? '--' : fmt1(latestCompletedRate),
+                        unit: 'kg/wk',
                         label: 'Latest full week',
                     },
-                    { value: m.rate == null ? '--' : fmt1(m.rate * rateScale), unit: rateUnit, label: 'Range avg' },
+                    { value: m.rate == null ? '--' : fmt1(m.rate), unit: 'kg/wk', label: 'Range avg' },
                     goalStat,
                 ]}
             />
@@ -428,7 +585,7 @@ const EnergyCard = ({ m, info, n, chartWidth }: { m: EnergyModel | null; info: P
 };
 
 const StrengthCard = ({ m, lifts, info, onLift, chartWidth }: { m: StrengthModel | null; lifts: ReturnType<typeof liftStats>; info: PhaseInfo; onLift: (name: string, muscleGroup?: string) => void; chartWidth: number }) => {
-    if (!m) return <EmptyCard cap="Strength vs weight" text="Train at least two lifts across a few weeks to see how your strength moves with your weight." />;
+    if (!m) return <EmptyCard cap="Strength vs weight" subtitle={phaseWeekSubtitle(info)} text="Train at least two lifts across a few weeks to see how your strength moves with your weight." />;
 
     const more = lifts.stalled.length - 1;
     const perKgPill = info.dir < 0 && m.perKg != null;
@@ -452,6 +609,7 @@ const StrengthCard = ({ m, lifts, info, onLift, chartWidth }: { m: StrengthModel
             <Hero value={perKgPill ? sg(m.perKg!, 0) : sg(m.sNow as number, 1)} unit={perKgPill ? '% per kg' : '%'}>
                 {!perKgPill && m.wNow != null && <Delta tone="purple" text={`weight ${sg(m.wNow, 1)}%`} />}
             </Hero>
+            <Text style={styles.heroNote}>{phaseWeekSubtitle(info)}</Text>
             <ChartBox width={chartWidth}>
                 {w => <StrengthChart strength={m.strength} weight={m.weight} slots={m.slots} width={w} />}
             </ChartBox>
@@ -780,6 +938,11 @@ const ProgressScreen = () => {
         n,
         pace,
         paceAverages,
+        gainRatePerWeek,
+        gainTrendWeeks,
+        gainTrendStart,
+        currentWeekHasWeight,
+        bulkSettlingPeriod,
         phaseWeekCount,
         energy,
         strength,
@@ -825,7 +988,7 @@ const ProgressScreen = () => {
                 contentContainerStyle={{
                     paddingBottom: navInset + spacing[4],
                     paddingHorizontal: spacing[4],
-                    paddingTop: spacing[3],
+                    paddingTop: spacing[1],
                 }}
                 showsVerticalScrollIndicator={false}
             >
@@ -856,7 +1019,7 @@ const ProgressScreen = () => {
                                 return (
                                     <TouchableOpacity
                                         key={r.key}
-                                        style={styles.rangeOption}
+                                        style={[styles.rangeTab, selected && styles.rangeTabActive]}
                                         onPress={() => setRangeKey(r.key)}
                                         activeOpacity={0.7}
                                         hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
@@ -877,7 +1040,6 @@ const ProgressScreen = () => {
                         </View>
                     )}
                 </View>
-                <Text style={styles.phaseMeta}>{info.label} · week {info.phaseWeeks}</Text>
                 {workoutHistoryLoadMoreError && hasMoreWorkoutHistory && (
                     <TouchableOpacity onPress={() => void loadMoreWorkoutHistory()}>
                         <Text style={styles.emptySub}>
@@ -914,6 +1076,11 @@ const ProgressScreen = () => {
                                     rangeKey={range.key}
                                     phaseWeekCount={phaseWeekCount}
                                     averages={paceAverages}
+                                    gainRatePerWeek={gainRatePerWeek}
+                                    gainTrendWeeks={gainTrendWeeks}
+                                    gainTrendStart={gainTrendStart}
+                                    currentWeekHasWeight={currentWeekHasWeight}
+                                    bulkSettlingPeriod={bulkSettlingPeriod}
                                     planSummary={planSummary}
                                     onProfile={openProfile}
                                     chartWidth={chartWidth}

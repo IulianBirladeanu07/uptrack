@@ -11,6 +11,8 @@ import {
     energyModel,
     liftSpan,
     liftStats,
+    isWeightWeekComplete,
+    linearWeightRate,
     mean,
     monthsModel,
     mondayOf,
@@ -103,9 +105,27 @@ export const useProgressScreenModel = ({
     const n = range.n;
 
     const paceWeeks = phasePaceWeeks.slice(-n);
+    const currentDayOfWeek = new Date().getDay();
     const paceAverages = paceWeeks
         .filter((week): week is typeof week & { w: number } => week.w != null)
-        .map(week => ({ monday: week.monday, average: week.w, change: week.delta, gap: week.gap }));
+        .map(week => ({
+            monday: week.monday,
+            average: week.w,
+            change: week.delta,
+            gap: week.gap,
+            current: !isWeightWeekComplete(week.isCurrent, currentDayOfWeek),
+        }));
+    const completePaceAverages = paceAverages.filter(week => !week.current);
+    const settlingEnd = info.phaseStart ? addDays(mondayOf(info.phaseStart), 14) : null;
+    const gainTrendAverages = completePaceAverages.filter(
+        week => settlingEnd == null || week.monday.getTime() >= settlingEnd.getTime(),
+    );
+    const gainRatePerWeek = linearWeightRate(gainTrendAverages);
+    const currentWeek = built.weeks[built.weeks.length - 1];
+    const currentWeekStart = currentWeek?.monday;
+    const bulkSettlingPeriod = !!info.phaseStart &&
+        currentWeekStart != null &&
+        currentWeekStart.getTime() < settlingEnd!.getTime();
     const pace = useMemo(() => paceModel(phasePaceWeeks, n, info), [phasePaceWeeks, n, info]);
     const energy = useMemo(() => energyModel(weeks, n, info, userData?.weightIns), [weeks, n, info, userData?.weightIns]);
     const strength = useMemo(() => strengthModel(weeks, built.lifts, n), [weeks, built.lifts, n]);
@@ -126,6 +146,11 @@ export const useProgressScreenModel = ({
         n,
         pace,
         paceAverages,
+        gainRatePerWeek,
+        gainTrendWeeks: gainTrendAverages.length,
+        gainTrendStart: settlingEnd,
+        currentWeekHasWeight: paceAverages.some(week => week.current),
+        bulkSettlingPeriod,
         phaseWeekCount: phasePaceWeeks.length,
         energy,
         strength,

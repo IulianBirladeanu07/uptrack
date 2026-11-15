@@ -30,6 +30,10 @@ const createParams = (overrides: Partial<Parameters<typeof useProgressScreenMode
 });
 
 describe('useProgressScreenModel', () => {
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
     it('composes the existing progress engine calculations and defaults to the active phase range', () => {
         const params = createParams();
         const { result } = renderHook(() => useProgressScreenModel(params));
@@ -128,6 +132,7 @@ describe('useProgressScreenModel', () => {
     });
 
     it('uses the post-switch weigh-ins as a baseline and includes a current partial week', () => {
+        jest.useFakeTimers().setSystemTime(new Date(2026, 10, 11, 12));
         const currentMonday = mondayOf(new Date());
         const weekStart = (offset: number) => {
             const date = new Date(currentMonday);
@@ -187,6 +192,10 @@ describe('useProgressScreenModel', () => {
         expect(result.current.paceAverages).toHaveLength(4);
         expect(result.current.paceAverages[0].average).toBeCloseTo((79.5 + 79.4 + 79 + 79.5 + 79.4 + 79.8) / 6, 5);
         expect(result.current.paceAverages[3].average).toBe(79.83);
+        expect(result.current.paceAverages[3].current).toBe(true);
+        expect(result.current.gainRatePerWeek).toBeNull();
+        expect(result.current.gainTrendWeeks).toBe(1);
+        expect(result.current.currentWeekHasWeight).toBe(true);
         expect(result.current.pace?.slots).toHaveLength(4);
         expect(result.current.pace?.slots.map(slot => slot.v == null ? null : Number(slot.v.toFixed(2))))
             .toEqual([0.02, 0.48, 0.15, -0.23]);

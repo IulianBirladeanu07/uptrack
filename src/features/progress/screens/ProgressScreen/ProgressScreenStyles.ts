@@ -10,13 +10,7 @@ const styles = createStyles(() => ({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: spacing[1],
-    },
-    phaseMeta: {
         marginBottom: spacing[3],
-        fontSize: fontSize[14],
-        fontWeight: fontWeight.medium,
-        color: colors.text.tertiary,
     },
     viewRow: {
         flexDirection: 'row',
@@ -43,24 +37,29 @@ const styles = createStyles(() => ({
     rangeSelector: {
         flexDirection: 'row',
         alignItems: 'center',
-        flexShrink: 1,
+        flexShrink: 0,
+        padding: 2,
+        borderRadius: radius[3],
+        borderWidth: 1,
+        borderColor: colors.border.default,
+        backgroundColor: colors.background.secondary,
     },
-    rangeOption: {
-        minHeight: spacing[12],
-        alignItems: 'center',
-        justifyContent: 'center',
+    rangeTab: {
+        paddingVertical: spacing[1],
         paddingHorizontal: spacing[3],
         borderRadius: radius[2],
+    },
+    rangeTabActive: {
+        backgroundColor: colors.accent.primary,
     },
     rangeText: {
         fontSize: fontSize[12],
         fontWeight: fontWeight.semibold,
-        color: colors.text.quaternary,
+        color: colors.text.tertiary,
         textAlign: 'center',
     },
     rangeTextActive: {
-        color: colors.text.primary,
-        fontWeight: fontWeight.bold,
+        color: colors.accent.buttonText,
     },
     card: {
         backgroundColor: colors.background.secondary,
@@ -183,6 +182,58 @@ const styles = createStyles(() => ({
     statDivider: {
         width: 1,
         backgroundColor: colors.border.default,
+    },
+    outlook: {
+        marginTop: spacing[3],
+        padding: spacing[3],
+        borderRadius: radius[3],
+        backgroundColor: colors.faded.surface,
+        borderWidth: 1,
+        borderColor: colors.border.light,
+    },
+    outlookHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    outlookDate: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+    outlookValues: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: spacing[2],
+    },
+    outlookValueBlock: {
+        flex: 1,
+    },
+    outlookDivider: {
+        width: 1,
+        height: spacing[10],
+        marginHorizontal: spacing[3],
+        backgroundColor: colors.border.default,
+    },
+    outlookValue: {
+        fontSize: fontSize[20],
+        fontWeight: fontWeight.bold,
+        color: colors.text.primary,
+    },
+    outlookLabel: {
+        marginTop: spacing[1],
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.medium,
+        color: colors.text.tertiary,
+    },
+    outlookDifference: {
+        marginTop: spacing[2],
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.semibold,
+        color: colors.accent.primary,
+    },
+    outlookOnTarget: {
+        color: colors.accent.success,
     },
     statValueRow: {
         flexDirection: 'row',

@@ -499,6 +499,27 @@ const lastWeight = (weeks: WeekRow[]): number | null => {
   return null;
 };
 
+export const isWeightWeekComplete = (isCurrentWeek: boolean, dayOfWeek: number): boolean =>
+  !isCurrentWeek || dayOfWeek === 0;
+
+export const linearWeightRate = (points: { monday: Date; average: number }[]): number | null => {
+  const recent = points.filter(point => Number.isFinite(point.average)).slice(-4);
+  if (recent.length < 3) return null;
+
+  const origin = recent[0].monday.getTime();
+  const x = recent.map(point => (point.monday.getTime() - origin) / WEEK_MS);
+  const y = recent.map(point => point.average);
+  const xMean = mean(x);
+  const yMean = mean(y);
+  if (xMean == null || yMean == null) return null;
+
+  const variance = x.reduce((total, value) => total + (value - xMean) ** 2, 0);
+  if (variance === 0) return null;
+
+  const covariance = x.reduce((total, value, index) => total + (value - xMean) * (y[index] - yMean), 0);
+  return covariance / variance;
+};
+
 export const phaseInfo = (userData: UserData | null | undefined, weeks: WeekRow[], now: Date = new Date()): PhaseInfo => {
   const plan = userData?.weightChangePlan;
   const type: PlanType = plan?.type ?? 'maintenance';
@@ -733,17 +754,19 @@ export const energyTip = (m: EnergyModel, info: PhaseInfo): string => {
     return aligned ? 'lose' : 'gain';
   };
   const plan = info.planRate;
-  if (plan != null && (m.realRate ?? 0) < plan * 0.8) {
-    const need = info.dir < 0 ? m.maintNow - (plan * KCAL_PER_KG) / 7 : m.maintNow + (plan * KCAL_PER_KG) / 7;
+  if (plan != null && m.realRate != null && m.realRate < plan * 0.8) {
     const verb = rateVerb(m.realRate);
     const direction = verb === 'gain' ? 'rising' : verb === 'lose' ? 'falling' : 'changing';
     const rateDescription = m.realRate != null && Math.abs(m.realRate) >= 0.05
-      ? `Your weight is ${direction} at ${fmt1(Math.abs(m.realRate))} kg/wk`
+      ? `Your weight is ${direction} at ${fmt1(Math.abs(m.realRate) * WEEKS_PER_MONTH)} kg/month`
       : 'Your weight is roughly stable';
     const goalDescription = info.dir === 0
       ? 'your maintenance goal'
-      : `your ${fmt1(plan)} kg/wk ${info.dir > 0 ? 'gain' : 'loss'} goal`;
-    return `${rateDescription}, below ${goalDescription}. Estimated maintenance is ${kfmt(m.maintNow)} kcal; aim for about ${kfmt(need)} kcal/day.`;
+      : `your ${fmt1(plan * WEEKS_PER_MONTH)} kg/month ${info.dir > 0 ? 'gain' : 'loss'} goal`;
+    const targetDescription = m.target == null
+      ? 'follow the eat target shown above'
+      : `your eat target is ${kfmt(m.target)} kcal/day`;
+    return `${rateDescription}, below ${goalDescription}. Estimated maintenance is ${kfmt(m.maintNow)} kcal; ${targetDescription}.`;
   }
   const gap = m.gapToTarget ?? 0;
   const adverse = info.dir < 0 ? gap < 0 : info.dir > 0 ? gap > 0 : true;

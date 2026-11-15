@@ -186,7 +186,171 @@ export const PaceChart = ({ slots, plan, width, sel = null, onSelect }: PaceChar
   );
 };
 
-export type WeightTrendPoint = { monday: Date; average: number };
+export type WeightTrendPoint = { monday: Date; average: number; current?: boolean };
+
+export const BulkTrendChart = ({
+  points,
+  targetRatePerMonth,
+  tolerancePerMonth,
+  targetStart,
+  width,
+}: {
+  points: WeightTrendPoint[];
+  targetRatePerMonth: number | null;
+  tolerancePerMonth: number;
+  targetStart?: Date | null;
+  width: number;
+}) => {
+  if (points.length < 2) return null;
+
+  const H = 188;
+  const left = 8;
+  const right = 54;
+  const top = 14;
+  const bottom = 26;
+  const plotWidth = width - left - right;
+  const firstTime = points[0].monday.getTime();
+  const lastTime = points[points.length - 1].monday.getTime();
+  const span = Math.max(lastTime - firstTime, DAY_MS);
+  const targetPoints = targetStart
+    ? points.filter(point => point.monday.getTime() >= targetStart.getTime())
+    : points;
+  const targetOrigin = targetPoints[0];
+  const elapsedMonths = targetPoints.map(point => (point.monday.getTime() - (targetOrigin?.monday.getTime() ?? firstTime)) / (DAY_MS * 30.4375));
+  const baseline = targetOrigin?.average;
+  const target = targetRatePerMonth == null || baseline == null || targetPoints.length < 2
+    ? null
+    : targetPoints.map((_, index) => baseline + targetRatePerMonth * elapsedMonths[index]);
+  const spread = target == null ? [] : target.flatMap((value, index) => [
+    value - (0.2 + tolerancePerMonth * elapsedMonths[index]),
+    value + (0.2 + tolerancePerMonth * elapsedMonths[index]),
+  ]);
+  const values = [...points.map(point => point.average), ...spread];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const pad = Math.max((max - min) * 0.12, 0.12);
+  const low = min - pad;
+  const high = max + pad;
+  const x = (point: WeightTrendPoint) => left + ((point.monday.getTime() - firstTime) / span) * plotWidth;
+  const y = (value: number) => top + ((high - value) / (high - low)) * (H - top - bottom);
+  const targetPath = target?.map((value, index) =>
+    `${index === 0 ? 'M' : 'L'}${x(targetPoints[index]).toFixed(1)} ${y(value).toFixed(1)}`,
+  ).join(' ');
+  const corridorPath = target == null ? null : [
+    ...target.map((value, index) => `${index === 0 ? 'M' : 'L'}${x(targetPoints[index]).toFixed(1)} ${y(value + 0.2 + tolerancePerMonth * elapsedMonths[index]).toFixed(1)}`),
+    ...target.map((_, index) => {
+      const reverseIndex = target.length - 1 - index;
+      return `L${x(targetPoints[reverseIndex]).toFixed(1)} ${y(target[reverseIndex] - 0.2 - tolerancePerMonth * elapsedMonths[reverseIndex]).toFixed(1)}`;
+    }),
+    'Z',
+  ].join(' ');
+  const completedPoints = points.filter(point => !point.current);
+  const completedPath = completedPoints.map((point, index) =>
+    `${index === 0 ? 'M' : 'L'}${x(point).toFixed(1)} ${y(point.average).toFixed(1)}`,
+  ).join(' ');
+  const currentPoint = points.find(point => point.current);
+  const previousPoint = currentPoint
+    ? completedPoints[completedPoints.length - 1]
+    : null;
+  const axisValues = [low + pad, (low + high) / 2, high - pad];
+  const dateLabelIndices = points.length <= 5
+    ? points.map((_, index) => index)
+    : Array.from({ length: 5 }, (_, index) => Math.round(index * (points.length - 1) / 4));
+
+  return (
+    <View pointerEvents="none">
+      <Svg width={width} height={H}>
+        {axisValues.map((value, index) => {
+          const lineY = y(value);
+          return (
+            <React.Fragment key={index}>
+              <Line x1={left} x2={width - right + 4} y1={lineY} y2={lineY} stroke={GRID} strokeWidth={1} />
+              <SvgText x={width - 4} y={lineY + 3} fontSize={10} fill={AX} textAnchor="end">
+                {value.toFixed(1)}
+              </SvgText>
+            </React.Fragment>
+          );
+        })}
+        {corridorPath && <Path d={corridorPath} fill={AX} fillOpacity={0.1} />}
+        {targetPath && (
+          <Path d={targetPath} stroke={PLAN} strokeOpacity={0.8} strokeWidth={1.5} strokeDasharray="4 4" fill="none" />
+        )}
+        {completedPoints.length > 1 && <Path d={completedPath} stroke={EAT} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" fill="none" />}
+        {currentPoint && previousPoint && (
+          <Path
+            d={`M${x(previousPoint).toFixed(1)} ${y(previousPoint.average).toFixed(1)} L${x(currentPoint).toFixed(1)} ${y(currentPoint.average).toFixed(1)}`}
+            stroke={EAT}
+            strokeOpacity={0.55}
+            strokeWidth={2}
+            strokeDasharray="4 4"
+            fill="none"
+          />
+        )}
+        {points.map((point, index) => {
+          const pointY = y(point.average);
+          const previous = points[index - 1];
+          const next = points[index + 1];
+          const labelAbove = previous && next
+            ? point.average <= previous.average && point.average <= next.average
+                ? true
+                : point.average >= previous.average && point.average >= next.average
+                    ? false
+                    : point.average < (previous.average + next.average) / 2
+            : next
+                ? point.average <= next.average
+                : previous
+                    ? point.average <= previous.average
+                    : true;
+          const labelY = labelAbove ? pointY - 13 : pointY + 20;
+          return (
+            <React.Fragment key={point.monday.getTime()}>
+              <SvgText
+                x={x(point)}
+                y={labelY}
+                fontSize={9}
+                fontWeight="700"
+                fill={EAT}
+                textAnchor="middle"
+              >
+                {point.average.toFixed(1)}
+              </SvgText>
+              <Circle
+                cx={x(point)}
+                cy={y(point.average)}
+                r={point.current || index === points.length - 1 ? 4.5 : 3.5}
+                fill={point.current ? BG : EAT}
+                stroke={EAT}
+                strokeWidth={point.current ? 2 : 1.5}
+              />
+            </React.Fragment>
+          );
+        })}
+        {dateLabelIndices.map((index, labelIndex) => {
+          const point = points[index];
+          const anchor = labelIndex === 0 ? 'start' : labelIndex === dateLabelIndices.length - 1 ? 'end' : 'middle';
+          return (
+            <SvgText
+              key={point.monday.getTime()}
+              x={x(point)}
+              y={H - 7}
+              fontSize={9}
+              fontWeight={point.current ? '700' : '500'}
+              fill={AX}
+              textAnchor={anchor}
+            >
+              {shortDate(point.monday)}
+            </SvgText>
+          );
+        })}
+        {target != null && (
+          <SvgText x={width - right - 4} y={y(target[target.length - 1]) - 5} fontSize={10} fill={AX} textAnchor="end">
+            target path
+          </SvgText>
+        )}
+      </Svg>
+    </View>
+  );
+};
 
 export const WeightTrendChart = ({ points, width }: { points: WeightTrendPoint[]; width: number }) => {
   const H = 116;
