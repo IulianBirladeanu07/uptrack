@@ -675,23 +675,31 @@ const maintSeries = (weeks: RatedWeek[]): (number | null)[] =>
     return calculateRealTDEE(mean(win.map(w => w.kcal)), mean(win.map(w => w.dw)) ?? 0);
   });
 
-export const balanceNote = (balance: number, weeks: number): string => {
+export const balanceNote = (balance: number, weeks: number, window?: { start: string; end: string } | null): string => {
   const side = Math.abs(balance) < 50 ? 'around' : balance < 0 ? 'below' : 'above';
-  return `${side} maintenance \u00b7 recent ${weeks}-week estimate`;
+  const dates = window ? ` \u00b7 ${window.start}\u2013${window.end}` : '';
+  return `${side} maintenance \u00b7 recent ${weeks}-week estimate${dates}`;
 };
 
-export const energyBalanceDisplay = (balance: number): { value: string; unit: string } => ({
-  value: kfmt(Math.abs(balance)),
+export const energyBalanceDisplay = (balance: number, margin: number | null = null): { value: string; unit: string } => ({
+  value: `${kfmt(Math.abs(balance))}${margin == null ? '' : ` \u00b1 ${kfmt(margin)}`}`,
   unit: Math.abs(balance) < 50 ? 'kcal/day' : balance < 0 ? 'kcal/day deficit' : 'kcal/day surplus',
 });
 
 const estimatorWeeks = (weeks: RatedWeek[]): WeekStats[] =>
   weeks.map(w => ({ weekStart: w.key, daysLogged: w.nd, avgCalories: w.kcal ?? 0, avgSteps: w.steps }));
 
-export const energyModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, weightIns: WeightInWeek[] | null | undefined, now: Date = new Date()): EnergyModel | null => {
+export const energyModel = (
+  weeks: RatedWeek[],
+  n: number,
+  info: PhaseInfo,
+  weightIns: WeightInWeek[] | null | undefined,
+  now: Date = new Date(),
+  goalSwitchDate?: string | null,
+): EnergyModel | null => {
   const legacy = maintSeries(weeks);
   const ew = weightIns?.length ? estimatorWeeks(weeks) : null;
-  const measured = ew ? maintenanceSeries(weightIns, ew, now) : null;
+  const measured = ew ? maintenanceSeries(weightIns, ew, now, goalSwitchDate) : null;
   const series = measured ? measured.map((v, i) => v ?? legacy[i]) : legacy;
   const firstData = weeks.findIndex(w => w.kcal != null);
   if (firstData < 0) return null;
@@ -705,7 +713,7 @@ export const energyModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, weig
   const win = tdeeWindow(weeks, weeks.length - 1);
   if (win.length < 3) return null;
 
-  const reg = ew ? estimateMaintenanceRegression(weightIns, ew, now) : null;
+  const reg = ew ? estimateMaintenanceRegression(weightIns, ew, now, goalSwitchDate) : null;
   const eatNow = reg ? reg.avgCalories : mean(win.map(w => w.kcal));
   const maintNow = reg ? reg.maintenance : calculateRealTDEE(eatNow, mean(win.map(w => w.dw)) ?? 0);
   if (maintNow == null) return null;
@@ -732,17 +740,31 @@ export const energyModel = (weeks: RatedWeek[], n: number, info: PhaseInfo, weig
     maint: keep.map(i => maint[i]),
     bal: keep.map(i => bal[i]),
     target,
-    targetBal: target != null ? target - maintNow : null,
+    targetBal: target != null && info.planRate != null && info.dir !== 0
+      ? info.dir * info.planRate * KCAL_PER_KG / 7
+      : null,
     eatNow,
     maintNow,
     balance,
-    balNote: balanceNote(balance, reg ? reg.weeksUsed : win.length),
+    balNote: balanceNote(
+      balance,
+      reg ? reg.weeksUsed : win.length,
+      reg
+        ? { start: reg.windowStart, end: reg.windowEnd }
+        : win.length
+          ? { start: win[0].key, end: toKey(addDays(win[win.length - 1].monday, 6)) }
+          : null,
+    ),
     realRate,
     atTarget,
     gapToTarget: target != null ? target - eatNum : null,
     statsWeeks: reg ? reg.weeksUsed : win.length,
     margin: reg ? reg.margin : null,
-    maintenanceWindow: reg ? { start: reg.windowStart, end: reg.windowEnd } : null,
+    maintenanceWindow: reg
+      ? { start: reg.windowStart, end: reg.windowEnd }
+      : win.length
+        ? { start: win[0].key, end: toKey(addDays(win[win.length - 1].monday, 6)) }
+        : null,
   };
 };
 

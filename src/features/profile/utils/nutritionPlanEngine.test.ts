@@ -416,16 +416,18 @@ describe('calculatePlanAdjustment - cut pace safety ceiling', () => {
     expect(result.syncedCalories).toBeUndefined();
   });
 
-  test('gain plans still use the plan rate band for too_fast', () => {
+  test('clamps a too_fast gain target when measured maintenance plus surplus exceeds the current target', () => {
     const userData = {
       ...baseUserData,
       weightChangePlan: { type: 'muscle_gain', ratePerWeek: 0.25, tdee: 2900 },
       targetWeight: '110',
-      targetCalories: 3200,
+      targetCalories: 3000,
       weightIns: weeksOfDecline(95, -0.8, 5),
     };
-    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 3200 }, { avgCalories: 3200 }]));
-    expect(result.reason).toBe('too_fast');
+    const result = calculatePlanAdjustment(userData, buildWeeklyCalorieData([{ avgCalories: 4000 }, { avgCalories: 4000 }]));
+    expect(result.measuredTDEE + (0.25 * 7700) / 7).toBeGreaterThan(userData.targetCalories);
+    expect(result.suggestion).toBe('hold');
+    expect(result.newTargetCalories ?? userData.targetCalories).toBeLessThanOrEqual(userData.targetCalories);
   });
 });
 

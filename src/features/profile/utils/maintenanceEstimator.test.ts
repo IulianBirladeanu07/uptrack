@@ -97,6 +97,25 @@ describe('estimateMaintenanceRegression', () => {
     expect(estimateMaintenanceRegression(weightsFor(10), weeks, NOW)).toBeNull();
   });
 
+  test('excludes weeks starting within 14 days after a goal switch', () => {
+    const weeks = weeksFrom(10);
+    expect(estimateMaintenanceRegression(weightsFor(10), weeks, NOW, weeks[6].weekStart)).toBeNull();
+  });
+
+  test('stops the window at a weekly calorie change greater than 400', () => {
+    const weeks = weeksFrom(10, i => (i >= 8 ? { avgCalories: INTAKE + 401 } : {}));
+    expect(estimateMaintenanceRegression(weightsFor(10), weeks, NOW)).toBeNull();
+  });
+
+  test('uses the same newest four-week window when there is no goal switch or intake jump', () => {
+    const r = estimateMaintenanceRegression(weightsFor(10), weeksFrom(10), NOW);
+    expect(r).toMatchObject({
+      weeksUsed: REGRESSION_MIN_WEEKS,
+      windowStart: '2026-02-16',
+      windowEnd: '2026-03-15',
+    });
+  });
+
   test('ignores the steps of weeks older than the window', () => {
     const r = estimateMaintenanceRegression(
       weightsFor(10),
@@ -118,10 +137,10 @@ describe('estimateMaintenanceRegression', () => {
   });
 
   test('weights intake by logged days', () => {
-    const weeks = weeksFrom(6, i => (i === 5 ? { daysLogged: 4, avgCalories: 3500 } : {}));
+    const weeks = weeksFrom(6, i => (i === 5 ? { daysLogged: 4, avgCalories: 2900 } : {}));
     const r = estimateMaintenanceRegression(weightsFor(6), weeks, NOW);
     expect(r.weeksUsed).toBe(REGRESSION_MIN_WEEKS);
-    expect(r.avgCalories).toBe(Math.round((2500 * 7 * 3 + 3500 * 4) / (7 * 3 + 4)));
+    expect(r.avgCalories).toBe(Math.round((2500 * 7 * 3 + 2900 * 4) / (7 * 3 + 4)));
   });
 
   test('needs enough weigh-ins inside the window', () => {

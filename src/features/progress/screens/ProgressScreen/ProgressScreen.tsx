@@ -560,7 +560,7 @@ const EnergyCard = ({ m, info, n, chartWidth }: { m: EnergyModel | null; info: P
     const goal = m.targetBal != null ? m.targetBal * f : null;
     const picked = sel != null && bars[sel] != null ? sel : null;
     const shown = picked != null ? (m.bal[picked] as number) : m.balance;
-    const { value: heroText, unit } = energyBalanceDisplay(shown);
+    const { value: heroText, unit } = energyBalanceDisplay(shown, picked == null ? m.margin : null);
 
     return (
         <View style={styles.card}>

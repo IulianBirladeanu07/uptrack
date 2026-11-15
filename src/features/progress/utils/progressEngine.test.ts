@@ -558,6 +558,11 @@ describe('balanceNote', () => {
     expect(balanceNote(-20, 4)).toBe('around maintenance \u00b7 recent 4-week estimate');
     expect(balanceNote(49, 4)).toBe('around maintenance \u00b7 recent 4-week estimate');
   });
+
+  test('includes the estimate window dates', () => {
+    expect(balanceNote(207, 4, { start: '2026-10-12', end: '2026-11-08' }))
+      .toBe('above maintenance \u00b7 recent 4-week estimate \u00b7 2026-10-12\u20132026-11-08');
+  });
 });
 
 describe('energyBalanceDisplay', () => {
@@ -571,6 +576,10 @@ describe('energyBalanceDisplay', () => {
 
   test('uses a neutral unit close to maintenance', () => {
     expect(energyBalanceDisplay(-20)).toEqual({ value: '20', unit: 'kcal/day' });
+  });
+
+  test('shows the estimate margin with the balance', () => {
+    expect(energyBalanceDisplay(207, 139)).toEqual({ value: '207 \u00b1 139', unit: 'kcal/day surplus' });
   });
 });
 
@@ -609,8 +618,13 @@ describe('energyModel', () => {
     m.bal.forEach((v, i) => {
       if (v != null) expect(v).toBeCloseTo(m.eat[i] - m.maint[i], 5);
     });
-    expect(m.targetBal).toBeCloseTo(m.target - m.maintNow, 5);
+    expect(m.targetBal).toBeCloseTo(-0.5 * 7700 / 7, 5);
     expect(energyModel(rated, 12, { ...info, target: null }).targetBal).toBeNull();
+  });
+
+  test('uses the plan rate for the target balance bar', () => {
+    const bulk = { ...info, dir: 1, planRate: 0.14 };
+    expect(energyModel(rated, 12, bulk).targetBal).toBe(154);
   });
 
   test('uses the regression estimate when weigh-ins are passed', () => {
@@ -620,6 +634,7 @@ describe('energyModel', () => {
     expect(m.maintNow).toBeGreaterThan(m.eatNow);
     expect(m.realRate).toBeGreaterThan(0.3);
     expect(m.maint.filter(v => v != null).pop()).toBe(m.maintNow);
+    expect(m.balNote).toContain(`${m.maintenanceWindow.start}\u2013${m.maintenanceWindow.end}`);
   });
 
   test('the chart line ends on the maintenance shown in the stats', () => {
@@ -629,7 +644,8 @@ describe('energyModel', () => {
 
   test('describes the balance in plain words with the averaging window', () => {
     const m = energyModel(rated, 12, info);
-    expect(m.balNote).toBe(`below maintenance \u00b7 recent ${m.statsWeeks}-week estimate`);
+    expect(m.balNote).toBe(`below maintenance \u00b7 recent ${m.statsWeeks}-week estimate \u00b7 ${m.maintenanceWindow.start}\u2013${m.maintenanceWindow.end}`);
+    expect(m.balNote).toContain(`${m.maintenanceWindow.start}\u2013${m.maintenanceWindow.end}`);
   });
 
   test('drops gap weeks so every slot has a balance, keeping real dates', () => {

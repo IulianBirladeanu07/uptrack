@@ -262,7 +262,7 @@ export const estimateMaintenance = (
   fallbackRateKgPerWeek: number | null = null,
 ): MaintenanceResult | null => {
   const weeks = weeklyCalorieData || [];
-  const regression = estimateMaintenanceRegression(userData?.weightIns, weeks);
+  const regression = estimateMaintenanceRegression(userData?.weightIns, weeks, new Date(), userData?.goalSwitchDate);
   if (regression) return regression;
 
   const isUsable = (w: WeekStats | null | undefined): boolean => !!(w && w.daysLogged >= MAINTENANCE_MIN_LOGGED_DAYS && w.avgCalories > 0);
@@ -483,6 +483,8 @@ export const calculatePlanAdjustment = (userData: UserData | null | undefined, w
     }
   } else if (tooSlow) {
     newTargetCalories = Math.max(newTargetCalories, currentTarget);
+  } else {
+    newTargetCalories = Math.min(newTargetCalories, currentTarget);
   }
 
   const adjustment = newTargetCalories - currentTarget;

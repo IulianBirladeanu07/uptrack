@@ -127,7 +127,10 @@ export const useProgressScreenModel = ({
         currentWeekStart != null &&
         currentWeekStart.getTime() < settlingEnd!.getTime();
     const pace = useMemo(() => paceModel(phasePaceWeeks, n, info), [phasePaceWeeks, n, info]);
-    const energy = useMemo(() => energyModel(weeks, n, info, userData?.weightIns), [weeks, n, info, userData?.weightIns]);
+    const energy = useMemo(
+        () => energyModel(weeks, n, info, userData?.weightIns, undefined, userData?.goalSwitchDate),
+        [weeks, n, info, userData?.weightIns, userData?.goalSwitchDate],
+    );
     const strength = useMemo(() => strengthModel(weeks, built.lifts, n), [weeks, built.lifts, n]);
     const lifts = useMemo(() => liftStats(weeks, built.lifts, liftSpan(info)), [weeks, built.lifts, info]);
     const phaseStrength = useMemo(

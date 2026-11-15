@@ -43,13 +43,31 @@ const shiftDateKey = (key: string, days: number): string => {
 
 const isComplete = (weekStart: string, now: Date): boolean => shiftWeekStart(weekStart, 1) <= toKey(now);
 
-const contiguousRun = (weeks: MaybeWeek[], now: Date): WeekStats[] => {
+const goalSwitchKey = (value: string | Date | null | undefined): string | null => {
+  if (!value) return null;
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : toKey(date);
+};
+
+const isInGoalSwitchWindow = (weekStart: string, switchKey: string | null): boolean =>
+  switchKey != null && weekStart >= switchKey && weekStart < shiftDateKey(switchKey, 14);
+
+const contiguousRun = (weeks: MaybeWeek[], now: Date, switchKey: string | null): WeekStats[] => {
   const done = weeks.filter((w): w is WeekStats => !!(w?.weekStart && isComplete(w.weekStart, now)));
   let run: WeekStats[] = [];
   for (let i = done.length - 1; i >= 0 && run.length < REGRESSION_MAX_WEEKS; i--) {
-    if (!isUsable(done[i])) break;
+    const week = done[i];
+    if (!isUsable(week) || isInGoalSwitchWindow(week.weekStart, switchKey)) break;
+    const previous = done[i - 1];
+    if (
+      previous &&
+      isUsable(previous) &&
+      shiftWeekStart(previous.weekStart, 1) === week.weekStart &&
+      Math.abs(week.avgCalories - previous.avgCalories) > 400
+    ) break;
     if (run.length && shiftWeekStart(done[i].weekStart, 1) !== run[0].weekStart) break;
-    run = [done[i], ...run];
+    run = [week, ...run];
   }
   return run;
 };
@@ -113,11 +131,12 @@ export const estimateMaintenanceRegression = (
   weightIns: WeightInWeek[] | null | undefined,
   weeks: MaybeWeek[] | null | undefined,
   now: Date = new Date(),
+  switchDate?: string | Date | null,
 ): MaintenanceEstimate | null => {
   const entries: WeightEntry[] = flattenWeightInsChronological(weightIns);
   if (!entries.length || !weeks?.length) return null;
 
-  const run = stableRun(contiguousRun(weeks, now));
+  const run = stableRun(contiguousRun(weeks, now, goalSwitchKey(switchDate)));
   if (!run) return null;
 
   return fitWindow(entries, run, run.length);
@@ -127,10 +146,11 @@ export const maintenanceSeries = (
   weightIns: WeightInWeek[] | null | undefined,
   weeks: MaybeWeek[],
   now: Date = new Date(),
+  switchDate?: string | Date | null,
 ): (number | null)[] =>
   weeks.map((w, i) => {
     if (!w?.weekStart) return null;
     const weekEnd = parseKey(shiftWeekStart(w.weekStart, 1));
-    const r = estimateMaintenanceRegression(weightIns, weeks.slice(0, i + 1), weekEnd < now ? weekEnd : now);
+    const r = estimateMaintenanceRegression(weightIns, weeks.slice(0, i + 1), weekEnd < now ? weekEnd : now, switchDate);
     return r ? r.maintenance : null;
   });
