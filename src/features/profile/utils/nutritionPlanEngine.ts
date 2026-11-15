@@ -425,7 +425,7 @@ export const calculatePlanAdjustment = (userData: UserData | null | undefined, w
 
   if (withinBand) {
     const caloriesDrift = avgLoggedCalories - currentTarget;
-    if (Math.abs(caloriesDrift) < HOLD_SYNC_MIN_DELTA) {
+    if (Math.abs(caloriesDrift) < HOLD_SYNC_MIN_DELTA || (!isLoss && caloriesDrift < 0)) {
       return { suggestion: 'hold', planConfidence, measuredTDEE, targetRate: reportedRate };
     }
     const syncedCalories = isLoss ? Math.max(avgLoggedCalories, minCal) : avgLoggedCalories;

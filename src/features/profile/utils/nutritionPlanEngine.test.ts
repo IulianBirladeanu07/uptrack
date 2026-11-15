@@ -582,6 +582,21 @@ describe('calculatePlanAdjustment - fix: hold-resync now applies the min-calorie
     expect(result.syncedCalories).toBe(3105);
   });
 
+  test('muscle_gain hold never resyncs the target down to lower logged intake', () => {
+    const userData = {
+      ...baseUserData,
+      targetWeight: '80',
+      weightChangePlan: { type: 'muscle_gain', ratePerWeek: 0.2, tdee: 2900 },
+      targetCalories: 3200,
+      weightIns: buildWeightIns('2026-01-05', buildDailyWeights(70, 0.2 / 7, 35, REALISTIC_DAILY_NOISE)),
+    };
+    const weeklyCalorieData = buildWeeklyCalorieData([{ avgCalories: 3100 }, { avgCalories: 3110 }]);
+    const result = calculatePlanAdjustment(userData, weeklyCalorieData);
+    expect(result.suggestion).toBe('hold');
+    expect(result.syncedCalories).toBeUndefined();
+    expect(result.syncedMacros).toBeUndefined();
+  });
+
   test('regression: calculateMinCalories floor never falls below the protein + reduced-fat macro floor', () => {
     const weight = 128;
     const bmr = calculateBMR('female', weight, 175, 78);
