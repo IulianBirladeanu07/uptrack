@@ -701,9 +701,6 @@ const ProgressScreen = () => {
                             );
                         })}
                     </View>
-                </View>
-                <View style={styles.metaRow}>
-                    <Text style={styles.phaseMeta} numberOfLines={1}>{info.label} · week {info.phaseWeeks}</Text>
                     {weeks.length >= 2 && (
                         <View style={styles.rangeSelector}>
                             {ranges.map(r => {
@@ -732,6 +729,7 @@ const ProgressScreen = () => {
                         </View>
                     )}
                 </View>
+                <Text style={styles.phaseMeta}>{info.label} · week {info.phaseWeeks}</Text>
                 {workoutHistoryLoadMoreError && hasMoreWorkoutHistory && (
                     <TouchableOpacity onPress={() => void loadMoreWorkoutHistory()}>
                         <Text style={styles.emptySub}>
