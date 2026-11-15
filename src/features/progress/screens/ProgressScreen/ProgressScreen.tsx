@@ -838,14 +838,15 @@ const PastMonthRow = ({ month, last }: { month: MonthlyHistoryRow; last: boolean
 };
 
 const PastMonthsCard = ({ months, all, setAll }: { months: MonthlyHistoryRow[]; all: boolean; setAll: (value: boolean) => void }) => {
-    if (!months.some(month => month.change != null)) return null;
-    const shown = all ? months.slice(0, 12) : months.slice(0, 3);
+    const measured = months.filter(month => month.change != null);
+    if (measured.length < 2) return null;
+    const shown = all ? measured.slice(0, 12) : measured.slice(0, 3);
 
     return (
         <View style={styles.cardFlush}>
             <View style={styles.listHead}>
                 <Text style={styles.listTitle}>Past months</Text>
-                {months.length > 3 && (
+                {measured.length > 3 && (
                     <TouchableOpacity onPress={() => setAll(!all)} activeOpacity={0.7}>
                         <Text style={styles.viewAll}>{all ? 'Show less' : 'View all'}</Text>
                     </TouchableOpacity>
