@@ -55,7 +55,7 @@ describe('StepsFlusher', () => {
         await flusher.flush();
 
         expect(persist).toHaveBeenCalledTimes(1);
-        expect(persist).toHaveBeenCalledWith('user-1', { '2026-10-10': 5500, '2026-10-11': 6000 });
+        expect(persist).toHaveBeenCalledWith('user-1', { '2026-10-10': 5500, '2026-10-11': 6000 }, false, ['2026-10-10', '2026-10-11']);
     });
 
     test('recomputes only affected weekly step snapshots from stored daily totals', async () => {
@@ -97,11 +97,7 @@ describe('StepsFlusher', () => {
         await flusher.flush();
 
         expect(persist).toHaveBeenCalledTimes(1);
-        expect(persist).toHaveBeenCalledWith('user-1', {}, false, [
-            { ...staleSnapshot, daysLoggedSteps: 7, avgSteps: 13081, totalSteps: 91570 },
-            unchangedSnapshot,
-        ]);
-        expect(persist.mock.calls[0][3][1]).toBe(unchangedSnapshot);
+        expect(persist).toHaveBeenCalledWith('user-1', {}, false, dates);
     });
 
     test('keeps entries queued while the uid or user data is missing or mismatched', async () => {
@@ -117,17 +113,18 @@ describe('StepsFlusher', () => {
 
         state.userData = { uid: 'user-1', dailySteps: {} } as UserData;
         await flusher.flush();
-        expect(persist).toHaveBeenCalledWith('user-1', { '2026-10-10': 5000 });
+        expect(persist).toHaveBeenCalledWith('user-1', { '2026-10-10': 5000 }, false, ['2026-10-10']);
     });
 
-    test('drops entries that stored data already covers without writing', async () => {
+    test('checks stored past days for stale weekly snapshots even when daily totals match', async () => {
         const { flusher } = makeFlusher({ userData: { uid: 'user-1', dailySteps: { '2026-10-10': 5000 } } as UserData });
         flusher.queue({ '2026-10-10': 5000, '2026-10-09': 900 });
 
         await flusher.flush();
         await flusher.flush();
 
-        expect(persist).not.toHaveBeenCalled();
+        expect(persist).toHaveBeenCalledTimes(1);
+        expect(persist).toHaveBeenCalledWith('user-1', {}, false, ['2026-10-10', '2026-10-09']);
     });
 
     test('remembers written entries and persists corrected lower source totals', async () => {
@@ -142,8 +139,8 @@ describe('StepsFlusher', () => {
         flusher.queue({ '2026-10-10': 4800 });
         await flusher.flush();
 
-        expect(persist).toHaveBeenCalledTimes(3);
-        expect(persist).toHaveBeenLastCalledWith('user-1', { '2026-10-10': 4800 });
+        expect(persist).toHaveBeenCalledTimes(4);
+        expect(persist).toHaveBeenLastCalledWith('user-1', { '2026-10-10': 4800 }, false, ['2026-10-10']);
     });
 
     test('puts failed entries back, keeping newer queued values over the failed ones', async () => {
@@ -159,7 +156,7 @@ describe('StepsFlusher', () => {
         await flusher.flush();
 
         expect(errorSpy).toHaveBeenCalledWith('persistDailySteps error:', expect.any(Error));
-        expect(persist).toHaveBeenLastCalledWith('user-1', { '2026-10-10': 5100, '2026-10-11': 6000 });
+        expect(persist).toHaveBeenLastCalledWith('user-1', { '2026-10-10': 5100, '2026-10-11': 6000 }, false, ['2026-10-10', '2026-10-11']);
     });
 
     test('does not start a second write while one is in flight', async () => {
@@ -178,7 +175,7 @@ describe('StepsFlusher', () => {
         await flusher.flush();
 
         expect(persist).toHaveBeenCalledTimes(2);
-        expect(persist).toHaveBeenLastCalledWith('user-1', { '2026-10-11': 6000 });
+        expect(persist).toHaveBeenLastCalledWith('user-1', { '2026-10-11': 6000 }, false, ['2026-10-11']);
     });
 
     test('ignores the result of a write that finishes after the account changed', async () => {
@@ -212,6 +209,6 @@ describe('StepsFlusher', () => {
         await flusher.flush();
 
         expect(persist).toHaveBeenCalledTimes(2);
-        expect(persist).toHaveBeenLastCalledWith('user-1', { '2026-10-10': 5000 });
+        expect(persist).toHaveBeenLastCalledWith('user-1', { '2026-10-10': 5000 }, false, ['2026-10-10']);
     });
 });

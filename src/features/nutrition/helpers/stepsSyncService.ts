@@ -1,6 +1,6 @@
-import { mergeUserProfile } from '../../auth/services/userProfileQuery';
-import { diffPastSteps } from './stepStats';
-import type { DailySteps, DateInput, WeeklySnapshot } from '../../../shared/types';
+import { mergeUserProfile, mergeUserProfileTransaction } from '../../auth/services/userProfileQuery';
+import { diffPastSteps, recomputeChangedWeeklySteps } from './stepStats';
+import type { DailySteps, DateInput } from '../../../shared/types';
 
 export const STEPS_BACKFILL_FROM = '2026-01-01';
 
@@ -30,14 +30,26 @@ export const persistDailySteps = async (
   uid: string | null | undefined,
   entries: DailySteps | null | undefined,
   markBackfilled = false,
-  weeklyNutrition?: WeeklySnapshot[],
+  syncedPastDates?: string[],
 ): Promise<boolean> => {
   const has = entries && Object.keys(entries).length > 0;
-  if (!uid || (!has && !markBackfilled && !weeklyNutrition)) return false;
+  if (!uid || (!has && !markBackfilled && !syncedPastDates?.length)) return false;
+  if (syncedPastDates?.length) {
+    return mergeUserProfileTransaction(uid, current => {
+      const dailySteps = { ...(current?.dailySteps ?? {}), ...(has ? entries : {}) };
+      const weeklyUpdate = recomputeChangedWeeklySteps(current?.weeklyNutrition, dailySteps, syncedPastDates);
+      if (!has && !weeklyUpdate && !markBackfilled) return null;
+      return {
+        ...(has ? { dailySteps: entries } : {}),
+        ...(markBackfilled ? { stepsBackfilledAt: new Date().toISOString() } : {}),
+        ...(weeklyUpdate ? { weeklyNutrition: weeklyUpdate.weeklyNutrition } : {}),
+      };
+    });
+  }
+  if (!has && !markBackfilled) return false;
   await mergeUserProfile(uid, {
       ...(has ? { dailySteps: entries } : {}),
       ...(markBackfilled ? { stepsBackfilledAt: new Date().toISOString() } : {}),
-      ...(weeklyNutrition ? { weeklyNutrition } : {}),
     });
   return true;
 };

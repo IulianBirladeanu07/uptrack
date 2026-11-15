@@ -1,11 +1,20 @@
 jest.mock('firebase/firestore', () => ({
   doc: jest.fn((db, collection, id) => ({ db, collection, id })),
   setDoc: jest.fn(() => Promise.resolve()),
+  runTransaction: jest.fn(),
 }));
 jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 
-import { setDoc } from 'firebase/firestore';
+import { runTransaction, setDoc } from 'firebase/firestore';
 import { diffSteps, chunkRange, persistDailySteps, restorePendingSteps } from './stepsSyncService';
+
+let transactionProfile: Record<string, unknown> = {};
+const transactionSet = jest.fn();
+const transact = runTransaction as jest.Mock;
+transact.mockImplementation(async (_db, callback) => callback({
+  get: async () => ({ exists: () => true, data: () => transactionProfile }),
+  set: transactionSet,
+}));
 
 describe('diffSteps', () => {
   test('only past days, new or larger', () => {
@@ -57,21 +66,62 @@ describe('chunkRange', () => {
 });
 
 describe('persistDailySteps', () => {
+  beforeEach(() => {
+    transactionProfile = {};
+    transactionSet.mockReset();
+    (setDoc as jest.Mock).mockClear();
+  });
+
   test('writes dailySteps as a merged map', async () => {
     const ok = await persistDailySteps('u1', { '2026-10-03': 8000 });
     expect(ok).toBe(true);
     expect(setDoc).toHaveBeenCalledWith({ db: {}, collection: 'users', id: 'u1' }, { dailySteps: { '2026-10-03': 8000 } }, { merge: true });
   });
 
-  test('writes corrected weekly snapshots in the same user merge', async () => {
-    setDoc.mockClear();
-    const weeklyNutrition = [{ weekStart: '2026-11-02', avgSteps: 13081, totalSteps: 91570, daysLoggedSteps: 7 }];
-    await persistDailySteps('u1', { '2026-11-02': 13000 }, false, weeklyNutrition);
+  test('repairs from the latest profile snapshot while preserving concurrently added weeks', async () => {
+    const dates = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(2026, 10, 2 + index);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    });
+    const dailySteps = Object.fromEntries(dates.map((date, index) => [date, index === 6 ? 13570 : 13000]));
+    const concurrentSnapshot = { weekStart: '2026-11-09', avgCalories: 2400 };
+    transactionProfile = {
+      dailySteps,
+      weeklyNutrition: [
+        { weekStart: '2026-11-02', avgSteps: 23027, totalSteps: 161191, daysLoggedSteps: 7 },
+        concurrentSnapshot,
+      ],
+    };
 
-    expect(setDoc).toHaveBeenCalledTimes(1);
-    expect(setDoc).toHaveBeenCalledWith(
+    await persistDailySteps('u1', {}, false, ['2026-11-02']);
+
+    expect(transactionSet).toHaveBeenCalledTimes(1);
+    expect(transactionSet).toHaveBeenCalledWith(
       { db: {}, collection: 'users', id: 'u1' },
-      { dailySteps: { '2026-11-02': 13000 }, weeklyNutrition },
+      {
+        weeklyNutrition: [
+          { weekStart: '2026-11-02', avgSteps: 13081, totalSteps: 91570, daysLoggedSteps: 7 },
+          concurrentSnapshot,
+        ],
+      },
+      { merge: true },
+    );
+  });
+
+  test('writes daily steps and snapshot repair together in one transaction', async () => {
+    transactionProfile = {
+      dailySteps: { '2026-11-02': 12000 },
+      weeklyNutrition: [{ weekStart: '2026-11-02', avgSteps: 12000, totalSteps: 12000, daysLoggedSteps: 1 }],
+    };
+
+    await persistDailySteps('u1', { '2026-11-02': 13000 }, false, ['2026-11-02']);
+
+    expect(transactionSet).toHaveBeenCalledWith(
+      { db: {}, collection: 'users', id: 'u1' },
+      {
+        dailySteps: { '2026-11-02': 13000 },
+        weeklyNutrition: [{ weekStart: '2026-11-02', avgSteps: 13000, totalSteps: 13000, daysLoggedSteps: 1 }],
+      },
       { merge: true },
     );
   });

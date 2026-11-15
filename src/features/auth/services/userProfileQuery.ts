@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, runTransaction, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebaseConfigService';
 import type { UserData } from '../../../shared/types';
 import { queryClient } from '../../../shared/query/queryClient';
@@ -41,6 +41,25 @@ export const mergeUserProfile = async (
   queryClient.setQueryData<UserData | null>(userProfileQueryKey(uid), current =>
     current ? mergeProfileData(current as Record<string, unknown>, data) as UserData : current,
   );
+};
+
+export const mergeUserProfileTransaction = async (
+  uid: string,
+  getUpdate: (current: UserData | null) => Record<string, unknown> | null,
+): Promise<boolean> => {
+  let update: Record<string, unknown> | null = null;
+  await runTransaction(db, async transaction => {
+    const userRef = doc(db, 'users', uid);
+    const snapshot = await transaction.get(userRef);
+    update = getUpdate(snapshot.exists() ? snapshot.data() as UserData : null);
+    if (update) transaction.set(userRef, update, { merge: true });
+  });
+  const committedUpdate = update;
+  if (!committedUpdate) return false;
+  queryClient.setQueryData<UserData | null>(userProfileQueryKey(uid), current =>
+    current ? mergeProfileData(current as Record<string, unknown>, committedUpdate) as UserData : current,
+  );
+  return true;
 };
 
 export const updateUserProfile = async (uid: string, data: Record<string, unknown>): Promise<void> => {

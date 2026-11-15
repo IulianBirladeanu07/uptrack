@@ -1,4 +1,4 @@
-import { fetchUserProfileDocument, mergeUserProfile } from '../../auth/services/userProfileQuery';
+import { mergeUserProfile, mergeUserProfileTransaction } from '../../auth/services/userProfileQuery';
 import {
   calculatePlanAdjustment,
   calculateWeightChangePlan,
@@ -110,18 +110,6 @@ export const snapshotPreviousWeek = async (
   };
 
   try {
-    const stored = await fetchUserProfileDocument(userId);
-    const existing: WeeklySnapshot[] = stored?.weeklyNutrition || [];
-    const st = weekStepStats(stored?.dailySteps ?? userData?.dailySteps, weekStart, todayKey);
-    snapshot.daysLoggedSteps = st.days;
-    snapshot.avgSteps = st.avg;
-    snapshot.totalSteps = st.total;
-
-    const updated = [
-      ...existing.filter(w => w.weekStart !== weekStart),
-      snapshot,
-    ].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
-
     const isWeightLoss = userData?.weightChangePlan?.type === 'weight_loss';
     const goalSwitchDate = userData?.goalSwitchDate;
 
@@ -135,13 +123,20 @@ export const snapshotPreviousWeek = async (
       }
     }
 
-    const firestoreUpdate = {
-      weeklyNutrition: updated,
-      ...(isWeightLoss ? { weeksSinceCutStart } : {}),
-    };
-
-    await mergeUserProfile(userId, firestoreUpdate);
-    return { ...snapshot, weeksSinceCutStart };
+    let updatedSnapshot = snapshot;
+    await mergeUserProfileTransaction(userId, stored => {
+      const st = weekStepStats(stored?.dailySteps ?? userData?.dailySteps, weekStart, todayKey);
+      updatedSnapshot = { ...snapshot, daysLoggedSteps: st.days, avgSteps: st.avg, totalSteps: st.total };
+      const updated = [
+        ...(stored?.weeklyNutrition || []).filter(w => w.weekStart !== weekStart),
+        updatedSnapshot,
+      ].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+      return {
+        weeklyNutrition: updated,
+        ...(isWeightLoss ? { weeksSinceCutStart } : {}),
+      };
+    });
+    return { ...updatedSnapshot, weeksSinceCutStart };
   } catch (error) {
     console.error('snapshotPreviousWeek error:', error);
     return null;

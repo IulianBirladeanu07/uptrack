@@ -442,16 +442,17 @@ describe('FoodProvider step history writes', () => {
             '2026-10-10': 5000,
             '2026-10-09': 6000,
             '2026-10-08': 8000,
-        });
+        }, false, ['2026-10-10', '2026-10-09', '2026-10-08', '2026-10-07']);
     });
 
-    test('does not write the same entries twice', async () => {
+    test('rechecks weekly snapshots when the same history is fetched again', async () => {
         await setup();
 
         await sendHistory({ '2026-10-10': 5000 });
         await sendHistory({ '2026-10-10': 5000 });
 
-        expect(persistDailySteps).toHaveBeenCalledTimes(1);
+        expect(persistDailySteps).toHaveBeenCalledTimes(2);
+        expect(persistDailySteps).toHaveBeenLastCalledWith('user-1', {}, false, ['2026-10-10']);
     });
 
     test('a failed write is retried with the same entries on the next flush', async () => {
@@ -467,7 +468,7 @@ describe('FoodProvider step history writes', () => {
         });
 
         expect(persistDailySteps).toHaveBeenCalledTimes(2);
-        expect(persistDailySteps).toHaveBeenLastCalledWith('user-1', { '2026-10-10': 5000 });
+        expect(persistDailySteps).toHaveBeenLastCalledWith('user-1', { '2026-10-10': 5000 }, false, ['2026-10-10']);
     });
 
     test('entries received before the user data loads are written once it arrives', async () => {
@@ -482,7 +483,7 @@ describe('FoodProvider step history writes', () => {
             hook.rerender({});
         });
 
-        expect(persistDailySteps).toHaveBeenCalledWith('user-1', { '2026-10-10': 5000 });
+        expect(persistDailySteps).toHaveBeenCalledWith('user-1', { '2026-10-10': 5000 }, false, ['2026-10-10']);
     });
 
     test('user data that belongs to another uid is never written to', async () => {
@@ -511,7 +512,7 @@ describe('FoodProvider step history writes', () => {
         });
 
         expect(persistDailySteps).toHaveBeenCalledTimes(2);
-        expect(persistDailySteps).toHaveBeenLastCalledWith('user-1', { '2026-10-11': 6000 });
+        expect(persistDailySteps).toHaveBeenLastCalledWith('user-1', { '2026-10-11': 6000 }, false, ['2026-10-11']);
     });
 
     test('pending and written steps are dropped when the account changes', async () => {
@@ -532,7 +533,7 @@ describe('FoodProvider step history writes', () => {
         expect(persistDailySteps).not.toHaveBeenCalled();
 
         await sendHistory({ '2026-10-10': 5000 });
-        expect(persistDailySteps).toHaveBeenCalledWith('user-2', { '2026-10-10': 5000 });
+        expect(persistDailySteps).toHaveBeenCalledWith('user-2', { '2026-10-10': 5000 }, false, ['2026-10-10']);
     });
 });
 

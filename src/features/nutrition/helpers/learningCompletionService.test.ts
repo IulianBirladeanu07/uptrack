@@ -6,10 +6,11 @@ jest.mock('firebase/firestore', () => ({
   }),
   setDoc: jest.fn(() => Promise.resolve()),
   getDoc: jest.fn(),
+  runTransaction: jest.fn(),
 }));
 jest.mock('../../auth/services/firebaseConfigService', () => ({ db: {} }));
 
-import { setDoc, getDoc } from 'firebase/firestore';
+import { setDoc, getDoc, runTransaction } from 'firebase/firestore';
 import MealCache from '../context/cache/MealCache';
 import {
   calculateDailyNutritionFromMeals,
@@ -25,6 +26,12 @@ import {
   checkAndCompleteLearning,
 } from './learningCompletionService';
 import { buildWeightIns, buildDailyWeights, REALISTIC_DAILY_NOISE } from '../../profile/utils/testFixtures';
+
+const transactionSet = jest.fn();
+(runTransaction as jest.Mock).mockImplementation(async (_db, callback) => callback({
+  get: (...args) => getDoc(...args),
+  set: transactionSet,
+}));
 
 const weeksOfDecline = (startWeight, weeklyRateKg, numWeeks, noise = REALISTIC_DAILY_NOISE) =>
   buildWeightIns('2026-01-05', buildDailyWeights(startWeight, -weeklyRateKg / 7, numWeeks * 7, noise));
@@ -194,8 +201,8 @@ describe('snapshotPreviousWeek', () => {
     expect(result.weightAverage).toBe(88.2);
     expect(result.weeksSinceCutStart).toBe(1);
 
-    expect(setDoc).toHaveBeenCalledTimes(1);
-    const [, payload] = setDoc.mock.calls[0];
+    expect(transactionSet).toHaveBeenCalledTimes(1);
+    const [, payload] = transactionSet.mock.calls[0];
     expect(payload.weeklyNutrition).toHaveLength(2);
     expect(payload.weeklyNutrition.map(w => w.weekStart)).toEqual(['2026-01-19', '2026-01-26']);
     expect(payload.weeksSinceCutStart).toBe(1);
