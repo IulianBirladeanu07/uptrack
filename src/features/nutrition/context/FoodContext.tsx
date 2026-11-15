@@ -134,7 +134,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         getGeneration: () => userGenerationRef.current,
     }));
 
-    const { userData, refreshUserData } = useContext(AuthContext)!;
+    const { loading: profileLoading, userData, refreshUserData } = useContext(AuthContext)!;
 
     useEffect(() => {
         selectedDateRef.current = selectedDate;
@@ -219,6 +219,7 @@ export const FoodProvider = ({ children }: { children: ReactNode }) => {
         currentUser,
         learningData: enhancedLearningData,
         hasTargets: nutritionHookData.hasTargets,
+        profileLoading,
         selectedDate,
         mealCache: mealCache.current,
         userData,

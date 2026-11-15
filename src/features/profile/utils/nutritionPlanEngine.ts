@@ -481,6 +481,8 @@ export const calculatePlanAdjustment = (userData: UserData | null | undefined, w
     if (tooSlow && !alreadyAtFloor && !userData.slowEvalPending) {
       return { suggestion: 'hold', planConfidence, measuredTDEE, targetRate: reportedRate, slowEvalPending: true };
     }
+  } else if (tooSlow) {
+    newTargetCalories = Math.max(newTargetCalories, currentTarget);
   }
 
   const adjustment = newTargetCalories - currentTarget;

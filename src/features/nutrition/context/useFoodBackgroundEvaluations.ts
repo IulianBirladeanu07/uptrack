@@ -12,6 +12,7 @@ type FoodBackgroundEvaluationsOptions = {
   currentUser: User | null;
   learningData: EnhancedLearningData;
   hasTargets: boolean;
+  profileLoading: boolean;
   selectedDate: Date;
   mealCache: MealCacheLike;
   userData: UserData | null;
@@ -28,6 +29,7 @@ export const useFoodBackgroundEvaluations = ({
   currentUser,
   learningData,
   hasTargets,
+  profileLoading,
   selectedDate,
   mealCache,
   userData,
@@ -49,7 +51,7 @@ export const useFoodBackgroundEvaluations = ({
 
   useEffect(() => {
     const checkLearningCompletion = async () => {
-      if (currentUser && learningData.isLearningComplete && !hasTargets) {
+      if (currentUser && !profileLoading && learningData.isLearningComplete && !hasTargets) {
         const request = { uid: currentUser.uid, generation: getGeneration() };
         try {
           const newTargets = await checkAndCompleteLearning(
@@ -69,7 +71,7 @@ export const useFoodBackgroundEvaluations = ({
       }
     };
     checkLearningCompletion();
-  }, [currentUser, learningData.isLearningComplete, hasTargets, selectedDate, handleError, refreshUserData]);
+  }, [currentUser, profileLoading, learningData.isLearningComplete, hasTargets, selectedDate, handleError, refreshUserData]);
 
   useEffect(() => {
     if (!currentUser || !stepsConnected || !userData || stepsBonusCheckedRef.current) return;

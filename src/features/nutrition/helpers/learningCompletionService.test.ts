@@ -458,6 +458,24 @@ describe('checkAndCompleteLearning', () => {
     expect(setDoc).not.toHaveBeenCalled();
   });
 
+  test('does not overwrite targets already stored in the profile', async () => {
+    const mealCache = new MealCache();
+    const currentDate = new Date('2026-02-10');
+    for (let i = 0; i < 7; i++) {
+      putDay(mealCache, addDays(currentDate, -i), { calories: 2100, protein: 160, carbs: 210, fats: 65 });
+    }
+    getDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ targetCalories: 3823, maintenanceCalories: 3517 }),
+    });
+    transactionSet.mockClear();
+
+    const targets = await checkAndCompleteLearning('u1', mealCache, currentDate, false);
+
+    expect(targets).toBeNull();
+    expect(transactionSet).not.toHaveBeenCalled();
+  });
+
   test('returns null while learning is still incomplete', async () => {
     const mealCache = new MealCache();
     putDay(mealCache, new Date('2026-02-10'), { calories: 2000, protein: 150, carbs: 200, fats: 60 });
@@ -470,10 +488,13 @@ describe('checkAndCompleteLearning', () => {
     for (let i = 0; i < 7; i++) {
       putDay(mealCache, addDays(currentDate, -i), { calories: 2100, protein: 160, carbs: 210, fats: 65 });
     }
+    getDoc.mockResolvedValueOnce({ exists: () => true, data: () => ({}) });
+    transactionSet.mockClear();
+
     const targets = await checkAndCompleteLearning('u1', mealCache, currentDate, false);
     expect(targets.targetCalories).toBe(2100);
     expect(targets.targetsSource).toBe('learning');
-    expect(setDoc).toHaveBeenCalledTimes(1);
+    expect(transactionSet).toHaveBeenCalledTimes(1);
   });
 });
 

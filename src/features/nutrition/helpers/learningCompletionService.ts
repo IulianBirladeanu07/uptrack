@@ -416,8 +416,11 @@ export const checkAndCompleteLearning = async (userId: string, mealCache: MealCa
   };
 
   try {
-    await mergeUserProfile(userId, targets);
-    return targets;
+    const written = await mergeUserProfileTransaction(userId, stored => {
+      if (stored?.targetCalories != null && stored.maintenanceCalories != null) return null;
+      return targets;
+    });
+    return written ? targets : null;
   } catch (error) {
     console.error('checkAndCompleteLearning error:', error);
     return null;

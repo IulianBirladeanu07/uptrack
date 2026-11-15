@@ -468,6 +468,22 @@ describe('calculatePlanAdjustment - hold', () => {
 });
 
 describe('calculatePlanAdjustment - too_slow / too_fast', () => {
+  test('a too_slow gain holds instead of lowering the current target', () => {
+    const userData = {
+      ...baseUserData,
+      weightChangePlan: { type: 'muscle_gain', ratePerWeek: 0.25, tdee: 3500 },
+      targetWeight: '110',
+      targetCalories: 3823,
+      weightIns: buildWeightIns('2026-01-05', buildDailyWeights(95, 0.05 / 7, 35, [0])),
+    };
+    const weeklyCalorieData = buildWeeklyCalorieData([{ avgCalories: 3500 }, { avgCalories: 3500 }]);
+
+    const result = calculatePlanAdjustment(userData, weeklyCalorieData);
+
+    expect(result.suggestion).toBe('hold');
+    expect(result.newTargetCalories).toBeUndefined();
+  });
+
   test('suggests a calorie decrease when actual loss rate is well below target', () => {
     const userData = { ...baseUserData, slowEvalPending: true, targetCalories: 2600, weightIns: weeksOfDecline(95, 0.1) };
     const weeklyCalorieData = buildWeeklyCalorieData([{ avgCalories: 2600 }, { avgCalories: 2600 }]);
