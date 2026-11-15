@@ -445,7 +445,8 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
   const H = 176;
   const top = 14;
   const bot = 24;
-  const chartW = width - LP;
+  const gut = 44;
+  const chartW = width - LP - gut;
   const gap = n > 12 ? 3 : 5;
   const brk = slots.map((s, i) => i > 0 && Math.round((s.monday.getTime() - slots[i - 1].monday.getTime()) / DAY_MS) > 8);
   const nb = brk.filter(Boolean).length;
@@ -514,6 +515,7 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
             const x = xs[i];
             const hot = i === active;
             const showLabel = lab.has(i);
+            const showValue = hot || n <= 6;
             return (
               <React.Fragment key={i}>
                 {v != null && (
@@ -527,14 +529,14 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
                       fill={EAT}
                       fillOpacity={hot ? 1 : 0.5}
                     />
-                    {hot && (
+                    {showValue && (
                       <SvgText
-                        x={centers[i] + 40 > chartW ? chartW - 2 : centers[i]}
+                        x={centers[i]}
                         y={v < 0 ? y(v) + 12 : y(v) - 5}
                         fontSize={10}
-                        fontWeight="600"
-                        fill={EAT}
-                        textAnchor={centers[i] + 40 > chartW ? 'end' : 'middle'}
+                        fontWeight={hot ? '600' : '400'}
+                        fill={hot ? EAT : AX}
+                        textAnchor="middle"
                       >
                         {kfmt(v)}
                       </SvgText>
@@ -555,8 +557,13 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
               </React.Fragment>
             );
           })}
-          {ty != null && (
-            <Line x1={-LP} x2={chartW} y1={ty} y2={ty} stroke={PLAN} strokeOpacity={0.75} strokeWidth={1.5} strokeDasharray="4 4" />
+          <SvgText x={chartW + 6} y={y0 + 3} fontSize={10} fill={AX}>maint</SvgText>
+          {ty != null && target != null && (
+            <>
+              <Line x1={-LP} x2={chartW} y1={ty} y2={ty} stroke={PLAN} strokeOpacity={0.75} strokeWidth={1.5} strokeDasharray="4 4" />
+              <SvgText x={chartW + 6} y={ty - 3} fontSize={10} fill={AX}>target</SvgText>
+              <SvgText x={chartW + 6} y={ty + 10} fontSize={10} fontWeight="700" fill={PLAN}>{kfmt(target)}</SvgText>
+            </>
           )}
           </G>
         </Svg>
