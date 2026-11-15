@@ -797,43 +797,45 @@ const MonthsCard = ({ months, open, setOpen, all, setAll }: MonthsCardProps) => 
     );
 };
 
-const PastMonthRow = ({ month, last }: { month: MonthlyHistoryRow; last: boolean }) => (
-    <View style={[styles.historyMonth, last && styles.monthRowLast]}>
-        <View style={styles.historyMonthTitle}>
-            <Text style={styles.monthName}>{month.name} {month.year}</Text>
-            {month.phaseLabel && <Text style={styles.monthMeta}>{month.phaseLabel}</Text>}
-        </View>
-        <View style={styles.historyMetrics}>
-            <View style={styles.historyMetric}>
-                <Text style={styles.historyLabel}>Ended at</Text>
-                <Text style={styles.historyValue}>{month.endedAt == null ? '--' : `${fmt1(month.endedAt)} kg`}</Text>
-            </View>
-            <View style={styles.historyMetric}>
-                <Text style={styles.historyLabel}>Change</Text>
-                <Text style={styles.historyValue}>{month.change == null ? '--' : `${sg(month.change, 1)} kg`}</Text>
-                {month.changeWeeks != null && (
-                    <Text style={styles.historyMeta}>over {month.changeWeeks} weeks</Text>
-                )}
-                {month.change == null && month.changeReason != null && (
-                    <Text style={styles.historyMeta}>
-                        {month.changeReason === 'settling'
-                            ? 'settling after switch'
-                            : month.changeReason === 'gap'
-                                ? 'gap in weigh-ins'
-                                : 'needs 4 weeks'}
-                    </Text>
-                )}
-            </View>
-            <View style={styles.historyMetric}>
-                <Text style={styles.historyLabel}>Avg kcal</Text>
-                <Text style={styles.historyValue}>{month.avgKcal == null ? '--' : kfmt(month.avgKcal)}</Text>
-                {month.avgKcal != null && (
-                    <Text style={styles.historyMeta}>{month.avgKcalDays} logged days</Text>
-                )}
-            </View>
-        </View>
+const monthLabel = (month: MonthlyHistoryRow): string =>
+    `${month.name.slice(0, 3)}${month.year === new Date().getFullYear() ? '' : ` ${month.year}`}`;
+
+const changeReasonText = (reason: MonthlyHistoryRow['changeReason']): string | null =>
+    reason === 'settling' ? 'settling after switch' : reason === 'gap' ? 'gap in weigh-ins' : reason === 'short' ? 'needs 4 weeks' : null;
+
+const PastMonthsHeader = () => (
+    <View style={styles.historyHeader}>
+        <View style={styles.historyCellMonth} />
+        <View style={styles.historyCellEnded}><Text style={styles.historyLabel}>Ended</Text></View>
+        <View style={styles.historyCellChange}><Text style={styles.historyLabel}>Change</Text></View>
+        <View style={styles.historyCellAvg}><Text style={styles.historyLabel}>Avg kcal</Text></View>
     </View>
 );
+
+const PastMonthRow = ({ month, last }: { month: MonthlyHistoryRow; last: boolean }) => {
+    const reason = month.change == null ? changeReasonText(month.changeReason) : null;
+
+    return (
+        <View style={[styles.historyRow, last && styles.monthRowLast]}>
+            <View style={styles.historyCellMonth}>
+                <Text style={styles.monthName}>{monthLabel(month)}</Text>
+                {month.phaseLabel && <Text style={styles.historyMeta}>{month.phaseLabel}</Text>}
+            </View>
+            <View style={styles.historyCellEnded}>
+                <Text style={styles.historyValue}>{month.endedAt == null ? '--' : `${fmt1(month.endedAt)} kg`}</Text>
+            </View>
+            <View style={styles.historyCellChange}>
+                <Text style={styles.historyValue}>{month.change == null ? '--' : `${sg(month.change, 1)} kg`}</Text>
+                {month.changeWeeks != null && <Text style={styles.historyMeta}>over {month.changeWeeks} weeks</Text>}
+                {reason != null && <Text style={styles.historyMeta}>{reason}</Text>}
+            </View>
+            <View style={styles.historyCellAvg}>
+                <Text style={styles.historyValue}>{month.avgKcal == null ? '--' : kfmt(month.avgKcal)}</Text>
+                {month.avgKcal != null && <Text style={styles.historyMeta}>{month.avgKcalDays} logged days</Text>}
+            </View>
+        </View>
+    );
+};
 
 const PastMonthsCard = ({ months, all, setAll }: { months: MonthlyHistoryRow[]; all: boolean; setAll: (value: boolean) => void }) => {
     if (!months.length) return null;
@@ -849,6 +851,7 @@ const PastMonthsCard = ({ months, all, setAll }: { months: MonthlyHistoryRow[]; 
                     </TouchableOpacity>
                 )}
             </View>
+            <PastMonthsHeader />
             {shown.map((month, index) => (
                 <PastMonthRow key={`${month.key}:${month.phaseLabel ?? 'history'}:${index}`} month={month} last={index === shown.length - 1} />
             ))}

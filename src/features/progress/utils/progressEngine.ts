@@ -684,7 +684,10 @@ const maintSeries = (weeks: RatedWeek[]): (number | null)[] =>
   });
 
 export const balanceNote = (balance: number, weeks: number, window?: { start: string; end: string } | null): string => {
-  if (window) return `${shortDate(parseKey(window.start))}\u2013${shortDate(parseKey(window.end))} \u00b7 ${weeks}-week estimate`;
+  if (window) {
+    const span = weeks === 1 ? 'last week' : `last ${weeks} weeks`;
+    return `vs maintenance \u00b7 ${span} (${shortDate(parseKey(window.start))} \u2013 ${shortDate(parseKey(window.end))})`;
+  }
   const side = Math.abs(balance) < 50 ? 'around' : balance < 0 ? 'below' : 'above';
   return `${side} maintenance \u00b7 recent ${weeks}-week estimate`;
 };

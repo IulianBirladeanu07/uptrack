@@ -517,21 +517,35 @@ const styles = createStyles(() => ({
         fontWeight: fontWeight.medium,
         color: colors.text.secondary,
     },
-    historyMonth: {
-        paddingHorizontal: spacing[4],
-        paddingVertical: spacing[3],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
-    },
-    historyMonthTitle: {
-        marginBottom: spacing[2],
-    },
-    historyMetrics: {
+    historyHeader: {
         flexDirection: 'row',
         gap: spacing[2],
+        paddingHorizontal: spacing[4],
+        paddingTop: spacing[3],
+        paddingBottom: spacing[1],
     },
-    historyMetric: {
+    historyRow: {
+        flexDirection: 'row',
+        gap: spacing[2],
+        paddingHorizontal: spacing[4],
+        paddingVertical: spacing[3],
+        borderTopWidth: 1,
+        borderTopColor: colors.border.light,
+    },
+    historyCellMonth: {
         flex: 1,
+        minWidth: 0,
+    },
+    historyCellEnded: {
+        flex: 1,
+        minWidth: 0,
+    },
+    historyCellChange: {
+        flex: 1.5,
+        minWidth: 0,
+    },
+    historyCellAvg: {
+        flex: 1.1,
         minWidth: 0,
     },
     historyLabel: {
@@ -542,7 +556,6 @@ const styles = createStyles(() => ({
         letterSpacing: 0.6,
     },
     historyValue: {
-        marginTop: spacing[1],
         fontSize: fontSize[14],
         fontWeight: fontWeight.semibold,
         color: colors.text.primary,

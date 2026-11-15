@@ -445,13 +445,12 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
   const H = 176;
   const top = 14;
   const bot = 24;
-  const gut = 20;
-  const chartW = width - gut - LP;
+  const chartW = width - LP;
   const gap = n > 12 ? 3 : 5;
   const brk = slots.map((s, i) => i > 0 && Math.round((s.monday.getTime() - slots[i - 1].monday.getTime()) / DAY_MS) > 8);
   const nb = brk.filter(Boolean).length;
   const lab = new Set<number>();
-  for (let k = n - 1; k >= 0; k -= n <= 8 ? 2 : n <= 12 ? 3 : 4) lab.add(k);
+  for (let k = n - 1; k >= 0; k -= n <= 6 ? 1 : n <= 8 ? 2 : n <= 12 ? 3 : 4) lab.add(k);
   brk.forEach((on, k) => {
     if (on || k === 0) {
       lab.add(k);
@@ -460,7 +459,7 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
   });
   const pw = chartW - gap * (n - 1) - BREAK * nb;
   const slotW = pw / n;
-  const bw = Math.min(slotW * 0.7, 40);
+  const bw = Math.min(slotW * 0.7, 46);
   let breakOffset = 0;
   const xs = bal.map((_, i) => {
     if (i > 0 && brk[i]) breakOffset += BREAK;

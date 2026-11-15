@@ -562,7 +562,12 @@ describe('balanceNote', () => {
 
   test('includes the estimate window dates', () => {
     expect(balanceNote(207, 4, { start: '2026-10-12', end: '2026-11-08' }))
-      .toBe('Oct 12\u2013Nov 8 \u00b7 4-week estimate');
+      .toBe('vs maintenance \u00b7 last 4 weeks (Oct 12 \u2013 Nov 8)');
+  });
+
+  test('uses singular wording for a one-week window', () => {
+    expect(balanceNote(207, 1, { start: '2026-11-02', end: '2026-11-08' }))
+      .toBe('vs maintenance \u00b7 last week (Nov 2 \u2013 Nov 8)');
   });
 });
 
@@ -636,7 +641,7 @@ describe('energyModel', () => {
     expect(m.realRate).toBeGreaterThan(0.3);
     expect(m.maint.filter(v => v != null).pop()).toBe(m.maintNow);
     expect(m.balNote).toBe(
-      `${shortDate(dateFromKey(m.maintenanceWindow.start))}\u2013${shortDate(dateFromKey(m.maintenanceWindow.end))} \u00b7 ${m.statsWeeks}-week estimate`,
+      `vs maintenance \u00b7 last ${m.statsWeeks} weeks (${shortDate(dateFromKey(m.maintenanceWindow.start))} \u2013 ${shortDate(dateFromKey(m.maintenanceWindow.end))})`,
     );
   });
 
@@ -648,7 +653,7 @@ describe('energyModel', () => {
   test('describes the balance in plain words with the averaging window', () => {
     const m = energyModel(rated, 12, info);
     expect(m.balNote).toBe(
-      `${shortDate(dateFromKey(m.maintenanceWindow.start))}\u2013${shortDate(dateFromKey(m.maintenanceWindow.end))} \u00b7 ${m.statsWeeks}-week estimate`,
+      `vs maintenance \u00b7 last ${m.statsWeeks} weeks (${shortDate(dateFromKey(m.maintenanceWindow.start))} \u2013 ${shortDate(dateFromKey(m.maintenanceWindow.end))})`,
     );
   });
 
