@@ -24,7 +24,7 @@ import styles from './WorkoutDetailsStyle';
 import { colors, spacing } from '../../../../shared/theme';
 import { findBestSet, formatBestSet } from '../../handlers/WorkoutHandler';
 import { useAppNavigation, useAppRoute } from '../../../../shared/navigation';
-import { getWorkoutCardSummary } from './workoutCardSummary';
+import { getWorkoutCardSummary, getWorkoutPRs } from './workoutCardSummary';
 import { getWorkoutDetailsBackCount, getWorkoutDetailsEntryMode } from './workoutDetailsNavigation';
 import { getWorkoutPhotoFrame, getWorkoutStorySize } from './workoutStoryLayout';
 import {
@@ -55,7 +55,8 @@ const WorkoutDetails = () => {
     const [storyStyleMode, setStoryStyleMode] = useState<WorkoutStoryStyleMode>('solid');
     const [showList, setShowList] = useState(true);
     const compactList = isWorkoutListCompact(exercises.length);
-    const storyRows = getWorkoutStoryRowCount(exercises.length, showList);
+    const prs = useMemo(() => getWorkoutPRs(exercises), [exercises]);
+    const storyRows = getWorkoutStoryRowCount(exercises.length, prs.length, showList);
     const insets = useSafeAreaInsets();
     const [previewArea, setPreviewArea] = useState({ width: 0, height: 0 });
     const [storyContentSize, setStoryContentSize] = useState({ width: 0, height: 0 });
@@ -410,6 +411,24 @@ const WorkoutDetails = () => {
                         </View>
                     </View>
 
+                    {prs.length > 0 && (
+                        <View style={styles.completionPRs}>
+                            <View style={styles.completionPRHeader}>
+                                <Ionicons name="trophy" size={spacing.iconMd} color={colors.accent.primary} />
+                                <Text style={styles.completionPRTitle}>NEW PERSONAL RECORDS</Text>
+                            </View>
+                            {prs.map((pr, index) => (
+                                <View
+                                    key={`${pr.name}-${index}`}
+                                    style={[styles.completionPRRow, index === prs.length - 1 && styles.completionPRRowLast]}
+                                >
+                                    <Text style={styles.completionPRName} numberOfLines={1}>{pr.name}</Text>
+                                    <Text style={styles.completionPRValue} numberOfLines={1}>{pr.label}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+
                     <View style={styles.completionExerciseHeader}>
                         <Text style={styles.completionSectionTitle}>Exercises</Text>
                         <Text style={styles.completionExerciseCount}>
@@ -586,6 +605,27 @@ const WorkoutDetails = () => {
                                     <Text style={styles.statLabel}>PRs</Text>
                                 </View>
                             </View>
+
+                            {prs.length > 0 && (
+                                <View style={[styles.prBlock, storySurfaceStyle]}>
+                                    {prs.map((pr, index) => (
+                                        <View
+                                            key={`${pr.name}-${index}`}
+                                            style={[
+                                                styles.prRow,
+                                                index === prs.length - 1 && styles.exerciseRowLast,
+                                                storyStyleMode === 'clear' && styles.exerciseRowClear,
+                                            ]}
+                                            accessible
+                                            accessibilityLabel={`Personal record, ${pr.name}, ${pr.label}`}
+                                        >
+                                            <Ionicons name="trophy" size={spacing.iconSm} color={colors.accent.primary} />
+                                            <Text style={styles.prName} numberOfLines={1}>{pr.name}</Text>
+                                            <Text style={styles.prValue} numberOfLines={1}>{pr.label}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
 
                             {showList && (
                                 <View style={[styles.listContainer, storySurfaceStyle]}>

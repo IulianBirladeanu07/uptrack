@@ -38,12 +38,14 @@ export const isWorkoutListCompact = (exerciseCount: number): boolean =>
 
 export const getWorkoutStoryRowCount = (
     exerciseCount: number,
+    prCount: number,
     showList: boolean,
 ): number => {
-    if (!showList) return 0;
-    return isWorkoutListCompact(exerciseCount)
+    if (!showList) return prCount;
+    const listRows = isWorkoutListCompact(exerciseCount)
         ? Math.ceil(Math.ceil(exerciseCount / 2) * 1.3)
         : exerciseCount;
+    return listRows + prCount;
 };
 
 export type WorkoutStoryStyleMode = 'clear' | 'glass' | 'solid';

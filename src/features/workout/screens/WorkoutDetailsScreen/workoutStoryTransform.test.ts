@@ -21,9 +21,11 @@ describe('workout story transforms', () => {
     });
 
     it('counts the rows the story list occupies', () => {
-        expect(getWorkoutStoryRowCount(6, true)).toBe(6);
-        expect(getWorkoutStoryRowCount(10, true)).toBe(7);
-        expect(getWorkoutStoryRowCount(10, false)).toBe(0);
+        expect(getWorkoutStoryRowCount(6, 0, true)).toBe(6);
+        expect(getWorkoutStoryRowCount(10, 0, true)).toBe(7);
+        expect(getWorkoutStoryRowCount(10, 0, false)).toBe(0);
+        expect(getWorkoutStoryRowCount(6, 2, true)).toBe(8);
+        expect(getWorkoutStoryRowCount(6, 2, false)).toBe(2);
     });
 
     it('cycles through clear, glass, and solid overlay styles', () => {
