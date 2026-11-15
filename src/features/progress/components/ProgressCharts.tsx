@@ -455,7 +455,7 @@ export const BalanceChart = ({ bal, target, slots, width, sel = null, onSelect }
   brk.forEach((on, k) => {
     if (on || k === 0) {
       lab.add(k);
-      if (k + 1 < n && !brk[k + 1]) lab.delete(k + 1);
+      if (k + 1 < n && !brk[k + 1] && chartW / n < 36) lab.delete(k + 1);
     }
   });
   const pw = chartW - gap * (n - 1) - BREAK * nb;
