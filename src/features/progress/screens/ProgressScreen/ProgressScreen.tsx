@@ -581,7 +581,7 @@ const EnergyCard = ({ m, info, n, chartWidth }: { m: EnergyModel | null; info: P
             </ChartBox>
             <Stats
                 items={[
-                    { value: `~${kfmt(m.maintNow)}`, unit: m.margin != null ? `\u00b1${kfmt(m.margin)}` : undefined, label: 'Est. maintenance' },
+                    { value: `~${kfmt(m.maintNow)}`, unit: m.margin != null ? `\u00b1${kfmt(m.margin)}` : 'early', label: 'Est. maintenance' },
                     { value: kfmt(m.eatNow), label: 'Eating' },
                     { value: m.target != null ? kfmt(m.target) : '--', label: 'Eat target' },
                 ]}
