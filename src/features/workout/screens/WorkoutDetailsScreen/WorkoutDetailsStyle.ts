@@ -452,6 +452,30 @@ export const styles = createStyles(() => ({
     exerciseRowLast: {
         borderBottomWidth: 0,
     },
+    listColumns: {
+        flexDirection: 'row',
+        gap: spacing[3],
+    },
+    listColumn: {
+        flex: 1,
+        minWidth: 0,
+    },
+    compactRow: {
+        paddingVertical: spacing[2],
+        justifyContent: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255, 255, 255, 0.12)',
+    },
+    compactName: {
+        fontSize: fontSize[12],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.primary,
+    },
+    compactSet: {
+        fontSize: fontSize[10],
+        fontWeight: fontWeight.semibold,
+        color: colors.text.secondary,
+    },
     exerciseRowClear: {
         borderBottomColor: colors.border.default,
     },

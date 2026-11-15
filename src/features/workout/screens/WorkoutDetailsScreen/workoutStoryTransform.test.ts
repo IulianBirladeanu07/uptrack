@@ -4,6 +4,8 @@ import {
     clampWorkoutPhotoScale,
     clampWorkoutPhotoTranslation,
     getWorkoutStoryFitScale,
+    getWorkoutStoryRowCount,
+    isWorkoutListCompact,
     getWorkoutStoryCenterAlignment,
     getNextWorkoutStoryStyleMode,
     isWorkoutStoryCardAtPoint,
@@ -13,6 +15,17 @@ import {
 } from './workoutStoryTransform';
 
 describe('workout story transforms', () => {
+    it('switches to the compact two-column list above eight exercises', () => {
+        expect(isWorkoutListCompact(8)).toBe(false);
+        expect(isWorkoutListCompact(9)).toBe(true);
+    });
+
+    it('counts the rows the story list occupies', () => {
+        expect(getWorkoutStoryRowCount(6, true)).toBe(6);
+        expect(getWorkoutStoryRowCount(10, true)).toBe(7);
+        expect(getWorkoutStoryRowCount(10, false)).toBe(0);
+    });
+
     it('cycles through clear, glass, and solid overlay styles', () => {
         expect(getNextWorkoutStoryStyleMode('clear')).toBe('glass');
         expect(getNextWorkoutStoryStyleMode('glass')).toBe('solid');

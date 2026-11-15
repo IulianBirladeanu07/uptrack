@@ -31,6 +31,8 @@ import {
     clampWorkoutStoryScale,
     clampWorkoutStoryTranslation,
     getWorkoutStoryFitScale,
+    getWorkoutStoryRowCount,
+    isWorkoutListCompact,
     clampWorkoutPhotoScale,
     clampWorkoutPhotoTranslation,
     getNextWorkoutStoryStyleMode,
@@ -51,6 +53,9 @@ const WorkoutDetails = () => {
     const [photo, setPhoto] = useState<{ uri: string; width: number; height: number } | null>(null);
     const [isSharing, setIsSharing] = useState(false);
     const [storyStyleMode, setStoryStyleMode] = useState<WorkoutStoryStyleMode>('solid');
+    const [showList, setShowList] = useState(true);
+    const compactList = isWorkoutListCompact(exercises.length);
+    const storyRows = getWorkoutStoryRowCount(exercises.length, showList);
     const insets = useSafeAreaInsets();
     const [previewArea, setPreviewArea] = useState({ width: 0, height: 0 });
     const [storyContentSize, setStoryContentSize] = useState({ width: 0, height: 0 });
@@ -216,16 +221,16 @@ const WorkoutDetails = () => {
     useEffect(() => {
         if (previewArea.height > 0 && !hasUserTransformedStory.value) {
             storyScale.value = getWorkoutStoryFitScale(
-                exercises.length,
+                storyRows,
                 storySize.height,
                 !!photo,
             );
         }
-    }, [exercises.length, photo, previewArea.height, storySize.height]);
+    }, [storyRows, photo, previewArea.height, storySize.height]);
 
     const resetStoryLayout = () => {
         hasUserTransformedStory.value = false;
-        storyScale.value = getWorkoutStoryFitScale(exercises.length, storySize.height, !!photo);
+        storyScale.value = getWorkoutStoryFitScale(storyRows, storySize.height, !!photo);
         storyTranslateX.value = 0;
         storyTranslateY.value = 0;
     };
@@ -582,39 +587,81 @@ const WorkoutDetails = () => {
                                 </View>
                             </View>
 
-                            <View style={[styles.listContainer, storySurfaceStyle]}>
-                                {exercises.map((exercise, index) => {
-                                    const best = findBestSet(exercise.sets);
-                                    const bestSetIsPR = exercise.sets.some(set =>
-                                        !!set.isPR &&
-                                        Number(set.weight ?? 0) === best.weight &&
-                                        Number(set.reps ?? 0) === best.reps,
-                                    );
+                            {showList && (
+                                <View style={[styles.listContainer, storySurfaceStyle]}>
+                                    {compactList ? (
+                                        <View style={styles.listColumns}>
+                                            {[
+                                                exercises.slice(0, Math.ceil(exercises.length / 2)),
+                                                exercises.slice(Math.ceil(exercises.length / 2)),
+                                            ].map((column, columnIndex) => (
+                                                <View key={columnIndex} style={styles.listColumn}>
+                                                    {column.map((exercise, index) => {
+                                                        const best = findBestSet(exercise.sets);
+                                                        const bestSetIsPR = exercise.sets.some(set =>
+                                                            !!set.isPR &&
+                                                            Number(set.weight ?? 0) === best.weight &&
+                                                            Number(set.reps ?? 0) === best.reps,
+                                                        );
 
-                                    return (
-                                        <View
-                                            key={`${exercise.exerciseName}-${index}`}
-                                            style={[
-                                                styles.exerciseRow,
-                                                index === exercises.length - 1 && styles.exerciseRowLast,
-                                                storyStyleMode === 'clear' && styles.exerciseRowClear,
-                                            ]}
-                                            accessible
-                                            accessibilityLabel={`${exercise.sets.length} ${exercise.sets.length === 1 ? 'set' : 'sets'}, ${exercise.exerciseName || 'Exercise'}, best set ${formatBestSet(best) || '-'}${bestSetIsPR ? ', Personal record' : ''}`}
-                                        >
-                                            <View style={styles.exerciseLeft}>
-                                                <Text style={styles.exerciseSets}>{exercise.sets.length}x</Text>
-                                                <Text style={styles.exerciseName} numberOfLines={1}>
-                                                    {exercise.exerciseName || 'Exercise'}
-                                                </Text>
-                                            </View>
-                                            <Text style={[styles.bestSetValue, bestSetIsPR && styles.bestSetValuePR]} numberOfLines={1}>
-                                                {formatBestSet(best) || '-'}
-                                            </Text>
+                                                        return (
+                                                            <View
+                                                                key={`${exercise.exerciseName}-${index}`}
+                                                                style={[
+                                                                    styles.compactRow,
+                                                                    index === column.length - 1 && styles.exerciseRowLast,
+                                                                    storyStyleMode === 'clear' && styles.exerciseRowClear,
+                                                                ]}
+                                                                accessible
+                                                                accessibilityLabel={`${exercise.sets.length} ${exercise.sets.length === 1 ? 'set' : 'sets'}, ${exercise.exerciseName || 'Exercise'}, best set ${formatBestSet(best) || '-'}${bestSetIsPR ? ', Personal record' : ''}`}
+                                                            >
+                                                                <Text style={styles.compactName} numberOfLines={1}>
+                                                                    {exercise.exerciseName || 'Exercise'}
+                                                                </Text>
+                                                                <Text style={[styles.compactSet, bestSetIsPR && styles.bestSetValuePR]} numberOfLines={1}>
+                                                                    {exercise.sets.length}x · {formatBestSet(best) || '-'}
+                                                                </Text>
+                                                            </View>
+                                                        );
+                                                    })}
+                                                </View>
+                                            ))}
                                         </View>
-                                    );
-                                })}
-                            </View>
+                                    ) : (
+                                        exercises.map((exercise, index) => {
+                                            const best = findBestSet(exercise.sets);
+                                            const bestSetIsPR = exercise.sets.some(set =>
+                                                !!set.isPR &&
+                                                Number(set.weight ?? 0) === best.weight &&
+                                                Number(set.reps ?? 0) === best.reps,
+                                            );
+
+                                            return (
+                                                <View
+                                                    key={`${exercise.exerciseName}-${index}`}
+                                                    style={[
+                                                        styles.exerciseRow,
+                                                        index === exercises.length - 1 && styles.exerciseRowLast,
+                                                        storyStyleMode === 'clear' && styles.exerciseRowClear,
+                                                    ]}
+                                                    accessible
+                                                    accessibilityLabel={`${exercise.sets.length} ${exercise.sets.length === 1 ? 'set' : 'sets'}, ${exercise.exerciseName || 'Exercise'}, best set ${formatBestSet(best) || '-'}${bestSetIsPR ? ', Personal record' : ''}`}
+                                                >
+                                                    <View style={styles.exerciseLeft}>
+                                                        <Text style={styles.exerciseSets}>{exercise.sets.length}x</Text>
+                                                        <Text style={styles.exerciseName} numberOfLines={1}>
+                                                            {exercise.exerciseName || 'Exercise'}
+                                                        </Text>
+                                                    </View>
+                                                    <Text style={[styles.bestSetValue, bestSetIsPR && styles.bestSetValuePR]} numberOfLines={1}>
+                                                        {formatBestSet(best) || '-'}
+                                                    </Text>
+                                                </View>
+                                            );
+                                        })
+                                    )}
+                                </View>
+                            )}
                         </View>
                         <Text style={styles.storyFooter}>TRAINED WITH UPTRACK</Text>
                     </Animated.View>
@@ -686,6 +733,15 @@ const WorkoutDetails = () => {
                     >
                         <Ionicons name="image-outline" size={spacing.iconMd} color={colors.text.primary} />
                         <Text style={styles.secondaryBtnText}>{photo ? 'Change photo' : 'Choose photo'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.secondaryBtn}
+                        onPress={() => setShowList(current => !current)}
+                        accessibilityRole="button"
+                        accessibilityLabel={showList ? 'Hide exercise list' : 'Show exercise list'}
+                    >
+                        <Ionicons name="list-outline" size={spacing.iconMd} color={colors.text.primary} />
+                        <Text style={styles.secondaryBtnText}>{showList ? 'Hide list' : 'Show list'}</Text>
                     </TouchableOpacity>
                 </View>
                 <TouchableOpacity

@@ -31,6 +31,21 @@ export const getWorkoutStoryFitScale = (
     return clampWorkoutStoryScale(fitScale);
 };
 
+export const COMPACT_LIST_THRESHOLD = 8;
+
+export const isWorkoutListCompact = (exerciseCount: number): boolean =>
+    exerciseCount > COMPACT_LIST_THRESHOLD;
+
+export const getWorkoutStoryRowCount = (
+    exerciseCount: number,
+    showList: boolean,
+): number => {
+    if (!showList) return 0;
+    return isWorkoutListCompact(exerciseCount)
+        ? Math.ceil(Math.ceil(exerciseCount / 2) * 1.3)
+        : exerciseCount;
+};
+
 export type WorkoutStoryStyleMode = 'clear' | 'glass' | 'solid';
 
 const WORKOUT_STORY_STYLE_MODES: WorkoutStoryStyleMode[] = ['clear', 'glass', 'solid'];
